@@ -174,7 +174,7 @@ export const METRICS_ZH: Record<string, string> = {
   'metrics.tpl.outputUnit': '输出单位',
   'metrics.tpl.outputUnitPlaceholder': '沿用指标定义单位',
   'metrics.tpl.outputUnitHint': '留空则沿用指标定义口径单位；填写后覆盖，用于规则展示。',
-  'metrics.tpl.operatorTitle': '启用算子',
+  'metrics.tpl.operatorTitle': '启用运算符',
   'metrics.tpl.operatorCount': '白名单共 {total} 个，已启用 {enabled} 个',
   'metrics.tpl.domainTitle': '值域配置',
   'metrics.tpl.domainHint': '支持分段，每段独立步长',

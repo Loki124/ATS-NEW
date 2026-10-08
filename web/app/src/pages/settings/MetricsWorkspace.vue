@@ -350,58 +350,49 @@
       </template>
     </n-modal>
 
-    <!-- ========== 指标模板新建/编辑弹窗（PRD：参数 / 算子 / 值域） ========== -->
+    <!-- ========== 指标模板新建/编辑弹窗（重构 v2：品牌仪表盘 / 编号分区 / 等宽技术感） ========== -->
     <n-modal
       v-model:show="showTemplateModal"
       preset="card"
       :closable="true"
-      style="width: 880px; max-width: 94vw; max-height: 90vh;"
+      class="tpl-modal"
       :mask-closable="false"
+      :style="{ width: 'auto', minWidth: '460px', maxWidth: 'min(940px, 96vw)', maxHeight: '90vh' }"
     >
       <template #header>
         <div class="tpl-head">
-          <span class="tpl-head-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="m7 16 4-8 4 4 5-9" /></svg></span>
+          <span class="tpl-monogram"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="m7 16 4-8 4 4 5-9" /></svg></span>
           <div class="tpl-head-main">
             <div class="tpl-head-title">
               {{ templateModalTitle }}
-              <n-tag v-if="templateEditId" size="small" type="info">{{ t('metrics.tpl.modeEdit') }}</n-tag>
+              <n-tag v-if="templateEditId" size="tiny" type="primary" round>{{ t('metrics.tpl.modeEdit') }}</n-tag>
             </div>
             <div v-if="templateMetaLine" class="tpl-head-meta">{{ templateMetaLine }}</div>
           </div>
         </div>
       </template>
+
       <n-form :model="tplForm" label-placement="top" class="tpl-form">
-        <!-- 分区 A：基础信息（严格对齐原型：区块卡 + 图标 + ⓘ） -->
-        <section class="tpl-section-card">
-          <div class="tpl-section-header">
-            <span class="tpl-sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.8 2.7 8.5 8.5a2 2 0 0 1 0 2.8l-7.3 7.3a2 2 0 0 1-2.8 0L2.7 12.8a2 2 0 0 1-.6-1.4L2 4a2 2 0 0 1 2-2l7.4.1a2 2 0 0 1 1.4.6Z" /><path d="M7 7h.01" /></svg></span>
-            <span class="tpl-section-title">{{ t('metrics.tpl.baseTitle') }}</span>
-            <n-tooltip trigger="hover" placement="top">
-              <template #trigger>
-                <span class="tpl-info-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg></span>
-              </template>
-              {{ t('metrics.tpl.baseTip') }}
-            </n-tooltip>
+        <!-- 01 基础信息 -->
+        <section class="tpl-sec">
+          <div class="tpl-sec-head"><span class="tpl-sec-title">{{ t('metrics.tpl.baseTitle') }}</span></div>
+          <div class="tpl-fields">
+            <n-form-item :label="t('metrics.form.name')" required class="tpl-grow2">
+              <n-input v-model:value="tplForm.name" :placeholder="t('metrics.form.name')" />
+            </n-form-item>
+            <n-form-item :label="t('metrics.form.metricDefinition')" required>
+              <n-select
+                v-model:value="tplForm.metricDefinition"
+                :options="metricDefinitionOptions"
+                clearable
+                :placeholder="t('metrics.form.metricDefinition')"
+                @update:value="onTemplateMetricChange"
+              />
+            </n-form-item>
           </div>
-          <n-form-item :label="t('metrics.form.name')" required>
-            <n-input v-model:value="tplForm.name" :placeholder="t('metrics.form.name')" />
-          </n-form-item>
-
-          <n-form-item :label="t('metrics.form.metricDefinition')" required>
-            <n-select
-              v-model:value="tplForm.metricDefinition"
-              :options="metricDefinitionOptions"
-              clearable
-              :placeholder="t('metrics.form.metricDefinition')"
-              @update:value="onTemplateMetricChange"
-            />
-          </n-form-item>
-
-          <!-- 继承栏：出参（类型 + 单位 pill）+ 取值方式 + 锁定（严格对齐原型） -->
-          <div v-if="selectedTemplateDefinition" class="tpl-output-bar">
-            <span class="tpl-output-label">{{ t('metrics.tpl.outputParam') }}</span>
-            <n-tag size="small" type="info">{{ returnTypeLabel(selectedTemplateDefinition.returnType) }}</n-tag>
-            <!-- 出参单位：多单位 → 内联 pill（必选 *）；单单位 → 静态继承值；无单位 → 隐藏 -->
+          <div v-if="selectedTemplateDefinition" class="tpl-inherit">
+            <span class="tpl-inherit-k">出参</span>
+            <span class="tpl-inherit-v">{{ returnTypeLabel(selectedTemplateDefinition.returnType) }}</span>
             <template v-if="outputUnitOptions.length > 1">
               <button
                 v-for="u in outputUnitOptions"
@@ -411,119 +402,74 @@
                 :class="{ 'is-on': tplForm.unit === u }"
                 @click="setUnit(u)"
               >
-{{ u }}
-</button>
-              <span class="tpl-req">*</span>
+                {{ u }}
+              </button>
             </template>
-            <span v-else-if="outputUnitOptions.length === 1" class="tpl-output-unit">{{ tplForm.unit || outputUnitOptions[0] }}</span>
-            <span v-else class="tpl-output-unit">{{ t('metrics.tpl.noUnit') }}</span>
-            <span class="tpl-out-sep">·</span>
-            <span class="tpl-output-label">{{ t('metrics.tpl.valueModeLabel') }}</span>
-            <span class="tpl-output-mode">{{ valueModeLabel }}</span>
-            <span class="tpl-output-hint tpl-lock">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-              <n-tooltip trigger="hover" placement="top">
-                <template #trigger>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
-                </template>
-                {{ t('metrics.tpl.inheritedHint') }}
-              </n-tooltip>
+            <span v-else class="tpl-inherit-v tpl-inherit-strong">{{ tplForm.unit || outputUnitOptions[0] || t('metrics.tpl.noUnit') }}</span>
+            <span class="tpl-inherit-sep">/</span>
+            <span class="tpl-inherit-k">取值</span>
+            <span class="tpl-inherit-v">{{ valueModeLabel }}</span>
+          </div>
+        </section>
+
+        <!-- 02 参数配置 -->
+        <section v-if="showTemplateParamConfig" class="tpl-sec">
+          <div class="tpl-sec-head">
+            <span class="tpl-sec-title">{{ t('metrics.tpl.paramConfigTitle') }}</span>
+            <n-tag size="tiny" :type="selectedTemplateDefinition?.paramType === 'continuous' ? 'success' : 'warning'" round>{{ paramTypeLabel(selectedTemplateDefinition?.paramType) }}</n-tag>
+            <span v-if="paramUnitOptions.length > 1" class="tpl-sec-units">
+              <button v-for="u in paramUnitOptions" :key="u" type="button" class="tpl-pill" :class="{ 'is-on': tplForm.paramUnit === u }" @click="setPunit(u)">
+                {{ u }}
+              </button>
             </span>
+            <span v-else-if="paramUnitOptions.length === 1" class="tpl-sec-static">{{ paramUnitOptions[0] }}</span>
+          </div>
+          <div class="tpl-param-block">
+            <div class="tpl-range-row">
+              <div class="tpl-range-item">
+                <span class="tpl-range-lbl">{{ t('metrics.tpl.range') }}</span>
+                <n-input-number v-model:value="tplForm.paramConfig.min" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num"><template #suffix>{{ currentParamUnit }}</template></n-input-number>
+                <span class="tpl-range-sep">~</span>
+                <n-input-number v-model:value="tplForm.paramConfig.max" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num"><template #suffix>{{ currentParamUnit }}</template></n-input-number>
+              </div>
+              <div class="tpl-range-item">
+                <span class="tpl-range-lbl">{{ t('metrics.tpl.step') }}</span>
+                <n-input-number v-model:value="tplForm.paramConfig.step" :min="0" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num"><template #suffix>{{ currentParamUnit }}</template></n-input-number>
+              </div>
+              <div class="tpl-range-item">
+                <span class="tpl-range-lbl">{{ t('metrics.tpl.display') }}</span>
+                <n-input v-model:value="tplForm.paramConfig.prefix" placeholder="前缀" class="tpl-mini" />
+                <span class="tpl-range-static">值</span>
+                <n-input v-model:value="tplForm.paramConfig.suffix" placeholder="后缀" class="tpl-mini" />
+              </div>
+              <label class="tpl-range-item tpl-range-all">
+                <n-checkbox v-model:checked="tplForm.paramConfig.allOption" />
+                <span class="tpl-all-text">{{ t('metrics.tpl.allOption') }}</span>
+                <n-input v-if="tplForm.paramConfig.allOption" v-model:value="tplForm.paramConfig.allText" placeholder="全部工作经历" class="tpl-mini" />
+              </label>
+            </div>
+            <div v-if="rangePreviewVisible" class="tpl-preview">
+              <span class="tpl-preview-tag">[{{ rangePreviewTag }}]</span>
+              <span class="tpl-preview-meta">· {{ t('metrics.tpl.valuePreview', { count: rangePreviewCount }) }}：</span>
+              <span class="tpl-preview-vals">{{ rangePreviewValues.join(', ') }}{{ rangePreviewMore ? ', …' : '' }}</span>
+              <span v-if="currentParamUnit" class="tpl-preview-meta">（{{ currentParamUnit }}）</span>
+            </div>
           </div>
         </section>
 
-        <!-- 参数配置：仅参数化 Handler 类型指标展示（严格对齐原型：单位 pill 右对齐 + 紧凑范围单行） -->
-        <section v-if="showTemplateParamConfig" class="tpl-section-card">
-          <div class="tpl-section-header">
-            <span class="tpl-sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4" /><line x1="10" x2="3" y1="4" y2="4" /><line x1="21" x2="12" y1="12" y2="12" /><line x1="8" x2="3" y1="12" y2="12" /><line x1="21" x2="16" y1="20" y2="20" /><line x1="12" x2="3" y1="20" y2="20" /><line x1="14" x2="14" y1="2" y2="6" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="16" x2="16" y1="18" y2="22" /></svg></span>
-            <span class="tpl-section-title">{{ t('metrics.tpl.paramConfigTitle') }}</span>
-            <n-tag
-              size="small"
-              :type="selectedTemplateDefinition?.paramType === 'continuous' ? 'success' : 'warning'"
-            >
-              {{ paramTypeLabel(selectedTemplateDefinition?.paramType) }}
-            </n-tag>
-            <n-tooltip trigger="hover" placement="top">
-              <template #trigger>
-                <span class="tpl-info-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg></span>
-              </template>
-              {{ paramConfigHint }}
-            </n-tooltip>
-            <!-- 参数配置单位（标题同行右对齐，仅约束取值范围） -->
-            <template v-if="paramUnitOptions.length > 1">
-              <span class="tpl-pu-label">{{ t('metrics.tpl.paramConfigUnit') }}</span>
-              <button
-                v-for="u in paramUnitOptions"
-                :key="u"
-                type="button"
-                class="tpl-pill"
-                :class="{ 'is-on': tplForm.paramUnit === u }"
-                @click="setPunit(u)"
-              >
-{{ u }}
-</button>
-            </template>
-            <span v-else-if="paramUnitOptions.length === 1" class="tpl-pu-static">{{ paramUnitOptions[0] }}</span>
+        <!-- 03 启用运算符 -->
+        <section class="tpl-sec">
+          <div class="tpl-sec-head">
+            <span class="tpl-sec-title">{{ t('metrics.tpl.operatorTitle') }}</span>
+            <span v-if="supportedOperatorOptions.length" class="tpl-sec-count">{{ tplForm.operators.length }}/{{ supportedOperatorOptions.length }}</span>
           </div>
-
-          <!-- 取值范围：紧凑单行（对齐原型截图） -->
-          <div class="tpl-range-row">
-            <div class="tpl-range-item">
-              <span class="tpl-range-lbl">{{ t('metrics.tpl.range') }}</span>
-              <n-input-number v-model:value="tplForm.paramConfig.min" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num">
-                <template #suffix>{{ currentParamUnit }}</template>
-              </n-input-number>
-              <span class="tpl-range-sep">~</span>
-              <n-input-number v-model:value="tplForm.paramConfig.max" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num">
-                <template #suffix>{{ currentParamUnit }}</template>
-              </n-input-number>
-            </div>
-            <div class="tpl-range-item">
-              <span class="tpl-range-lbl">{{ t('metrics.tpl.step') }}</span>
-              <n-input-number v-model:value="tplForm.paramConfig.step" :min="0" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num">
-                <template #suffix>{{ currentParamUnit }}</template>
-              </n-input-number>
-            </div>
-            <div class="tpl-range-item">
-              <span class="tpl-range-lbl">{{ t('metrics.tpl.display') }}</span>
-              <n-input v-model:value="tplForm.paramConfig.prefix" placeholder="前缀" class="tpl-mini" />
-              <span class="tpl-range-static">值</span>
-              <n-input v-model:value="tplForm.paramConfig.suffix" placeholder="后缀" class="tpl-mini" />
-            </div>
-            <div class="tpl-range-item tpl-range-all">
-              <n-checkbox v-model:checked="tplForm.paramConfig.allOption" />
-              <span class="tpl-all-text">{{ t('metrics.tpl.allOption') }}</span>
-              <n-input v-if="tplForm.paramConfig.allOption" v-model:value="tplForm.paramConfig.allText" placeholder="全部工作经历" class="tpl-mini" />
-            </div>
-          </div>
-          <!-- 范围预览（对齐原型 refreshRangePreview）：[全部文案] · 共 N 个值： 前 7 个 + … （单位） -->
-          <div v-if="rangePreviewVisible" class="tpl-preview">
-            <span class="tpl-preview-tag">[{{ rangePreviewTag }}]</span>
-            <span class="tpl-preview-meta">· {{ t('metrics.tpl.valuePreview', { count: rangePreviewCount }) }}：</span>
-            <span class="tpl-preview-vals">{{ rangePreviewValues.join(', ') }}{{ rangePreviewMore ? ', …' : '' }}</span>
-            <span v-if="currentParamUnit" class="tpl-preview-meta">（{{ currentParamUnit }}）</span>
-          </div>
-        </section>
-
-        <!-- 启用算子 -->
-        <section class="tpl-section-card">
-          <div class="tpl-section-header">
-            <span class="tpl-sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="9" y2="9" /><line x1="5" x2="19" y1="15" y2="15" /></svg></span>
-            <span class="tpl-section-title">{{ t('metrics.tpl.operatorTitle') }}</span>
-            <n-tooltip trigger="hover" placement="top">
-              <template #trigger>
-                <span class="tpl-info-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg></span>
-              </template>
-              {{ t('metrics.tpl.operatorCount', { total: supportedOperatorOptions.length, enabled: tplForm.operators.length }) }}
-            </n-tooltip>
-          </div>
-          <div class="tpl-section-body">
-            <div v-if="supportedOperatorOptions.length" class="tpl-operator-chips">
+          <div class="tpl-ops-block">
+            <div v-if="supportedOperatorOptions.length" class="tpl-ops">
               <label
                 v-for="op in supportedOperatorOptions"
                 :key="op.value"
-                class="tpl-op-chip"
-                :class="{ 'is-checked': tplForm.operators.includes(op.value) }"
+                class="tpl-op"
+                :class="{ 'is-on': tplForm.operators.includes(op.value) }"
               >
                 <input
                   type="checkbox"
@@ -531,107 +477,73 @@
                   :checked="tplForm.operators.includes(op.value)"
                   @change="toggleOperator(op.value)"
                 />
-                <n-icon v-if="tplForm.operators.includes(op.value)" :component="CheckmarkOutline" />
-                <span v-if="opSymbol(op.value)" class="op-sym">{{ opSymbol(op.value) }}</span>
-                <span>{{ op.label }}</span>
+                <span v-if="opSymbol(op.value)" class="tpl-op-sym">{{ opSymbol(op.value) }}</span>
+                <span class="tpl-op-lbl">{{ op.label }}</span>
               </label>
             </div>
-            <div v-else class="tpl-info-text">
-              {{ t('metrics.tpl.noMetricSelected') }}
-            </div>
+            <div v-else class="tpl-info-text">{{ t('metrics.tpl.noMetricSelected') }}</div>
           </div>
         </section>
 
-        <!-- 值域配置 -->
-        <section class="tpl-section-card">
-          <div class="tpl-section-header">
-            <span class="tpl-sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.8 2.7 8.5 8.5a2 2 0 0 1 0 2.8l-7.3 7.3a2 2 0 0 1-2.8 0L2.7 12.8a2 2 0 0 1-.6-1.4L2 4a2 2 0 0 1 2-2l7.4.1a2 2 0 0 1 1.4.6Z" /><path d="M7 7h.01" /></svg></span>
-            <span class="tpl-section-title">{{ t('metrics.tpl.domainTitle') }}</span>
-            <span class="tpl-section-hint">{{ t('metrics.tpl.domainHint') }}</span>
-          </div>
-          <div class="tpl-section-body">
-            <div v-for="(seg, idx) in tplForm.valueDomain.segments" :key="idx" class="tpl-seg-card">
-              <span class="tpl-seg-tag">段{{ idx + 1 }}</span>
-              <n-input-number v-model:value="seg.min" :precision="paramPrecision" :show-button="false" class="tpl-seg-num" placeholder="0" />
-              <span class="tpl-range-sep">~</span>
-              <n-input-number v-model:value="seg.max" :precision="paramPrecision" :show-button="false" class="tpl-seg-num" placeholder="上限" />
-              <span class="tpl-unit-text">{{ tplForm.unit || selectedTemplateDefinition?.unit }}</span>
-              <span class="tpl-seg-steplbl">{{ t('metrics.tpl.step') }}</span>
-              <n-input-number v-model:value="seg.step" :min="0" :precision="paramPrecision" :show-button="false" class="tpl-seg-num tpl-seg-step" placeholder="1" />
-              <n-button size="tiny" quaternary circle type="error" class="tpl-seg-del" :title="t('metrics.btn.delete')" @click="removeSegment(idx)">
-                <template #icon><n-icon :component="CloseOutline" /></template>
+        <!-- 04 值域配置 -->
+        <section class="tpl-sec">
+          <div class="tpl-sec-head"><span class="tpl-sec-title">{{ t('metrics.tpl.domainTitle') }}</span></div>
+          <div class="tpl-domain-block">
+            <div class="tpl-segments">
+              <div v-for="(seg, idx) in tplForm.valueDomain.segments" :key="idx" class="tpl-seg-row">
+                <span class="tpl-seg-tag">段{{ idx + 1 }}</span>
+                <n-input-number v-model:value="seg.min" :precision="paramPrecision" :show-button="false" class="tpl-seg-num" placeholder="0" />
+                <span class="tpl-range-sep">~</span>
+                <n-input-number v-model:value="seg.max" :precision="paramPrecision" :show-button="false" class="tpl-seg-num" placeholder="上限" />
+                <span class="tpl-unit-text">{{ tplForm.unit || selectedTemplateDefinition?.unit }}</span>
+                <span class="tpl-seg-steplbl">{{ t('metrics.tpl.step') }}</span>
+                <n-input-number v-model:value="seg.step" :min="0" :precision="paramPrecision" :show-button="false" class="tpl-seg-num tpl-seg-step" placeholder="1" />
+                <n-button size="tiny" quaternary circle type="error" class="tpl-seg-del" :title="t('metrics.btn.delete')" @click="removeSegment(idx)">
+                  <template #icon><n-icon :component="CloseOutline" /></template>
+                </n-button>
+              </div>
+              <n-button size="small" dashed class="tpl-add-seg" @click="addSegment">
+                <template #icon><n-icon :component="AddOutline" /></template>
+                {{ t('metrics.tpl.addSegment') }}
               </n-button>
-            </div>
-            <n-button size="small" dashed class="tpl-add-seg" @click="addSegment">
-              <template #icon><n-icon :component="AddOutline" /></template>
-              {{ t('metrics.tpl.addSegment') }}
-            </n-button>
-            <div v-if="domainValueCount" class="domain-summary">
-              <span class="ds-tag">共 {{ domainValueCount }} 个值</span>
-              <span class="ds-vals">{{ domainSummaryText }}</span>
+              <div v-if="domainValueCount" class="domain-summary">
+                <span class="ds-tag">共 {{ domainValueCount }} 个值</span>
+                <span class="ds-vals">{{ domainSummaryText }}</span>
+              </div>
             </div>
           </div>
         </section>
 
-        <!-- 配置预览：规则配置者实际看到的条件下拉（单行，随配置实时更新） -->
-        <section class="tpl-section-card tpl-preview-card">
-          <div class="tpl-section-header">
-            <span class="tpl-sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg></span>
-            <span class="tpl-section-title">{{ t('metrics.tpl.previewTitle') }}</span>
-            <n-tooltip trigger="hover" placement="top">
-              <template #trigger>
-                <span class="tpl-info-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg></span>
-              </template>
-              {{ t('metrics.tpl.previewHint') }}
-            </n-tooltip>
-          </div>
-          <div class="tpl-preview-row" :class="{ 'no-param': !showTemplateParamConfig }">
-            <n-select
-              :value="previewMetricItemValue"
-              :options="previewMetricItemOptions"
-              class="pv-select"
-            />
+        <!-- 配置预览（仪表读数条） -->
+        <section class="tpl-readout">
+          <div class="tpl-readout-eyebrow">{{ t('metrics.tpl.previewTitle') }} · 规则配置者所见</div>
+          <div class="tpl-readout-row" :class="{ 'no-param': !showTemplateParamConfig }">
+            <n-select :value="previewMetricItemValue" :options="previewMetricItemOptions" class="pv-select" />
             <span v-if="showTemplateParamConfig" class="pv-arrow">→</span>
-            <n-select
-              v-if="showTemplateParamConfig"
-              :value="previewParamValue"
-              :options="previewParamOptions"
-              class="pv-select"
-            />
+            <n-select v-if="showTemplateParamConfig" :value="previewParamValue" :options="previewParamOptions" class="pv-select" />
             <span class="pv-arrow">→</span>
-            <n-select
-              :value="previewOpValue"
-              :options="previewOpOptions"
-              class="pv-select"
-            />
+            <n-select :value="previewOpValue" :options="previewOpOptions" class="pv-select" />
             <span class="pv-arrow">→</span>
-            <n-select
-              :value="previewCheckValue"
-              :options="previewCheckValueOptions"
-              placeholder="校验值"
-              class="pv-select"
-            />
-            <span class="pv-then">{{ t('metrics.tpl.previewThen') }}</span>
+            <n-select :value="previewCheckValue" :options="previewCheckValueOptions" placeholder="校验值" class="pv-select" />
           </div>
         </section>
 
-        <n-form-item :label="t('metrics.form.description')">
-          <n-input v-model:value="tplForm.description" type="textarea" :rows="2" />
-        </n-form-item>
-        <n-form-item :label="t('metrics.form.status')">
-          <n-switch
-            v-model:value="tplForm.status"
-            checked-value="enabled"
-            unchecked-value="disabled"
-          >
-            <template #checked>{{ t('metrics.status.enabled') }}</template>
-            <template #unchecked>{{ t('metrics.status.disabled') }}</template>
-          </n-switch>
-        </n-form-item>
+        <!-- 描述 + 状态 -->
+        <div class="tpl-foot-fields">
+          <n-form-item :label="t('metrics.form.description')">
+            <n-input v-model:value="tplForm.description" type="textarea" :rows="2" :placeholder="t('metrics.form.description')" />
+          </n-form-item>
+          <n-form-item :label="t('metrics.form.status')" class="tpl-status">
+            <n-switch v-model:value="tplForm.status" checked-value="enabled" unchecked-value="disabled">
+              <template #checked>{{ t('metrics.status.enabled') }}</template>
+              <template #unchecked>{{ t('metrics.status.disabled') }}</template>
+            </n-switch>
+          </n-form-item>
+        </div>
       </n-form>
 
       <template #footer>
-        <n-space justify="end">
+        <n-space justify="end" class="tpl-footer">
           <n-button @click="showTemplateModal = false">{{ t('metrics.btn.cancel') }}</n-button>
           <n-button type="primary" :loading="savingTpl" @click="submitTemplate">{{ t('metrics.btn.save') }}</n-button>
         </n-space>
@@ -2606,274 +2518,161 @@ onUnmounted(() => {
 
 .tpl-unit-field { margin-bottom: var(--space-4); }
 
-/* 模板弹窗分段 */
-.tpl-form { padding-right: 2px; }
-.tpl-section { width: 100%; }
-.tpl-row { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-1); align-items: flex-end; }
-.tpl-field { flex: 1 1 0; min-width: 140px; margin-bottom: var(--space-1); }
-.tpl-segments { display: flex; flex-direction: column; gap: var(--space-2); }
-.seg-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
-.seg-field { flex: 1 1 120px; }
-
-/* 指标模板弹窗新样式 */
-.tpl-output-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  margin-bottom: var(--space-4);
-  background: var(--c-info-soft);
-  border: 1px solid color-mix(in srgb, var(--c-info) 20%, transparent);
-  border-radius: var(--radius-md);
-  font-size: var(--text-small, 13px);
+/* ===== 指标模板弹窗（重构 v3：区域分块 / 品牌仪表盘） ===== */
+.tpl-modal { width: auto; --tpl-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace; }
+.tpl-modal :deep(.n-card) { max-height: 90vh; border-radius: var(--radius-lg); overflow: hidden; }
+.tpl-modal :deep(.n-card__header) {
+  padding: var(--space-4) var(--space-5);
+  background: linear-gradient(120deg, var(--brand-soft), transparent 62%);
+  border-bottom: 1px solid var(--border-hairline);
 }
-.tpl-output-label { color: var(--ink-soft); font-weight: 500; }
-.tpl-output-unit { color: var(--ink); font-weight: 600; }
-.tpl-output-hint { margin-left: auto; color: var(--ink-faint); }
+.tpl-modal :deep(.n-card__content) { padding: 0; }
+.tpl-modal :deep(.n-card__footer) {
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border-hairline);
+  background: var(--surface);
+}
 
-/* 弹窗头部（对齐原型 modal header：图标 + 标题 + 元信息） */
+/* 头部 */
 .tpl-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
-.tpl-head-ico {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
-  background: var(--c-info-soft);
-  color: var(--c-info-deep);
-  flex-shrink: 0;
+.tpl-monogram {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+  background: var(--brand-600); color: var(--on-brand);
+  box-shadow: 0 4px 12px var(--brand-a32);
 }
 .tpl-head-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.tpl-head-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--fs-16);
-  font-weight: 600;
-  color: var(--ink);
-  line-height: 1.3;
-}
-.tpl-head-meta { font-size: var(--fs-12); color: var(--ink-faint); }
+.tpl-head-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-16); font-weight: 700; color: var(--ink); line-height: 1.3; }
+.tpl-head-meta { font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--ink-faint); letter-spacing: .01em; }
 
-.tpl-section-card {
-  background: var(--surface);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-.tpl-section-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-  flex-wrap: wrap;
-}
-.tpl-sec-ico {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-sm);
-  background: var(--c-info-soft);
-  color: var(--c-info-deep);
+/* 表单主体 + 编号计数器 */
+.tpl-form { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-6); counter-reset: tplsec; }
+.tpl-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--space-4); }
+.tpl-fields .tpl-grow2 { grid-column: 1 / -1; }
+
+/* 分区（品牌编号方块） */
+.tpl-sec { counter-increment: tplsec; }
+.tpl-sec-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
+.tpl-sec-head::before {
+  content: counter(tplsec, decimal-leading-zero);
+  font-family: var(--tpl-mono);
+  font-size: var(--fs-12); font-weight: 700;
+  color: var(--on-brand);
+  background: var(--brand-600);
+  width: 22px; height: 22px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px var(--brand-a32);
 }
-.tpl-sec-ico svg { display: block; }
-.tpl-section-title { font-weight: 600; color: var(--ink); }
-.tpl-section-hint { margin-left: auto; color: var(--ink-faint); font-size: var(--fs-12); }
+.tpl-sec-title { font-size: var(--fs-13); font-weight: 600; color: var(--ink); }
+.tpl-sec-count { margin-left: auto; font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--brand-text); background: var(--brand-soft); padding: 1px 8px; border-radius: 999px; }
+.tpl-sec-units { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.tpl-sec-static { margin-left: auto; font-family: var(--tpl-mono); color: var(--brand-text); font-weight: 600; font-size: var(--fs-12); }
 
-/* ⓘ 提示图标（对齐原型 info tooltip 触发点） */
-.tpl-info-ico {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink-faint);
-  cursor: help;
-  transition: color var(--dur-fast) var(--ease-out);
-}
-.tpl-info-ico:hover { color: var(--c-info); }
-
-/* 运算符符号 + 必填星号 */
-.op-sym { font-weight: 700; font-variant-numeric: tabular-nums; }
-.tpl-req { color: var(--c-danger, #ef4444); font-weight: 700; margin-left: 2px; }
-
-/* 添加分段按钮（对齐原型 dashed add） */
-.tpl-add-seg { color: var(--c-info-deep); }
-
-/* 范围预览文本（对齐原型 refreshRangePreview） */
-.tpl-preview-meta { color: var(--c-info-deep); opacity: 0.85; }
-.tpl-preview-vals { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.tpl-pu-label { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; margin-left: var(--space-3); }
-.tpl-pu-static { color: var(--ink); font-weight: 600; font-size: var(--fs-12); padding-left: 2px; }
-.tpl-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 12px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-hairline);
-  background: var(--surface);
-  color: var(--ink-soft);
+/* 继承信息（品牌浅底块） */
+.tpl-inherit {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--brand-tint);
+  border: 1px solid var(--brand-a12);
+  border-radius: var(--radius-md);
   font-size: var(--fs-12);
-  line-height: 1.4;
-  cursor: pointer;
+}
+.tpl-inherit-k { color: var(--ink-faint); font-family: var(--tpl-mono); }
+.tpl-inherit-v { color: var(--ink); font-weight: 600; }
+.tpl-inherit-strong { color: var(--brand-text); }
+.tpl-inherit-sep { color: var(--ink-faint); }
+
+/* 单位 pill（品牌选中） */
+.tpl-pill {
+  display: inline-flex; align-items: center;
+  padding: 3px 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border-hairline); background: var(--surface);
+  color: var(--ink-soft); font-size: var(--fs-12); line-height: 1.4; cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.tpl-pill:hover { border-color: var(--c-info); }
-.tpl-pill.is-on {
-  background: var(--c-info-soft);
-  border-color: color-mix(in srgb, var(--c-info) 35%, transparent);
-  color: var(--c-info-deep);
-  font-weight: 600;
-}
-.tpl-preview-card { background: color-mix(in srgb, var(--c-info) 6%, var(--surface)); border-style: dashed; }
-.tpl-preview-field { margin-bottom: var(--space-2); }
-.tpl-preview-field:last-child { margin-bottom: 0; }
-.tpl-section-body { display: flex; flex-direction: column; gap: var(--space-2); }
-.tpl-range-sep { color: var(--ink-faint); align-self: center; }
+.tpl-pill:hover { border-color: var(--brand-600); }
+.tpl-pill.is-on { background: var(--brand-600); border-color: var(--brand-600); color: var(--on-brand); font-weight: 600; }
 
-/* 参数配置紧凑单行（对齐原型 param-row）：单行不换行，窄屏由媒体查询放开 */
-.tpl-range-row { display: flex; flex-wrap: nowrap; align-items: stretch; gap: var(--space-3); min-width: 0; }
-.tpl-range-item {
-  display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap;
-  padding: var(--space-2) var(--space-3);
-  background: var(--g1);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
-  min-width: 0;
-}
-.tpl-range-lbl { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; }
-.tpl-range-num { width: 80px; }
+/* 参数配置区域块 */
+.tpl-param-block { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); background: var(--brand-tint); border: 1px solid var(--brand-a12); border-radius: var(--radius-md); }
+.tpl-range-row { display: flex; flex-wrap: nowrap; align-items: stretch; gap: var(--space-4); min-width: 0; }
+.tpl-range-item { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); min-width: 0; }
+.tpl-range-lbl { color: var(--ink-faint); font-size: var(--fs-12); font-family: var(--tpl-mono); white-space: nowrap; }
+.tpl-range-num { width: 74px; }
 .tpl-range-static { color: var(--ink-soft); font-size: var(--fs-12); }
 .tpl-range-all { gap: var(--space-2); }
 .tpl-all-text { color: var(--ink-soft); font-size: var(--fs-12); white-space: nowrap; }
-.tpl-mini { width: 64px; min-width: 0; }
+.tpl-mini { width: 58px; min-width: 0; }
+.tpl-range-sep { color: var(--ink-faint); align-self: center; }
 
-/* 值域分段卡片（对齐原型 seg-row / seg-list） */
-.tpl-seg-card {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--g1);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
+.tpl-preview { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--brand-a12); border-radius: var(--radius-md); font-size: var(--fs-12); line-height: 1.6; }
+.tpl-preview-tag { font-weight: 600; color: var(--brand-text); white-space: nowrap; font-family: var(--tpl-mono); }
+.tpl-preview-meta { color: var(--brand-text); opacity: .8; font-family: var(--tpl-mono); }
+.tpl-preview-vals { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* 运算符键盘区域块 */
+.tpl-ops-block { padding: var(--space-4); background: var(--g1); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+.tpl-ops { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--space-3); }
+.tpl-op {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
+  background: var(--surface); color: var(--ink-soft);
+  cursor: pointer; user-select: none;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
-.tpl-seg-tag {
-  font-size: var(--fs-12);
-  font-weight: 600;
-  color: var(--c-info-deep);
-  background: var(--c-info-soft);
-  border-radius: var(--radius-sm);
-  padding: 2px 8px;
-  white-space: nowrap;
-}
-.tpl-seg-num { width: 90px; }
-.tpl-unit-text { color: var(--ink-faint); font-size: var(--fs-12); }
-.tpl-seg-steplbl { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; }
-.tpl-seg-step { width: 72px; }
+.tpl-op:hover { border-color: var(--brand-600); }
+.tpl-op:active { transform: translateY(1px); }
+.tpl-op.is-on { background: var(--brand-600); border-color: var(--brand-600); color: var(--on-brand); box-shadow: 0 4px 12px var(--brand-a32); }
+.tpl-op-sym { font-family: var(--tpl-mono); font-size: var(--fs-18); font-weight: 700; line-height: 1; }
+.tpl-op-lbl { font-size: 11px; line-height: 1.2; text-align: center; }
+.tpl-op input { position: absolute; opacity: 0; width: 0; height: 0; }
+.tpl-info-text { color: var(--ink-faint); font-size: var(--fs-13); padding: var(--space-2) 0; }
+
+/* 值域配置区域块 */
+.tpl-domain-block { padding: var(--space-4); background: var(--g1); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+.tpl-segments { display: flex; flex-direction: column; gap: var(--space-3); }
+.tpl-seg-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+.tpl-seg-tag { font-family: var(--tpl-mono); font-size: var(--fs-12); font-weight: 700; color: var(--brand-text); background: var(--brand-soft); border-radius: var(--radius-sm); padding: 2px 8px; white-space: nowrap; }
+.tpl-seg-num { width: 88px; }
+.tpl-unit-text { color: var(--ink-faint); font-size: var(--fs-12); font-family: var(--tpl-mono); }
+.tpl-seg-steplbl { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; font-family: var(--tpl-mono); }
+.tpl-seg-step { width: 70px; }
 .tpl-seg-del { margin-left: auto; }
-
-/* 值域汇总条（对齐原型 domain-summary） */
-.domain-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--c-success-soft);
-  border: 1px solid color-mix(in srgb, var(--c-success) 22%, transparent);
-  border-radius: var(--radius-md);
-  font-size: var(--fs-12);
-  color: var(--c-success-deep);
-}
-.ds-tag { font-weight: 600; white-space: nowrap; }
+.tpl-add-seg { color: var(--brand-text); align-self: flex-start; }
+.domain-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin-top: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--c-success-soft); border: 1px solid color-mix(in srgb, var(--c-success) 22%, transparent); border-radius: var(--radius-md); font-size: var(--fs-12); color: var(--c-success-deep); }
+.ds-tag { font-weight: 600; white-space: nowrap; font-family: var(--tpl-mono); }
 .ds-vals { color: var(--ink-soft); line-height: 1.6; }
 
-/* 配置预览：一行四列网格（指标项 → 参数 → 运算符 → 校验值），窄屏降级 2×2 */
-.tpl-preview-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-2);
+/* 配置预览（仪表读数条） */
+.tpl-readout {
+  padding: var(--space-4);
+  background: var(--brand-tint);
+  border: 1px solid var(--brand-a12);
+  border-radius: var(--radius-md);
 }
-.tpl-preview-row.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
+.tpl-readout-eyebrow { font-family: var(--tpl-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--brand-text); opacity: .85; margin-bottom: var(--space-3); }
+.tpl-readout-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
 .pv-select { min-width: 0; width: 100%; }
-.pv-arrow { color: var(--ink-faint); flex-shrink: 0; justify-self: center; }
-.pv-then { grid-column: 1 / -1; justify-self: end; color: var(--ink-faint); font-size: var(--fs-12); }
+.pv-arrow { color: var(--brand-600); flex-shrink: 0; justify-self: center; font-weight: 700; }
 
-/* 出参 bar 辅助 */
-.tpl-out-sep { color: var(--ink-faint); }
-.tpl-output-mode { color: var(--ink); font-weight: 600; }
-.tpl-lock { display: inline-flex; align-items: center; gap: 4px; }
-.tpl-switch-field :deep(.n-form-item-label) { height: auto; }
+/* 底部：描述 + 状态 */
+.tpl-foot-fields { display: grid; grid-template-columns: 1fr auto; gap: var(--space-4); align-items: start; }
+.tpl-status { margin-bottom: 0; }
+.tpl-status :deep(.n-form-item-label) { height: auto; }
+.tpl-footer { width: 100%; }
+.tpl-footer :deep(.n-button--primary) { box-shadow: 0 4px 14px var(--brand-a32); }
 
-.tpl-preview {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  background: var(--c-info-soft);
-  border-radius: var(--radius-md);
-  color: var(--c-info-deep);
-  font-size: var(--fs-12);
-  line-height: 1.6;
+@media (max-width: 640px) {
+  .tpl-fields { grid-template-columns: 1fr; }
+  .tpl-foot-fields { grid-template-columns: 1fr; }
+  .tpl-range-row { flex-wrap: wrap; }
+  .tpl-readout-row, .tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .pv-arrow { display: none; }
 }
-.tpl-preview-tag { font-weight: 500; white-space: nowrap; }
-.tpl-info-text {
-  color: var(--ink-faint);
-  font-size: var(--text-small, 13px);
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-4);
-  background: var(--g1);
-  border-radius: var(--radius-md);
-}
-
-.tpl-operator-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.tpl-op-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 12px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-hairline);
-  background: var(--surface);
-  color: var(--ink-soft);
-  font-size: var(--fs-12);
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-}
-.tpl-op-chip:hover { border-color: var(--c-info); }
-.tpl-op-chip.is-checked {
-  background: var(--c-info);
-  border-color: var(--c-info);
-  color: #fff;
-}
-.tpl-op-chip.is-checked .op-sym { color: #fff; }
-.tpl-op-chip input { position: absolute; opacity: 0; width: 0; height: 0; }
-
-.tpl-segment-block { display: flex; flex-direction: column; gap: var(--space-2); }
-.tpl-segment-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-.tpl-segment-label { color: var(--ink-faint); font-size: var(--fs-12); min-width: 36px; }
-.tpl-seg-field { width: 100px; }
-.tpl-unit-text { color: var(--ink-faint); font-size: var(--fs-12); }
-.tpl-step-field { width: 120px; margin-bottom: 0; }
-.tpl-step-field :deep(.n-form-item-label) { font-size: var(--fs-12); }
 
 /* LIFE-1 版本历史抽屉 */
 .verh-meta {
