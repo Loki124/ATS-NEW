@@ -24,6 +24,11 @@ from apps.rule_engine.models import UnifiedOperator
 
 logger = logging.getLogger(__name__)
 
+# ReDoS 缓解（审计报告 P3）：HR 配置的正则条件限制长度，且对超长待匹配文本跳过正则，
+# 避免恶意/复杂正则 + 长文本触发灾难性回溯导致同步请求 CPU 耗尽。
+MAX_REGEX_PATTERN_LEN = 200
+MAX_REGEX_INPUT_LEN = 4096
+
 from .derived_registry import compute as derived_compute
 from .field_resolver import (
     FieldResolveError,
@@ -287,6 +292,11 @@ class MetricEngine:
             raw = cond.get('value')
             text = '' if raw is None else (raw if isinstance(raw, str) else str(raw))
             if op == UnifiedOperator.REGEX_MATCH:
+                # ReDoS 缓解：限制正则长度，过长的模式直接判非法（降级 FAIL，绝不 500）
+                if len(text) > MAX_REGEX_PATTERN_LEN:
+                    raise TypeCastError(
+                        f'正则表达式过长（>{MAX_REGEX_PATTERN_LEN} 字符），已拒绝: {text[:50]}...'
+                    )
                 # 提前校验正则合法性，避免比较阶段才抛错（仍降级为 FAIL，绝不 500）
                 try:
                     re.compile(text)
@@ -325,8 +335,12 @@ class MetricEngine:
         if operator == UnifiedOperator.REGEX_MATCH:
             if actual is None or expected is None:
                 return False
+            actual_str = str(actual)
+            # ReDoS 缓解：超长待匹配文本跳过正则（灾难性回溯风险），降级为不匹配
+            if len(actual_str) > MAX_REGEX_INPUT_LEN:
+                return False
             try:
-                return re.search(str(expected), str(actual)) is not None
+                return re.search(str(expected), actual_str) is not None
             except re.error:
                 raise ValueError(f'正则表达式不合法: {expected}')
         if actual is None or expected is None:

@@ -47,17 +47,26 @@ def login_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # 支持多种登录方式
-    user = None
+    # 支持多种登录方式（单一查询定位，避免 4 次串行 ORM + check_password 的 N+1）
     from .models import User
     from django.db.models import Q
     from apps.accounts.models import RegistrationApplication
-    # 2026-09-11: 先找账号 (不限 is_active), 对 待审核/已拒绝 给出明确提示,
-    # 避免误报"用户名或密码错误"。
+
     candidate_user = User.objects.filter(deleted_at__isnull=True).filter(
         Q(username=username) | Q(employee_id=username) | Q(email=username) | Q(phone=username),
     ).first()
-    if candidate_user is not None and not candidate_user.is_active:
+
+    # 统一 401：账号不存在 / 密码错误 / 未激活但密码错误，均返回相同通用错误，
+    # 消除"账号存在性枚举"信号（攻击者无密码时无法借 403/401 区分账号是否存在）。
+    if candidate_user is None or not candidate_user.check_password(password):
+        return Response(
+            {'success': False, 'code': 'invalid_credentials', 'message': '用户名或密码错误'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # 密码正确后再告知审核状态：仅合法用户（掌握密码者）可见，不泄露账号存在性。
+    # 2026-09-11 需求：待审核/已拒绝账号登录时给出明确提示，避免误报"用户名或密码错误"。
+    if not candidate_user.is_active:
         app = RegistrationApplication.objects.filter(user=candidate_user).first()
         if app and app.status == 'REJECTED':
             return Response(
@@ -71,27 +80,12 @@ def login_view(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    for lookup in ['username', 'employee_id', 'email', 'phone']:
-        try:
-            candidate = User.objects.get(**{lookup: username}, is_active=True, deleted_at__isnull=True)
-            if candidate.check_password(password):
-                user = candidate
-                break
-        except User.DoesNotExist:
-            continue
-
-    if not user:
-        return Response(
-            {'success': False, 'code': 'invalid_credentials', 'message': '用户名或密码错误'},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-
-    refresh = RefreshToken.for_user(user)
+    refresh = RefreshToken.for_user(candidate_user)
     from apps.core.models_permission_v2 import UserRoleV2
     from django.db.utils import OperationalError, ProgrammingError
     try:
         roles = list(UserRoleV2.objects.filter(
-            user_id=user.id, system_code='recruit',
+            user_id=candidate_user.id, system_code='recruit',
         ).values_list('role_code', flat=True))
     except (OperationalError, ProgrammingError):
         roles = []
@@ -101,11 +95,11 @@ def login_view(request):
             'access': str(refresh.access_token),
             'refresh': str(refresh),
             'user': {
-                'id': user.id,
-                'username': user.username,
-                'full_name': user.full_name,
-                'employee_id': user.employee_id,
-                'department': user.department_id,
+                'id': candidate_user.id,
+                'username': candidate_user.username,
+                'full_name': candidate_user.full_name,
+                'employee_id': candidate_user.employee_id,
+                'department': candidate_user.department_id,
                 'roles': roles,
             },
         },
