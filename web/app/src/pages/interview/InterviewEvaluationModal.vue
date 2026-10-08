@@ -54,6 +54,10 @@ export interface Evaluation {
   finalResult: FinalResult
   /** 综合评语 */
   comment: string
+  /** 综合评价（≤255 字） */
+  overallEval: string
+  /** 背调建议（≤255 字，按面试官生成） */
+  bgSuggestion: string
 }
 
 export interface SubmitPayload {
@@ -63,6 +67,8 @@ export interface SubmitPayload {
   suggestedSalary: string
   finalResult: FinalResult
   comment: string
+  overallEval: string
+  bgSuggestion: string
 }
 </script>
 
@@ -132,6 +138,8 @@ const DEMO: Evaluation = {
   suggestedSalary: '30K-35K',
   finalResult: 'PASS',
   comment: '',
+  overallEval: '',
+  bgSuggestion: '',
 }
 
 /* ---------- 选项常量 ---------- */
@@ -160,6 +168,8 @@ const suggestedLevel = ref<string>('经理')
 const suggestedSalary = ref<string>('')
 const finalResult = ref<FinalResult>('PASS')
 const comment = ref<string>('')
+const overallEval = ref<string>('')
+const bgSuggestion = ref<string>('')
 
 function loadDraft() {
   compliances.value = JSON.parse(JSON.stringify(source.value.compliances))
@@ -168,6 +178,8 @@ function loadDraft() {
   suggestedSalary.value = source.value.suggestedSalary
   finalResult.value = source.value.finalResult
   comment.value = source.value.comment
+  overallEval.value = source.value.overallEval || ''
+  bgSuggestion.value = source.value.bgSuggestion || ''
 }
 watch(() => [props.show, props.mode], () => {
   if (props.show) {
@@ -239,6 +251,8 @@ function handleSubmit() {
     suggestedSalary: suggestedSalary.value,
     finalResult: finalResult.value,
     comment: comment.value,
+    overallEval: overallEval.value,
+    bgSuggestion: bgSuggestion.value,
   })
   message.success('评价已提交（设计态·未落库）')
   emit('update:show', false)
@@ -409,6 +423,42 @@ const avgValueScore = computed(() => {
                   type="textarea"
                   :rows="3"
                   :placeholder="t('pages.interview.InterviewEvaluationModal.s16')"
+                  :disabled="!editing"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== 区块 4：综合评价 / 背调建议（≤255 字） ===== -->
+        <section class="ats-section">
+          <div class="ats-section__head">
+            <span class="ats-section__bar" />
+            <h2 class="ats-section__title">{{ t('pages.interview.InterviewEvaluationModal.s28') }}</h2>
+          </div>
+          <div class="ats-section__list">
+            <div class="ats-concl">
+              <div class="ats-concl__row ats-concl__row--comment">
+                <label class="ats-concl__label">{{ t('pages.interview.InterviewEvaluationModal.s29') }}</label>
+                <n-input
+                  v-model:value="overallEval"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="255"
+                  show-count
+                  :placeholder="t('pages.interview.InterviewEvaluationModal.s30')"
+                  :disabled="!editing"
+                />
+              </div>
+              <div class="ats-concl__row ats-concl__row--comment">
+                <label class="ats-concl__label">{{ t('pages.interview.InterviewEvaluationModal.s31') }}</label>
+                <n-input
+                  v-model:value="bgSuggestion"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="255"
+                  show-count
+                  :placeholder="t('pages.interview.InterviewEvaluationModal.s32')"
                   :disabled="!editing"
                 />
               </div>

@@ -82,6 +82,8 @@ function toEvaluation(eva: InterviewEvaluationApi, row: Interview): Evaluation {
     suggestedSalary: meta.suggestedSalary || '',
     finalResult,
     comment: eva.comment || '',
+    overallEval: eva.overallEval || '',
+    bgSuggestion: eva.bgSuggestion || '',
   }
 }
 

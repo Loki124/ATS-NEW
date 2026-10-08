@@ -96,6 +96,16 @@ class InterviewEvaluation(FullAuditModel):
 
     comment = models.TextField(verbose_name='评语', help_text='限 1000 字')
 
+    # 2026-10-08：综合评价 / 背调建议（面试评价表新增字段，均 ≤255 字）
+    overall_eval = models.CharField(
+        max_length=255, blank=True, verbose_name='综合评价',
+        help_text='面试官对候选人的总体评价，≤255 字',
+    )
+    bg_suggestion = models.CharField(
+        max_length=255, blank=True, verbose_name='背调建议',
+        help_text='针对背景调查的关注点/问题，以面试官为单位；驱动 offer 背景调查问答题与招聘专家通知，≤255 字',
+    )
+
     # v2 (2026-09-03)：评价 meta 数据（4 维符合性 + 文字依据 + 建议职级/薪资 + 3 档 finalResult）
     # 独立 JSON 字段，避免污染 scores 真实分数 key（兼容旧版 scores['__meta'] 字符串数据）
     meta_json = models.JSONField(

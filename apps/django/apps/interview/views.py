@@ -77,3 +77,33 @@ class InterviewEvaluationViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelV
             self.request.user, ['SUPER_ADMIN', 'HRBP']
         )) else qs
         return qs.select_related('interview', 'interviewer')
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self._maybe_notify_bg_suggestion(instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        self._maybe_notify_bg_suggestion(instance)
+
+    @staticmethod
+    def _maybe_notify_bg_suggestion(instance):
+        """背调建议非空时，best-effort 向招聘专家发送高优先级提醒。"""
+        suggestion = (getattr(instance, 'bg_suggestion', '') or '').strip()
+        if not suggestion:
+            return
+        try:
+            from .services import notify_recruiters_bg_suggestion
+            interview = getattr(instance, 'interview', None)
+            application = getattr(interview, 'application', None)
+            candidate = getattr(application, 'candidate', None)
+            candidate_id = candidate.id if candidate else ''
+            candidate_name = getattr(candidate, 'name', '') or ''
+            interviewer_name = getattr(instance.interviewer, 'username', '') or ''
+            notify_recruiters_bg_suggestion(
+                candidate_id, candidate_name, interviewer_name, suggestion,
+            )
+        except (OperationalError, ValueError, TypeError, AttributeError) as e:
+            # 通知为 best-effort：不阻断评价落库主流程（编程错误仍抛出以便排查）。
+            logger = __import__('logging').getLogger(__name__)
+            logger.warning('背调建议通知触发失败 evaluation=%s err=%s', getattr(instance, 'id', ''), e)

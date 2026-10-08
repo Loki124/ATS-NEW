@@ -1,0 +1,39 @@
+classDiagram
+    class IntegrationConfig {
+        +id: str
+        +type: str
+        +provider: str
+        +name: str
+        +config: JSON
+        +is_system_integrated: bool
+        +bg_metadata: JSON  %% 交付效率/使用率排名+标签、套餐目录
+    }
+    class BackgroundCheckOrder {
+        +id: str
+        +config: FK~IntegrationConfig?~
+        +channel: str
+        +order_number: str
+        +candidate_id: str
+        +candidate_name: str
+        +status: int
+        +remark: str
+        +is_supplementary: bool
+        +parent_order_id: str
+        +bg_suggestions: JSON
+        +report_url: str
+        +package_name: str   %% 新增
+        +bg_provider: str    %% 新增
+        +bg_time: datetime?  %% 新增
+        +bg_result: str      %% 新增 BGResult
+        +contactable: bool?  %% 新增
+        +subject_snapshot: JSON  %% 新增 背调人信息
+    }
+    class BGResult {
+        <<TextChoices>>
+        PASS 通过
+        DOUBT 存疑
+        FAIL 不通过
+        PENDING 待定
+    }
+    IntegrationConfig "1" o-- "0..*" BackgroundCheckOrder : bg_orders
+    BackgroundCheckOrder ..> BGResult : bg_result

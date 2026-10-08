@@ -47,6 +47,7 @@ class InterviewEvaluationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'interview', 'interviewer', 'interviewer_name',
             'scores', 'overall_score', 'recommendation', 'comment',
+            'overall_eval', 'bg_suggestion',
             'meta_json',
             'submitted_at',
         ]

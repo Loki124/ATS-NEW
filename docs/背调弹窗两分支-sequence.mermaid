@@ -1,0 +1,41 @@
+sequenceDiagram
+    actor HR as HR/HRBP
+    participant Modal as InitiateBackgroundCheckModal
+    participant Up as BgUploadForm (图2)
+    participant Od as BgOrderForm (图3)
+    participant API as integration API
+    participant Media as /media/upload/
+    participant Svc as services
+
+    Note over HR,Modal: 步骤1 选择 hasReport
+    HR->>Modal: 选「已有报告」/「没有报告」
+
+    alt 已有报告 → 图2 上传分支
+        Modal->>API: bg-suggestions(candidateId)
+        API->>Svc: aggregate_bg_suggestions()
+        Svc-->>API: suggestions[]
+        API-->>Up: 渲染建议问答题
+        HR->>Media: 上传报告文件(n-upload)
+        Media-->>Up: {url}
+        HR->>Up: 填 套餐名称/供应商/时间/结果/备注
+        HR->>Up: 提交
+        Up->>API: upload-report(report_url,package_name,bg_provider,bg_time,bg_result,subject_snapshot,...)
+        API->>Svc: upload_background_check_report()
+        Svc->>Svc: 建 channel=SELF,status=COMPLETED 订单
+        Svc-->>API: {success,data}
+        API-->>Modal: 关闭 + created
+    else 没有报告 → 图3 下单分支
+        Modal->>API: suppliers(mode=system_order)
+        API-->>Od: 带 ranking/tag 的供应商列表
+        HR->>Od: 选供应商卡片
+        Od->>API: products(configId)
+        API->>API: bg_metadata.packages 非空? → config : query_products()
+        API-->>Od: {source, packages[]}
+        HR->>Od: 选套餐 + 填 contactable/备注
+        HR->>Od: 确认下单
+        Od->>API: create-order(config_id,items,contactable,subject_snapshot,expected_onboarding_date,...)
+        API->>Svc: request_background_check()
+        Svc->>Svc: 供应商下单 + 建订单
+        Svc-->>API: {success,data}
+        API-->>Modal: 关闭 + created
+    end

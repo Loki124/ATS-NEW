@@ -55,6 +55,15 @@ function dimColor(s: number) {
     </div>
 
     <div v-if="evaluation.comment" class="ats-sum__comment">{{ evaluation.comment }}</div>
+
+    <div v-if="evaluation.overallEval" class="ats-sum__line">
+      <span class="ats-sum__label">{{ t('pages.interview.InterviewEvalSummaryCard.s2') }}</span>
+      <span class="ats-sum__val">{{ evaluation.overallEval }}</span>
+    </div>
+    <div v-if="evaluation.bgSuggestion" class="ats-sum__line ats-sum__line--warn">
+      <span class="ats-sum__label">{{ t('pages.interview.InterviewEvalSummaryCard.s3') }}</span>
+      <span class="ats-sum__val">{{ evaluation.bgSuggestion }}</span>
+    </div>
   </div>
 </template>
 
@@ -73,4 +82,13 @@ function dimColor(s: number) {
   margin: 0; font-size: var(--text-meta); line-height: 1.6; color: var(--ink-faint);
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
+.ats-sum__line {
+  margin: 0; font-size: var(--text-meta); line-height: 1.6; color: var(--ink-faint);
+  display: flex; gap: 6px;
+}
+.ats-sum__label { font-weight: 600; color: var(--ink-soft); flex-shrink: 0; }
+.ats-sum__val {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ats-sum__line--warn .ats-sum__label { color: var(--c-warning); }
 </style>

@@ -165,6 +165,10 @@ export interface InterviewEvaluationApi {
   /** v2 (commit 2fxxxx)：评价 meta 独立字段（4 维符合性 + 建议职级/薪资 + 3 档 finalResult） */
   metaJson?: EvaluationMeta | null
   submittedAt: string
+  /** 综合评价：面试官对候选人的总体评价（≤255 字） */
+  overallEval?: string
+  /** 背调建议：以面试官为单位的背景调查关注点/问题（≤255 字），驱动 offer 背景调查问答题与招聘专家通知 */
+  bgSuggestion?: string
 }
 
 /** 列表响应沿用 {success, data: [...], pagination} 范式 → 返回 data 数组 */

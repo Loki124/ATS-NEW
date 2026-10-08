@@ -110,3 +110,43 @@ class InterviewService:
         interview.status = InterviewStatus.NO_SHOW
         interview.save()
         return interview
+
+
+def notify_recruiters_bg_suggestion(candidate_id: str, candidate_name: str,
+                                    interviewer_name: str, suggestion: str) -> int:
+    """面试官提交背调建议后，向招聘专家发送高优先级站内信提醒（fail-soft）。
+
+    招聘专家 = 组名含「招聘 / HR / HRBP」的启用用户；无匹配时兜底通知超管。
+    返回成功发送的通知条数。
+    """
+    from apps.core.models import User
+    from apps.notification.services import send_notification
+
+    recipients = User.objects.filter(
+        is_active=True,
+        groups__name__iregex=r'招聘|HR|HRBP',
+    ).distinct()
+    if not recipients.exists():
+        recipients = User.objects.filter(is_active=True, is_superuser=True)
+
+    sent = 0
+    for u in recipients:
+        try:
+            send_notification(
+                recipient_id=u.id,
+                title=f'【背调建议】候选人 {candidate_name or "未知"} 有待跟进的背调建议',
+                content=(
+                    f'面试官 {interviewer_name or "未知"} 提交了背调建议：{suggestion}。'
+                    f'请在 offer 表单「背景调查」中作答全部背调建议问题并回填背调备注。'
+                ),
+                link=f'/candidates/{candidate_id}' if candidate_id else '',
+                source='BG_SUGGESTION',
+                source_id=candidate_id,
+                channel='IN_APP',
+                priority='HIGH',
+            )
+            sent += 1
+        except (OperationalError, ValueError, TypeError) as e:
+            # 通知为 best-effort：单条失败不影响评价主流程（编程错误仍抛出以便排查）。
+            logger.warning('背调建议通知发送失败 recipient=%s err=%s', u.id, e)
+    return sent
