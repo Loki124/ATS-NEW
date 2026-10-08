@@ -1,54 +1,14 @@
 /**
- * request-dedup.test.mjs - 可执行 Node 单元测试
+ * request-dedup.test.ts - vitest unit tests
  *
- * 用法: node frontend/src/utils/__tests__/request-dedup.test.mjs
+ * Plan P Task 2 follow-up: 由 request-dedup.test.mjs 转写而来，
+ * 用真实 vitest 的 describe/it/expect 替换原自定义 polyfill，
+ * 使其能被 `npm test` (`vitest run`) 的 `src/**\/*.test.ts` glob 收集。
+ * 断言与 .mjs 版本保持一致。
  */
 
-import { RequestDedup, createDedupedFetch } from '../request-dedup.mjs'
-
-let pass = 0
-let fail = 0
-const failures = []
-
-function describe(name, fn) {
-  console.log(`\n${name}`)
-  fn()
-}
-
-async function it(name, fn) {
-  try {
-    await fn()
-    pass++
-    console.log(`  PASS  ${name}`)
-  } catch (e) {
-    fail++
-    const msg = e?.message || String(e)
-    failures.push(`${name}: ${msg}`)
-    console.log(`  FAIL  ${name}: ${msg}`)
-  }
-}
-
-const expect = (actual) => ({
-  toBe(expected) {
-    if (actual !== expected) throw new Error(`expected ${expected}, got ${actual}`)
-  },
-  toEqual(expected) {
-    const a = JSON.stringify(actual)
-    const b = JSON.stringify(expected)
-    if (a !== b) throw new Error(`expected ${b}, got ${a}`)
-  },
-  toBeTruthy() {
-    if (!actual) throw new Error(`expected truthy, got ${actual}`)
-  },
-  toBeFalsy() {
-    if (actual) throw new Error(`expected falsy, got ${actual}`)
-  },
-  toBeGreaterThan(n) {
-    if (!(actual > n)) throw new Error(`expected > ${n}, got ${actual}`)
-  },
-})
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+import { describe, it, expect } from 'vitest'
+import { RequestDedup, createDedupedFetch } from '../request-dedup'
 
 describe('RequestDedup', () => {
   it('创建实例', () => {
@@ -124,9 +84,3 @@ describe('RequestDedup', () => {
     expect(dedup.size()).toBe(1) // 第一个已完成
   })
 })
-
-console.log(`\n${pass} passed, ${fail} failed`)
-if (failures.length > 0) {
-  failures.forEach((f) => console.log('  - ' + f))
-  process.exit(1)
-}

@@ -80,12 +80,14 @@ export function debounceLeading<TArgs extends unknown[]>(
     if (!cooling) {
       cooling = true
       fn(...args)
-      setTimeout(() => {
+      // 修复: 必须赋值 trailingTimer, 否则下方 trailing 触发条件永远为假
+      trailingTimer = setTimeout(() => {
         cooling = false
-        if (lastArgs && trailingTimer) {
+        trailingTimer = null
+        // 冷却结束后, 若窗口内有后续调用则补发一次尾触发 (取最后一次参数)
+        if (lastArgs) {
           fn(...lastArgs)
           lastArgs = null
-          trailingTimer = null
         }
       }, ms)
     } else {
