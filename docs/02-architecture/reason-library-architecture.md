@@ -1,5 +1,5 @@
 # 原因库（Reason Library）架构设计
-> 最后更新：2026-09-20（依据 git 最后提交）
+> 最后更新：2026-10-08（reason-library 规则版本化：code / version / 快照 / 回滚）
 
 > 状态：已落地（2026-09-20 合并 main）｜ 技术栈：Django 6.0.6 + DRF 3.17.1（后端）/ Vue3 + Naive UI + UnoCSS（前端）
 
@@ -9,7 +9,7 @@
 
 原因库作为独立 Django app `apps.reason_library` 挂载，前后端通过 DRF JSON API 交互，字段名经 `djangorestframework-camel-case` 做 snake_case ↔ camelCase 转换。
 
-- **后端**：Django app + DRF ViewSet（tag / rule / scene 三组）+ 2 个 service（向导事务、业务态查询）
+- **后端**：Django app + DRF ViewSet（tag / rule / scene 三组）+ 3 个 service（向导事务、业务态查询、版本化）
 - **前端**：SettingsLayout 下 2 路由 + 1 向导弹窗（modal-lg 920px）+ 11 组件
 - **存储**：MySQL（dev）/ SQLite :memory:（test）；标签 name UNIQUE 含软删
 
@@ -31,7 +31,7 @@
 ```
 apps/django/apps/reason_library/
 ├── __init__.py
-├── models.py                      # 5 表模型 + CheckConstraint(level 1-4)
+├── models.py                      # 6 表模型（含 SceneRuleVersion 快照）+ CheckConstraint(level 1-4)
 ├── serializers.py                 # Tag/Rule/Category/Scene/Wizard/Bulk 序列化器
 ├── exceptions.py                  # BizCode 常量（40001~40030 等）
 ├── permissions.py                 # IsAuthenticatedReadOnly（写方法需登录）
@@ -43,10 +43,14 @@ apps/django/apps/reason_library/
 ├── services/
 │   ├── wizard_service.py          # 向导保存（事务 + 乐观锁 + level≤4 + scene 转移）
 │   ├── active_query_service.py    # 业务态查询（Q3 优先级 + Redis 缓存）
+│   ├── rule_version_service.py    # 规则版本化（只读快照 + 回滚，唯一写入口）
 │   └── import_export_service.py   # JSON 规则导入导出
 ├── migrations/
 │   ├── 0001_initial.py            # 5 表
 │   └── 0002_seed_initial_data.py   # 53 标签 + 3 规则 fixture
+│   ├── 0014_scenerule_code_version.py   # SceneRule.code(S+4) + version + 存量补号
+│   ├── 0015_scenerule_version.py        # 新建 scene_rule_version 快照表
+│   └── 0016_alter_sceneruleversion_change_kind.py  # change_kind 字段调整
 ├── fixtures/
 │   ├── system_tags.json           # 53 系统标签
 │   └── preset_rules.json          # 3 预置规则（含完整树）
@@ -80,10 +84,13 @@ web/app/src/
 reason_tag (1) ──< (N) category_assignment >── (1) rule_category (N) ──< (1) scene_rule
                                                                               │
                                                                               └──< (N) rule_scene_assignment >── (1) scene (字符串枚举)
+scene_rule (1) ──< (N) scene_rule_version   # 版本快照（仅 INSERT，规则删除 CASCADE）
 ```
 
 - `rule_category.parent` 自引用 → 树形，level ≤ 4（CheckConstraint `condition=Q(level__gte=1) & Q(level__lte=4)`）
 - `rule_scene_assignment.scene` UNIQUE → 同场景全局一个规则（Q6）
+- `scene_rule.code`：规则编号 `S+4` 位（如 `S0001`），`unique=True`，由 save() 事务内自动补号；存量迁移 0014 回填（空表先加列、回填唯一值、再加唯一约束，避免有数据表建唯一索引撞重复 `''`）。
+- `scene_rule_version`：场景规则完整版本历史快照表（迁移 0015）。`rule` FK CASCADE、UNIQUE(`rule`, `version`)、`version` 单调递增；`snapshot` 为 WizardService 消费的 snake_case 载荷，`changed_fields`/`change_kind`/`change_note`/`created_by` 为审计元数据。**写入口唯一在 `services/rule_version_service.py`，仅 INSERT，禁止 UPDATE/DELETE**（删除走 FK CASCADE）；正常编辑 `version = rule.version`，回滚生成 `version+1` 新快照（kind=`rollback`）并经 WizardService 写回主表。
 
 ## 5. 接口设计要点
 
@@ -94,6 +101,8 @@ reason_tag (1) ──< (N) category_assignment >── (1) rule_category (N) ─
 | `PATCH /rules/{id}/` | 带 `If-Match` 头做乐观锁；naive/aware datetime 统一补 UTC |
 | `DELETE /rules/{id}/` | 系统规则一律 403 SYSTEM_RULE_IMMUTABLE（含超管） |
 | `POST /rules/{id}/snapshot/` | 副本接管 src scene（src 释放绑定） |
+| `GET /rules/{id}/versions/` | 版本历史列表（倒序，含快照/变更字段/操作人） |
+| `POST /rules/{id}/versions/rollback/` | 回滚到指定版本（body `{version_no}`，fail-loud 409/400/404） |
 | `GET /active/?scene=X` | 显式引用 > 系统预置；多条显式按 updated_at；Redis 缓存 |
 
 ## 6. 任务分解（有序）
@@ -123,3 +132,6 @@ django-redis                           # Active 缓存
 - **乐观锁**：`If-Match` header 传 `updated_at` ISO；比较时 naive 补 UTC 再截断微秒
 - **camelCase 兼容**：WizardCategorySerializer / SceneBindingSerializer 同时接受 clientId/parentClientId/tagIds 与 snake_case（因 sandbox stub renderer 不做转换，生产环境 camel-case 包会自动转换）
 - **事务边界**：向导保存整体 `transaction.atomic()`，scene 冲突回滚并转 409
+- **规则编号 code（S+4）**：`SceneRule.code` 在 `save()` 内事务中以 `select_for_update()` 锁末行取最大序号 +1，自动补 `S0001`、`S0002`…；覆盖写端点（create / wizard save / import）不传 code 也自动拿到唯一编号，规避 `unique=True` 撞车 500；存量经迁移 `RunPython` 按 `created_at,id` 升序补号
+- **版本化（只读快照）**：`SceneRule.version` 每次语义变更（create / 头部更新 / wizard save / 复制 / import / 回滚）+1；`SceneRuleVersion` 快照表**仅 INSERT**（删除走 FK CASCADE），写入统一经 `rule_version_service`；`get_or_create` 消解并发更新撞 `(rule,version)` 唯一约束导致的 500
+- **回滚语义**：`POST /rules/{id}/versions/rollback/` 取目标版本快照经 `WizardService.save` 写回主表，并落一条 `kind='rollback'` 的**新版本**（version+1），不把版本号拨回旧值；写回冲突（场景/类型被占用、同名）由 `WizardService` 抛 BizException 直接透传 409/400，fail-loud 不静默降级

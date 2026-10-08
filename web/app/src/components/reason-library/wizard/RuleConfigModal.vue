@@ -9,6 +9,28 @@
     :segmented="{ content: 'soft', footer: 'soft' }"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
+    <!-- D: 规则名称 + 启用状态 (配置规则弹窗内编辑) -->
+    <div class="cfg-section">
+      <div class="cfg-section-title">{{ t('reasonLibrary.wizard.configRule.basic') }}</div>
+      <div class="cfg-basic">
+        <div class="cfg-field">
+          <span class="cfg-label">{{ t('reasonLibrary.wizard.configRule.ruleName') }}</span>
+          <n-input
+            v-model:value="localName"
+            :disabled="presetDefault"
+            :placeholder="t('reasonLibrary.wizard.configRule.ruleNamePlaceholder')"
+            style="width: 280px"
+            clearable
+          />
+        </div>
+        <div class="cfg-field">
+          <span class="cfg-label">{{ t('reasonLibrary.wizard.configRule.enabled') }}</span>
+          <n-switch v-model:value="localEnabled" :disabled="presetDefault" />
+          <span v-if="presetDefault" class="cfg-hint">{{ t('reasonLibrary.wizard.configRule.presetDefaultLockHint') }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 维度整合: 校园招聘 / 社会招聘 并排两张独立卡片, 每张卡内列出全部应用场景 -->
     <div class="cfg-section">
       <div class="cfg-section-title">{{ t('reasonLibrary.wizard.configRule.entryWithType') }}</div>
@@ -100,7 +122,7 @@
  * allScenesUsage key 形如 `${scene}|${recruitType}` → { ruleId, ruleName }。
  */
 import { ref, watch } from 'vue'
-import { NModal, NButton, NSpace, NIcon, NTooltip, NInputNumber, useMessage } from 'naive-ui'
+import { NModal, NButton, NSpace, NIcon, NTooltip, NInput, NSwitch, NInputNumber, useMessage } from 'naive-ui'
 import { WarningOutline } from '@vicons/ionicons5'
 import type { RecruitType, SceneKey, SceneRecruitPair } from '../../../types/reason-library'
 import { SCENE_OPTIONS, RECRUIT_TYPE_OPTIONS } from '../../../types/reason-library'
@@ -110,6 +132,10 @@ const { t } = useI18n()
 const props = defineProps<{
   show: boolean
   ruleId: string
+  /** 规则名称 (编辑后回写 wizard.name) */
+  name?: string
+  /** 启用状态 (编辑后回写 wizard.enabled) */
+  enabled?: boolean
   /** 显式 (场景,类型) 成对 — 权威数据源 */
   scenePairs?: SceneRecruitPair[]
   /** 兼容旧调用: 无 scenePairs 时按 scenes×recruitTypes 笛卡尔积初始化 */
@@ -123,6 +149,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void
+  (e: 'update:name', v: string): void
+  (e: 'update:enabled', v: boolean): void
   (e: 'update:scenePairs', v: SceneRecruitPair[]): void
   (e: 'update:scenes', v: SceneKey[]): void
   (e: 'update:recruitTypes', v: RecruitType[]): void
@@ -134,6 +162,9 @@ const message = useMessage()
 /** 已选 (场景,类型) 成对, key = `${scene}|${rt}` */
 const selectedPairs = ref<Set<string>>(new Set())
 const localMax = ref(5)
+/** 规则名称 / 启用状态 (D: 配置规则弹窗内编辑, 回写向导) */
+const localName = ref('')
+const localEnabled = ref(true)
 
 function keyOf(scene: SceneKey, rt: RecruitType): string {
   return `${scene}|${rt}`
@@ -153,6 +184,8 @@ watch(
           )]
       selectedPairs.value = new Set(base.map((p) => keyOf(p.scene, p.recruitType)))
       localMax.value = props.maxSelectableTags ?? 5
+      localName.value = props.name ?? ''
+      localEnabled.value = props.enabled ?? true
     }
   },
   { immediate: true },
@@ -227,6 +260,10 @@ function togglePair(scene: SceneKey, rt: RecruitType, checked: boolean) {
 function confirm() {
   // 可选标签上限始终可改 (包括预置默认规则)
   emit('update:maxSelectableTags', Math.max(0, localMax.value ?? 0))
+  // D: 规则名称 + 启用状态 — 配置规则弹窗内编辑, 回写向导 (向导保存时一并落库)。
+  // 预置默认规则: 名称/状态锁定 (弹窗内输入框 disabled), 这里仍回写当前值, 后端会强制忽略。
+  emit('update:name', (localName.value || '').trim())
+  emit('update:enabled', !!localEnabled.value)
   // 预置默认规则: 应用范围(场景×类型)锁定、不可调整, 不回传覆盖数据,
   // 避免父组件据此改写「覆盖全部」的语义。
   if (!props.presetDefault) {
@@ -247,6 +284,29 @@ function confirm() {
 <style scoped>
 .cfg-section { margin-bottom: var(--space-4); }
 .cfg-section:last-child { margin-bottom: 0; }
+
+/* D: 规则名称 + 启用状态 基础字段区 */
+.cfg-basic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.cfg-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.cfg-label {
+  flex-shrink: 0;
+  width: 72px;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--ink);
+}
+.cfg-hint {
+  font-size: var(--fs-11);
+  color: var(--ink-faint);
+}
 
 /* 预置默认规则: 应用范围锁定提示条 */
 .cfg-locked-note {

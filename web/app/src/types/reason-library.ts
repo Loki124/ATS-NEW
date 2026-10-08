@@ -146,6 +146,10 @@ export interface RuleCategory {
 
 export interface SceneRule {
   id: string
+  /** 规则编号 (S+4 顺序号, 后端自动生成, 唯一) */
+  code?: string
+  /** 当前版本号 (每次语义变更 +1, 历史见 SceneRuleVersion) */
+  version?: number
   name: string
   isSystem: boolean
   /** 是否「预置默认规则」(is_system AND name=='预置默认规则') — 覆盖全部场景×类型, 不可调整覆盖/名称/状态 */
@@ -169,6 +173,10 @@ export interface SceneRule {
 
 export interface SceneRuleListItem {
   id: string
+  /** 规则编号 (S+4 顺序号) */
+  code?: string
+  /** 当前版本号 */
+  version?: number
   name: string
   isSystem: boolean
   /** 是否「预置默认规则」 */
@@ -182,6 +190,26 @@ export interface SceneRuleListItem {
   categoryCount: number
   tagCount: number
   updatedAt: string
+}
+
+/** 规则历史版本 (后端 SceneRuleVersion 快照表) */
+export interface SceneRuleVersion {
+  id: string
+  /** 所属规则 id */
+  ruleId: string
+  /** 版本号 */
+  version: number
+  /** 配置快照 (snake_case 的 WizardSave 载荷: name/description/enabled/max_selectable_tags/scene_assignments/categories...) */
+  snapshot: Record<string, any>
+  /** 变更字段 (顶层 key 列表) */
+  changedFields: string[]
+  /** 变更类型: create / update / rollback / import */
+  changeKind: 'create' | 'update' | 'rollback' | 'import'
+  /** 变更说明 */
+  changeNote: string
+  createdAt: string
+  /** 操作人 id (可能为空, 系统/种子无操作人) */
+  createdBy?: string
 }
 
 export interface SceneRuleUpdatePayload {
@@ -203,6 +231,10 @@ export interface SceneRuleUpdatePayload {
 export interface WizardPayload {
   /** 新建时为空字符串 ''; 编辑时为已有规则 id */
   id: string
+  /** 规则编号 (S+4 顺序号, 仅编辑既有规则时回填展示用) */
+  code?: string
+  /** 当前版本号 (仅编辑既有规则时回填展示用) */
+  version?: number
   name: string
   description?: string
   enabled: boolean

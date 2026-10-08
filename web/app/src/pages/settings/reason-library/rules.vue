@@ -288,6 +288,18 @@ function onWizardSaved() {
 // ============= 列 =============
 const columns = computed(() => [
   {
+    title: t('reasonLibrary.rules.col.code'),
+    key: 'code',
+    width: 110,
+    align: 'center' as const,
+    render: (row: SceneRuleListItem) =>
+      h(
+        'span',
+        { class: 'rl-rule-code' },
+        row.code || '—',
+      ),
+  },
+  {
     title: t('reasonLibrary.rules.col.name'),
     key: 'name',
     width: 260,
@@ -495,6 +507,12 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 200px;
+}
+.rl-rule-code {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--brand);
 }
 .rl-scene-empty {
   color: var(--ink-faint);

@@ -19,7 +19,7 @@ from __future__ import annotations
 from enum import Enum
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.db.models import CheckConstraint, Q, UniqueConstraint
 
 from .managers import ReasonTagManager, SceneRuleManager
@@ -157,6 +157,14 @@ class SceneRule(models.Model):
         max_length=64, blank=True, default='', verbose_name='弹窗标题',
         help_text='终端用户选择原因弹窗的标题文案 (空=使用默认文案「选择原因」)',
     )
+    # 规则编号 (S+4 位, 如 S0001); 写入时由 save() 在事务内自动补号, 保证唯一
+    # (镜像 campus_control ControlRule.code 的 G+4 方案, 前缀 S 表示场景规则)。
+    code = models.CharField(
+        max_length=8, unique=True, blank=True, default='', verbose_name='规则编号',
+    )
+    # 当前版本号: 每次语义变更 (wizard 保存 / 头部更新 / 回滚) +1, 仅作展示计数,
+    # 历史内容见 SceneRuleVersion 快照表。
+    version = models.PositiveIntegerField(default=1, verbose_name='当前版本号')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
 
@@ -172,6 +180,24 @@ class SceneRule(models.Model):
         if not self.id:
             from nanoid import generate as nanoid_generate
             self.id = nanoid_generate(size=21)
+        # 规则编号自动补号: 未设 code 时, 事务内锁定末行取最大序号 +1,
+        # 写入 S+4 位编号 (如 S0001)。覆盖写端点 (create / wizard save / snapshot / import
+        # 四处 create 均不传 code) 也自动拿到唯一 code, 避免撞 unique=True 约束导致 500。
+        if not self.code and self._code_column_exists():
+            with transaction.atomic():
+                last = (
+                    SceneRule.objects.select_for_update()
+                    .order_by('-code')
+                    .first()
+                )
+                seq = 0
+                if last and last.code and last.code.startswith('S'):
+                    try:
+                        seq = int(last.code[1:5])
+                    except (ValueError, IndexError):
+                        seq = 0
+                seq += 1
+                self.code = f'S{seq:04d}'
         # 预置默认规则全局唯一: 禁止存在第二条 (is_system AND name==PRESET_DEFAULT_RULE_NAME)。
         # 仅允许 seed 创建一条; 任意再创建 (API 经 serializer.validate 拦截 / 原始 .create 经
         # 此处拦截) 均被拒绝, 使「只能有一条」成为硬约束而非依赖应用层运气。
@@ -202,6 +228,55 @@ class SceneRule(models.Model):
     def assigned_scenes(self) -> list:
         """当前规则引用的所有场景字符串。"""
         return list(self.scene_assignments.values_list('scene', flat=True))
+
+
+class SceneRuleVersion(models.Model):
+    """场景规则不可变快照表（仅 INSERT，禁止 UPDATE/DELETE）。
+
+    每次规则语义变更（create / wizard save / 头部更新 / 回滚 / import）由版本服务层
+    写入一条快照，记录当时完整配置（snapshot JSON，即 WizardService 消费的 snake_case
+    载荷）。`version` 为对应版本号，(rule, version) 唯一约束。删除规则时随外键
+    CASCADE 级联删除。
+
+    禁止 UPDATE / DELETE 的约束由版本服务层保证；本模型仅建表与字段。
+    """
+
+    rule = models.ForeignKey(
+        SceneRule, on_delete=models.CASCADE,
+        related_name='versions', verbose_name='所属规则',
+    )
+    version = models.PositiveIntegerField(verbose_name='版本号')
+    snapshot = models.JSONField(verbose_name='配置快照')
+    changed_fields = models.JSONField(default=list, verbose_name='变更字段')
+    change_kind = models.CharField(
+        max_length=16, verbose_name='变更类型',
+        help_text='create / update / rollback / import',
+    )
+    change_note = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='变更说明',
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, verbose_name='创建时间',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='操作人',
+    )
+
+    class Meta:
+        db_table = 'scene_rule_version'
+        verbose_name = '场景规则版本'
+        verbose_name_plural = '场景规则版本'
+        ordering = ['-version']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['rule', 'version'],
+                name='uniq_scenerule_version',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.rule_id}@v{self.version}'
 
 
 class RuleCategory(models.Model):

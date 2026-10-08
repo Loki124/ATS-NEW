@@ -16,6 +16,12 @@
       <div class="wizard-titlebar">
         <div class="wizard-title-left">
           <span class="wizard-title">{{ wizard?.name || t('reasonLibrary.wizard.title') }}</span>
+          <n-tag v-if="wizard?.code" size="tiny" type="default" bordered class="wizard-code-tag">
+            {{ wizard.code }}
+          </n-tag>
+          <n-tag v-if="wizard?.version != null" size="tiny" type="default" bordered class="wizard-version-tag">
+            v{{ wizard.version }}
+          </n-tag>
           <n-tag v-if="wizard?.isSystem" size="small" type="warning" bordered>
             {{ t('reasonLibrary.rules.col.systemBadge') }}
           </n-tag>
@@ -27,10 +33,16 @@
           </n-space>
           <span v-else class="rl-empty-tag">{{ t('reasonLibrary.rules.col.emptyScenes') }}</span>
         </div>
-        <n-button size="tiny" @click="openRuleConfig">
-          <template #icon><n-icon :component="SettingsOutline" /></template>
-          {{ t('reasonLibrary.wizard.configRuleLabel') }}
-        </n-button>
+        <n-space :size="6">
+          <n-button v-if="ruleId" size="tiny" @click="openVersionHistory">
+            <template #icon><n-icon :component="TimeOutline" /></template>
+            {{ t('reasonLibrary.wizard.history') }}
+          </n-button>
+          <n-button size="tiny" @click="openRuleConfig">
+            <template #icon><n-icon :component="SettingsOutline" /></template>
+            {{ t('reasonLibrary.wizard.configRuleLabel') }}
+          </n-button>
+        </n-space>
       </div>
     </template>
     <n-spin :show="loading" :description="t('reasonLibrary.common.loading')">
@@ -97,6 +109,8 @@
     <RuleConfigModal
       v-if="wizard"
       v-model:show="ruleConfigShow"
+      v-model:name="wizard.name"
+      v-model:enabled="wizard.enabled"
       v-model:scene-pairs="wizard.scenePairs"
       v-model:scenes="wizard.scenes"
       v-model:recruit-types="wizard.recruitTypes"
@@ -104,6 +118,15 @@
       :rule-id="ruleId || ''"
       :all-scenes-usage="sceneUsage"
       :preset-default="wizard?.isPresetDefault ?? false"
+    />
+
+    <!-- 规则历史版本列表 + 回滚 -->
+    <RuleVersionHistoryModal
+      v-if="ruleId"
+      v-model:show="versionHistoryShow"
+      :rule-id="ruleId"
+      :current-version="wizard?.version"
+      @rollbacked="onVersionRollbacked"
     />
   </n-modal>
 </template>
@@ -128,7 +151,7 @@ import {
 } from 'naive-ui'
 import {
   ChevronBackOutline, ChevronForwardOutline, ArrowBackOutline,
-  CheckmarkOutline, SettingsOutline,
+  CheckmarkOutline, SettingsOutline, TimeOutline,
 } from '@vicons/ionicons5'
 import {
   createRule, getRule, wizardSave, deleteRule, extractReasonApiError, listTags, getSceneConfig,
@@ -143,6 +166,7 @@ import Step1Categories from './wizard/Step1Categories.vue'
 import Step2Assignments from './wizard/Step2Assignments.vue'
 import Step3Preview from './wizard/Step3Preview.vue'
 import RuleConfigModal from './wizard/RuleConfigModal.vue'
+import RuleVersionHistoryModal from './wizard/RuleVersionHistoryModal.vue'
 
 const props = defineProps<{
   show: boolean
@@ -189,6 +213,30 @@ const ruleConfigShow = ref(false)
 
 function openRuleConfig() {
   ruleConfigShow.value = true
+}
+
+// 历史版本弹窗状态
+const versionHistoryShow = ref(false)
+
+function openVersionHistory() {
+  versionHistoryShow.value = true
+}
+
+/** 历史版本回滚成功: 用返回的最新规则原地重建向导草稿 (分类树/场景/名称/状态) */
+async function onVersionRollbacked(rule: SceneRule) {
+  // 重新拉一次场景占用, 回滚可能改变了 (场景,类型) 组合 → RuleConfigModal 禁用判断需最新
+  try {
+    const cfg = await getSceneConfig()
+    const usage: Record<string, { ruleId: string; ruleName: string }> = {}
+    for (const it of cfg.items) {
+      if (it.ruleId) usage[`${it.scene}|${it.recruitType}`] = { ruleId: it.ruleId, ruleName: it.ruleName ?? '' }
+    }
+    sceneUsage.value = usage
+  } catch {
+    // 占用刷新失败不阻断回滚结果展示
+  }
+  wizard.value = toWizard(rule)
+  message.success(t('reasonLibrary.wizard.history.rollbackApplied'))
 }
 
 // ============= 加载逻辑 =============
@@ -246,6 +294,8 @@ function toWizard(rule: SceneRule): WizardPayload {
   const pairTypes = [...new Set(scenePairs.map((p) => p.recruitType))]
   return {
     id: rule.id,
+    code: (rule as any).code,
+    version: (rule as any).version,
     name: rule.name,
     description: rule.description,
     enabled: rule.enabled,
@@ -454,6 +504,15 @@ function onShowChange(v: boolean) {
   font-size: var(--fs-15);
   font-weight: 600;
   color: var(--ink);
+}
+.wizard-code-tag {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.wizard-version-tag {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
 }
 .rl-empty-tag {
   font-size: var(--fs-11);

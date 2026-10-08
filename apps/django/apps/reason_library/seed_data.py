@@ -232,42 +232,74 @@ def seed_initial_data(verbose: bool = False, apps=None) -> Dict[str, int]:
     _validate_seed()
 
     # 数据迁移安全: 从 migration (0002) 调用时传入 apps, 用历史模型操作,
-    # 避免引用尚未添加的字段 (如 RuleSceneAssignment.recruit_type 由 0009 添加、
-    # SceneRule.max_selectable_tags 由 0008 添加). apps 为 None 时保持实时模型
-    # (management cmd / conftest 直接调用), 行为不变.
-    # 0002 数据迁移: RuleSceneAssignment 的 recruit_type 列由 0009 才添加, 须用历史模型,
-    # 且历史模型不含 save() 重写(不会自动生成 id). 历史 RSA.rule 外键要求历史 SceneRule
-    # 实例, 故下方 scene assignment 用「历史 SceneRule 实例 + 显式 id」创建. 其余模型在
-    # 0002 阶段用实时模型已验证可正常落库(原 migrate 失败点仅在 rule_scene_assignment).
-    # apps 为 None 时 (management cmd / conftest) 保持实时模型, 行为不变.
-    _HistSceneRule = apps.get_model('reason_library', 'SceneRule') if apps else None
+    # 避免引用尚未添加的字段. 关键陷阱 (2026-10-08 实测):
+    #   - RuleSceneAssignment.recruit_type 由 0009 添加
+    #   - SceneRule.code / version 由 0014 添加, 且 SceneRule.save() 重写会在事务内
+    #     自动写 code 列. 0002 早于 0014 运行, 若用实时 SceneRule 模型 → INSERT 触发
+    #     save() 重写写 scene_rule.code → OperationalError: no such column.
+    #     故 0002 下 SceneRule 也必须走历史模型 (无 code 列、无 save() 重写),
+    #     由 0014 的 backfill_code_version RunPython 统一补号.
+    # apps 为 None 时 (management cmd / conftest) 保持实时模型, save() 自动补号, 行为不变.
+    # 历史 RSA.rule 外键要求历史 SceneRule 实例, 故 scene assignment 用历史实例创建.
     if apps is not None:
+        # 0002 数据迁移: 整组 reason_library 模型统一切到历史模型, 避开尚未添加的字段
+        # (SceneRule.code/version @0014, RuleSceneAssignment.recruit_type @0009) 及其 save() 重写.
+        # 关键: 必须整组一致 —— 否则历史 SceneRule 实例喂不进实时模型的 FK
+        #       (ValueError: Cannot query "SceneRule ...": Must be "SceneRule" instance).
+        SceneRule = apps.get_model('reason_library', 'SceneRule')
+        ReasonTag = apps.get_model('reason_library', 'ReasonTag')
+        RuleCategory = apps.get_model('reason_library', 'RuleCategory')
+        CategoryAssignment = apps.get_model('reason_library', 'CategoryAssignment')
         RuleSceneAssignment = apps.get_model('reason_library', 'RuleSceneAssignment')
+    else:
+        # management cmd / conftest: 保持实时模型, save() 自动补号, 行为不变.
+        from apps.reason_library.models import (
+            SceneRule, ReasonTag, RuleCategory,
+            CategoryAssignment, RuleSceneAssignment,
+        )
 
     # 1) Tags
+    # 历史模型 (apps 非 None) 无 save() 重写, 不会自动生成 reason_tag.code;
+    # 而 code 在 0001 即建且 unique, 必须显式给唯一值, 否则批量插入撞唯一约束.
+    # 实时模型 (apps=None) 由 save() 自动补号, 此处不传 code.
+    _hist_code = (lambda: f'R{nanoid_generate(size=11)}') if apps is not None else None
+    # 历史模型 (apps 非 None) 无 save() 重写 → 不会自动生成 nanoid 主键 id;
+    # 而 id 是 CharField PK 且 unique, 必须显式给唯一值, 否则批量插入撞主键唯一约束.
+    # (RuleSceneAssignment 在其 create 处已显式传 id; 其余四个 nanoid-PK 模型在此统一注入.)
+    _hist_id = (lambda: nanoid_generate(size=21)) if apps is not None else None
     tag_objs: Dict[str, ReasonTag] = {}
     for name, en, tip, _grp in SYSTEM_TAGS:
+        tag_defaults = {
+            'en_name': en,
+            'tip': tip,
+            'type': TagType.CUSTOM.value,  # 2026-09-21: 存量标签统一为自定义
+            'enabled': True,
+        }
+        if _hist_code is not None:
+            tag_defaults['code'] = _hist_code()
+        if _hist_id is not None:
+            tag_defaults['id'] = _hist_id()
         tag, created = ReasonTag.objects.get_or_create(
             name=name,
-            defaults={
-                'en_name': en,
-                'tip': tip,
-                'type': TagType.CUSTOM.value,  # 2026-09-21: 存量标签统一为自定义
-                'enabled': True,
-            },
+            defaults=tag_defaults,
         )
         tag_objs[name] = tag
 
     # 2026-09-21: 系统预置标签 (流程自动写入原因)
     for name, en, tip in PRESET_TAGS:
-        ReasonTag.objects.get_or_create(
+        preset_defaults = {
+            'en_name': en,
+            'tip': tip,
+            'type': TagType.SYSTEM.value,
+            'enabled': True,
+        }
+        if _hist_code is not None:
+            preset_defaults['code'] = _hist_code()
+        if _hist_id is not None:
+            preset_defaults['id'] = _hist_id()
+        _, created = ReasonTag.objects.get_or_create(
             name=name,
-            defaults={
-                'en_name': en,
-                'tip': tip,
-                'type': TagType.SYSTEM.value,
-                'enabled': True,
-            },
+            defaults=preset_defaults,
         )
         if verbose and created:
             print(f'  + tag: {name}')
@@ -278,13 +310,20 @@ def seed_initial_data(verbose: bool = False, apps=None) -> Dict[str, int]:
     asn_count = 0
     scene_count = 0
     for rule_def in PRESET_RULES:
-        rule, rule_created = SceneRule.objects.get_or_create(
+        # apps 非 None → 历史 SceneRule (无 code/version 列、无 save() 重写);
+        # 否则实时模型自动补号. 二者均经上方整组历史/实时切换, 此处直接复用.
+        rule_model = SceneRule
+        rule_defaults = {
+            'is_system': rule_def['is_system'],
+            'enabled': rule_def['enabled'],
+            'description': f'预置规则 [{rule_def["key"]}]',
+        }
+        # 历史模型下显式给 nanoid 主键 (save() 不自动生成); code 由 0014 backfill 统一补号, 此处不传.
+        if _hist_id is not None:
+            rule_defaults['id'] = _hist_id()
+        rule, rule_created = rule_model.objects.get_or_create(
             name=rule_def['name'],
-            defaults={
-                'is_system': rule_def['is_system'],
-                'enabled': rule_def['enabled'],
-                'description': f'预置规则 [{rule_def["key"]}]',
-            },
+            defaults=rule_defaults,
         )
         # 已存在时同步 is_system / enabled (避免 seed 重跑时状态漂移)
         if not rule_created:
@@ -316,14 +355,18 @@ def seed_initial_data(verbose: bool = False, apps=None) -> Dict[str, int]:
                         f'rule {rule_def["key"]} 分类 {ck} 引用了未先建的父 {parent_key}'
                     )
                 level = parent_obj.level + 1
+            cat_defaults = {
+                'parent': parent_obj,
+                'order': order,
+                'allow_custom': allow_custom,
+                'level': level,
+            }
+            # 历史模型下显式给 nanoid 主键 (save() 不自动生成)
+            if _hist_id is not None:
+                cat_defaults['id'] = _hist_id()
             cat, created = RuleCategory.objects.get_or_create(
                 rule=rule, name=cname,
-                defaults={
-                    'parent': parent_obj,
-                    'order': order,
-                    'allow_custom': allow_custom,
-                    'level': level,
-                },
+                defaults=cat_defaults,
             )
             cat_key_to_obj[ck] = cat
             cat_count += 1
@@ -335,17 +378,21 @@ def seed_initial_data(verbose: bool = False, apps=None) -> Dict[str, int]:
             cat_obj = cat_key_to_obj[ck]
             for idx, tn in enumerate(tag_names):
                 tag_obj = tag_objs[tn]
+                asn_defaults = {'order': idx}
+                # 历史模型下显式给 nanoid 主键 (save() 不自动生成)
+                if _hist_id is not None:
+                    asn_defaults['id'] = _hist_id()
                 _, created = CategoryAssignment.objects.get_or_create(
                     category=cat_obj, tag=tag_obj,
-                    defaults={'order': idx},
+                    defaults=asn_defaults,
                 )
                 asn_count += 1
                 if verbose and created:
                     print(f'      + assignment: {cname} → {tn}' if (cname := cat_obj.name) else '')
 
         # 2c) Scene assignments - 先清后建 (幂等)
-        # 历史 RSA 外键需历史 SceneRule 实例, 故统一用 _assign_rule (apps 下为历史实例)
-        _assign_rule = _HistSceneRule.objects.get(pk=rule.pk) if _HistSceneRule else rule
+        # RuleSceneAssignment 与 rule 同为历史/实时模型 (上方统一切换), 直接复用 rule 实例.
+        _assign_rule = rule
         RuleSceneAssignment.objects.filter(rule=_assign_rule).delete()
         for s in rule_def['scenes']:
             RuleSceneAssignment.objects.create(

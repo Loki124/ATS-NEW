@@ -21,6 +21,7 @@ from ..exceptions import ApiResponse, BizCode, BizException
 from ..permissions import SystemOrAdminPermission
 from ..serializers import SceneRuleDetailSerializer, WizardSaveSerializer
 from ..services.active_query_service import invalidate_active_cache
+from ..services.rule_version_service import create_version_snapshot
 from ..services.wizard_service import WizardService
 from . import _api
 
@@ -53,4 +54,6 @@ class WizardSaveView(APIView):
             user=request.user,
         )
         invalidate_active_cache()
+        # 三步向导保存计为语义变更: wizard_service 已 version+1, 此处落快照
+        create_version_snapshot(updated_rule, request.user, kind='update', note='三步向导保存')
         return ApiResponse.ok(SceneRuleDetailSerializer(updated_rule).data)

@@ -37,11 +37,14 @@ from ..permissions import (
 )
 from ..serializers import (
     SceneRuleCreateSerializer, SceneRuleDetailSerializer,
-    SceneRuleListSerializer, SceneRuleUpdateSerializer,
+    SceneRuleListSerializer, SceneRuleUpdateSerializer, SceneRuleVersionSerializer,
 )
 from ..services.active_query_service import invalidate_active_cache
 from ..services.import_export_service import (
     create_rule_from_import, export_rule_json,
+)
+from ..services.rule_version_service import (
+    SceneRuleVersionNotFound, create_version_snapshot, list_versions, rollback_rule,
 )
 from . import _api
 
@@ -140,6 +143,8 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
                 rule = serializer.save()
         except IntegrityError:
             raise BizException(BizCode.RULE_NAME_DUPLICATED, '该规则名已存在', status_code=400)
+        # 新建: version 默认=1, 落一条 kind='create' 基线快照 (与存量回填语义一致)
+        create_version_snapshot(rule, request.user, kind='create', note='初始创建')
         return ApiResponse.created(SceneRuleDetailSerializer(rule).data)
 
     @_api
@@ -171,6 +176,10 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 rule = serializer.save()
+                # 头部更新也计为语义变更: version+1 并落快照 (仅 name/enabled/description 等头部字段)
+                rule.version += 1
+                rule.save(update_fields=['version'])
+                create_version_snapshot(rule, request.user, kind='update', note='更新规则头部')
         except IntegrityError:
             raise BizException(BizCode.RULE_NAME_DUPLICATED, '该规则名已存在', status_code=400)
         invalidate_active_cache()
@@ -258,6 +267,8 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
                         status_code=409,
                     )
         invalidate_active_cache()
+        # 副本视为新建: 落一条 kind='create' 基线快照
+        create_version_snapshot(new_rule, request.user, kind='create', note='复制副本')
         return ApiResponse.created(SceneRuleDetailSerializer(new_rule).data)
 
     # ----- JSON import -----
@@ -282,6 +293,8 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
                 status_code=409,
             )
         invalidate_active_cache()
+        # JSON 导入视为新建: 落一条 kind='import' 基线快照
+        create_version_snapshot(new_rule, request.user, kind='import', note='JSON 导入')
         return ApiResponse.created(SceneRuleDetailSerializer(new_rule).data)
 
     # ----- JSON export (用于下载 + 单元测试) -----
@@ -297,6 +310,48 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
         except SceneRule.DoesNotExist:
             raise BizException(BizCode.RULE_NOT_FOUND, '规则不存在', status_code=404)
         return ApiResponse.ok(export_rule_json(src))
+
+    # ----- 版本历史 -----
+    @action(
+        detail=True, methods=['get'], url_path='versions',
+        permission_classes=[IsAuthenticatedReadOnly, SystemOrAdminPermission],
+    )
+    @_api
+    def versions(self, request: Request, pk=None, **kwargs):
+        """GET /rules/{id}/versions/ 返回版本历史 (倒序, 最近在前)。"""
+        try:
+            rule = SceneRule.objects.get(pk=pk)
+        except SceneRule.DoesNotExist:
+            raise BizException(BizCode.RULE_NOT_FOUND, '规则不存在', status_code=404)
+        rows = list_versions(rule.id)
+        return ApiResponse.ok(SceneRuleVersionSerializer(rows, many=True).data)
+
+    @action(
+        detail=True, methods=['post'], url_path='versions/rollback',
+        permission_classes=[IsAuthenticatedReadOnly, SystemOrAdminPermission],
+    )
+    @_api
+    def rollback_version(self, request: Request, pk=None, **kwargs):
+        """POST /rules/{id}/versions/rollback/ 回滚到指定版本: body {version_no: int}。
+
+        异常映射: 版本不存在 → 404; 写回冲突 (场景/类型被占用、同名等) 由 WizardService
+        抛出的 BizException 直接透传 (409/400, fail-loud, 不静默降级)。
+        """
+        try:
+            rule = SceneRule.objects.get(pk=pk)
+        except SceneRule.DoesNotExist:
+            raise BizException(BizCode.RULE_NOT_FOUND, '规则不存在', status_code=404)
+        raw = (request.data or {}).get('version_no')
+        try:
+            version_no = int(raw)
+        except (TypeError, ValueError):
+            raise BizException(BizCode.VALIDATION_FAILED, 'version_no 必须为整数', status_code=400)
+        try:
+            updated = rollback_rule(rule, version_no, request.user)
+        except SceneRuleVersionNotFound:
+            raise BizException(BizCode.RULE_NOT_FOUND, f'版本 {version_no} 的快照不存在', status_code=404)
+        invalidate_active_cache()
+        return ApiResponse.ok(SceneRuleDetailSerializer(updated).data)
 
     # ----- helpers -----
     def _check_optimistic_lock(self, request: Request, obj: SceneRule):

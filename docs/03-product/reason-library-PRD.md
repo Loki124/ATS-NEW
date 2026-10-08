@@ -1,5 +1,5 @@
 # 原因库（Reason Library）产品需求文档（PRD）
-> 最后更新：2026-09-20（依据 git 最后提交）
+> 最后更新：2026-10-08（reason-library 规则版本化）
 
 > 模块代号：reason-library ｜ 优先级：P0 ｜ 状态：已落地（2026-09-20 合并 main）
 > 归属：ATS-NEW 招聘助手 · 简历筛选 / 淘汰 / 取消面试 / 人才库 业务的原因标签与规则体系
@@ -43,6 +43,7 @@
 - 标签 / 规则 i18n（zh-CN + en-US，193 key）
 - Active 查询 Redis 缓存（不按 role 区分，Q-A5）
 - 导入时同名冲突业务码区分（CSV 重复 40001 vs 格式错误 40002）
+- 规则版本化：每次语义变更自动留痕（规则编号 S+4、版本号递增、不可变快照），支持版本历史查看与回滚
 
 ### P2（增强）
 - Playwright E2E 覆盖 AC-1/4/7
@@ -50,7 +51,7 @@
 
 ## 4. 数据模型概览
 
-5 张表（4 实体 + 1 中间表）：
+6 张表（5 实体 + 1 中间表）：
 
 | 表 | 说明 |
 |---|---|
@@ -59,8 +60,9 @@
 | `rule_category` | 分类项（树形，parent 自引用，level ≤ 4，allow_custom） |
 | `category_assignment` | 分类项 → 标签 多对多（order） |
 | `rule_scene_assignment` | 规则 → 场景 绑定（UNIQUE(scene)） |
+| `scene_rule_version` | 规则版本快照（仅 INSERT，UNIQUE(rule,version)，version 单调递增，删除 CASCADE） |
 
-## 5. 接口清单（17 endpoints）
+## 5. 接口清单（19 endpoints）
 
 ```
 GET    /api/v1/reason-library/tags/            # 标签列表（分页 + 搜索 + 类型筛选）
@@ -79,6 +81,8 @@ PUT    /api/v1/reason-library/rules/{id}/scenes/     # 批量替换场景绑定�
 GET    /api/v1/reason-library/scenes/          # 场景绑定总览
 PUT    /api/v1/reason-library/scenes/          # 整表替换场景绑定
 GET    /api/v1/reason-library/active/?scene=X # 业务态：该场景生效标签树
+GET    /api/v1/reason-library/rules/{id}/versions/         # 版本历史列表（倒序）
+POST   /api/v1/reason-library/rules/{id}/versions/rollback/ # 回滚到指定版本（body {version_no}）
 ```
 
 ## 6. Q&A 决策记录（已全部拍板）
@@ -118,6 +122,8 @@ GET    /api/v1/reason-library/active/?scene=X # 业务态：该场景生效标�
 | AC-6 | snapshot 副本接管 src 场景 |
 | AC-7 | CSV / JSON 导入同名冲突返回正确业务码 |
 | AC-8 | 并发编辑触发乐观锁 412 |
+| AC-9 | 规则每次语义变更自动生成版本快照，版本历史可查 |
+| AC-10 | 回滚到历史版本经 WizardService 写回且不静默降级（冲突 409/400） |
 
 ## 9. 待确认问题（已闭环）
 

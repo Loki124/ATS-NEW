@@ -132,8 +132,8 @@
  */
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert, NTooltip } from 'naive-ui'
-import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, DownloadOutline, PencilOutline, TrashOutline } from '@vicons/ionicons5'
-import { listTags, updateTag, deleteTag, extractReasonApiError, exportTags } from '../../../api/reason-library'
+import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, DownloadOutline, PencilOutline } from '@vicons/ionicons5'
+import { listTags, updateTag, extractReasonApiError, exportTags } from '../../../api/reason-library'
 import type { ReasonTag } from '../../../types/reason-library'
 import { BIZ_CODE } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
@@ -275,27 +275,6 @@ async function toggleEnabled(tag: ReasonTag) {
   }
 }
 
-async function removeTag(tag: ReasonTag) {
-  if (tag.type === 'system') {
-    message.warning(t('reasonLibrary.common.systemImmutable'))
-    return
-  }
-  try {
-    await deleteTag(tag.id)
-    message.success(t('reasonLibrary.common.success'))
-    await loadList()
-    refreshStats()
-  } catch (e: any) {
-    if (e?.code === BIZ_CODE.TAG_HAS_REFS) {
-      message.error(t('reasonLibrary.errors.TAG_HAS_REFS'))
-    } else if (e?.code === BIZ_CODE.SYSTEM_TAG_IMMUTABLE) {
-      message.error(t('reasonLibrary.errors.SYSTEM_TAG_IMMUTABLE'))
-    } else {
-      message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
-    }
-  }
-}
-
 function onSaved() {
   modalShow.value = false
   loadList()
@@ -403,7 +382,7 @@ const columns = computed(() => [
   {
     title: t('reasonLibrary.tags.col.actions'),
     key: 'actions',
-    width: 200,
+    width: 120,
     fixed: 'right' as const,
     render: (row: ReasonTag) => {
       const editBtn = h(
@@ -418,20 +397,7 @@ const columns = computed(() => [
           default: () => t('reasonLibrary.common.edit'),
         },
       )
-      const deleteBtn = h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          type: 'error',
-          onClick: () => removeTag(row),
-        },
-        {
-          icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
-          default: () => t('reasonLibrary.common.delete'),
-        },
-      )
-      return h(NSpace, { size: 4 }, () => [editBtn, deleteBtn])
+      return h(NSpace, { size: 4 }, () => [editBtn])
     },
   },
 ])

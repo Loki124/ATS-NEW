@@ -331,6 +331,12 @@ class WizardService:
         from .active_query_service import invalidate_active_cache
         invalidate_active_cache()
 
+        # 语义变更计数 +1 (快照由调用方 view 经 rule_version_service 写入, 保证
+        # 「递增」与「落快照」在同一调用语义内成对; 避免 save 内部直接落快照导致
+        # 回滚路径重复计数)。
+        rule.version += 1
+        rule.save(update_fields=['version'])
+
         # 重新读一次 (事务内可能 stale)
         rule.refresh_from_db()
         return rule

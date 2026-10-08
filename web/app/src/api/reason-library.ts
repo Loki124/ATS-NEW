@@ -52,6 +52,7 @@ import type {
   SceneRule,
   SceneRuleListItem,
   SceneRuleUpdatePayload,
+  SceneRuleVersion,
   TagImportResult,
   TagListQuery,
   WizardPayload,
@@ -226,6 +227,30 @@ export function deleteRule(id: string): Promise<void> {
 export function snapshotRule(id: string): Promise<SceneRule> {
   return api
     .post<ApiResponse<SceneRule>>(`/reason-library/rules/${id}/snapshot/`, {})
+    .then((r) => unwrap<SceneRule>(r))
+}
+
+/**
+ * 规则历史版本列表 (GET /rules/{id}/versions/)。
+ * 返回按版本号降序的快照数组 (含 snapshot/changedFields/changeKind/changeNote/createdAt)。
+ */
+export function listRuleVersions(id: string): Promise<SceneRuleVersion[]> {
+  return api
+    .get<ApiResponse<SceneRuleVersion[]>>(`/reason-library/rules/${id}/versions/`)
+    .then((r) => unwrap<SceneRuleVersion[]>(r) ?? [])
+}
+
+/**
+ * 回滚到指定历史版本 (POST /rules/{id}/versions/rollback/, body={version_no})。
+ * 后端复用 WizardService.save 原子路径重放该版本快照, 并落一条 changeKind='rollback' 的新快照。
+ * 冲突 (如该版本引用的场景组合被其他规则占用) 会抛 409 RULE_SCENE_CONFLICT — 上层用
+ * extractReasonApiError 提示, 不静默降级。
+ */
+export function rollbackRuleVersion(id: string, versionNo: number): Promise<SceneRule> {
+  return api
+    .post<ApiResponse<SceneRule>>(`/reason-library/rules/${id}/versions/rollback/`, {
+      version_no: versionNo,
+    })
     .then((r) => unwrap<SceneRule>(r))
 }
 
@@ -431,6 +456,7 @@ export type {
   SceneRule,
   SceneRuleListItem,
   SceneRuleUpdatePayload,
+  SceneRuleVersion,
   RuleCategory,
   SceneKey,
   SceneConfigPayload,
@@ -460,6 +486,8 @@ export default {
   snapshotRule,
   wizardSave,
   importRule,
+  listRuleVersions,
+  rollbackRuleVersion,
   // scene
   getSceneConfig,
   putSceneConfig,

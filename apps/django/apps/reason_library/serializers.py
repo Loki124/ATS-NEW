@@ -12,7 +12,7 @@ from rest_framework import serializers
 
 from .models import (
     CategoryAssignment, MAX_CATEGORY_LEVEL,
-    ReasonTag, RuleCategory, RuleSceneAssignment, SceneRule,
+    ReasonTag, RuleCategory, RuleSceneAssignment, SceneRule, SceneRuleVersion,
 )
 
 
@@ -154,13 +154,13 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
     class Meta:
         model = SceneRule
         fields = [
-            'id', 'name', 'is_system', 'isSystem', 'enabled', 'description',
+            'id', 'code', 'version', 'name', 'is_system', 'isSystem', 'enabled', 'description',
             'max_selectable_tags', 'maxSelectableTags',
             'modal_title', 'modalTitle',
             'created_at', 'createdAt', 'updated_at', 'updatedAt', 'scenes',
             'tag_count', 'tagCount', 'isPresetDefault',
         ]
-        read_only_fields = ['id', 'is_system', 'isSystem', 'created_at', 'createdAt', 'updated_at', 'updatedAt', 'isPresetDefault']
+        read_only_fields = ['id', 'code', 'version', 'is_system', 'isSystem', 'created_at', 'createdAt', 'updated_at', 'updatedAt', 'isPresetDefault']
 
     def get_isPresetDefault(self, obj) -> bool:
         return bool(getattr(obj, 'is_preset_default', False))
@@ -218,8 +218,8 @@ class SceneRuleCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SceneRule
-        fields = ['id', 'name', 'is_system', 'enabled', 'description', 'max_selectable_tags', 'modal_title']
-        read_only_fields = ['id']
+        fields = ['id', 'code', 'version', 'name', 'is_system', 'enabled', 'description', 'max_selectable_tags', 'modal_title']
+        read_only_fields = ['id', 'code', 'version']
 
     def validate_name(self, value: str) -> str:
         value = (value or '').strip()
@@ -256,6 +256,20 @@ class SceneRuleUpdateSerializer(serializers.ModelSerializer):
             if SceneRule.objects.filter(name=value).exclude(pk=self.instance.pk).exists():
                 raise serializers.ValidationError({'name': ['该规则名已存在']})
         return value
+
+
+class SceneRuleVersionSerializer(serializers.ModelSerializer):
+    """场景规则版本快照（只读）。快照不可经 API 增删改，整个序列化器只读。"""
+
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = SceneRuleVersion
+        fields = [
+            'id', 'rule_id', 'version', 'snapshot', 'changed_fields',
+            'change_kind', 'change_note', 'created_at', 'created_by',
+        ]
+        read_only_fields = fields
 
 
 # ---------------------------------------------------------------------------

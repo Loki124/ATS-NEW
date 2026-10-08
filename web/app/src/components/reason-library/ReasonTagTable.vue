@@ -61,7 +61,7 @@
  */
 import { ref, computed, h, watch } from 'vue'
 import { NButton, NTag, NSwitch, NTooltip, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty } from 'naive-ui'
-import { SearchOutline, AddOutline, PencilOutline, TrashOutline, LockClosedOutline } from '@vicons/ionicons5'
+import { SearchOutline, AddOutline, PencilOutline, LockClosedOutline } from '@vicons/ionicons5'
 import type { ReasonTag } from '../../types/reason-library'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
@@ -75,7 +75,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'edit', tag: ReasonTag): void
   (e: 'toggle', tag: ReasonTag): void
-  (e: 'remove', tag: ReasonTag): void
   (e: 'create'): void
 }>()
 
@@ -160,15 +159,10 @@ const columns = computed(() => [
           default: () => t('reasonLibrary.common.edit'),
         },
       )
-      const delBtn = h(
-        NButton,
-        { size: 'small', quaternary: true, type: 'error', disabled: isLocked, onClick: () => emit('remove', row) },
-        { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('reasonLibrary.common.delete') },
-      )
       const wrapped = isLocked
         ? h(NTooltip, null, { trigger: () => editBtn, default: () => t('reasonLibrary.common.systemImmutable') })
         : editBtn
-      return h(NSpace, { size: 4 }, () => [wrapped, delBtn])
+      return h(NSpace, { size: 4 }, () => [wrapped])
     },
   },
 ])
