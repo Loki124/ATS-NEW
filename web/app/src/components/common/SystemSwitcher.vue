@@ -31,8 +31,9 @@
 
 <script setup lang="ts">
 import { computed, h } from 'vue'
+import { useRouter } from 'vue-router'
 import { NDropdown, NIcon, useMessage } from 'naive-ui'
-import { ChevronDownOutline as ChevronDown, CheckmarkOutline as Check } from '@vicons/ionicons5'
+import { ChevronDownOutline as ChevronDown, CheckmarkOutline as Check, ShareSocialOutline } from '@vicons/ionicons5'
 import { useSystemStore, RECRUIT_SYSTEMS, type RecruitSystemKey } from '../../stores/system'
 
 /**
@@ -46,21 +47,35 @@ defineProps<{ collapsed?: boolean }>()
 
 const systemStore = useSystemStore()
 const message = useMessage()
+const router = useRouter()
 
-const options = computed(() =>
-  RECRUIT_SYSTEMS.map((s) => ({
+const options = computed(() => {
+  const list = RECRUIT_SYSTEMS.map((s) => ({
     key: s.key,
     label: s.label,
     icon: () =>
       s.key === systemStore.current
         ? h(NIcon, { size: 14, style: 'color:var(--brand)' }, { default: () => h(Check) })
         : h('span', { style: 'display:inline-block;width:14px' }),
-  })),
-)
+  }))
+  // 「内推助手」与「社会招聘 / 校园招聘」并列，作为校招、社招大分类下拉下的功能入口
+  list.push({ type: 'divider', key: 'div-referral' })
+  list.push({
+    key: '/referral',
+    label: '内推助手',
+    icon: () => h(NIcon, { size: 14 }, { default: () => h(ShareSocialOutline) }),
+  })
+  return list
+})
 
-function onSelect(key: RecruitSystemKey) {
+function onSelect(key: string) {
+  // 内推助手：跳转内推中心页，不切换招聘系统
+  if (key === '/referral') {
+    router.push('/referral')
+    return
+  }
   if (key === systemStore.current) return
-  systemStore.switchTo(key)
+  systemStore.switchTo(key as RecruitSystemKey)
   const target = RECRUIT_SYSTEMS.find((s) => s.key === key)
   message.success(`已切换到「${target?.label}」系统`)
 }

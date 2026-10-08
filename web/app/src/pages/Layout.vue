@@ -224,7 +224,6 @@ import {
   CogOutline,
   LogOutOutline,
   SearchOutline,
-  ShareSocialOutline,
   PersonOutline,
   MenuOutline,
   SwapVerticalOutline,
@@ -370,8 +369,15 @@ const systemStore = useSystemStore()
 const menuOptions = computed(() => {
   const base = [
     { key: '/dashboard', label: '工作台', icon: renderIcon(SpeedometerOutline) },
-    { key: '/demands', label: '需求管理', icon: renderIcon(DocumentTextOutline) },
-    { key: '/positions', label: '职位管理', icon: renderIcon(PeopleOutline) },
+    {
+      key: 'demand-position',
+      label: '需求与职位',
+      icon: renderIcon(DocumentTextOutline),
+      children: [
+        { key: '/demands', label: '需求管理' },
+        { key: '/positions', label: '职位管理' },
+      ],
+    },
     {
       key: 'candidate',
       label: '候选人',
@@ -401,7 +407,6 @@ const menuOptions = computed(() => {
         { key: '/onboardings', label: '待入职' },
       ],
     },
-    { key: '/referral', label: '内推中心', icon: renderIcon(ShareSocialOutline) },
     { key: '/report', label: '数据中心', icon: renderIcon(TrendingUpOutline) },
     // 设置已迁到 sider footer 永久贴底（hover 展开时显示文字）
   ]
