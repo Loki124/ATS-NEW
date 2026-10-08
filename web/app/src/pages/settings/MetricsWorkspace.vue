@@ -149,6 +149,7 @@
                 v-else
                 :columns="tplColumns"
                 :data="pagedTemplates"
+                :row-props="tplRowProps"
               :scroll-x="900"
               :max-height="tableMaxHeight"
               size="small"
@@ -1361,6 +1362,18 @@ function defRowProps(row: MetricDefinition) {
   }
 }
 
+// 模板行：整行可点击 → 打开编辑弹窗。
+// 完全镜像 defRowProps 的结构与字段，唯一差异是 onClick 指向 openTemplateEdit。
+function tplRowProps(row: MetricTemplate) {
+  return {
+    style: 'cursor:pointer',
+    onClick: () => openTemplateEdit(row),
+    onKeydown: (e: KeyboardEvent) => {
+      if (e.key === 'Enter') openTemplateEdit(row)
+    },
+  }
+}
+
 // ===== 指标模板表（n-data-table，保留 CRUD 操作列）列定义 =====
 const tplColumns = computed<DataTableColumns<MetricTemplate>>(() => [
   {
@@ -1423,20 +1436,20 @@ const tplColumns = computed<DataTableColumns<MetricTemplate>>(() => [
     width: 320,
     render: (row) =>
       h('div', { class: 'ws-row-actions' }, [
-        h(NButton, { size: 'small', quaternary: true, onClick: () => openTemplateEdit(row) }, { default: () => t('metrics.btn.edit') }),
+        h(NButton, { size: 'small', quaternary: true, onClick: (e: MouseEvent) => { e.stopPropagation(); openTemplateEdit(row) } }, { default: () => t('metrics.btn.edit') }),
         h(
           NButton,
-          { size: 'small', quaternary: true, loading: busyRowId.value === row.id, onClick: () => toggleTemplate(row) },
+          { size: 'small', quaternary: true, loading: busyRowId.value === row.id, onClick: (e: MouseEvent) => { e.stopPropagation(); toggleTemplate(row) } },
           { default: () => (row.status === 'enabled' ? t('metrics.btn.disable') : t('metrics.btn.enable')) },
         ),
         h(
           NButton,
-          { size: 'small', quaternary: true, type: 'error', loading: busyRowId.value === row.id, onClick: () => removeTemplate(row) },
+          { size: 'small', quaternary: true, type: 'error', loading: busyRowId.value === row.id, onClick: (e: MouseEvent) => { e.stopPropagation(); removeTemplate(row) } },
           { default: () => t('metrics.btn.delete') },
         ),
         h(
           NButton,
-          { size: 'small', quaternary: true, onClick: () => openVersionHistory(row) },
+          { size: 'small', quaternary: true, onClick: (e: MouseEvent) => { e.stopPropagation(); openVersionHistory(row) } },
           { default: () => t('metrics.life1.versionHistory') },
         ),
       ]),
