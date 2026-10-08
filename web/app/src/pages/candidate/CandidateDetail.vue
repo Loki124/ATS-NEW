@@ -15,6 +15,10 @@
           <template #icon><n-icon :component="PaperPlaneOutline" /></template>
           {{ t('pages.candidate.CandidateDetail.s3') }}
         </n-button>
+        <n-button type="warning" class="bg-btn" @click="bgModalVisible = true">
+          <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
+          {{ t('pages.candidate.InitiateBgCheck.title') }}
+        </n-button>
       </n-space>
     </div>
 
@@ -457,6 +461,12 @@
       </n-upload>
       <div class="upload-tip">{{ t('pages.candidate.CandidateDetail.s98') }}</div>
     </n-modal>
+
+    <!-- 发起背调（供应商集成系统） -->
+    <InitiateBackgroundCheckModal
+      v-model:show="bgModalVisible"
+      :candidate="{ id: candidateData.id, name: candidateData.name, phone: candidateData.phone }"
+    />
   </div>
 </template>
 
@@ -474,6 +484,7 @@ import {
   DocumentTextOutline,
   TimeOutline,
   PaperPlaneOutline,
+  ShieldCheckmarkOutline,
   CloseOutline,
   ChatbubblesOutline,
   LogoWechat,
@@ -483,6 +494,7 @@ import {
 import { getCandidate } from '../../api/candidate'
 import { fetchConfig, defaultConfig, type StandardResumeConfig } from '../../api/standard-resume'
 import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fields'
+import InitiateBackgroundCheckModal from './InitiateBackgroundCheckModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -696,6 +708,7 @@ const educationOptions = [
 const uploadResumeModalVisible = ref(false)
 const editResumeModalVisible = ref(false)
 const notificationModalVisible = ref(false)
+const bgModalVisible = ref(false)
 const fileList = ref<any[]>([])
 
 const notificationForm = ref({

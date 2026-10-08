@@ -359,8 +359,14 @@ def test_background_check_connection(config: IntegrationConfig) -> Dict[str, Any
         logger.exception('test_background_check_connection failed: %s', e)
         return {'success': False, 'message': f'测试失败: {e}'}
 
-def request_background_check(candidate_id: str, items: List[str], config_id: str = None) -> Dict[str, Any]:
-    """发起背调（T6 委托供应商适配器；保持对外 dict 形状与落库行为）。"""
+def request_background_check(candidate_id: str, items: List[str], config_id: str = None,
+                             *, candidate_name: str = '', phone: str = '',
+                             operator_name: str = '', operator_phone: str = '') -> Dict[str, Any]:
+    """发起背调（T6 委托供应商适配器；保持对外 dict 形状与落库行为）。
+
+    candidate_name/phone/operator_name/operator_phone 透传给供应商 CreateOrderRequest，
+    用于填写规范 §3.2 必填字段（候选人姓名/手机号、委托人姓名/手机号）。
+    """
     try:
         qs = IntegrationConfig.objects.filter(type=IntegrationType.BACKGROUND_CHECK, is_active=True)
         if config_id:
@@ -369,7 +375,14 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
         if not config:
             return {'success': False, 'error': 'Background check not configured'}
         supplier = get_supplier(config)
-        req = CreateOrderRequest(candidate_id=str(candidate_id), items=list(items or []))
+        req = CreateOrderRequest(
+            candidate_id=str(candidate_id),
+            items=list(items or []),
+            candidate_name=candidate_name or '',
+            phone=phone or '',
+            operator_name=operator_name or '',
+            operator_phone=operator_phone or '',
+        )
         res = supplier.create_order(req)
         IntegrationSyncLog.objects.create(
             config=config, sync_type='CREATE_ORDER',
@@ -385,6 +398,7 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
                 try:
                     create_background_check_order(
                         config=config, candidate_id=str(candidate_id),
+                        candidate_name=candidate_name or '',
                         items=list(items or []), order_number=str(order_number),
                         request_payload=inner,
                     )

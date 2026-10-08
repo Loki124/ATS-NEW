@@ -119,7 +119,11 @@ api_v1_patterns = [
     #   前缀 background-check/ 不与 integrations router 冲突；不加 IsSuperAdmin，靠签名保护。
     path('background-check/callback', BackgroundCheckCallbackView.as_view(), name='bg-callback'),
     path('background-check/callback/', BackgroundCheckCallbackView.as_view()),
-    # 2026-08-28 寇豆码: 背调订单状态机视图（超管可读 + 取消）。与 callback 同前缀但路径无冲突。
+    # 2026-08-28 寇豆码: 背调订单状态机视图（HR/HRBP/超管可读写 + 取消）。与 callback 同前缀但路径无冲突。
+    # 2026-10-08: 新增 suppliers/products/create-order 三个发起前/发起 action（静态前缀，须置于 <pk> 路由之前）。
+    path('background-check/orders/suppliers/', BackgroundCheckOrderViewSet.as_view({'get': 'suppliers'}), name='bg-orders-suppliers'),
+    path('background-check/orders/products/', BackgroundCheckOrderViewSet.as_view({'get': 'products'}), name='bg-orders-products'),
+    path('background-check/orders/create-order/', BackgroundCheckOrderViewSet.as_view({'post': 'create_order'}), name='bg-orders-create'),
     path('background-check/orders/', BackgroundCheckOrderViewSet.as_view({'get': 'list'}), name='bg-orders-list'),
     path('background-check/orders/<str:pk>/', BackgroundCheckOrderViewSet.as_view({'get': 'retrieve', 'post': 'cancel'}), name='bg-orders-detail'),
     # T6 新增接口: 轮询订单最新状态 / 拉取报告（与 cancel 同前缀，detail 子路由）

@@ -106,4 +106,35 @@ export async function cancelBackgroundCheckOrder(id: string) {
   return data
 }
 
+// ===== 候选人管理「发起背调」(供应商集成系统) =====
+export interface BackgroundCheckSupplier {
+  id: string
+  name: string
+  provider: string
+}
+
+export async function listBackgroundCheckSuppliers(): Promise<BackgroundCheckSupplier[]> {
+  const { data } = await api.get('/background-check/orders/suppliers/')
+  const body = (data || {}) as any
+  return body.data ?? []
+}
+
+export async function getBackgroundCheckProducts(configId: string): Promise<{ success: boolean; message?: string; data: any }> {
+  const { data } = await api.get('/background-check/orders/products/', { params: { config_id: configId } })
+  const body = (data || {}) as any
+  return { success: !!body.success, message: body.message, data: body.data ?? {} }
+}
+
+export async function createBackgroundCheckOrder(payload: {
+  candidate_id: string
+  candidate_name?: string
+  phone?: string
+  config_id: string
+  items: string[]
+}): Promise<{ success: boolean; message?: string; data?: any }> {
+  const { data } = await api.post('/background-check/orders/create-order/', payload)
+  const body = (data || {}) as any
+  return { success: !!body.success, message: body.message, data: body.data }
+}
+
 export default api

@@ -1,7 +1,8 @@
 """Integration Views (DRF) - PRD v4 §14.4"""
-from django.db import DatabaseError
+from django.db import DatabaseError, OperationalError
 import logging
 import time
+import requests
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
@@ -13,9 +14,11 @@ from rest_framework.views import APIView
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions import IsSuperAdmin
+from apps.core.permissions import IsSuperAdmin, IsHROrAbove
 
-from .models import IntegrationConfig, IntegrationSyncLog, BackgroundCheckOrder
+from .models import (
+    IntegrationConfig, IntegrationSyncLog, BackgroundCheckOrder, IntegrationType,
+)
 from .serializers import (
     IntegrationConfigSerializer,
     IntegrationSyncLogSerializer,
@@ -29,6 +32,8 @@ from .services import (
     cancel_background_check_order,
     query_background_check_order,
     fetch_background_check_report,
+    request_background_check,
+    get_supplier,
 )
 
 logger = logging.getLogger(__name__)
@@ -184,13 +189,15 @@ class BackgroundCheckCallbackView(APIView):
 
 
 class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
-    """背调订单状态机视图（仅超管可读 + 取消）。
+    """背调订单状态机视图（HR/HRBP/超管可读写；供应商回调另走签名端点）。
 
     - 列表/详情：展示订单当前状态、风险、报告、状态机转移历史(events)
+    - suppliers/products：发起前选择供应商与拉取套餐（仅暴露 id/name/provider，不含密钥）
+    - create-order：发起背调（委托 request_background_check 创建订单）
     - cancel 动作：平台发起取消（置 status=6，写 CANCEL 事件 + 出向供应商取消接口）
     """
     queryset = BackgroundCheckOrder.objects.all()
-    permission_classes = [IsSuperAdmin]
+    permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['config', 'status']
@@ -205,6 +212,82 @@ class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         return qs.select_related('config')
+
+    @action(detail=False, methods=['get'], url_path='suppliers')
+    def suppliers(self, request):
+        """列出可选背调供应商配置（仅暴露 id/name/provider，不含密钥）。"""
+        cfgs = IntegrationConfig.objects.filter(
+            type=IntegrationType.BACKGROUND_CHECK, is_active=True,
+        ).values('id', 'name', 'provider')
+        return Response({'success': True, 'data': list(cfgs)})
+
+    @action(detail=False, methods=['get'], url_path='products')
+    def products(self, request):
+        """拉取指定供应商的套餐/检查项（委托 supplier.query_products）。"""
+        config_id = request.query_params.get('config_id')
+        if not config_id:
+            return Response(
+                {'success': False, 'message': '缺少 config_id'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        config = IntegrationConfig.objects.filter(
+            id=config_id, type=IntegrationType.BACKGROUND_CHECK, is_active=True,
+        ).first()
+        if not config:
+            return Response(
+                {'success': False, 'message': '供应商配置不存在或未启用'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            supplier = get_supplier(config)
+            res = supplier.query_products()
+        except (OperationalError, ConnectionError, TimeoutError, OSError,
+                requests.RequestException, ValueError) as e:
+            # 套餐拉取: ORM + 供应商 HTTP 窄集.
+            logger.exception('query_products failed config=%s', config_id)
+            return Response(
+                {'success': False, 'message': f'套餐拉取失败: {e}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response({
+            'success': res.success,
+            'message': res.message,
+            'data': res.data or {},
+        })
+
+    @action(detail=False, methods=['post'], url_path='create-order')
+    def create_order(self, request):
+        """发起背调：创建订单（委托 request_background_check）。"""
+        candidate_id = (request.data.get('candidate_id') or '').strip()
+        if not candidate_id:
+            return Response(
+                {'success': False, 'message': '缺少 candidate_id'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        items = request.data.get('items') or []
+        if not isinstance(items, list):
+            items = [items] if items else []
+        config_id = request.data.get('config_id') or None
+        candidate_name = (request.data.get('candidate_name') or '').strip()
+        phone = (request.data.get('phone') or '').strip()
+        operator_name = (request.data.get('operator_name')
+                         or getattr(request.user, 'name', '') or '').strip()
+        operator_phone = (request.data.get('operator_phone') or '').strip()
+        result = request_background_check(
+            candidate_id=candidate_id,
+            items=items,
+            config_id=config_id,
+            candidate_name=candidate_name,
+            phone=phone,
+            operator_name=operator_name,
+            operator_phone=operator_phone,
+        )
+        if not result.get('success'):
+            return Response({
+                'success': False,
+                'message': result.get('error') or result.get('message') or '发起背调失败',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'data': result.get('data')})
 
     @action(detail=True, methods=['post'], url_path='cancel')
     def cancel(self, request, pk=None):
