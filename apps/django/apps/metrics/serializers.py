@@ -79,6 +79,7 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'atomic_metric', 'derived_metric',
             'metric_name', 'metric_path', 'metric_kind', 'data_type', 'unit',
+            'param_unit',
             'operators', 'param_config', 'value_domain', 'param_enums',
             'calc_params', 'param_allow_null', 'status', 'description', 'created_at',
             'version', 'version_count',

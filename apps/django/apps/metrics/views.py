@@ -641,6 +641,10 @@ class MetricDefinitionViewSet(APIView):
                 'params': {},
                 'returnType': m.data_type,
                 'unit': m.unit or '',
+                # 出参单位候选（严格对齐原型：多单位→内联 pill；单单位→静态继承；无→隐藏）
+                'units': [m.unit] if m.unit else [],
+                # 参数配置单位候选（仅约束取值范围，真实指标定义暂无多单位，留空隐藏）
+                'paramUnits': [],
                 'isEnum': getattr(m, 'is_enum', False),
                 'enumValues': list(m.enum_values or []),
                 'paramType': _param_type(m.data_type, getattr(m, 'is_enum', False)),
@@ -664,6 +668,10 @@ class MetricDefinitionViewSet(APIView):
                 'params': {},
                 'returnType': m.data_type,
                 'unit': m.unit or '',
+                # 出参单位候选（严格对齐原型：多单位→内联 pill；单单位→静态继承；无→隐藏）
+                'units': (func.get('units') if func else None) or ([m.unit] if m.unit else []),
+                # 参数配置单位候选（仅约束取值范围，来自派生函数注册表声明）
+                'paramUnits': (func.get('param_units') if func else None) or [],
                 'isEnum': False,
                 'enumValues': [],
                 'paramType': _param_type(m.data_type, False),

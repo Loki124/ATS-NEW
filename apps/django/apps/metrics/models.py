@@ -177,6 +177,9 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     )
     # 输出单位：模板可覆盖指标定义的口径单位，用于规则展示（如「月」）。
     unit = models.CharField(max_length=16, blank=True, default='', verbose_name='输出单位')
+    # 参数配置单位：约束「参数配置 / 取值范围」（param_config 的 min/max/step）的展示单位
+    # （如「年 / 段 / 天」），与出参单位（unit）相互独立。原型 v5 双单位模型的「参数配置单位」。
+    param_unit = models.CharField(max_length=16, blank=True, default='', verbose_name='参数配置单位')
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',

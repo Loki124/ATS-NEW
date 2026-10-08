@@ -84,6 +84,8 @@ export interface MetricTemplate {
   metricKind?: 'atomic' | 'derived'
   dataType?: MetricDataType
   unit?: string
+  /** 参数配置单位（约束 paramConfig 取值范围的展示单位，如 年/段/天），与出参单位独立 */
+  paramUnit?: string
   operators: string[]
   /** PRD 指标模板配置：参数范围/步长/显示 */
   paramConfig?: MetricTemplateParamConfig
@@ -503,6 +505,10 @@ export interface MetricDefinition {
   returnType: string
   /** 出参单位（如 岁 / 月 / 元） */
   unit?: string
+  /** 出参单位候选数组（严格对齐原型：多单位→内联 pill 选择；为空则回退单 unit） */
+  units?: string[]
+  /** 参数配置单位候选（仅约束「参数配置 / 取值范围」展示单位，如 年/段/天），与出参单位独立 */
+  paramUnits?: string[]
   /** 是否枚举型（下拉 / 列表字段） */
   isEnum?: boolean
   /** 入参类型：discrete=离散 / continuous=连续（PRD 指标定义列） */

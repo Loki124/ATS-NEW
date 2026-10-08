@@ -56,6 +56,8 @@ def register(
     output_type: str = '',
     unit: str = '',
     param_schema: Optional[List[Dict[str, Any]]] = None,
+    units: Optional[List[str]] = None,
+    param_units: Optional[List[str]] = None,
 ) -> Callable:
     """注册一个派生计算函数（幂等，同名覆盖）。
 
@@ -67,6 +69,9 @@ def register(
     unit         : 结果单位（如 月 / 岁 / 段），仅展示用。
     param_schema : 函数参数声明（[{key,label,type,options?,default?,required?}]），
                    前端据此渲染类型化参数输入，取代自由 JSON 文本。
+    units        : 出参单位候选数组（模板弹窗继承栏 pill 选择；多单位才出现 pill）。
+                   缺省回退为 [unit]。
+    param_units  : 参数配置单位候选（仅约束「参数配置 / 取值范围」展示单位）。
     """
 
     def deco(fn: Callable) -> Callable:
@@ -79,6 +84,8 @@ def register(
             'output_type': output_type,
             'unit': unit,
             'param_schema': param_schema or [],
+            'units': list(units) if units else ([unit] if unit else []),
+            'param_units': list(param_units) if param_units else [],
             'fn': fn,
         }
         return fn
@@ -101,6 +108,8 @@ def list_funcs() -> List[Dict[str, Any]]:
             'inputKind': e['input_kind'],
             'outputType': e['output_type'],
             'unit': e['unit'],
+            'units': e['units'],
+            'paramUnits': e['param_units'],
             'paramSchema': e['param_schema'],
         }
         for e in REGISTRY.values()
@@ -315,6 +324,8 @@ def total_work_months(items: Any, params: dict, data: dict) -> int:
     '平均每段工作经历的工作时长；支持最近任意段数（recent_n）与输出单位（unit：月/年），recent_n=0 表示全部工作经历',
     'recent_n: 取最近段数，0 或省略表示全部；unit: 输出单位，month=月 / year=年',
     input_kind='list_periods', output_type='number', unit='月',
+    # 出参单位候选（模板弹窗继承栏 pill：月/年）；参数（recent_n 段数）单位为「段」
+    units=['月', '年'], param_units=['段'],
     param_schema=[
         {
             'key': 'recent_n',
