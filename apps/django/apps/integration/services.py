@@ -43,6 +43,7 @@ from .models import (
     BGRiskLevel,
     ALLOWED_ORDER_TRANSITIONS,
 )
+from .serializers import BackgroundCheckOrderSerializer
 
 # T6: 背调供应商统一适配器（HMAC 双签 / 状态机 / query+report 接口）
 from .suppliers.factory import get_supplier
@@ -363,11 +364,20 @@ def test_background_check_connection(config: IntegrationConfig) -> Dict[str, Any
 
 def request_background_check(candidate_id: str, items: List[str], config_id: str = None,
                              *, candidate_name: str = '', phone: str = '',
-                             operator_name: str = '', operator_phone: str = '') -> Dict[str, Any]:
+                             operator_name: str = '', operator_phone: str = '',
+                             channel: str = 'SYSTEM_ORDER', remark: str = '',
+                             parent_order_id: str = '', bg_suggestions: Optional[list] = None,
+                             has_existing_report: bool = False,
+                             package_name: str = '', bg_result: str = '',
+                             contactable: Optional[bool] = None,
+                             subject_snapshot: Optional[dict] = None,
+                             expected_onboarding_date: str = '') -> Dict[str, Any]:
     """发起背调（T6 委托供应商适配器；保持对外 dict 形状与落库行为）。
 
     candidate_name/phone/operator_name/operator_phone 透传给供应商 CreateOrderRequest，
     用于填写规范 §3.2 必填字段（候选人姓名/手机号、委托人姓名/手机号）。
+    channel/remark/parent_order_id/bg_suggestions 为步骤式弹窗扩展：无报告下单时把背调建议
+    填充至订单备注（remark），补充背调标记 is_supplementary + 父订单。
     """
     try:
         qs = IntegrationConfig.objects.filter(type=IntegrationType.BACKGROUND_CHECK, is_active=True)
@@ -384,6 +394,9 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
             phone=phone or '',
             operator_name=operator_name or '',
             operator_phone=operator_phone or '',
+            # 步骤式弹窗扩展：预计入职日期 → 供应商 expect_entry_time；可否联系 → contact_candidate(1/0)
+            expect_entry_time=expected_onboarding_date or None,
+            contact_candidate=(1 if contactable else 0) if contactable is not None else None,
         )
         res = supplier.create_order(req)
         IntegrationSyncLog.objects.create(
@@ -403,6 +416,13 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
                         candidate_name=candidate_name or '',
                         items=list(items or []), order_number=str(order_number),
                         request_payload=inner,
+                        channel=channel, remark=remark or '',
+                        is_supplementary=bool(parent_order_id),
+                        parent_order_id=parent_order_id or '',
+                        bg_suggestions=list(bg_suggestions or []),
+                        package_name=package_name or '',
+                        bg_result=bg_result or '',
+                        subject_snapshot=subject_snapshot or {},
                     )
                 except (OperationalError, IntegrityError) as e:
                     # audit 落库失败: 单订单级别兜底, 不阻断上层返 success (供应商已收单).
@@ -429,10 +449,17 @@ def _ms_to_datetime(ms) -> Optional[dt_datetime]:
 
 def create_background_check_order(config: IntegrationConfig, candidate_id: str, items: List[str],
                                   order_number: str, candidate_name: str = '',
-                                  request_payload: Optional[dict] = None) -> BackgroundCheckOrder:
+                                  request_payload: Optional[dict] = None,
+                                  *, channel: str = 'SYSTEM_ORDER', remark: str = '',
+                                  is_supplementary: bool = False, parent_order_id: str = '',
+                                  bg_suggestions: Optional[list] = None,
+                                  package_name: str = '', bg_result: str = '',
+                                  subject_snapshot: Optional[dict] = None) -> BackgroundCheckOrder:
     """落初始背调订单（状态机起点 status=0 已受理）。
 
     幂等：同一 (config, order_number) 已存在则直接返回，不重复写 CREATE 事件。
+    channel/remark/is_supplementary/parent_order_id/bg_suggestions 为步骤式弹窗扩展字段。
+    package_name/bg_result/subject_snapshot 为下单分支冗余/快照字段。
     返回 BackgroundCheckOrder。
     """
     order, created = BackgroundCheckOrder.objects.get_or_create(
@@ -442,6 +469,14 @@ def create_background_check_order(config: IntegrationConfig, candidate_id: str, 
             'candidate_name': candidate_name or '',
             'status': BGOrderStatus.ACCEPTED,
             'status_name': BGOrderStatus.ACCEPTED.label,
+            'channel': channel,
+            'remark': remark or '',
+            'is_supplementary': bool(is_supplementary),
+            'parent_order_id': parent_order_id or '',
+            'bg_suggestions': list(bg_suggestions or []),
+            'package_name': package_name or '',
+            'bg_result': bg_result or '',
+            'subject_snapshot': subject_snapshot or {},
             'latest_payload': request_payload,
         },
     )
@@ -451,6 +486,129 @@ def create_background_check_order(config: IntegrationConfig, candidate_id: str, 
             source='CREATE', is_legal_transition=True, raw_payload=request_payload,
         )
     return order
+
+
+def upload_background_check_report(candidate_id: str, candidate_name: str = '', phone: str = '',
+                                   report_url: str = '', remark: str = '',
+                                   answers: Optional[list] = None,
+                                   bg_suggestions: Optional[list] = None,
+                                   parent_order_id: str = '',
+                                   operator_name: str = '',
+                                   package_name: str = '', bg_provider: str = '',
+                                   bg_time: str = '', bg_result: str = '',
+                                   subject_snapshot: Optional[dict] = None) -> Dict[str, Any]:
+    """已有报告上传 / 自主背调（步骤式弹窗「已有报告」分支）。
+
+    不调用供应商接口，直接落一条 channel=SELF、status=已完成(1) 的订单，
+    承载上传的报告地址与背调建议回答（answers 回填至 bg_suggestions 的 answer 字段）。
+    上传分支冗余/快照字段：package_name/bg_provider/bg_time/bg_result/subject_snapshot。
+    补充背调时 parent_order_id 非空，置 is_supplementary=True。
+    """
+    try:
+        from django.utils.dateparse import parse_datetime
+        # 合并面试官背调建议与招聘专家回答
+        suggestions = list(bg_suggestions or [])
+        answer_map = {a.get('interviewer') or a.get('id'): a.get('answer', '') for a in (answers or [])}
+        for s in suggestions:
+            key = s.get('interviewer') or s.get('id')
+            if key in answer_map:
+                s['answer'] = answer_map[key]
+
+        # bg_time：ISO 字符串 → 时区感知 datetime（非法/空 → None）
+        parsed_bg_time = parse_datetime(bg_time) if bg_time else None
+
+        order = BackgroundCheckOrder.objects.create(
+            config=None,  # 自主背调无供应商配置
+            candidate_id=str(candidate_id or ''),
+            candidate_name=candidate_name or '',
+            channel=BGChannel.SELF,
+            order_number=f'SELF-{nanoid_generate(size=16).upper()}',
+            status=BGOrderStatus.COMPLETED,
+            status_name=BGOrderStatus.COMPLETED.label,
+            report_url=report_url or '',
+            completion_time=timezone.now(),
+            remark=remark or '',
+            is_supplementary=bool(parent_order_id),
+            parent_order_id=parent_order_id or '',
+            bg_suggestions=suggestions,
+            package_name=package_name or '',
+            bg_provider=bg_provider or '',
+            bg_time=parsed_bg_time,
+            bg_result=bg_result or '',
+            subject_snapshot=subject_snapshot or {},
+            latest_payload={'operator_name': operator_name or '', 'upload': True},
+        )
+        BackgroundCheckOrderEvent.objects.create(
+            order=order, config=None, from_status=None, to_status=BGOrderStatus.COMPLETED,
+            source='CREATE', is_legal_transition=True,
+            report_url=report_url or '', completion_time=order.completion_time,
+            raw_payload={'upload': True, 'report_url': report_url or ''},
+        )
+        return {'success': True, 'data': BackgroundCheckOrderSerializer(order).data}
+    except (OperationalError, IntegrityError, ValueError) as e:
+        # 自主上传落库窄集. 编程错误不再吞.
+        logger.exception('upload_background_check_report failed: %s', e)
+        return {'success': False, 'error': str(e)}
+
+
+# 背调建议兜底示例：真实面试官提交的建议为空时，供前端表单演示/联调使用。
+# 一旦存在任何真实建议，即完全不启用本兜底（保证真实数据优先，不污染业务语义）。
+_BG_SUGGESTION_DEMO_FALLBACK: List[Dict[str, Any]] = [
+    {
+        'interviewer': 'demo-1',
+        'interviewer_name': '李经理（技术面试官）',
+        'interview_id': '',
+        'suggestion': '重点核实候选人在上一段工作中承担的核心职责，以及离职原因是否与简历描述一致。',
+        'submitted_at': '',
+    },
+    {
+        'interviewer': 'demo-2',
+        'interviewer_name': '王主管（用人经理）',
+        'interview_id': '',
+        'suggestion': '请核实其管理团队的实际规模与汇报关系，确认是否具备独立带团队的能力。',
+        'submitted_at': '',
+    },
+    {
+        'interviewer': 'demo-3',
+        'interviewer_name': '赵老师（HR）',
+        'interview_id': '',
+        'suggestion': '核对在职时间与社保缴纳记录是否吻合，并确认是否存在竞业限制协议。',
+        'submitted_at': '',
+    },
+]
+
+
+def aggregate_bg_suggestions(candidate_id: str) -> List[Dict[str, Any]]:
+    """聚合某候选人来自各面试官的背调建议（按面试官去重，取最新一条）。
+
+    返回 [{interviewer, interviewer_name, interview_id, suggestion, submitted_at}]。
+
+    兜底策略：若该候选人尚无任何真实背调建议，返回 3 条内置示例，
+    便于前端表单展示与联调；一旦有真实建议，示例立即被替换。
+    """
+    from apps.interview.models import InterviewEvaluation
+    evals = (
+        InterviewEvaluation.objects
+        .filter(interview__application__candidate_id=str(candidate_id), deleted_at__isnull=True)
+        .exclude(bg_suggestion__exact='')
+        .select_related('interviewer', 'interview', 'interview__application')
+        .order_by('interviewer_id', '-submitted_at')
+    )
+    seen = {}
+    for ev in evals:
+        iid = ev.interviewer_id
+        if iid in seen:
+            continue
+        seen[iid] = {
+            'interviewer': iid,
+            'interviewer_name': getattr(ev.interviewer, 'username', '') or '',
+            'interview_id': ev.interview_id,
+            'suggestion': ev.bg_suggestion or '',
+            'submitted_at': ev.submitted_at.isoformat() if ev.submitted_at else '',
+        }
+    if not seen:
+        return [dict(item) for item in _BG_SUGGESTION_DEMO_FALLBACK]
+    return list(seen.values())
 
 
 def apply_callback_to_order(payload: dict, config: IntegrationConfig,

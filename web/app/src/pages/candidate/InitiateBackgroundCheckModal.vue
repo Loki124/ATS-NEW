@@ -2,16 +2,21 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  NModal, NSelect, NButton, NSpace, NCheckboxGroup, NCheckbox, NInput, NSpin, NText, useMessage,
+  NModal, NButton, NSpace, NRadioGroup, NRadio, NSteps, NStep, useMessage,
 } from 'naive-ui'
 import {
-  listBackgroundCheckSuppliers, getBackgroundCheckProducts, createBackgroundCheckOrder,
-  type BackgroundCheckSupplier,
+  listBackgroundCheckSuppliers, uploadBackgroundCheckReport, getBackgroundCheckSuggestions,
+  createBackgroundCheckOrder,
+  type BackgroundCheckSupplier, type BgSuggestion, type BgCandidate,
 } from '../../api/integration'
+import BgUploadForm from './BgUploadForm.vue'
+import BgOrderForm from './BgOrderForm.vue'
 
 const props = defineProps<{
   show: boolean
-  candidate: { id: string; name: string; phone: string }
+  candidate: BgCandidate
+  /** 补充背调时传入父订单 id；为空表示新增背调 */
+  parentOrderId?: string
 }>()
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void
@@ -21,43 +26,42 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const message = useMessage()
 
+const isSupplement = computed(() => !!props.parentOrderId)
+
+// ---------- 步骤状态 ----------
+// step: 1 选择是否已有报告；2 分支（上传 / 下单），提交即终态（无 step3）
+const step = ref(1)
+const hasReport = ref<boolean | null>(null)
+
+// ---------- 下单分支：供应商 ----------
 const suppliers = ref<BackgroundCheckSupplier[]>([])
 const loadingSuppliers = ref(false)
-const selectedSupplier = ref<string | null>(null)
 
-const loadingProducts = ref(false)
-const productError = ref<string | null>(null)
-const productOptions = ref<{ value: string; label: string }[]>([])
-const selectedItems = ref<string[]>([])
-const manualItems = ref('')
+// ---------- 上传分支：背调建议 ----------
+const suggestions = ref<BgSuggestion[]>([])
+const loadingSuggestions = ref(false)
 
+// ---------- 提交态 ----------
 const submitting = ref(false)
 
-const supplierOptions = computed(() => suppliers.value.map((s) => ({ value: s.id, label: s.name })))
-const useManual = computed(() => productOptions.value.length === 0)
+// 子表单引用（用于 footer 提交按钮桥接；submit 由子表单 defineExpose 暴露）
+const uploadFormRef = ref<{ submit: () => void } | null>(null)
+const orderFormRef = ref<{ submit: () => void } | null>(null)
 
-function normalizeProducts(raw: any): { value: string; label: string }[] {
-  if (!raw) return []
-  let list: any[] = []
-  if (Array.isArray(raw)) list = raw
-  else if (Array.isArray(raw.products)) list = raw.products
-  else if (Array.isArray(raw.list)) list = raw.list
-  else if (Array.isArray(raw.data)) list = raw.data
-  else if (Array.isArray(raw.items)) list = raw.items
-  else if (Array.isArray(raw.results)) list = raw.results
-  return list
-    .map((p) => {
-      const value = p.token || p.productToken || p.id || p.code || p.value || ''
-      const label = p.name || p.productName || p.title || p.label || String(value)
-      return { value: String(value), label: String(label) }
-    })
-    .filter((o) => o.value)
+function resetAll() {
+  step.value = 1
+  hasReport.value = null
+  suppliers.value = []
+  loadingSuppliers.value = false
+  suggestions.value = []
+  loadingSuggestions.value = false
 }
 
 async function loadSuppliers() {
   loadingSuppliers.value = true
   try {
-    suppliers.value = await listBackgroundCheckSuppliers()
+    // 下单分支仅系统已对接供应商
+    suppliers.value = await listBackgroundCheckSuppliers('system_order')
   } catch (e: any) {
     message.error(t('pages.candidate.InitiateBgCheck.loadSuppliersFail'))
   } finally {
@@ -65,79 +69,108 @@ async function loadSuppliers() {
   }
 }
 
-async function loadProducts(configId: string) {
-  loadingProducts.value = true
-  productError.value = null
-  productOptions.value = []
-  selectedItems.value = []
-  manualItems.value = ''
+async function loadSuggestions() {
+  loadingSuggestions.value = true
   try {
-    const res = await getBackgroundCheckProducts(configId)
-    if (!res.success) {
-      productError.value = res.message || t('pages.candidate.InitiateBgCheck.loadProductsFail')
-    } else {
-      productOptions.value = normalizeProducts(res.data)
-      if (productOptions.value.length === 0) {
-        productError.value = t('pages.candidate.InitiateBgCheck.loadProductsFail')
-      }
-    }
+    suggestions.value = await getBackgroundCheckSuggestions(props.candidate.id)
   } catch (e: any) {
-    productError.value = t('pages.candidate.InitiateBgCheck.loadProductsFail')
+    suggestions.value = []
   } finally {
-    loadingProducts.value = false
+    loadingSuggestions.value = false
   }
 }
 
 watch(() => props.show, (v) => {
   if (v) {
-    selectedSupplier.value = null
-    productOptions.value = []
-    productError.value = null
-    selectedItems.value = []
-    manualItems.value = ''
-    loadSuppliers()
+    resetAll()
   }
 })
 
-function onSupplierChange(val: string | null) {
-  selectedSupplier.value = val
-  if (val) loadProducts(val)
-  else {
-    productOptions.value = []
-    productError.value = null
-    selectedItems.value = []
-    manualItems.value = ''
+function goNext() {
+  if (step.value === 1) {
+    if (hasReport.value === null) {
+      message.error(t('pages.candidate.InitiateBgCheck.requiredHasReport'))
+      return
+    }
+    step.value = 2
+    if (hasReport.value) {
+      loadSuggestions()
+    } else {
+      loadSuppliers()
+    }
   }
 }
 
-function resolveItems(): string[] {
-  if (useManual.value) {
-    return manualItems.value
-      .split(/[\n,，]/)
-      .map((s) => s.trim())
-      .filter(Boolean)
+function goBack() {
+  if (step.value === 2) {
+    step.value = 1
   }
-  return selectedItems.value
 }
 
-async function handleSubmit() {
-  if (!selectedSupplier.value) {
-    message.error(t('pages.candidate.InitiateBgCheck.requiredSupplier'))
-    return
+function handleCancel() {
+  emit('update:show', false)
+}
+
+// footer 提交按钮 → 触发对应子表单的 submit（子表单内部先校验）
+function onUploadSubmit() {
+  uploadFormRef.value?.submit()
+}
+function onOrderSubmit() {
+  orderFormRef.value?.submit()
+}
+
+// ---------- 上传分支提交 ----------
+async function handleUpload(payload: any) {
+  submitting.value = true
+  try {
+    const res = await uploadBackgroundCheckReport({
+      candidate_id: props.candidate.id,
+      candidate_name: props.candidate.name,
+      phone: props.candidate.phone,
+      report_url: payload.reportUrl || '',
+      remark: payload.remark || '',
+      package_name: payload.packageName || '',
+      bg_provider: payload.bgProvider || '',
+      bg_time: payload.bgTime || '',
+      bg_result: payload.bgResult || '',
+      subject_snapshot: payload.subjectSnapshot || {},
+      answers: payload.answers || [],
+      bg_suggestions: payload.bgSuggestions || [],
+      parent_order_id: props.parentOrderId,
+    })
+    if (res.success) {
+      message.success(t('pages.candidate.InitiateBgCheck.uploaded'))
+      emit('created')
+      emit('update:show', false)
+    } else {
+      message.error(`${t('pages.candidate.InitiateBgCheck.failPrefix')} ${res.message || ''}`)
+    }
+  } catch (e: any) {
+    message.error(`${t('pages.candidate.InitiateBgCheck.failPrefix')} ${e?.response?.data?.message || e?.message || ''}`)
+  } finally {
+    submitting.value = false
   }
-  const items = resolveItems()
-  if (items.length === 0) {
-    message.error(t('pages.candidate.InitiateBgCheck.requiredItems'))
-    return
-  }
+}
+
+// ---------- 下单分支提交 ----------
+async function handleOrder(payload: any) {
   submitting.value = true
   try {
     const res = await createBackgroundCheckOrder({
       candidate_id: props.candidate.id,
       candidate_name: props.candidate.name,
       phone: props.candidate.phone,
-      config_id: selectedSupplier.value,
-      items,
+      config_id: payload.configId,
+      items: payload.items,
+      channel: 'SYSTEM_ORDER',
+      remark: payload.remark || '',
+      package_name: payload.packageName || '',
+      bg_result: payload.bgResult || '',
+      contactable: payload.contactable ?? null,
+      subject_snapshot: payload.subjectSnapshot || {},
+      expected_onboarding_date: payload.expectedOnboardingDate || '',
+      parent_order_id: props.parentOrderId,
+      bg_suggestions: payload.bgSuggestions || [],
     })
     if (res.success) {
       message.success(t('pages.candidate.InitiateBgCheck.success'))
@@ -152,74 +185,81 @@ async function handleSubmit() {
     submitting.value = false
   }
 }
+
+const stepStatus = computed<'process' | 'error'>(() => (submitting.value ? 'process' : 'process'))
 </script>
 
 <template>
   <n-modal
     :show="show"
     preset="card"
-    :title="t('pages.candidate.InitiateBgCheck.title')"
-    :style="{ width: '520px', maxWidth: '92vw' }"
+    :title="isSupplement ? t('pages.candidate.InitiateBgCheck.titleSupplement') : t('pages.candidate.InitiateBgCheck.title')"
+    :style="{ width: '640px', maxWidth: '94vw' }"
     :mask-closable="false"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
     <n-space vertical :size="16">
-      <!-- 候选人 -->
-      <div>
-        <div class="bg-field-label">{{ t('pages.candidate.InitiateBgCheck.candidate') }}</div>
-        <div class="bg-candidate">
-          {{ candidate.name }} <span class="bg-muted">{{ candidate.phone }}</span>
-        </div>
+      <n-steps :current="step" :status="stepStatus" size="small">
+        <n-step :title="t('pages.candidate.InitiateBgCheck.step1')" />
+        <n-step :title="hasReport ? t('pages.candidate.InitiateBgCheck.stepUpload') : t('pages.candidate.InitiateBgCheck.stepChannel')" />
+      </n-steps>
+
+      <!-- 步骤 1：是否已有背调报告 -->
+      <div v-if="step === 1">
+        <div class="bg-field-label required">{{ t('pages.candidate.InitiateBgCheck.hasReportLabel') }}</div>
+        <n-radio-group v-model:value="hasReport">
+          <n-space>
+            <n-radio :value="true">{{ t('pages.candidate.InitiateBgCheck.hasReportYes') }}</n-radio>
+            <n-radio :value="false">{{ t('pages.candidate.InitiateBgCheck.hasReportNo') }}</n-radio>
+          </n-space>
+        </n-radio-group>
+        <n-alert type="info" :show-icon="false" style="margin-top: 12px">
+          {{ t('pages.candidate.InitiateBgCheck.hasReportHint') }}
+        </n-alert>
       </div>
 
-      <!-- 供应商 -->
-      <div>
-        <div class="bg-field-label required">{{ t('pages.candidate.InitiateBgCheck.supplier') }}</div>
-        <n-select
-          v-model:value="selectedSupplier"
-          :options="supplierOptions"
-          :placeholder="t('pages.candidate.InitiateBgCheck.supplierPlaceholder')"
-          :loading="loadingSuppliers"
-          @update:value="onSupplierChange"
-        />
-        <n-text v-if="!loadingSuppliers && supplierOptions.length === 0" depth="3" style="font-size: 12px">
-          {{ t('pages.candidate.InitiateBgCheck.noSupplier') }}
-        </n-text>
-      </div>
+      <!-- 步骤 2：上传分支（图2 添加背调信息） -->
+      <BgUploadForm
+        v-else-if="step === 2 && hasReport"
+        ref="uploadFormRef"
+        :candidate="candidate"
+        :suggestions="suggestions"
+        :loading-suggestions="loadingSuggestions"
+        :submitting="submitting"
+        @submit="handleUpload"
+        @cancel="handleCancel"
+      />
 
-      <!-- 套餐 / 检查项 -->
-      <div v-if="selectedSupplier">
-        <div class="bg-field-label">{{ t('pages.candidate.InitiateBgCheck.packages') }}</div>
-        <n-spin :show="loadingProducts">
-          <template v-if="useManual">
-            <n-input
-              v-model:value="manualItems"
-              type="textarea"
-              :rows="3"
-              :placeholder="t('pages.candidate.InitiateBgCheck.manualLabel')"
-            />
-            <n-text v-if="productError" depth="3" style="font-size: 12px; color: var(--error-color)">
-              {{ productError }}
-            </n-text>
-          </template>
-          <n-checkbox-group v-else v-model:value="selectedItems">
-            <n-space vertical>
-              <n-checkbox v-for="opt in productOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </n-checkbox>
-            </n-space>
-          </n-checkbox-group>
-        </n-spin>
-      </div>
+      <!-- 步骤 2：下单分支（图3 供应商优选） -->
+      <BgOrderForm
+        v-else-if="step === 2 && !hasReport"
+        ref="orderFormRef"
+        :candidate="candidate"
+        :suppliers="suppliers"
+        :loading-suppliers="loadingSuppliers"
+        :submitting="submitting"
+        @submit="handleOrder"
+        @cancel="handleCancel"
+      />
     </n-space>
 
+    <!-- 双「下一步」Bug 修复：step1 仅一个「下一步」；step2 按 hasReport 显示上传/下单提交 -->
     <template #footer>
       <n-space justify="end">
-        <n-button :disabled="submitting" @click="emit('update:show', false)">
+        <n-button :disabled="submitting" @click="handleCancel">
           {{ t('pages.candidate.InitiateBgCheck.cancel') }}
         </n-button>
-        <n-button type="primary" :loading="submitting" @click="handleSubmit">
-          {{ t('pages.candidate.InitiateBgCheck.submit') }}
+        <n-button v-if="step > 1" :disabled="submitting" @click="goBack">
+          {{ t('pages.candidate.InitiateBgCheck.back') }}
+        </n-button>
+        <n-button v-if="step === 1" type="primary" :disabled="submitting" @click="goNext">
+          {{ t('pages.candidate.InitiateBgCheck.next') }}
+        </n-button>
+        <n-button v-if="step === 2 && hasReport" type="primary" :loading="submitting" @click="onUploadSubmit">
+          {{ t('pages.candidate.InitiateBgCheck.submitUpload') }}
+        </n-button>
+        <n-button v-if="step === 2 && !hasReport" type="primary" :loading="submitting" @click="onOrderSubmit">
+          {{ t('pages.candidate.InitiateBgCheck.confirmOrder') }}
         </n-button>
       </n-space>
     </template>
@@ -227,8 +267,6 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
-.bg-field-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-color-2); }
-.bg-field-label.required::before { content: '*'; color: var(--error-color); margin-right: 4px; }
-.bg-candidate { font-size: 15px; font-weight: 600; }
-.bg-muted { font-size: 13px; color: var(--text-color-3); font-weight: 400; margin-left: 8px; }
+.bg-field-label { font-size: var(--fs-13); font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
+.bg-field-label.required::before { content: '*'; color: var(--c-error); margin-right: 4px; }
 </style>

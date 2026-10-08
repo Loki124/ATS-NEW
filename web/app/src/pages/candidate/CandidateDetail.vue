@@ -19,6 +19,10 @@
           <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
           {{ t('pages.candidate.InitiateBgCheck.title') }}
         </n-button>
+        <n-button type="warning" secondary class="bg-btn" @click="openSupplementBg">
+          <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
+          {{ t('pages.candidate.InitiateBgCheck.titleSupplement') }}
+        </n-button>
       </n-space>
     </div>
 
@@ -465,7 +469,10 @@
     <!-- 发起背调（供应商集成系统） -->
     <InitiateBackgroundCheckModal
       v-model:show="bgModalVisible"
-      :candidate="{ id: candidateData.id, name: candidateData.name, phone: candidateData.phone }"
+      :candidate="{ id: candidateData.id, name: candidateData.name, phone: candidateData.phone,
+                    idCardNo: candidateDetail?.id_card_no ?? '', email: candidateDetail?.email,
+                    position: appliedPosition, expectedOnboardingDate: '' }"
+      :parent-order-id="bgParentOrderId"
     />
   </div>
 </template>
@@ -495,6 +502,7 @@ import { getCandidate } from '../../api/candidate'
 import { fetchConfig, defaultConfig, type StandardResumeConfig } from '../../api/standard-resume'
 import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fields'
 import InitiateBackgroundCheckModal from './InitiateBackgroundCheckModal.vue'
+import { listBackgroundCheckOrders } from '../../api/integration'
 
 const router = useRouter()
 const route = useRoute()
@@ -585,6 +593,8 @@ interface CandidateDetailData {
   current_state?: string
   state_display?: string
   created_at?: string
+  /** 应聘职位来源：后端 CandidateDetailSerializer.get_applications 返回投递记录（CamelCase 键） */
+  applications?: Array<{ id?: string; code?: string; positionTitle?: string | null; state?: string }> | null
   [key: string]: any
 }
 
@@ -621,7 +631,7 @@ const displayFields = computed(() => {
 const candidateData = computed(() => {
   const c = candidateDetail.value
   return {
-    id: route.params.id || '1',
+    id: (route.params.id as string) || '1',
     name: c?.name ?? t('pages.candidate.CandidateDetail.s158'),
     phone: c?.phone ?? '—',
     email: c?.email ?? '—',
@@ -631,6 +641,17 @@ const candidateData = computed(() => {
     hiringManager: '—',
     createdAt: c?.created_at ?? '',
   }
+})
+
+/**
+ * 应聘职位：取自投递记录（applications[].position_title），
+ * 而非候选人的「当前头衔」current_position（二者语义不同，后者常为空）。
+ * 多次投递时优先取最新一条（后端 applications 已按 -created_at 排序）。
+ */
+const appliedPosition = computed<string>(() => {
+  const apps = candidateDetail.value?.applications ?? []
+  const hit = apps.find((a) => (a?.positionTitle || '').trim())
+  return (hit?.positionTitle || '').trim()
 })
 
 onMounted(async () => {
@@ -709,6 +730,21 @@ const uploadResumeModalVisible = ref(false)
 const editResumeModalVisible = ref(false)
 const notificationModalVisible = ref(false)
 const bgModalVisible = ref(false)
+const bgParentOrderId = ref('')
+
+async function openSupplementBg() {
+  // 补充背调：定位该候选人最新一条背调订单作为父单，复用统一弹窗
+  bgParentOrderId.value = ''
+  try {
+    const res = await listBackgroundCheckOrders({ candidate_id: candidateData.value.id, page_size: 1 })
+    const d = (res?.data ?? {}) as any
+    const items: any[] = Array.isArray(d) ? d : (d.results ?? [])
+    if (items.length > 0) bgParentOrderId.value = items[0].id
+  } catch (e: any) {
+    bgParentOrderId.value = ''
+  }
+  bgModalVisible.value = true
+}
 const fileList = ref<any[]>([])
 
 const notificationForm = ref({
