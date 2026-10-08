@@ -73,6 +73,7 @@ class BulkCreateService:
         cls,
         drafts: List[BulkCreateDraft],
         actor: User,
+        recruit_type: str = 'social',
     ) -> BulkCreateResult:
         """批量创建候选人
 
@@ -87,7 +88,7 @@ class BulkCreateService:
 
         for draft in drafts:
             try:
-                cand_id = cls._create_one(draft, actor)
+                cand_id = cls._create_one(draft, actor, recruit_type)
             except BulkCreateError:
                 raise
             except Exception as e:  # noqa: BLE001 — BulkCreate 单条候选人创建未预期异常, 包成 BulkCreateError 让 view 层统一处理
@@ -105,7 +106,7 @@ class BulkCreateService:
         )
 
     @classmethod
-    def _create_one(cls, draft: BulkCreateDraft, actor: User) -> str:
+    def _create_one(cls, draft: BulkCreateDraft, actor: User, recruit_type: str = 'social') -> str:
         """创建单个候选 + 关联记录
 
         幂等：若 phone 已存在，返回现有 candidate.id
@@ -129,6 +130,7 @@ class BulkCreateService:
                 name=draft.name,
                 phone=draft.phone,
                 email=draft.email or None,
+                recruit_type=recruit_type,
                 current_state=CandidateState.APPLIED,
                 extra={
                     'draft_id': draft.draft_id,

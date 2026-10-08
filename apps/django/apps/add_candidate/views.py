@@ -375,7 +375,10 @@ class BulkCreateView(APIView):
             )
 
         try:
-            result = BulkCreateService.create_batch(drafts, actor=request.user)
+            result = BulkCreateService.create_batch(
+                drafts, actor=request.user,
+                recruit_type=getattr(request, 'recruit_type', 'social'),
+            )
         except BulkCreateError as e:
             logger.warning('BulkCreate failed: %s', e)
             return Response(

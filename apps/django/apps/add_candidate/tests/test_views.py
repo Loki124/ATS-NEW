@@ -342,6 +342,63 @@ class TestBulkCreateView:
 
 
 @pytest.mark.django_db
+class TestBulkCreateRecruitTypePassthrough:
+    """候选人与需求/职位同根因 (2026-10-08): V2 批量创建须透传 request.recruit_type,
+    否则落库默认 social, 在 campus 列表被硬分区过滤 → 新增候选人不显示。
+    """
+
+    @pytest.fixture
+    def mock_score_task(self):
+        with patch('apps.add_candidate.views.score_batch_task.delay') as mock:
+            mock.return_value.id = 'mock_task_rt'
+            yield mock
+
+    @staticmethod
+    def _list_ids(response):
+        data = response.json()
+        # StandardResultsSetPagination 经 success_response 包裹:
+        # {success, data:{count, results, ...}, code, message}
+        payload = data.get('data', data)
+        items = payload.get('results') if isinstance(payload, dict) else payload
+        return [it.get('id') for it in (items or [])]
+
+    def test_campus_bulk_create_sets_recruit_type_and_partitions_list(
+        self, api_client, hr_user, super_user, mock_score_task,
+    ):
+        from apps.add_candidate.models import ParseJob
+        from apps.candidate.models import Candidate
+        from rest_framework.test import APIClient
+
+        ParseJob.objects.create(
+            job_id='job_rt_1', draft_id='d_rt',
+            file_name='r.pdf', file_path='/tmp/r.pdf', file_size=1000,
+            status='done', actor=hr_user,
+            parsed_data={'name': '校区张三', 'phone': '13800138051', 'email': 'rt@test.com'},
+        )
+        # 以 campus 系统上下文提交批量创建
+        resp = api_client.post(
+            '/api/v1/candidates/add-candidate/bulk-create/',
+            {'drafts': [{'draft_id': 'd_rt', 'direction': 'pending'}], 'submit_mode': 'async'},
+            format='json', HTTP_X_RECRUIT_TYPE='campus',
+        )
+        assert resp.status_code == 200
+        cand = Candidate.objects.get(phone='13800138051')
+        # 核心回归: recruit_type 须随请求上下文落 campus, 而非模型默认 social
+        assert cand.recruit_type == 'campus'
+
+        # 读侧硬分区: 超管按 recruit_type 过滤 (绕过部门/创建人 scope 噪声)
+        admin = APIClient()
+        admin.force_authenticate(user=super_user)
+        camp = admin.get('/api/v1/candidates/', HTTP_X_RECRUIT_TYPE='campus')
+        assert camp.status_code == 200
+        assert cand.id in self._list_ids(camp)
+
+        soc = admin.get('/api/v1/candidates/', HTTP_X_RECRUIT_TYPE='social')
+        assert soc.status_code == 200
+        assert cand.id not in self._list_ids(soc)
+
+
+@pytest.mark.django_db
 class TestManualCreateAndOverride:
     """POST /manual-create/ + bulk-create 覆盖（修复「手动字段被自动清理」）
 
