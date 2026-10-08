@@ -15,6 +15,7 @@
 import axios, { type AxiosInstance } from 'axios'
 import config from '../config'
 import { useSystemStore } from '../stores/system'
+import { useUserStore } from '../stores/user'
 
 export interface CreateApiOptions {
   baseURL?: string
@@ -63,6 +64,94 @@ function normalizeEnvelopeMeta(resp: any): any {
   return resp
 }
 
+/**
+ * P2：401 自动刷新重试（与 auth.ts 同语义，收敛到共享客户端）。
+ *
+ * 背景：P1-2 把 Authorization / X-Recruit-Type 注入收敛到本模块，但 401→刷新重试逻辑
+ * 当时只留在 auth.ts 的独立实例上；metrics.ts 等 40+ 文件走本共享 `api`，
+ * 一旦 access token 过期，PATCH/POST 等写操作直接 401 且无重试（表现为「保存模板报 401」）。
+ * 现把刷新重试也收敛到本模块，所有 createApi() 实例共用同一刷新状态机（模块级 isRefreshing）。
+ */
+let isRefreshing = false
+let refreshSubscribers: ((token: string) => void)[] = []
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb)
+}
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token))
+  refreshSubscribers = []
+}
+function clearRefreshSubscribers() {
+  refreshSubscribers = []
+}
+
+function handleAuthFailure(message: string) {
+  if (isRefreshing) return
+  isRefreshing = true
+  clearRefreshSubscribers()
+  const userStore = useUserStore()
+  userStore.logout()
+  if (window.location.pathname !== '/login') {
+    console.warn('[auth]', message)
+    window.location.href = '/login'
+  }
+  isRefreshing = false
+}
+
+/**
+ * 响应错误拦截：命中 401 时尝试用 refresh token 换新 access 并重试原请求；
+ * 无 refresh / 刷新失败 / 已是登录或刷新请求本身 → 走登出跳转。
+ */
+async function refreshOn401(inst: AxiosInstance, error: any): Promise<any> {
+  const originalRequest = error.config as any
+  const status = error.response?.status
+  if (status !== 401 || !originalRequest) return Promise.reject(error)
+
+  const reqPath = (originalRequest.url || '').split('?')[0]
+  // 登录 / 刷新自身不重试，避免循环
+  if (reqPath.endsWith('/auth/login/') || reqPath.endsWith('/auth/refresh/')) {
+    return Promise.reject(error)
+  }
+
+  const userStore = useUserStore()
+  const refreshToken = userStore.refreshToken || localStorage.getItem('refreshToken')
+  if (refreshToken && !originalRequest._retry) {
+    originalRequest._retry = true
+    if (!isRefreshing) {
+      isRefreshing = true
+      try {
+        const { data } = await axios.post(
+          `${config.api.baseUrl}/auth/refresh/`,
+          { refresh: refreshToken },
+          { headers: { 'Content-Type': 'application/json' } },
+        )
+        const newAccess = data?.data?.access || data?.access
+        userStore.setAccessToken(newAccess)
+        onTokenRefreshed(newAccess)
+        isRefreshing = false
+        originalRequest.headers.Authorization = `Bearer ${newAccess}`
+        return inst(originalRequest)
+      } catch (refreshErr) {
+        clearRefreshSubscribers()
+        isRefreshing = false
+        handleAuthFailure('登录状态已失效，请重新登录')
+        return Promise.reject(refreshErr)
+      }
+    }
+    // 已有刷新在进行：排队等结果后再重试
+    return new Promise((resolve) => {
+      subscribeTokenRefresh((newToken) => {
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        resolve(inst(originalRequest))
+      })
+    })
+  }
+
+  handleAuthFailure('登录状态已失效，请重新登录')
+  return Promise.reject(error)
+}
+
 export function createApi(opts: CreateApiOptions = {}): AxiosInstance {
   const inst = axios.create({
     baseURL: opts.baseURL ?? config.api.baseUrl,
@@ -70,7 +159,8 @@ export function createApi(opts: CreateApiOptions = {}): AxiosInstance {
     headers: { 'Content-Type': 'application/json' },
   })
   inst.interceptors.request.use(injectAuthHeaders as any)
-  inst.interceptors.response.use(normalizeEnvelopeMeta as any)
+  // 成功态信封归一；失败态（含 401）走刷新重试
+  inst.interceptors.response.use(normalizeEnvelopeMeta as any, (e: any) => refreshOn401(inst, e))
   return inst
 }
 
