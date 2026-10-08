@@ -167,8 +167,17 @@ function nextStep() {
         <!-- 手动填写模式：表单 + 已添加列表（无文件建草稿） -->
         <div v-if="store.entryMode === 'manual'" style="flex:1;display:flex;flex-direction:column;overflow:auto;padding:16px 20px;gap:var(--space-3);">
           <ManualFillForm />
-          <Step1Single v-if="store.resumes.length === 1" @replace="handleReplace" />
-          <Step1Batch v-else-if="store.resumes.length > 1" @upload="handleFiles" />
+          <!-- 2026-10-08 布局修复: Step1Single/Step1Batch 是「左详情 .left-panel(flex:1) + 右查重 .right-panel(340px)」
+               双根横向片段，设计给上传模式的 row 容器（本文件下方 v-else 分支同构）。
+               29201d8a 将其直接投入 column 容器后：左栏 flex-basis:0 + overflow:auto 触发自动最小尺寸归零
+               → 塌缩成半截头像；右栏 340px 纵向堆叠到左下 → 查重/重复信息/处理选项挤成窄条。
+               包一层 row 容器恢复横向双栏（min-height:0 让双栏在剩余高度内各自滚动）。 -->
+          <div v-if="store.resumes.length === 1" style="flex:1;display:flex;min-height:0;">
+            <Step1Single @replace="handleReplace" />
+          </div>
+          <div v-else-if="store.resumes.length > 1" style="flex:1;display:flex;min-height:0;">
+            <Step1Batch @upload="handleFiles" />
+          </div>
         </div>
         <!-- 上传简历模式（默认） -->
         <template v-else>
