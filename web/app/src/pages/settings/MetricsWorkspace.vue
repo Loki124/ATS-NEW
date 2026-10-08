@@ -1621,12 +1621,9 @@ const rangePreviewCount = computed<number>(() => {
 })
 const rangePreviewValues = computed<string[]>(() => {
   const c = tplForm.value.paramConfig
-  return generateValues(c.min, c.max, c.step).slice(0, 7).map(formatPreviewValue)
+  return generateValues(c.min, c.max, c.step).map(formatPreviewValue)
 })
-const rangePreviewMore = computed<boolean>(() => {
-  const c = tplForm.value.paramConfig
-  return generateValues(c.min, c.max, c.step).length > 7
-})
+const rangePreviewMore = computed<boolean>(() => false)
 
 const supportedOperatorOptions = computed<OptionItem[]>(() => {
   const d = selectedTemplateDefinition.value
@@ -2621,7 +2618,7 @@ onUnmounted(() => {
 
 /* 参数配置区域块 */
 .tpl-param-block { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); background: var(--brand-tint); border: 1px solid var(--brand-a12); border-radius: var(--radius-md); }
-.tpl-param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-4); }
+.tpl-param-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
 .tpl-param-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .tpl-param-lbl { color: var(--ink-soft); font-size: var(--fs-12); font-family: var(--tpl-mono); line-height: 1.4; }
 .tpl-param-ctl { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; min-width: 0; }
@@ -2690,6 +2687,10 @@ onUnmounted(() => {
 .tpl-status :deep(.n-form-item-label) { height: auto; }
 .tpl-footer { width: 100%; }
 .tpl-footer :deep(.n-button--primary) { box-shadow: 0 4px 14px var(--brand-a32); }
+
+@media (max-width: 768px) {
+  .tpl-param-grid { grid-template-columns: 1fr 1fr; }
+}
 
 @media (max-width: 640px) {
   .tpl-fields { grid-template-columns: 1fr; }
