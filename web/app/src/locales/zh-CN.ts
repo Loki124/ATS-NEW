@@ -506,7 +506,7 @@ export const APP_UI_ZH: Record<string, string> = {
   'pages.onboarding.OnboardingList.s1': "待入职管理",
   'pages.position.PositionList.s1': "职位管理",
   'pages.referral.AddReferralModal.s1': "新增推荐",
-  'pages.referral.ReferralCenter.s1': "内推中心",
+  'pages.referral.ReferralCenter.s1': "内推助手",
   'pages.resume.SpecialApproval.s1': "特殊简历审批",
   'pages.scraped.ScrapedResumeList.s1': "我找的简历",
   'pages.screening.ScreeningList.s1': "简历筛选",

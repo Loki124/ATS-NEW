@@ -475,7 +475,7 @@ export const APP_UI_EN: Record<string, string> = {
   'pages.onboarding.OnboardingList.s1': "Onboarding Management",
   'pages.position.PositionList.s1': "Position Management",
   'pages.referral.AddReferralModal.s1': "Add Referral",
-  'pages.referral.ReferralCenter.s1': "Referral Center",
+  'pages.referral.ReferralCenter.s1': "Referral Assistant",
   'pages.resume.SpecialApproval.s1': "Special Resume Approval",
   'pages.scraped.ScrapedResumeList.s1': "Resumes I Found",
   'pages.screening.ScreeningList.s1': "Resume Screening",
