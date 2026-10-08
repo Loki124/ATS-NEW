@@ -40,7 +40,7 @@
     <!-- 新增/编辑阶段弹窗 -->
 </div><!-- /.page-body -->
 <!-- P1-4: 弹窗 560→600px 给 4 字段 + 4 checkbox + textarea + 双按钮更舒展的横向空间 -->
-<n-modal v-model:show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 600px; max-width: 92vw" :bordered="false" :segmented="{ content: true, footer: true }">
+<n-modal :show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 600px; max-width: 92vw" :bordered="false" :segmented="{ content: true, footer: true }" :mask-closable="false" :on-mask-click="requestClose" @update:show="(v: boolean) => !v && requestClose()">
       <n-form :model="form" label-placement="top">
         <!-- P1-3: 错误就近显示（R-209），不再只走全局 toast -->
         <n-form-item
@@ -105,7 +105,7 @@
       <template #footer>
         <div class="drawer-footer">
           <!-- P1-2: 微文案（R-204）动词+宾语；编辑态「放弃修改」明确后果 -->
-          <n-button @click="showCreateModal = false">{{ editing ? '放弃修改' : '取消' }}</n-button>
+          <n-button @click="requestClose">{{ editing ? '放弃修改' : '取消' }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">
             {{ editing ? '保存修改' : '保存阶段' }}
           </n-button>
@@ -121,6 +121,7 @@ import { localPagination } from '@/composables/useTablePagination'
 import { ref, reactive, onMounted, computed, watch, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip, NEmpty, NText } from 'naive-ui'
 import { useFormDraft } from '../../composables/useFormDraft'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 import { AddOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
 import { listStages, createStage, updateStage, deleteStage, disableStage, enableStage } from '../../api/recruitment-process'
 // 2026-08-17 PR #69: 阶段类型改从后端数据字典 (apps/dictionary) 读取, single source of truth.
@@ -142,6 +143,13 @@ const statusFilterOptions = [
 const stages = ref<any[]>([])
 const loading = ref(false)
 const saving = ref(false)
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC/X 静默丢草稿）
+const { requestClose } = useCloseGuard({
+  isSaving: () => saving.value,
+  isDirty: () => true,
+  onClose: () => { showCreateModal.value = false },
+})
 const showCreateModal = ref(false)
 const editing = ref<any>(null)
 // 2026-08-29 UX 整改：表头固定 + 行高统一 — 视窗高 - 上方累计(标题/工具条/信息条/分页)≈ 560，按 1 屏可见行数倒推

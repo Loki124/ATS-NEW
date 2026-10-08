@@ -142,10 +142,13 @@
 
     <!-- 添加/编辑 抽屉 -->
     <n-drawer
-      v-model:show="drawerVisible"
+      :show="drawerVisible"
       :width="560"
       placement="right"
       :trap-focus="false"
+      :mask-closable="false"
+      :on-mask-click="requestClose"
+      @update:show="(v: boolean) => !v && requestClose()"
     >
       <n-drawer-content :native-scrollbar="false">
         <template #header>
@@ -232,7 +235,7 @@
 
         <template #footer>
           <n-space justify="end">
-            <n-button @click="drawerVisible = false">{{ t('pages.settings.AnnouncementSettings.s41') }}</n-button>
+            <n-button @click="requestClose">{{ t('pages.settings.AnnouncementSettings.s41') }}</n-button>
             <n-button type="primary" class="gradient-btn" :loading="saving" @click="save">{{ t('pages.settings.AnnouncementSettings.s42') }}</n-button>
           </n-space>
         </template>
@@ -242,6 +245,7 @@
     <!-- 推送弹窗 -->
     <n-modal
       v-model:show="pushVisible"
+      :mask-closable="false"
       :title="t('pages.settings.AnnouncementSettings.s43')"
       preset="dialog"
       :positive-text="t('pages.settings.AnnouncementSettings.s44')"
@@ -296,6 +300,7 @@ import {
 } from '../../api/announcement'
 import { useUndo } from '../../composables/useUndo'
 import { useDraft } from '../../composables/useDraft'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 
 const message = useMessage()
@@ -369,6 +374,13 @@ async function onToggleWorkbench(value: boolean) {
 
 // 表单
 const drawerVisible = ref(false)
+
+// 弹窗关闭守卫（方案B）：遮罩/ESC/X 三条路径统一走脏检查二次确认
+const { requestClose } = useCloseGuard({
+  isSaving: () => saving.value,
+  isDirty: () => true,
+  onClose: () => { drawerVisible.value = false },
+})
 const editingId = ref<string | null>(null)
 const formRef = ref<any>(null)
 const defaultForm = () => ({

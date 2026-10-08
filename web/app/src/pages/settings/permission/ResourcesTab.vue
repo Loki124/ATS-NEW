@@ -31,10 +31,13 @@
     />
 
     <n-modal
-      v-model:show="modal.show"
+      :show="modal.show"
       preset="card"
       :title="modal.editing ? '编辑资源' : '新建资源'"
       style="max-width: 600px"
+      :mask-closable="false"
+      :on-mask-click="requestClose"
+      @update:show="(v: boolean) => !v && requestClose()"
     >
       <n-form :model="modal.form" label-placement="left" label-width="100">
         <n-form-item :label="t('pages.settings.permission.ResourcesTab.s5')" required>
@@ -59,7 +62,7 @@
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="modal.show = false">{{ t('pages.settings.permission.ResourcesTab.s11') }}</n-button>
+          <n-button @click="requestClose">{{ t('pages.settings.permission.ResourcesTab.s11') }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="modal.saving" @click="onSubmit">{{ t('pages.settings.permission.ResourcesTab.s12') }}</n-button>
         </n-space>
       </template>
@@ -84,6 +87,7 @@ import {
   type ResourceType,
 } from '@/api/permission-resource'
 import { localPagination } from '@/composables/useTablePagination'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 import { SearchOutline } from '@vicons/ionicons5'
 
 const message = useMessage()
@@ -151,6 +155,13 @@ const modal = reactive({
     module: '',
     status: 1 as number,
   },
+})
+
+// 弹窗关闭守卫（方案B）：遮罩/ESC/X 三条路径统一走脏检查二次确认
+const { requestClose } = useCloseGuard({
+  isSaving: () => modal.saving,
+  isDirty: () => true,
+  onClose: () => { modal.show = false },
 })
 
 const statusSwitch = computed({

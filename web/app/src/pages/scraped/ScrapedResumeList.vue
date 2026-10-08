@@ -21,7 +21,7 @@
     </n-card>
 
     <!-- 抓取弹窗 -->
-    <n-modal v-model:show="showScrapeModal" preset="dialog" :title="t('pages.scraped.ScrapedResumeList.s4')" :positive-text="t('pages.scraped.ScrapedResumeList.s5')" @positive-click="handleScrape">
+    <n-modal v-model:show="showScrapeModal" preset="dialog" :title="t('pages.scraped.ScrapedResumeList.s4')" :positive-text="t('pages.scraped.ScrapedResumeList.s5')" :mask-closable="false" @positive-click="handleScrape">
       <n-form>
         <n-form-item :label="t('pages.scraped.ScrapedResumeList.s6')">
           <n-select v-model:value="scrapeForm.source" :options="sourceOptions" />

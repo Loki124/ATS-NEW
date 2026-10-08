@@ -27,10 +27,13 @@
 
     <!-- 创建/编辑职位弹窗 -->
     <n-modal
-      v-model:show="modalVisible"
+      :show="modalVisible"
       preset="card"
       :title="selectedPosition ? '编辑职位' : '创建职位'"
       style="width: 800px; max-width: 90vw"
+      :mask-closable="false"
+      :on-mask-click="requestClose"
+      @update:show="(v: boolean) => !v && requestClose()"
     >
       <n-divider title-placement="left">{{ t('pages.position.PositionList.s7') }}</n-divider>
       <n-form ref="formRef" :model="formState" label-placement="top">
@@ -85,7 +88,7 @@
       </n-form>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <n-button @click="modalVisible = false">{{ t('pages.position.PositionList.s28') }}</n-button>
+          <n-button @click="requestClose">{{ t('pages.position.PositionList.s28') }}</n-button>
           <n-button type="primary" :loading="saving" :disabled="saving" @click="handleSave">{{ t('pages.position.PositionList.s29') }}</n-button>
         </div>
       </template>
@@ -147,6 +150,7 @@ import {
   type PositionRow,
   type Option,
 } from '@/api/position'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -158,6 +162,13 @@ const detailVisible = ref(false)
 const selectedPosition = ref<PositionRow | null>(null)
 const formRef = ref()
 const saving = ref(false)
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC/X 静默丢草稿）
+const { requestClose } = useCloseGuard({
+  isSaving: () => saving.value,
+  isDirty: () => true,
+  onClose: () => { modalVisible.value = false },
+})
 
 const rows = ref<PositionRow[]>([])
 

@@ -9,6 +9,7 @@ import {
   NTag, NCard, NSpace, NButton, NIcon, NTabs, NTabPane,
   NDataTable, NEmpty, NSelect, NModal, useMessage,
 } from 'naive-ui'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 import { RefreshOutline, AddOutline, ArrowForwardOutline } from '@vicons/ionicons5'
 import { api } from '../../utils/request'
 const { t } = useI18n()
@@ -42,6 +43,18 @@ const addLoading = ref(false)
 const addSearching = ref(false)
 const addCandidateId = ref<string | null>(null)
 const addCandidateOptions = ref<any[]>([])
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC 静默丢草稿）
+const { requestClose: requestCloseMove } = useCloseGuard({
+  isSaving: () => moveLoading.value,
+  isDirty: () => true,
+  onClose: () => { moveModal.value = false },
+})
+const { requestClose: requestCloseAdd } = useCloseGuard({
+  isSaving: () => addLoading.value,
+  isDirty: () => true,
+  onClose: () => { addModal.value = false },
+})
 
 const allPools = computed(() => Object.values(poolDefs.value))
 
@@ -253,6 +266,10 @@ function onTabChange(key: string) {
       :positive-text="t('pages.talent.TalentPool.s6')"
       :negative-text="t('pages.talent.TalentPool.s7')"
       :positive-button-props="{ type: 'primary', loading: moveLoading }"
+      :mask-closable="false"
+      :on-mask-click="requestCloseMove"
+      :close-on-esc="false"
+      @negative-click="requestCloseMove"
       @positive-click="confirmMove"
     >
       <n-space vertical>
@@ -279,6 +296,10 @@ function onTabChange(key: string) {
       :positive-text="t('pages.talent.TalentPool.s11')"
       :negative-text="t('pages.talent.TalentPool.s12')"
       :positive-button-props="{ type: 'primary', loading: addLoading }"
+      :mask-closable="false"
+      :on-mask-click="requestCloseAdd"
+      :close-on-esc="false"
+      @negative-click="requestCloseAdd"
       @positive-click="confirmAdd"
     >
       <n-space vertical>

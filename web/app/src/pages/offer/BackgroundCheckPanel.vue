@@ -13,6 +13,7 @@ import {
   BG_CHECK_LEVEL_LABEL, BG_CHECK_LEVEL_COLOR,
   type BackgroundCheck,
 } from '../../api/offer'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 
 const props = defineProps<{ offerId: string }>()
@@ -25,6 +26,18 @@ const list = ref<BackgroundCheck[]>([])
 const showCreateModal = ref(false)
 const showCompleteModal = ref(false)
 const currentBid = ref<string | null>(null)
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC 静默丢草稿）
+const { requestClose: requestCloseCreate } = useCloseGuard({
+  isSaving: () => submitting.value,
+  isDirty: () => true,
+  onClose: () => { showCreateModal.value = false },
+})
+const { requestClose: requestCloseComplete } = useCloseGuard({
+  isSaving: () => submitting.value,
+  isDirty: () => true,
+  onClose: () => { showCompleteModal.value = false },
+})
 
 const createForm = ref<{ checkType: string; supplier: string; note: string }>({
   checkType: '学历', supplier: '', note: '',
@@ -190,7 +203,7 @@ onMounted(loadList)
     </n-spin>
 
     <!-- 新建背调弹窗 -->
-    <n-modal v-model:show="showCreateModal" preset="dialog" :title="t('pages.offer.BackgroundCheckPanel.s4')" :positive-text="t('pages.offer.BackgroundCheckPanel.s5')" :negative-text="t('pages.offer.BackgroundCheckPanel.s6')" :positive-button-props="{ loading: submitting }" @positive-click="handleCreate">
+    <n-modal v-model:show="showCreateModal" preset="dialog" :title="t('pages.offer.BackgroundCheckPanel.s4')" :positive-text="t('pages.offer.BackgroundCheckPanel.s5')" :negative-text="t('pages.offer.BackgroundCheckPanel.s6')" :positive-button-props="{ loading: submitting }" :mask-closable="false" :on-mask-click="requestCloseCreate" :close-on-esc="false" @negative-click="requestCloseCreate" @positive-click="handleCreate">
       <n-form label-placement="top" style="margin-top: var(--space-3);">
         <n-form-item :label="t('pages.offer.BackgroundCheckPanel.s7')" required>
           <n-input v-model:value="createForm.checkType" :placeholder="t('pages.offer.BackgroundCheckPanel.s8')" />
@@ -205,7 +218,7 @@ onMounted(loadList)
     </n-modal>
 
     <!-- 完成背调弹窗 -->
-    <n-modal v-model:show="showCompleteModal" preset="dialog" :title="t('pages.offer.BackgroundCheckPanel.s12')" :positive-text="t('pages.offer.BackgroundCheckPanel.s13')" :negative-text="t('pages.offer.BackgroundCheckPanel.s14')" :positive-button-props="{ loading: submitting }" @positive-click="handleComplete">
+    <n-modal v-model:show="showCompleteModal" preset="dialog" :title="t('pages.offer.BackgroundCheckPanel.s12')" :positive-text="t('pages.offer.BackgroundCheckPanel.s13')" :negative-text="t('pages.offer.BackgroundCheckPanel.s14')" :positive-button-props="{ loading: submitting }" :mask-closable="false" :on-mask-click="requestCloseComplete" :close-on-esc="false" @negative-click="requestCloseComplete" @positive-click="handleComplete">
       <n-form label-placement="top" style="margin-top: var(--space-3);">
         <n-form-item :label="t('pages.offer.BackgroundCheckPanel.s15')" required>
           <n-select

@@ -93,6 +93,7 @@
     <n-modal
       v-model:show="showLimitModal"
       preset="card"
+      :mask-closable="false"
       :title="t('pages.settings.ProcessStageEditor.s17')"
       style="width: 400px; max-width: 90vw"
       :transform-origin="undefined"
@@ -114,6 +115,7 @@
     <n-modal
       v-model:show="showRenameModal"
       preset="card"
+      :mask-closable="false"
       :title="t('pages.settings.ProcessStageEditor.s22')"
       style="width: 400px; max-width: 90vw"
       :transform-origin="undefined"

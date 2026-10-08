@@ -45,10 +45,13 @@
 
     <!-- 从模板克隆 modal -->
     <n-modal
-      v-model:show="cloneModal.show"
+      :show="cloneModal.show"
       preset="card"
       :title="t('pages.settings.permission.RolesTab.s7')"
       style="max-width: 480px"
+      :mask-closable="false"
+      :on-mask-click="requestCloseClone"
+      @update:show="(v: boolean) => !v && requestCloseClone()"
     >
       <n-form :model="cloneModal.form" label-placement="left" label-width="100">
         <n-form-item :label="t('pages.settings.permission.RolesTab.s8')" required>
@@ -67,7 +70,7 @@
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="cloneModal.show = false">{{ t('pages.settings.permission.RolesTab.s13') }}</n-button>
+          <n-button @click="requestCloseClone">{{ t('pages.settings.permission.RolesTab.s13') }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="cloneModal.saving" @click="onSubmitClone">{{ t('pages.settings.permission.RolesTab.s14') }}</n-button>
         </n-space>
       </template>
@@ -109,6 +112,7 @@ import { listTemplates, type PermissionTemplate } from '@/api/permission-templat
 import { localPagination } from '@/composables/useTablePagination'
 import RoleEditModal from './RoleEditModal.vue'
 import RoleDataPermDrawer from '@/components/role/RoleDataPermDrawer.vue'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
@@ -256,6 +260,13 @@ const cloneModal = reactive({
     roleCode: '',
     roleName: '',
   },
+})
+
+// 弹窗关闭守卫（方案B）：遮罩/ESC/X 三条路径统一走脏检查二次确认
+const { requestClose: requestCloseClone } = useCloseGuard({
+  isSaving: () => cloneModal.saving,
+  isDirty: () => true,
+  onClose: () => { cloneModal.show = false },
 })
 
 const editModal = reactive({

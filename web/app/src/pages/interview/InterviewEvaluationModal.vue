@@ -258,6 +258,7 @@ const avgValueScore = computed(() => {
     :show="show"
     preset="card"
     :bordered="false"
+    :mask-closable="false"
     style="width: 880px; max-width: 96vw;"
     :title="editing ? t('pages.interview.InterviewEvaluationModal.s22') : t('pages.interview.InterviewEvaluationModal.s23')"
     @update:show="(v: boolean) => emit('update:show', v)"

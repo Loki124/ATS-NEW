@@ -47,7 +47,7 @@
     </n-card>
 
     <!-- 模板选择 Modal -->
-    <n-modal v-model:show="templateModal.show" preset="dialog" :title="t('pages.offer.OfferList.s5')" style="width: 520px; max-width: 90vw">
+    <n-modal v-model:show="templateModal.show" preset="dialog" :title="t('pages.offer.OfferList.s5')" style="width: 520px; max-width: 90vw" :mask-closable="false" :on-mask-click="requestCloseTemplate" :close-on-esc="false">
       <n-form :model="templateModal.form" label-placement="left" :label-width="80">
         <n-form-item :label="t('pages.offer.OfferList.s6')" path="templateKey">
           <n-select
@@ -65,7 +65,7 @@
       </n-form>
       <template #action>
         <n-space>
-          <n-button @click="templateModal.show = false">{{ t('pages.offer.OfferList.s11') }}</n-button>
+          <n-button @click="requestCloseTemplate">{{ t('pages.offer.OfferList.s11') }}</n-button>
           <n-button type="primary" :loading="templateModal.loading" @click="handleGenerateTemplate">{{ t('pages.offer.OfferList.s12') }}</n-button>
         </n-space>
       </template>
@@ -84,7 +84,7 @@
     </n-modal>
 
     <!-- 状态转移 Modal -->
-    <n-modal v-model:show="transitionModal.show" preset="dialog" :title="transitionModal.title" style="width: 480px; max-width: 90vw">
+    <n-modal v-model:show="transitionModal.show" preset="dialog" :title="transitionModal.title" style="width: 480px; max-width: 90vw" :mask-closable="false" :on-mask-click="requestCloseTransition" :close-on-esc="false">
       <n-form :model="transitionModal.form" label-placement="left" :label-width="80">
         <n-form-item :label="t('pages.offer.OfferList.s16')">
           <n-tag :type="OFFER_STATUS_COLOR[transitionModal.form.to]">
@@ -97,7 +97,7 @@
       </n-form>
       <template #action>
         <n-space>
-          <n-button @click="transitionModal.show = false">{{ t('pages.offer.OfferList.s19') }}</n-button>
+          <n-button @click="requestCloseTransition">{{ t('pages.offer.OfferList.s19') }}</n-button>
           <n-button type="primary" :loading="transitionModal.loading" @click="handleTransitionSubmit">{{ t('pages.offer.OfferList.s20') }}</n-button>
         </n-space>
       </template>
@@ -115,6 +115,7 @@ import {
   OFFER_STATUS_LABEL, OFFER_STATUS_COLOR, OFFER_TEMPLATE_LABEL,
   type Offer,
 } from '../../api/offer'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 
 const message = useMessage()
@@ -168,6 +169,18 @@ const previewModal = ref({ show: false, html: '' })
 const transitionModal = ref({
   show: false, loading: false, title: '',
   form: { id: '', to: '', reason: '' },
+})
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC 静默丢草稿）
+const { requestClose: requestCloseTemplate } = useCloseGuard({
+  isSaving: () => templateModal.value.loading,
+  isDirty: () => true,
+  onClose: () => { templateModal.value.show = false },
+})
+const { requestClose: requestCloseTransition } = useCloseGuard({
+  isSaving: () => transitionModal.value.loading,
+  isDirty: () => true,
+  onClose: () => { transitionModal.value.show = false },
 })
 
 const columns = computed(() => [

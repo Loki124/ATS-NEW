@@ -59,7 +59,7 @@
 
     <!-- 新建订阅弹窗 -->
 </div><!-- /.page-body -->
-<n-modal v-model:show="showAddSub" preset="card" :title="t('pages.settings.DataDashboard.s7')" style="width: 540px; max-width: 90vw">
+<n-modal :show="showAddSub" preset="card" :title="t('pages.settings.DataDashboard.s7')" style="width: 540px; max-width: 90vw" :mask-closable="false" :on-mask-click="requestClose" @update:show="(v: boolean) => !v && requestClose()">
       <n-form :model="subForm" label-placement="left" label-width="100">
         <n-form-item :label="t('pages.settings.DataDashboard.s8')">
           <n-select v-model:value="subForm.resource" :options="RESOURCE_OPTIONS" :placeholder="t('pages.settings.DataDashboard.s9')" />
@@ -82,7 +82,7 @@
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button @click="showAddSub = false">{{ t('pages.settings.DataDashboard.s17') }}</n-button>
+          <n-button @click="requestClose">{{ t('pages.settings.DataDashboard.s17') }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="creating" @click="handleCreateSub">{{ t('pages.settings.DataDashboard.s18') }}</n-button>
         </n-space>
       </template>
@@ -107,6 +107,7 @@ import {
   type DashboardKpi,
   type DataSubscription,
 } from '@/api/data';
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 
 const message = useMessage();
@@ -121,7 +122,14 @@ const exporting = ref(false);
 const subs = ref<DataSubscription[]>([]);
 const subLoading = ref(false);
 const showAddSub = ref(false);
-const creating = ref(false);
+const creating = ref(false)
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC/X 静默丢草稿）
+const { requestClose } = useCloseGuard({
+  isSaving: () => creating.value,
+  isDirty: () => true,
+  onClose: () => { showAddSub.value = false },
+});
 const subForm = reactive<Partial<DataSubscription>>({
   resource: 'Candidate',
   metric: 'all',

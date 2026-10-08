@@ -70,7 +70,7 @@
     </n-card>
 
     <!-- 标记结果 Modal -->
-    <n-modal v-model:show="resultModal.show" preset="dialog" :title="resultModal.title" style="width: 480px; max-width: 90vw">
+    <n-modal v-model:show="resultModal.show" preset="dialog" :title="resultModal.title" style="width: 480px; max-width: 90vw" :mask-closable="false" :on-mask-click="requestCloseResult" :close-on-esc="false">
       <n-form ref="resultFormRef" :model="resultModal.form" label-placement="left" :label-width="80">
         <n-form-item :label="t('pages.invitation.InvitationCenter.s7')">
           <n-tag :type="resultModal.form.success ? 'success' : 'error'">
@@ -83,14 +83,14 @@
       </n-form>
       <template #action>
         <n-space>
-          <n-button @click="resultModal.show = false">{{ t('pages.invitation.InvitationCenter.s10') }}</n-button>
+          <n-button @click="requestCloseResult">{{ t('pages.invitation.InvitationCenter.s10') }}</n-button>
           <n-button type="primary" :loading="resultModal.loading" @click="handleResultSubmit">{{ t('pages.invitation.InvitationCenter.s11') }}</n-button>
         </n-space>
       </template>
     </n-modal>
 
     <!-- 干预/终止 Modal -->
-    <n-modal v-model:show="actionModal.show" preset="dialog" :title="actionModal.title" style="width: 480px; max-width: 90vw">
+    <n-modal v-model:show="actionModal.show" preset="dialog" :title="actionModal.title" style="width: 480px; max-width: 90vw" :mask-closable="false" :on-mask-click="requestCloseAction" :close-on-esc="false">
       <n-form :model="actionModal.form" label-placement="left" :label-width="80">
         <n-form-item :label="t('pages.invitation.InvitationCenter.s12')">
           <n-input v-model:value="actionModal.form.reason" type="textarea" :rows="3" :placeholder="actionModal.placeholder" />
@@ -98,7 +98,7 @@
       </n-form>
       <template #action>
         <n-space>
-          <n-button @click="actionModal.show = false">{{ t('pages.invitation.InvitationCenter.s13') }}</n-button>
+          <n-button @click="requestCloseAction">{{ t('pages.invitation.InvitationCenter.s13') }}</n-button>
           <n-button :type="actionModal.type" :loading="actionModal.loading" @click="handleActionSubmit">{{ t('pages.invitation.InvitationCenter.s14') }}</n-button>
         </n-space>
       </template>
@@ -119,6 +119,7 @@ import {
 } from '../../api/invitation'
 
 import { extractApiError } from '../../api/dynamic-field'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 const message = useMessage()
 const dialog = useDialog()
@@ -175,6 +176,18 @@ const actionModal = ref({
 })
 
 const resultFormRef = ref()
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC 静默丢草稿）
+const { requestClose: requestCloseResult } = useCloseGuard({
+  isSaving: () => resultModal.value.loading,
+  isDirty: () => true,
+  onClose: () => { resultModal.value.show = false },
+})
+const { requestClose: requestCloseAction } = useCloseGuard({
+  isSaving: () => actionModal.value.loading,
+  isDirty: () => true,
+  onClose: () => { actionModal.value.show = false },
+})
 
 const columns = computed(() => [
   { title: '候选人', key: 'ownerName', width: 100 },

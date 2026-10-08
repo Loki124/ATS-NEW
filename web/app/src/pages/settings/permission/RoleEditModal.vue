@@ -4,7 +4,9 @@
     preset="card"
     :title="role ? t('pages.settings.permission.RoleEditModal.s17', { name: role.roleName }) : t('pages.settings.permission.RoleEditModal.s18')"
     style="max-width: 800px"
-    @update:show="$emit('update:show', $event)"
+    :mask-closable="false"
+    :on-mask-click="requestClose"
+    @update:show="(v: boolean) => !v && requestClose()"
   >
     <n-form :model="form" label-placement="left" label-width="100">
       <n-form-item :label="t('pages.settings.permission.RoleEditModal.s5')" required>
@@ -52,7 +54,7 @@
 
     <template #footer>
       <n-space justify="end">
-        <n-button @click="$emit('update:show', false)">{{ t('pages.settings.permission.RoleEditModal.s2') }}</n-button>
+        <n-button @click="requestClose">{{ t('pages.settings.permission.RoleEditModal.s2') }}</n-button>
         <n-button type="primary" class="gradient-btn" :loading="saving" @click="onSubmit">{{ t('pages.settings.permission.RoleEditModal.s3') }}</n-button>
       </n-space>
     </template>
@@ -84,6 +86,7 @@ import {
 } from 'naive-ui'
 import { createRole, updateRole, syncRolePermissions, type RoleV2, type DataScopeType } from '@/api/role-v2'
 import { listResources, type PermissionResource } from '@/api/permission-resource'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 
 const props = defineProps<{
@@ -97,6 +100,12 @@ const emit = defineEmits<{
 
 const message = useMessage()
 const saving = ref(false)
+// 弹窗关闭守卫（方案B）：遮罩/ESC/X 三条路径统一走脏检查二次确认
+const { requestClose } = useCloseGuard({
+  isSaving: () => saving.value,
+  isDirty: () => true,
+  onClose: () => emit('update:show', false),
+})
 const allResources = ref<PermissionResource[]>([])
 const selectedCodes = ref<string[]>([])
 

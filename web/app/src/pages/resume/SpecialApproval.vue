@@ -70,6 +70,10 @@
       :positive-text="t('pages.resume.SpecialApproval.s11')"
       :negative-text="t('pages.resume.SpecialApproval.s12')"
       :loading="submitting"
+      :mask-closable="false"
+      :on-mask-click="requestClose"
+      :close-on-esc="false"
+      @negative-click="requestClose"
       @positive-click="handleSubmitApproval"
     >
       <n-form :model="approveForm" label-placement="top" class="mt-4">
@@ -100,6 +104,7 @@ import { RefreshOutline } from '@vicons/ionicons5'
 import { get, post } from '../../api/auth'
 
 import { extractApiError } from '../../api/dynamic-field'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 const message = useMessage()
 
@@ -109,6 +114,13 @@ const detailVisible = ref(false)
 const currentFlow = ref<any>(null)
 const approveVisible = ref(false)
 const submitting = ref(false)
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC 静默丢草稿）
+const { requestClose } = useCloseGuard({
+  isSaving: () => submitting.value,
+  isDirty: () => true,
+  onClose: () => { approveVisible.value = false },
+})
 
 const approveForm = reactive({
   flowId: '',

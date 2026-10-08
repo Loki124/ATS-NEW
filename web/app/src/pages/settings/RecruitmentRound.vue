@@ -31,7 +31,7 @@
     />
     </div>
 </div><!-- /.page-body -->
-<n-modal v-model:show="showModal" preset="card" :title="editing ? t('pages.settings.RecruitmentRound.s13') : t('pages.settings.RecruitmentRound.s4')" style="width: 520px; max-width: 90vw" :bordered="false" :segmented="{ content: true, footer: true }">
+<n-modal :show="showModal" preset="card" :title="editing ? t('pages.settings.RecruitmentRound.s13') : t('pages.settings.RecruitmentRound.s4')" style="width: 520px; max-width: 90vw" :bordered="false" :segmented="{ content: true, footer: true }" :mask-closable="false" :on-mask-click="requestClose" @update:show="(v: boolean) => !v && requestClose()">
       <n-form :model="form" label-placement="top">
         <n-form-item :label="t('pages.settings.RecruitmentRound.s5')" required>
           <n-input v-model:value="form.name" :placeholder="t('pages.settings.RecruitmentRound.s6')" />
@@ -48,7 +48,7 @@
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="showModal = false">{{ t('pages.settings.RecruitmentRound.s11') }}</n-button>
+          <n-button @click="requestClose">{{ t('pages.settings.RecruitmentRound.s11') }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">{{ t('pages.settings.RecruitmentRound.s12') }}</n-button>
         </div>
       </template>
@@ -63,6 +63,7 @@ import { ref, reactive, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSwitch, NForm, NFormItem, NModal, NDataTable } from 'naive-ui'
 import { AddOutline, PowerOutline, SearchOutline } from '@vicons/ionicons5'
 import { listRounds, createRound, updateRound, updateRoundStatus } from '../../api/recruitment-process'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 
 const message = useMessage()
@@ -71,6 +72,13 @@ const rounds = ref<any[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const showModal = ref(false)
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC/X 静默丢草稿）
+const { requestClose } = useCloseGuard({
+  isSaving: () => saving.value,
+  isDirty: () => true,
+  onClose: () => { showModal.value = false },
+})
 const editing = ref<any>(null)
 // 2026-08-29 UX 整改：表头固定 + 行高统一
 // 2026-08-30 UX 二改：56→44 + td 垂直 padding 10→6，压缩行间距（兵哥嫌"行间距太大"）

@@ -222,6 +222,10 @@
       :positive-text="t('pages.resume.ResumeList.s29')"
       :negative-text="t('pages.resume.ResumeList.s30')"
       :loading="assignLoading"
+      :mask-closable="false"
+      :on-mask-click="requestClose"
+      :close-on-esc="false"
+      @negative-click="requestClose"
       @positive-click="handleAssignConfirm"
     >
       <n-form :model="assignForm" label-placement="top" class="mt-4">
@@ -244,6 +248,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 import {
   RefreshOutline,
   CallOutline,
@@ -278,6 +283,13 @@ const flowLogs = ref<any[]>([])
 // 分配弹窗
 const assignVisible = ref(false)
 const assignLoading = ref(false)
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC 静默丢草稿）
+const { requestClose } = useCloseGuard({
+  isSaving: () => assignLoading.value,
+  isDirty: () => true,
+  onClose: () => { assignVisible.value = false },
+})
 const assignForm = reactive({
   resumeId: '',
   positionId: '',

@@ -58,12 +58,14 @@
 
     <!-- 新增 / 编辑 弹窗 -->
     <n-modal
-      v-model:show="showModal"
+      :show="showModal"
+      :mask-closable="false"
+      :on-mask-click="requestClose"
+      @update:show="(v: boolean) => !v && requestClose()"
       preset="card"
       :title="editingId ? t('pages.settings.CampusSession.s36') : t('pages.settings.CampusSession.s37')"
       class="cs-modal"
       :auto-focus="false"
-      @close="closeModal"
     >
       <n-form ref="formRef" :model="form" :rules="rules" label-placement="top">
         <n-form-item :label="t('pages.settings.CampusSession.s6')" path="title">
@@ -120,7 +122,7 @@
 
       <template #footer>
         <div class="cs-modal__footer">
-          <n-button :disabled="saving" @click="closeModal">{{ t('pages.settings.CampusSession.s24') }}</n-button>
+          <n-button :disabled="saving" @click="requestClose">{{ t('pages.settings.CampusSession.s24') }}</n-button>
           <n-button type="primary" :loading="saving" :disabled="saving" @click="submitForm">
             {{ editingId ? t('pages.settings.CampusSession.s43') : t('pages.settings.CampusSession.s44') }}
           </n-button>
@@ -154,6 +156,7 @@ import {
   type FormRules,
 } from 'naive-ui'
 import { SearchOutline, AddOutline } from '@vicons/ionicons5'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 import EmptyState from '../../components/common/EmptyState.vue'
 import { useSystemStore } from '../../stores/system'
 import {
@@ -196,6 +199,13 @@ const rows = ref<CampusSession[]>([])
 const showModal = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
+
+// 弹窗关闭守卫：保存中拦截；有未保存修改时二次确认（防点遮罩/ESC/X 静默丢草稿）
+const { requestClose } = useCloseGuard({
+  isSaving: () => saving.value,
+  isDirty: () => true,
+  onClose: () => { showModal.value = false },
+})
 const formRef = ref<FormInst | null>(null)
 const form = ref({
   title: '',

@@ -279,6 +279,7 @@
     <n-modal
       v-model:show="importDrawer.show"
       preset="card"
+      :mask-closable="false"
       :title="t('pages.settings.CampusControl.s55')"
       :style="{ width: '600px', maxWidth: '94vw' }"
       :bordered="false"
@@ -332,6 +333,7 @@
     <n-modal
       v-model:show="indicatorImportDrawer.show"
       preset="card"
+      :mask-closable="false"
       :title="t('pages.settings.CampusControl.s62')"
       :style="{ width: '600px', maxWidth: '94vw' }"
       :bordered="false"
@@ -412,35 +414,35 @@
     </n-modal>
 
     <!-- ===================== 维度表单弹窗 ===================== -->
-    <n-modal v-model:show="dimModal.show" :title="dimModal.editingId ? t('pages.settings.CampusControl.s203') : t('pages.settings.CampusControl.s204')" preset="card" style="width: 420px; max-width: 90vw">
+    <n-modal :show="dimModal.show" :title="dimModal.editingId ? t('pages.settings.CampusControl.s203') : t('pages.settings.CampusControl.s204')" preset="card" style="width: 420px; max-width: 90vw" :mask-closable="false" :on-mask-click="requestCloseDim" @update:show="(v: boolean) => !v && requestCloseDim()">
       <n-form label-placement="top">
         <n-form-item :label="t('pages.settings.CampusControl.s73')" required><n-input v-model:value="dimModal.name" :placeholder="t('pages.settings.CampusControl.s74')" /></n-form-item>
         <n-form-item :label="t('pages.settings.CampusControl.s75')"><n-input v-model:value="dimModal.code" :placeholder="t('pages.settings.CampusControl.s76')" /></n-form-item>
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="dimModal.show = false">{{ t('pages.settings.CampusControl.s77') }}</n-button>
+          <n-button @click="requestCloseDim">{{ t('pages.settings.CampusControl.s77') }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="loading.dimensions" @click="saveDim">{{ t('pages.settings.CampusControl.s78') }}</n-button>
         </div>
       </template>
     </n-modal>
 
     <!-- ===================== 指标表单弹窗 ===================== -->
-    <n-modal v-model:show="indicatorModal.show" :title="indicatorModal.editingId ? t('pages.settings.CampusControl.s205') : t('pages.settings.CampusControl.s206')" preset="card" style="width: 420px; max-width: 90vw">
+    <n-modal :show="indicatorModal.show" :title="indicatorModal.editingId ? t('pages.settings.CampusControl.s205') : t('pages.settings.CampusControl.s206')" preset="card" style="width: 420px; max-width: 90vw" :mask-closable="false" :on-mask-click="requestCloseIndicator" @update:show="(v: boolean) => !v && requestCloseIndicator()">
       <n-form label-placement="top">
         <n-form-item :label="t('pages.settings.CampusControl.s79')" required><n-select v-model:value="indicatorModal.dimensionId" :options="dimensionOptions" :disabled="!!indicatorModal.editingId" /></n-form-item>
         <n-form-item :label="t('pages.settings.CampusControl.s80')" required><n-input v-model:value="indicatorModal.name" :placeholder="t('pages.settings.CampusControl.s81')" /></n-form-item>
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="indicatorModal.show = false">{{ t('pages.settings.CampusControl.s82') }}</n-button>
+          <n-button @click="requestCloseIndicator">{{ t('pages.settings.CampusControl.s82') }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="loading.indicators" @click="saveIndicator">{{ t('pages.settings.CampusControl.s83') }}</n-button>
         </div>
       </template>
     </n-modal>
 
     <!-- ===================== 人员表单弹窗（仅编辑态，列表「+ 新增人员」按钮已按产品决策移除） ===================== -->
-    <n-modal v-model:show="personModal.show" :title="t('pages.settings.CampusControl.s84')" preset="card" style="width: 560px; max-width: 90vw">
+    <n-modal :show="personModal.show" :title="t('pages.settings.CampusControl.s84')" preset="card" style="width: 560px; max-width: 90vw" :mask-closable="false" :on-mask-click="requestClosePerson" @update:show="(v: boolean) => !v && requestClosePerson()">
       <n-form label-placement="top">
         <n-grid :cols="2" :x-gap="16">
           <n-gi><n-form-item :label="t('pages.settings.CampusControl.s85')"><n-input v-model:value="personModal.code" :placeholder="t('pages.settings.CampusControl.s86')" /></n-form-item></n-gi>
@@ -460,7 +462,7 @@
       </n-form>
       <template #footer>
         <div class="drawer-footer">
-          <n-button @click="personModal.show = false">{{ t('pages.settings.CampusControl.s102') }}</n-button>
+          <n-button @click="requestClosePerson">{{ t('pages.settings.CampusControl.s102') }}</n-button>
           <n-button type="primary" class="gradient-btn" :loading="loading.persons" @click="savePerson">{{ t('pages.settings.CampusControl.s103') }}</n-button>
         </div>
       </template>
@@ -495,6 +497,7 @@ import { CloseCircleOutline as XCircle, WarningOutline as AlertTriangle, Checkma
 import RuleConfigDrawer from '../../components/RuleConfigDrawer.vue'
 import { useRuleActions } from '../../composables/useRuleActions'
 import { useUndo } from '../../composables/useUndo'
+import { useCloseGuard } from '@/composables/useCloseGuard'
 const { t } = useI18n()
 
 const message = useMessage()
@@ -1413,6 +1416,24 @@ const personModal = reactive({
   actualEntryDate: null as string | null,
   position: '', level: '', counted: true,
 })
+
+// 弹窗关闭守卫（方案B）：遮罩/ESC/X 三条关闭路径统一走脏检查二次确认，避免静默丢草稿
+const { requestClose: requestCloseDim } = useCloseGuard({
+  isSaving: () => loading.dimensions,
+  isDirty: () => true,
+  onClose: () => { dimModal.show = false },
+})
+const { requestClose: requestCloseIndicator } = useCloseGuard({
+  isSaving: () => loading.indicators,
+  isDirty: () => true,
+  onClose: () => { indicatorModal.show = false },
+})
+const { requestClose: requestClosePerson } = useCloseGuard({
+  isSaving: () => loading.persons,
+  isDirty: () => true,
+  onClose: () => { personModal.show = false },
+})
+
 function openPersonModal(p?: Person) {
   personModal.editingId = p?.id ?? null
   personModal.code = p?.code ?? ''; personModal.name = p?.name ?? ''
