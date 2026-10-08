@@ -52,14 +52,25 @@ case "$SERVICE" in
     PORT=8000
     PATH_PREFIX="$PROJECT_DIR/apps/django/.venv/bin:/usr/local/bin:/usr/bin:/bin"
     ;;
+  celery)
+    BIN="$PROJECT_DIR/apps/django/.venv/bin/python"
+    # -P solo: 单进程，避免 dev 环境 prefork fork 问题；消费默认 celery 队列 + scoring 队列
+    ARGS=(-m celery -A celery_app worker --loglevel=info -Q celery,scoring -P solo)
+    WD="$PROJECT_DIR/apps/django"
+    EXTRA_ENV=(DJANGO_SETTINGS_MODULE=config.settings.dev PYTHONUNBUFFERED=1)
+    PORT=""   # celery worker 无监听端口，free_port 对健康检查均跳过
+    PATH_PREFIX="$PROJECT_DIR/apps/django/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+    ;;
   *)
-    echo "usage: $0 <fe|be>" >&2
+    echo "usage: $0 <fe|be|celery>" >&2
     exit 2
     ;;
 esac
 
 fe_healthy() { curl --noproxy '*' -s -o /dev/null "http://localhost:5212/" 2>/dev/null; }
 be_healthy() { [[ "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000/health/" 2>/dev/null)" == "200" ]]; }
+# celery worker 无 HTTP 端口：健康=子进程仍存活（崩溃由 launchd/包装器重启兜底）
+celery_healthy() { kill -0 "$PID" 2>/dev/null; }
 
 # 杀掉占用目标端口、但【不是本子进程】的孤儿，确保本包装器独占端口
 free_port() {
@@ -77,7 +88,8 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] wrapper for $SERVICE starting (max_restarts
 restart_count=0
 while true; do
   # 启动前先清场：杀掉占用端口的孤儿（若有），避免新进程因端口冲突启动即崩
-  free_port
+  # celery 无监听端口（PORT 为空），跳过端口清理
+  [[ -n "${PORT:-}" ]] && free_port
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] launching $SERVICE (attempt $((restart_count+1)))" >> "$LOG_DIR/$SERVICE-wrapper.log"
   (
