@@ -2564,17 +2564,18 @@ onUnmounted(() => {
 .tpl-head-meta { font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--ink-faint); letter-spacing: .01em; }
 
 /* 表单主体 + 编号计数器 */
-.tpl-form { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-5); counter-reset: tplsec; }
+.tpl-form { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-4); counter-reset: tplsec; }
 .tpl-fields { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0 var(--space-4); }
 .tpl-alltext { width: 120px; min-width: 0; }
 
-/* 全局收紧表单项底部间距 */
-.tpl-form :deep(.n-form-item) { margin-bottom: 0; }
-.tpl-form :deep(.n-form-item-label) { padding-bottom: var(--space-1); font-size: var(--fs-12); }
+/* 全局收紧表单项底部间距与标签间距 */
+.tpl-form :deep(.n-form-item) { margin-bottom: 0 !important; }
+.tpl-form :deep(.n-form-item-feedback-wrapper) { min-height: 0 !important; }
+.tpl-form :deep(.n-form-item-label) { padding-bottom: 2px !important; font-size: var(--fs-12); }
 
 /* 分区（品牌编号方块） */
 .tpl-sec { counter-increment: tplsec; }
-.tpl-sec-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3); }
+.tpl-sec-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); }
 .tpl-sec-unit { font-family: var(--tpl-mono); }
 .tpl-sec-head::before {
   content: counter(tplsec, decimal-leading-zero);
@@ -2595,8 +2596,8 @@ onUnmounted(() => {
 /* 继承信息（品牌浅底块） */
 .tpl-inherit {
   display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
-  margin-top: var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   background: var(--brand-tint);
   border: 1px solid var(--brand-a12);
   border-radius: var(--radius-md);
