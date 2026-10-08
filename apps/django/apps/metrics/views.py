@@ -385,7 +385,7 @@ class FilterStatusView(APIView):
             return Response({'error': '缺少 taskId'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             from .tasks import read_progress
-        except Exception as exc:  # noqa: BLE001 — 任务模块导入失败 (通常因依赖缺失/循环), 显式 503
+        except ImportError as exc:  # 任务模块导入失败 (通常因依赖缺失/循环), 显式 503
             return Response({'error': f'任务模块不可用: {exc}'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         data = read_progress(task_id)

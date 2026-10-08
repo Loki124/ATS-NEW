@@ -158,9 +158,6 @@ def validate_syntax(expression: str, max_id: int) -> Dict[str, Any]:
         return {'valid': True, 'error': None, 'error_pos': None}
     except ExpressionError as e:
         return {'valid': False, 'error': str(e), 'error_pos': None}
-    except Exception as e:  # noqa: BLE001 — 表达式验证异常类型不固定, 返 dict 而非 raise (前端显式展示错误)
-        logger.exception('Unexpected error in expression validation')
-        return {'valid': False, 'error': f'未知错误: {e}', 'error_pos': None}
 
 
 def extract_used_ids(expression: str) -> Set[int]:

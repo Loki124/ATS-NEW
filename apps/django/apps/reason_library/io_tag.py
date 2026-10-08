@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import csv
 import io
+from zipfile import BadZipFile
 from typing import Dict, List
 
 from django.core.files.uploadedfile import UploadedFile
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.exceptions import InvalidFileException
 
 # ---- 列定义（模板生成 + 导入解析共用同一份，避免两边漂移） ----
 TAG_HEADERS: List[str] = ['name', 'en_name', 'tip', 'type', 'enabled']
@@ -171,7 +173,7 @@ def _parse_xlsx_rows(upload: UploadedFile) -> List[Dict[str, str]]:
     try:
         raw_bytes = upload.read()
         wb = load_workbook(io.BytesIO(raw_bytes), read_only=True, data_only=True)
-    except Exception as exc:  # noqa: BLE001 - openpyxl 异常类型不固定, 统一兜底
+    except (InvalidFileException, BadZipFile, OSError, ValueError) as exc:  # openpyxl/IO 异常 (非法文件/BadZip/IO/格式) 统一兜底
         raise TagFileParseError(f'Excel 文件解析失败: {exc}') from exc
 
     rows: List[Dict[str, str]] = []
@@ -206,7 +208,7 @@ def _parse_xlsx_rows(upload: UploadedFile) -> List[Dict[str, str]]:
     finally:
         try:
             wb.close()
-        except Exception:  # noqa: BLE001 - 关闭失败不影响已解析结果
+        except OSError:  # 关闭失败不影响已解析结果
             pass
     return rows
 

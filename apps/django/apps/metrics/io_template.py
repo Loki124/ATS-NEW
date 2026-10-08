@@ -20,12 +20,14 @@ import base64
 import csv
 import io
 import logging
+from zipfile import BadZipFile
 
 from django.db import DatabaseError
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.exceptions import InvalidFileException
 
 from apps.audit.models import AuditLog
 from apps.rule_engine.models import UnifiedOperator
@@ -331,7 +333,7 @@ def _parse_xlsx(file_obj):
     rows, parse_errors, original_rows, errors_by_line = [], [], [], {}
     try:
         wb = load_workbook(file_obj, read_only=True, data_only=True)
-    except Exception as e:  # noqa: BLE001 — openpyxl Excel 解析异常类型不固定, 统一兜底返错误列表
+    except (InvalidFileException, BadZipFile, OSError, ValueError) as e:  # openpyxl Excel 解析异常 (非法文件/BadZip/IO/格式) 统一兜底返错误列表
         return [], [f'Excel 文件解析失败：{e}'], [], {}
     ws = wb['指标模板'] if '指标模板' in wb.sheetnames else wb.active
     iter_rows = ws.iter_rows(values_only=True)
