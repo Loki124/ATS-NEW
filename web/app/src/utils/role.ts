@@ -46,6 +46,26 @@ export const ROLE_PRIORITY: readonly string[] = [
 ] as const
 
 /**
+ * 角色 code 常量 — 对应后端 apps/core/views_auth.py 返回的 RBAC role codes。
+ * 集中定义，供路由 `meta.roles` 与权限判断复用，避免散落字符串字面量。
+ * 注意：ROLE_PRIORITY 用于派生主角色（UI 展示），这里的是纯 code 常量。
+ */
+export const ROLE = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMIN: 'ADMIN',
+  HRBP: 'HRBP',
+  HR: 'HR',
+} as const
+
+/** 常用角色组合 — 路由 `meta.roles` 直接复用，减少重复字面量。 */
+export const ROLE_GROUPS = {
+  SUPER_ADMIN_ONLY: [ROLE.SUPER_ADMIN],
+  SUPER_ADMIN_ADMIN: [ROLE.SUPER_ADMIN, ROLE.ADMIN],
+  SUPER_ADMIN_ADMIN_HRBP: [ROLE.SUPER_ADMIN, ROLE.ADMIN, ROLE.HRBP],
+  SUPER_ADMIN_HRBP_HR: [ROLE.SUPER_ADMIN, ROLE.HRBP, ROLE.HR],
+} as const
+
+/**
  * 从后端返回的 roles 数组派生"主角色" (用于 UI 简化展示).
  *
  * @param roles - 后端 emit 的 RBAC role codes (真值, 数组, 可空)

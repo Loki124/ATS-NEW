@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { ROLE_GROUPS } from '../utils/role'
 
 /**
  * Plan O 优化:
@@ -130,16 +131,16 @@ const routes: RouteRecordRaw[] = [
           { path: 'approval', name: 'ApprovalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'department', name: 'DepartmentManagement', component: () => import(/* webpackChunkName: "settings-department" */ '../pages/settings/DepartmentManagement.vue') },
           // ===== 用户管理：内部/外部/全部已整合为单一页面（user_type 字段区分），默认展示全部用户 =====
-          { path: 'users/all', name: 'UserDirectoryAll', component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserDirectory.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
-          { path: 'registrations', name: 'RegistrationApproval', component: () => import(/* webpackChunkName: "settings-registrations" */ '../pages/settings/RegistrationApproval.vue'), meta: { roles: ['SUPER_ADMIN'] } },
+          { path: 'users/all', name: 'UserDirectoryAll', component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserDirectory.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] } },
+          { path: 'registrations', name: 'RegistrationApproval', component: () => import(/* webpackChunkName: "settings-registrations" */ '../pages/settings/RegistrationApproval.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ONLY] } },
           // 2026-07-01 花无缺: 删 /settings/permission 路由 + 删 PermissionManagement.vue (G41 重构合并到 MouManagement 角色管理 tab)
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
-          { path: 'demand-dynamic-fields', name: 'DemandDynamicFields', component: () => import(/* webpackChunkName: "settings-demand-dynamic-fields" */ '../pages/settings/DemandDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'demand-dynamic-fields', name: 'DemandDynamicFields', component: () => import(/* webpackChunkName: "settings-demand-dynamic-fields" */ '../pages/settings/DemandDynamicFields.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // 2026-09-28: 招聘需求表单设置（字段显隐/必填/顺序，交互对标标准简历设置）
-          { path: 'demand-form-settings', name: 'DemandFormSettings', component: () => import(/* webpackChunkName: "settings-demand-form" */ '../pages/settings/DemandFormSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'demand-form-settings', name: 'DemandFormSettings', component: () => import(/* webpackChunkName: "settings-demand-form" */ '../pages/settings/DemandFormSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // 2026-09-29: 指标库（重构）：指标定义（只读）+ 指标模板（CRUD）两个页签
-          { path: 'metrics', name: 'MetricsWorkspace', component: () => import(/* webpackChunkName: "settings-metrics-workspace" */ '../pages/settings/MetricsWorkspace.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'metrics', name: 'MetricsWorkspace', component: () => import(/* webpackChunkName: "settings-metrics-workspace" */ '../pages/settings/MetricsWorkspace.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // 兼容旧深链：重定向到指标库
           { path: 'metric-library', redirect: '/settings/metrics' },
           // 规则配置与执行 / 规则管理 已迁移至「规则引擎」模块
@@ -148,14 +149,14 @@ const routes: RouteRecordRaw[] = [
           { path: 'dictionary', name: 'DataDictionary', component: () => import(/* webpackChunkName: "settings-dictionary" */ '../pages/settings/DataDictionary.vue') },
           { path: 'campus-control', name: 'CampusControl', component: () => import(/* webpackChunkName: "settings-campus" */ '../pages/settings/CampusControl.vue') },
           // G-2026-09-23: 双系统校招专属配置（仅校园招聘菜单可见；社招不呈现）
-          { path: 'campus-ambassador', name: 'CampusAmbassador', component: () => import(/* webpackChunkName: "settings-campus-ambassador" */ '../pages/settings/CampusAmbassador.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          { path: 'campus-session', name: 'CampusSession', component: () => import(/* webpackChunkName: "settings-campus-session" */ '../pages/settings/CampusSession.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'campus-ambassador', name: 'CampusAmbassador', component: () => import(/* webpackChunkName: "settings-campus-ambassador" */ '../pages/settings/CampusAmbassador.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
+          { path: 'campus-session', name: 'CampusSession', component: () => import(/* webpackChunkName: "settings-campus-session" */ '../pages/settings/CampusSession.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           { path: 'scoring', name: 'ScoringRules', component: () => import(/* webpackChunkName: "settings-scoring" */ '../pages/settings/ScoringRules.vue') },
           // ===== 过程管理新增模块（内容留空待建，复用 Placeholder 经 meta 定制标题）=====
           { path: 'position-info', name: 'PositionInfo', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '职位信息管理', description: '职位分类、职位模板与 JD 库维护（规划中）' } },
-          { path: 'position-dynamic-fields', name: 'PositionDynamicFields', component: () => import(/* webpackChunkName: "settings-position-dynamic-fields" */ '../pages/settings/PositionDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'position-dynamic-fields', name: 'PositionDynamicFields', component: () => import(/* webpackChunkName: "settings-position-dynamic-fields" */ '../pages/settings/PositionDynamicFields.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // 2026-09-28: 职位信息表单设置（字段显隐/必填/顺序，交互对标标准简历设置）
-          { path: 'position-form-settings', name: 'PositionFormSettings', component: () => import(/* webpackChunkName: "settings-position-form" */ '../pages/settings/PositionFormSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'position-form-settings', name: 'PositionFormSettings', component: () => import(/* webpackChunkName: "settings-position-form" */ '../pages/settings/PositionFormSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           { path: 'interview-management', name: 'InterviewManagement', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '面试管理', description: '面试形式、面试评价表与面试官资源管理（规划中）' } },
           { path: 'offer-management', name: 'OfferManagement', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: 'Offer管理', description: 'Offer 模板、审批流与薪酬结构配置（规划中）' } },
           { path: 'recruit-category', name: 'RecruitCategory', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '招聘分类信息', description: '招聘业务分类维度维护，数据字典归属于此（规划中）' } },
@@ -169,10 +170,10 @@ const routes: RouteRecordRaw[] = [
           { path: 'user-groups', name: 'UserGroups', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '用户组管理', description: '按岗位、项目或权限维度划分用户组' } },
           { path: 'external', name: 'ExternalSettings', component: () => import(/* webpackChunkName: "settings-external" */ '../pages/settings/ExternalSettings.vue') },
           { path: 'public', name: 'PublicSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
-          { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue'), meta: { roles: ['SUPER_ADMIN'] } },
+          { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ONLY] } },
           // ===== V2 权限管理 (2026-09-18 拆分: 身份管理主页面 + 资源管理独立页) =====
-          { path: 'permissions', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permissions" */ '../pages/settings/PermissionManagement.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
-          { path: 'permissions/resources', name: 'PermissionResources', component: () => import(/* webpackChunkName: "settings-permissions-resources" */ '../pages/settings/PermissionResources.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN'] } },
+          { path: 'permissions', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permissions" */ '../pages/settings/PermissionManagement.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] } },
+          { path: 'permissions/resources', name: 'PermissionResources', component: () => import(/* webpackChunkName: "settings-permissions-resources" */ '../pages/settings/PermissionResources.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] } },
           // ===== G41 院校/公司/专业信息库（合并为「动态数据」聚合页，内部 3 个一级 tab） =====
           { path: 'dynamic-data', name: 'DynamicDataLibrary', component: () => import(/* webpackChunkName: "settings-dynamic-data" */ '../pages/settings/DynamicDataLibrary.vue'), meta: { title: '动态数据', description: '院校库 / 专业库 / 公司库（用户可维护，随业务增长）' } },
           { path: 'school-library', name: 'SchoolLibrary', component: () => import(/* webpackChunkName: "settings-school" */ '../pages/settings/SchoolLibrary.vue') },
@@ -181,37 +182,37 @@ const routes: RouteRecordRaw[] = [
           // ===== G42 动态字段定义 =====
           { path: 'dynamic-fields', name: 'DynamicFieldSettings', component: () => import(/* webpackChunkName: "settings-dynamic-fields" */ '../pages/settings/DynamicFieldSettings.vue') },
           // 2026-09-24 (兵哥) 动态字段独立录入表单: 按字段定义渲染输入, 录入时前端拦截 + 提交后端权威校验
-          { path: 'dynamic-field-entry', name: 'DynamicFieldEntry', component: () => import(/* webpackChunkName: "settings-dynamic-field-entry" */ '../pages/settings/DynamicFieldEntry.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'dynamic-field-entry', name: 'DynamicFieldEntry', component: () => import(/* webpackChunkName: "settings-dynamic-field-entry" */ '../pages/settings/DynamicFieldEntry.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // ===== G30 我找的简历 (RPA) =====
           { path: 'scraped-resumes', name: 'ScrapedResumeList', component: () => import(/* webpackChunkName: "settings-scraped" */ '../pages/scraped/ScrapedResumeList.vue') },
           // ===== 招聘流程管理 (PRD G38) =====
-          { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import(/* webpackChunkName: "settings-recruitment-process" */ '../pages/settings/RecruitmentProcess.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'recruitment-process', name: 'RecruitmentProcess', component: () => import(/* webpackChunkName: "settings-recruitment-process" */ '../pages/settings/RecruitmentProcess.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           { path: 'recruitment-stage', name: 'RecruitmentStage', component: () => import(/* webpackChunkName: "settings-recruitment-stage" */ '../pages/settings/RecruitmentStage.vue') },
           { path: 'process-stages', name: 'ProcessStageEditor', component: () => import(/* webpackChunkName: "settings-process-stages" */ '../pages/settings/ProcessStageEditor.vue') },
           { path: 'process-rules', name: 'ProcessStageRules', component: () => import(/* webpackChunkName: "settings-process-rules" */ '../pages/settings/ProcessStageRules.vue') },
           { path: 'recruitment-round', name: 'RecruitmentRound', component: () => import(/* webpackChunkName: "settings-recruitment-round" */ '../pages/settings/RecruitmentRound.vue') },
           // ===== 候选人信息管理 (新增：标准简历设置 / 申请表和登记表设置 / 候选人信息表) =====
-          { path: 'standard-resume', name: 'StandardResumeSettings', component: () => import(/* webpackChunkName: "settings-standard-resume" */ '../pages/settings/StandardResumeSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          { path: 'application-form', name: 'ApplicationFormSettings', component: () => import(/* webpackChunkName: "settings-application-form" */ '../pages/settings/ApplicationFormSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          { path: 'candidate-info-table', name: 'CandidateInfoTable', component: () => import(/* webpackChunkName: "settings-candidate-info-table" */ '../pages/settings/CandidateInfoTable.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          { path: 'duplicate-candidate', name: 'DuplicateCandidate', component: () => import(/* webpackChunkName: "settings-duplicate-candidate" */ '../pages/settings/DuplicateCandidate.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
-          { path: 'candidate-dynamic-fields', name: 'CandidateDynamicFields', component: () => import(/* webpackChunkName: "settings-candidate-dynamic-fields" */ '../pages/settings/CandidateDynamicFields.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'standard-resume', name: 'StandardResumeSettings', component: () => import(/* webpackChunkName: "settings-standard-resume" */ '../pages/settings/StandardResumeSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
+          { path: 'application-form', name: 'ApplicationFormSettings', component: () => import(/* webpackChunkName: "settings-application-form" */ '../pages/settings/ApplicationFormSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
+          { path: 'candidate-info-table', name: 'CandidateInfoTable', component: () => import(/* webpackChunkName: "settings-candidate-info-table" */ '../pages/settings/CandidateInfoTable.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
+          { path: 'duplicate-candidate', name: 'DuplicateCandidate', component: () => import(/* webpackChunkName: "settings-duplicate-candidate" */ '../pages/settings/DuplicateCandidate.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
+          { path: 'candidate-dynamic-fields', name: 'CandidateDynamicFields', component: () => import(/* webpackChunkName: "settings-candidate-dynamic-fields" */ '../pages/settings/CandidateDynamicFields.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // ===== 简历解析引擎后台切换（career_core / smartresume） =====
-          { path: 'resume-parser-engine', name: 'ResumeParserEngine', component: () => import(/* webpackChunkName: "settings-resume-parser-engine" */ '../pages/settings/ResumeParserEngine.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'resume-parser-engine', name: 'ResumeParserEngine', component: () => import(/* webpackChunkName: "settings-resume-parser-engine" */ '../pages/settings/ResumeParserEngine.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // ===== G35 数据中心 =====
           { path: 'data-dashboard', name: 'DataDashboard', component: () => import(/* webpackChunkName: "settings-data-dashboard" */ '../pages/settings/DataDashboard.vue') },
           // ===== 制度公告管理 (HR 及以上维护) =====
-          { path: 'announcements', name: 'AnnouncementManagement', component: () => import(/* webpackChunkName: "settings-announcements" */ '../pages/settings/AnnouncementSettings.vue'), meta: { roles: ['SUPER_ADMIN', 'HRBP', 'HR'] } },
+          { path: 'announcements', name: 'AnnouncementManagement', component: () => import(/* webpackChunkName: "settings-announcements" */ '../pages/settings/AnnouncementSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_HRBP_HR] } },
           // ===== G44 V2 主题外观 (液态玻璃 v2) — 全员可见 =====
           { path: 'theme', name: 'ThemeSettings', component: () => import(/* webpackChunkName: "settings-theme" */ '../pages/settings/ThemeSettings.vue') },
           // ===== 规则引擎 (重构)：规则配置与执行 + 规则管理 + 规则总览（聚合只读） =====
-          { path: 'rule-engine', name: 'RuleAuthoring', component: () => import(/* webpackChunkName: "settings-rule-authoring" */ '../pages/settings/RuleAuthoring.vue'), meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'] } },
+          { path: 'rule-engine', name: 'RuleAuthoring', component: () => import(/* webpackChunkName: "settings-rule-authoring" */ '../pages/settings/RuleAuthoring.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // ===== 原因库 (G47 / ATS-NEW Reason Library) — 嵌套父布局, 默认重定向到 tags =====
           {
             path: 'reason-library',
             name: 'ReasonLibrary',
             component: () => import(/* webpackChunkName: "settings-reason-library" */ '../pages/settings/reason-library/index.vue'),
-            meta: { roles: ['SUPER_ADMIN', 'ADMIN', 'HRBP'], title: '原因库', breadcrumb: false, description: '维护全局原因标签池与场景规则（系统预置仅超管可改）' },
+            meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP], title: '原因库', breadcrumb: false, description: '维护全局原因标签池与场景规则（系统预置仅超管可改）' },
             children: [
               { path: '', name: 'ReasonLibraryIndex', redirect: '/settings/reason-library/tags' },
               { path: 'tags', name: 'ReasonLibraryTags', component: () => import(/* webpackChunkName: "settings-reason-library-tags" */ '../pages/settings/reason-library/tags.vue'), meta: { title: '原因标签' } },
