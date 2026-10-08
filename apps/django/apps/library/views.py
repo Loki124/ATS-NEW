@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.views import EnvelopeWriteMixin
+from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.core.permissions_v2 import V2Permission
 
@@ -24,7 +25,7 @@ class MajorViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = Major.objects.all()
     serializer_class = MajorSerializer
     permission_classes = [V2Permission]
-    pagination_class = None
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
 
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
@@ -40,6 +41,10 @@ class MajorViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         edu = request.query_params.get('educationLevel')
         if edu:
             qs = qs.filter(education_level=edu)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return success_response(serializer.data)
 
@@ -88,7 +93,9 @@ class SchoolViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     serializer_class = SchoolSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
-    pagination_class = None  # FE 用 n-data-table 客户端分页
+    # per P1 audit 保留客户端分页豁免: FE 用 n-data-table 客户端分页 (小字典, 刻意不启用服务端分页,
+    # 请求体信封契约 {success,data} 不变); 必须显式置 None, 否则会继承父类默认分页器破坏 FE 契约.
+    pagination_class = None
 
     def list(self, request, *args, **kwargs):
         """FE library.ts 期望 {success, data:[...]} 信封 (非 DRF 裸数组), 否则 rows 变 undefined 崩溃."""
@@ -169,6 +176,8 @@ class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CompanySerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
+    # per P1 audit 保留客户端分页豁免: FE library.ts 期望 {success, data:[...]} 信封由前端自行分页
+    # (小字典, 刻意不启用服务端分页); 必须显式置 None, 否则继承父类默认分页器破坏 FE 契约.
     pagination_class = None
 
     def list(self, request, *args, **kwargs):

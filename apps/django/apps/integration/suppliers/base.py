@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from ..crypto import decrypt_secret
+from apps.common.encryption import DecryptionError
 
 #: 成功业务码集合（规范 §3.2 / §4.2：code=0 表示成功）。
 SUCCESS_CODES = (0, '0', None)
@@ -164,7 +165,9 @@ class BaseBackgroundCheckSupplier(ABC):
     def _load_secret(config: Any) -> Dict[str, Any]:
         """解密 ``encrypted_secret``（JSON 字符串）→ dict；无效返回 {}。
 
-        窄集: 仅解密/解析窄集异常 (PII 解密可能抛 DecryptionError 继承自 ValueError).
+        窄集: 仅兜解密/解析窄集异常。DecryptionError 为 apps.common.encryption 中
+        显式异常 (继承 Exception, 非 ValueError), 解密失败 (密钥配错/旧密文) 必须捕获并
+        降级为 {}, 由调用方用"缺密钥"分支优雅失败, 不向上抛中断回调主路径.
         编程错误不再吞.
         """
         raw = getattr(config, 'encrypted_secret', '') or ''
@@ -172,7 +175,7 @@ class BaseBackgroundCheckSupplier(ABC):
             return {}
         try:
             return json.loads(decrypt_secret(raw))
-        except (ValueError, TypeError, json.JSONDecodeError, binascii.Error):
+        except (ValueError, TypeError, json.JSONDecodeError, binascii.Error, DecryptionError):
             return {}
 
     @staticmethod

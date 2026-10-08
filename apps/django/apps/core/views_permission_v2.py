@@ -20,13 +20,14 @@ from .models_permission_v2 import (
 from .permissions_v2 import V2Permission
 from .scope_resolver import resolve_scope, compile_data_range_q, _pick_app_json
 from apps.common.views import EnvelopeReadOnlyMixin, EnvelopeWriteMixin
+from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 
 
 class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
     queryset = PermissionResource.objects.filter(status=1)
     permission_classes = [V2Permission]
-    pagination_class = None
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     filterset_fields = ['module', 'resource_type']
     search_fields = ['resource_code', 'resource_name']
 
@@ -35,8 +36,12 @@ class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
         return PermissionResourceSerializer
 
     def list(self, request, *args, **kwargs):
-        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint (menus/functions/mous) 与 FE helper 期望."""
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint (menus/functions/mous) 与 FE helper 期望. per P1 audit 恢复服务端分页."""
         qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return success_response(serializer.data)
 
@@ -44,7 +49,7 @@ class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
 class PermissionTemplateViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
     queryset = PermissionTemplate.objects.filter(status=1)
     permission_classes = [V2Permission]
-    pagination_class = None
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     filterset_fields = ['is_system']
 
     def get_serializer_class(self):
@@ -52,8 +57,12 @@ class PermissionTemplateViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
         return PermissionTemplateSerializer
 
     def list(self, request, *args, **kwargs):
-        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint."""
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint. per P1 audit 恢复服务端分页."""
         qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return success_response(serializer.data)
 
@@ -62,7 +71,7 @@ class RoleViewSet(viewsets.ModelViewSet):
     queryset = RoleV2.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:role:list'
-    pagination_class = None
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     search_fields = ['role_code', 'role_name']
     filterset_fields = ['status', 'is_system']
 
@@ -71,8 +80,12 @@ class RoleViewSet(viewsets.ModelViewSet):
         return RoleSerializer
 
     def list(self, request, *args, **kwargs):
-        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint 与 FE helper 期望."""
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint 与 FE helper 期望. per P1 audit 恢复服务端分页."""
         qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return success_response(serializer.data)
 
@@ -275,7 +288,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = ManagementUnit.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:mgmt_unit:list'
-    pagination_class = None
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     filterset_fields = ['unit_type', 'status']
 
     def get_serializer_class(self):
@@ -285,9 +298,13 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint.
 
-        北森列表序: 显示顺序(display_order)升序, 同名回退 id.
+        北森列表序: 显示顺序(display_order)升序, 同名回退 id. per P1 audit 恢复服务端分页.
         """
         qs = self.filter_queryset(self.get_queryset()).order_by('display_order', 'id')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return success_response(serializer.data)
 
@@ -427,7 +444,7 @@ class UserRoleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = UserRoleV2.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:user_role:list'
-    pagination_class = None
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     filterset_fields = ['user_id', 'role_code', 'system_code']
 
     def get_serializer_class(self):
@@ -435,8 +452,12 @@ class UserRoleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         return UserRoleSerializer
 
     def list(self, request, *args, **kwargs):
-        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint."""
+        """T30.176: 包 {success, data} 包装层, 对齐其它 V2 endpoint. per P1 audit 恢复服务端分页."""
         qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return success_response(serializer.data)
 
@@ -552,7 +573,7 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = UserRoleV2.objects.none()
     permission_classes = [V2Permission]
     permission_required = 'recruit:user_app_data_scope:list'
-    pagination_class = None
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
 
     def get_serializer_class(self):
         from .serializers_permission_v2 import UserAppDataScopeSerializer
@@ -568,7 +589,12 @@ class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 user_id = None
         role_code = request.query_params.get('role_code')
         app_code = request.query_params.get('app_code')
-        return success_response(_build_app_scope_rows(user_id, role_code, app_code))
+        rows = _build_app_scope_rows(user_id, role_code, app_code)
+        # per P1 audit 恢复服务端分页: 合成 list 同样走 StandardResultsSetPagination 分页信封.
+        page = self.paginate_queryset(rows)
+        if page is not None:
+            return self.get_paginated_response(page)
+        return success_response(rows)
 
     def create(self, request, *args, **kwargs):
         data = request.data

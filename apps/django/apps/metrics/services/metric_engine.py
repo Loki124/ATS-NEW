@@ -152,6 +152,7 @@ class MetricEngine:
             base['detail'] = base['error']
             return base
         except Exception as exc:  # noqa: BLE001 — 派生函数等未预期异常降级为 FAIL, 绝不 500 (指标计算层设计原则)
+            logger.warning('evaluate_metric_condition 取值异常 template=%s: %s', getattr(template, 'id', None), exc, exc_info=True)
             base['error'] = f'取值异常: {exc}'
             base['detail'] = base['error']
             return base
@@ -188,6 +189,7 @@ class MetricEngine:
         try:
             passed = cls._compare(operator, actual, expected, cond.get('meta') or {})
         except Exception as exc:  # noqa: BLE001 — 比较阶段异常降级为 FAIL (类型不匹配等), 规则继续被记录为未通过而非 500
+            logger.warning('evaluate_metric_condition 比较异常 template=%s: %s', getattr(template, 'id', None), exc, exc_info=True)
             base['error'] = f'执行异常: {exc}'
             base['detail'] = base['error']
             return base
@@ -231,7 +233,8 @@ class MetricEngine:
             rt = MT.objects.filter(pk=right_template_id).select_related(
                 'atomic_metric', 'derived_metric',
             ).first()
-        except Exception:  # noqa: BLE001 — 查询异常视为解析失败, 降级为 FAIL
+        except Exception as e:  # noqa: BLE001 — 查询异常视为解析失败, 降级为 FAIL
+            logger.warning('evaluate_metric_condition 右值模板查询失败 template=%s: %s', right_template_id, e, exc_info=True)
             return {'ok': False, 'error': '对比指标模板查询失败', 'degraded': True}
         if rt is None:
             return {'ok': False, 'error': f'对比指标模板 {right_template_id} 不存在', 'degraded': True}
@@ -242,6 +245,7 @@ class MetricEngine:
         try:
             raw = cls._resolve_metric_value(rt, rt.metric, data)
         except (FieldResolveError, Exception) as exc:  # noqa: BLE001 — 右值解析失败降级为 FAIL, 绝不 500
+            logger.warning('evaluate_metric_condition 右值解析失败 template=%s: %s', right_template_id, exc, exc_info=True)
             return {'ok': False, 'error': f'对比指标取值异常: {exc}', 'degraded': True}
 
         try:
@@ -428,20 +432,20 @@ class MetricEngine:
                 try:
                     from .candidate_snapshot import build_candidate_snapshot
                     data.update(build_candidate_snapshot(cid))
-                except Exception:  # noqa: BLE001 — 快照组装失败跳过, 不影响其它源求值
-                    pass
+                except Exception as e:  # noqa: BLE001 — 快照组装失败跳过, 不影响其它源求值
+                    logger.warning('metric_engine snapshot build failed (candidate) cid=%s: %s', cid, e, exc_info=True)
             if did:
                 try:
                     from .candidate_snapshot import build_demand_snapshot
                     data.update(build_demand_snapshot(did))
-                except Exception:  # noqa: BLE001 — 需求快照组装失败跳过, 不影响其它源求值
-                    pass
+                except Exception as e:  # noqa: BLE001 — 需求快照组装失败跳过, 不影响其它源求值
+                    logger.warning('metric_engine snapshot build failed (demand) did=%s: %s', did, e, exc_info=True)
             if pid:
                 try:
                     from .candidate_snapshot import build_position_snapshot
                     data.update(build_position_snapshot(pid))
-                except Exception:  # noqa: BLE001 — 职位快照组装失败跳过, 不影响其它源求值
-                    pass
+                except Exception as e:  # noqa: BLE001 — 职位快照组装失败跳过, 不影响其它源求值
+                    logger.warning('metric_engine snapshot build failed (position) pid=%s: %s', pid, e, exc_info=True)
 
             # 4) 取值
             try:
@@ -535,6 +539,7 @@ class MetricEngine:
                 )
             return base
         except Exception as exc:  # noqa: BLE001 — FAIL-not-500 全局兜底
+            logger.warning('evaluate_metric_condition 全局兜底降级 template=%s: %s', template_id, exc, exc_info=True)
             return {
                 'pass': False,
                 'template_id': str(template_id) if template_id is not None else '',

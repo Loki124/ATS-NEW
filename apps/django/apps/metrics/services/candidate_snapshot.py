@@ -21,7 +21,10 @@
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List
+
+logger = logging.getLogger(__name__)
 
 # 快照根键（与示例数据结构一致，保证规则条件两边通用）
 ROOT_KEY = 'candidate'
@@ -67,22 +70,73 @@ def build_candidate_snapshot(candidate_id: str, *, include_sensitive: bool = Fal
     """组装单个候选人的规则快照 `{'candidate': {...}}`。
 
     候选人不存在时返回 `{'candidate': {}}`（不抛异常，交由引擎判"字段解析失败"）。
+
+    内部委托 build_candidate_snapshots 批量接口，单候选调用亦走 IN 预取
+    (per P1 audit 候选快照 N+1 修复: 评分一批 N 候选从 O(N) 查询降为 O(1))。
+    """
+    snapshots = build_candidate_snapshots([candidate_id], include_sensitive=include_sensitive)
+    return snapshots.get(str(candidate_id), {ROOT_KEY: {}})
+
+
+def build_candidate_snapshots(
+    candidate_ids: List[str], *, include_sensitive: bool = False
+) -> Dict[str, Dict[str, Any]]:
+    """批量组装多候选人的规则快照 —— 一次 IN 查询取整批字段值，避免逐候选 N+1 (per P1 audit)。
+
+    返回 {candidate_id: {'candidate': node}}，单候选结构与 build_candidate_snapshot 完全一致，
+    保证指标引擎消费的快照结构不变。评分一批 N 候选时调用本函数，可把快照查询从 O(N) 降为 O(1)。
     """
     from apps.candidate.models import Candidate, CandidateFieldValue
+    from apps.dynamic_field.models import DynamicFieldValue
 
-    candidate = Candidate.objects.filter(pk=candidate_id).first()
-    if candidate is None:
-        return {ROOT_KEY: {}}
+    ids = [str(c) for c in (candidate_ids or [])]
+    result: Dict[str, Dict[str, Any]] = {}
 
+    # 1) 候选主表一次 IN 查询，逐候选拼装白名单/age 回填/extra 节点（纯内存，零额外查询）
+    candidates = {
+        str(c.pk): c
+        for c in Candidate.objects.filter(pk__in=ids)
+    }
+    for cid, candidate in candidates.items():
+        result[cid] = {ROOT_KEY: _build_basic_node(candidate, include_sensitive=include_sensitive)}
+
+    if not result:
+        return result
+
+    # 2) 扩展字段值（标准简历扩展列）—— 单条 IN 查询取整批
+    for candidate_id, field_key, value in CandidateFieldValue.objects.filter(
+        candidate_id__in=ids,
+    ).values_list('candidate_id', 'field_key', 'value'):
+        node = result.get(str(candidate_id), {}).get(ROOT_KEY)
+        if node is not None:
+            node.setdefault(field_key, value)
+
+    # 3) 动态字段值 —— 单条 IN 查询取整批 (dynamic_field 不可用时降级, 不阻断主快照)
+    try:
+        for candidate_id, field_key, value in DynamicFieldValue.objects.filter(
+            resource='Candidate', entity_id__in=ids,
+        ).values_list('field_key', 'value', 'entity_id'):
+            node = result.get(str(candidate_id), {}).get(ROOT_KEY)
+            if node is not None:
+                node.setdefault(field_key, value)
+    except Exception as e:  # noqa: BLE001 — dynamic_field 不可用时不阻断主快照 (降级, 绝不 500)
+        logger.warning('candidate_snapshot 批量 dynamic_field 查询失败: %s', e, exc_info=True)
+
+    return result
+
+
+def _build_basic_node(candidate, *, include_sensitive: bool = False) -> Dict[str, Any]:
+    """拼装单个候选人的主表白名单字段 + age 回填 + 敏感(可选) + extra。
+
+    等价原 build_candidate_snapshot 的内存拼装部分 (L77-109)，抽出便于批量复用，行为零变化
+    (snapshot 仅在内存拼装，不写回 DB)。age 回填使 AtomicMetric(candidate.age) 真实可用，
+    避免「指标可定义但永远算不出」的假绿。
+    """
     node: Dict[str, Any] = {}
-
-    # 1) 主表白名单字段
     for field, _label, _dtype in BASIC_FIELDS:
         node[field] = _jsonable(getattr(candidate, field, None))
 
-    # 1a) age 字段回填：主表 age 为空时按 birth_date 实时计算年龄（岁，整数）。
-    #     目的：与 entry_condition 的「按生日算年龄」语义保持一致，让 AtomicMetric(candidate.age)
-    #     真实可用，避免「指标可定义但永远算不出」的假绿。snapshot 仅在内存中拼装，不写回 DB。
+    # age 字段回填：主表 age 为空时按 birth_date 实时计算年龄（岁，整数）。
     if node.get('age') in (None, '', 0):
         birth_date = getattr(candidate, 'birth_date', None)
         if birth_date is not None:
@@ -92,15 +146,15 @@ def build_candidate_snapshot(candidate_id: str, *, include_sensitive: bool = Fal
                 node['age'] = today.year - birth_date.year - (
                     (today.month, today.day) < (birth_date.month, birth_date.day)
                 )
-            except Exception:  # noqa: BLE001 — 年龄计算失败不阻断快照 (按规则解析失败处理, 字段缺失降级)
-                pass
+            except Exception as e:  # noqa: BLE001 — 年龄计算失败不阻断快照 (按规则解析失败处理, 字段缺失降级)
+                logger.warning('candidate_snapshot age 回填失败 candidate=%s: %s', getattr(candidate, 'pk', None), e, exc_info=True)
 
     if include_sensitive:
         for field in SENSITIVE_FIELDS:
             if hasattr(candidate, field):
                 node[field] = _jsonable(getattr(candidate, field, None))
 
-    # 2) extra JSONField 展开（业务结构化数据入口，如 workExperience / education）
+    # extra JSONField 展开（业务结构化数据入口，如 workExperience / education）
     extra = getattr(candidate, 'extra', None)
     if isinstance(extra, dict):
         for key, value in extra.items():
@@ -108,22 +162,7 @@ def build_candidate_snapshot(candidate_id: str, *, include_sensitive: bool = Fal
                 continue
             node.setdefault(key, value)
 
-    # 3) 扩展字段值（标准简历扩展列 + 动态字段），主表已占的键不被覆盖
-    for field_key, value in CandidateFieldValue.objects.filter(
-        candidate_id=candidate_id
-    ).values_list('field_key', 'value'):
-        node.setdefault(field_key, value)
-
-    try:
-        from apps.dynamic_field.models import DynamicFieldValue
-        for field_key, value in DynamicFieldValue.objects.filter(
-            resource='Candidate', entity_id=str(candidate_id)
-        ).values_list('field_key', 'value'):
-            node.setdefault(field_key, value)
-    except Exception:  # noqa: BLE001 — dynamic_field 不可用时不阻断主快照 (降级, 绝不 500)
-        pass
-
-    return {ROOT_KEY: node}
+    return node
 
 
 def list_candidate_paths() -> List[Dict[str, str]]:
@@ -152,8 +191,8 @@ def list_candidate_paths() -> List[Dict[str, str]]:
                 'dataType': _dynamic_type_to_metric(field_type),
                 'source': 'dynamic',
             })
-    except Exception:  # noqa: BLE001 — dynamic_field 字段路径枚举失败返空 list (降级, 主流程不缺该数据继续)
-        pass
+    except Exception as e:  # noqa: BLE001 — dynamic_field 字段路径枚举失败返空 list (降级, 主流程不缺该数据继续)
+        logger.warning('candidate_snapshot 动态字段路径枚举失败: %s', e, exc_info=True)
 
     return paths
 
@@ -184,8 +223,8 @@ def _jsonable(value: Any) -> Any:
         from decimal import Decimal
         if isinstance(value, Decimal):
             return float(value)
-    except Exception:  # noqa: BLE001 — 标量转换失败保留原值 (容错, MetricEngine 比较时会再处理)
-        pass
+    except Exception as e:  # noqa: BLE001 — 标量转换失败保留原值 (容错, MetricEngine 比较时会再处理)
+        logger.warning('candidate_snapshot Decimal 标量转换失败: %s', e, exc_info=True)
     return value
 
 

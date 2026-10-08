@@ -4,6 +4,7 @@ import pytest
 from apps.candidate.models import Candidate, CandidateFieldValue
 from apps.metrics.services.candidate_snapshot import (
     build_candidate_snapshot,
+    build_candidate_snapshots,
     list_candidate_paths,
 )
 from apps.metrics.services.field_resolver import FieldResolverRegistry
@@ -38,6 +39,22 @@ def test_snapshot_hides_sensitive_fields_by_default():
 
 def test_snapshot_unknown_candidate_returns_empty():
     assert build_candidate_snapshot('not-exist') == {'candidate': {}}
+
+
+def test_build_candidate_snapshots_bulk_matches_single():
+    """P1-2 (N+1 修复): 批量接口产出的快照必须与单候选接口逐字节一致, 保证引擎消费结构不变。"""
+    c = _make_candidate(age=42, highest_education='硕士', work_years=7)
+    bulk = build_candidate_snapshots([c.pk])
+    single = build_candidate_snapshot(c.pk)
+    assert str(c.pk) in bulk
+    assert bulk[str(c.pk)] == single
+    assert bulk[str(c.pk)]['candidate']['age'] == 42
+    assert bulk[str(c.pk)]['candidate']['highest_education'] == '硕士'
+
+
+def test_build_candidate_snapshots_empty_for_unknown():
+    """未知候选 / 空列表 → 返回空 dict, 不抛异常 (评分一批时部分候选已删的容错路径)。"""
+    assert build_candidate_snapshots(['ghost-1', 'ghost-2']) == {}
 
 
 def test_snapshot_expands_extra_json():

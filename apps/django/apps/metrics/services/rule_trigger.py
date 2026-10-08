@@ -73,7 +73,7 @@ def count_candidates() -> int:
     return Candidate.objects.filter(deleted_at__isnull=True).count()
 
 
-def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
+def evaluate_scene(scene: str, candidate_id: str, snapshot: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """执行某场景下全部启用规则，返回汇总结论。
 
     返回：
@@ -82,6 +82,10 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
           rules: [{ruleId, ruleName, pass, actionType, summary, steps}],
           evaluated: 规则条数
         }
+
+    snapshot: 可选预构建快照 ({'candidate': node})。批量场景 (评分/筛选一批 N 候选) 由调用方
+    经 build_candidate_snapshots 一次性预取后逐条传入, 避免逐候选重复 O(N) 快照查询
+    (per P1 audit 候选快照 N+1 修复)。为 None 时退回单候选 build_candidate_snapshot。
     """
     from apps.metrics.models import MetricRule, MetricStatus
 
@@ -108,12 +112,13 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
         result['message'] = '该场景无启用规则'
         return result
 
-    try:
-        snapshot = build_candidate_snapshot(candidate_id)
-    except Exception as exc:  # noqa: BLE001 — 快照失败绝不阻断业务 (规则引擎故障不应让入池/评分失败)
-        logger.warning('[metrics] 快照构建失败 candidate=%s: %s', candidate_id, exc)
-        result['message'] = '数据快照构建失败（已放行）'
-        return result
+    if snapshot is None:
+        try:
+            snapshot = build_candidate_snapshot(candidate_id)
+        except Exception as exc:  # noqa: BLE001 — 快照失败绝不阻断业务 (规则引擎故障不应让入池/评分失败)
+            logger.warning('[metrics] 快照构建失败 candidate=%s: %s', candidate_id, exc)
+            result['message'] = '数据快照构建失败（已放行）'
+            return result
 
     if not snapshot.get('candidate'):
         result['message'] = f'候选人 {candidate_id} 不存在'
@@ -173,11 +178,18 @@ def evaluate_scene(scene: str, candidate_id: str) -> Dict[str, Any]:
 
 
 def filter_candidates_by_scene(scene: str, candidate_ids: List[str]) -> Dict[str, Any]:
-    """批量筛选：返回通过全部阻断性规则的候选人 ID 列表（供"筛选"场景用）。"""
+    """批量筛选：返回通过全部阻断性规则的候选人 ID 列表（供"筛选"场景用）。
+
+    per P1 audit 候选快照 N+1 修复: 先 build_candidate_snapshots 一次性取整批快照 (O(1) 查询),
+    逐候选复用, 避免筛选一批 N 候选时重复 O(N) 快照查询。
+    """
+    from apps.metrics.services.candidate_snapshot import build_candidate_snapshots
+
     passed: List[str] = []
     rejected: List[Dict[str, Any]] = []
+    snapshots = build_candidate_snapshots([str(c) for c in candidate_ids])
     for cid in candidate_ids:
-        outcome = evaluate_scene(scene, str(cid))
+        outcome = evaluate_scene(scene, str(cid), snapshot=snapshots.get(str(cid)))
         if outcome.get('blocked'):
             rejected.append({'candidateId': str(cid), 'reason': outcome.get('message')})
         else:

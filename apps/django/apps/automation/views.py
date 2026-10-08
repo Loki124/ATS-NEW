@@ -92,7 +92,7 @@ class AutomationRuleViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSe
 class AutomationTriggerView(viewsets.ViewSet):
     """手动触发自动化引擎（用于测试 / 重放）"""
     permission_classes = [HasProcessPermission]
-    pagination_class = None
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页 (本视图仅 create 触发, 无 list, 此处仅恢复属性)
 
     @extend_schema(
         summary='手动触发',

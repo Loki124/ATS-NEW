@@ -11,6 +11,7 @@ from rest_framework.decorators import (
 )
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from apps.common.pagination import StandardResultsSetPagination
 
 from apps.core.role_v2_query import is_super_admin
 from apps.core.views_auth import RegisterRateThrottle
@@ -126,14 +127,20 @@ def resend_register_code_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def registration_list_view(request):
-    """管理员: 注册申请列表 (默认只看待审)."""
+    """管理员: 注册申请列表 (默认只看待审). per P1 audit 恢复服务端分页 (替代原 [:200] 截断)."""
     if not is_super_admin(request.user):
         return Response({'success': False, 'message': '无权限'}, status=status.HTTP_403_FORBIDDEN)
     status_filter = request.query_params.get('status', 'PENDING')
     qs = RegistrationApplication.objects.all()
     if status_filter and status_filter != 'ALL':
         qs = qs.filter(status=status_filter)
-    qs = qs.order_by('-created_at')[:200]
+    qs = qs.order_by('-created_at')
+    paginator = StandardResultsSetPagination()
+    page = paginator.paginate_queryset(qs, request)
+    if page is not None:
+        return paginator.get_paginated_response(
+            RegistrationApplicationSerializer(page, many=True).data
+        )
     return Response({'success': True, 'data': RegistrationApplicationSerializer(qs, many=True).data})
 
 

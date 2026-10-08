@@ -11,6 +11,7 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin, SoftDeleteViewSetMixin
+from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.core.role_v2_query import HR_TIER, user_has_any_role
 
@@ -54,7 +55,7 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
 
     queryset = Announcement.objects.all()
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # dashboard / 管理页均自行控制条数，不走分页信封
+    pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
@@ -75,8 +76,12 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
         return qs
 
     def list(self, request, *args, **kwargs):
-        """覆盖 list 以返回 {success, data} 信封（与其它端点一致）。"""
+        """覆盖 list 以返回 {success, data} 信封（与其它端点一致）。per P1 audit 恢复服务端分页。"""
         queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
         return success_response(serializer.data)
 

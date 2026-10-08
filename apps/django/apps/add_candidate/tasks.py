@@ -82,6 +82,11 @@ def score_batch_task(self, candidate_ids, submit_mode, task_id):
     from apps.application.models import Application
     # 2026-09-25: 评分触发点（函数内导入，避免模块级循环依赖）
     from apps.metrics.services.rule_trigger import evaluate_scene
+    from apps.metrics.services.candidate_snapshot import build_candidate_snapshots
+
+    # per P1 audit 候选快照 N+1 修复: 整批一次 IN 预取 (O(1) 查询), 逐候选复用,
+    # 避免评分一批 N 候选时重复 O(N) 快照查询.
+    candidate_snapshots = build_candidate_snapshots(list(candidate_ids))
 
     passed_count = 0
     for cand_id in candidate_ids:
@@ -104,7 +109,8 @@ def score_batch_task(self, candidate_ids, submit_mode, task_id):
 
             # 2026-09-25 触发点：执行「评分」场景的指标规则。
             # 阻断型规则不满足 → 不计入通过数，并把规则结论一并返回给前端。
-            rule_outcome = evaluate_scene('SCORING', str(cand_id))
+            # 复用批量预取快照 (per P1 audit N+1 修复), 无则退回单候选构建.
+            rule_outcome = evaluate_scene('SCORING', str(cand_id), snapshot=candidate_snapshots.get(str(cand_id)))
             rule_blocked = bool(rule_outcome.get('blocked'))
 
             if result.passed and not rule_blocked:

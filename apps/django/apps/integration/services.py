@@ -31,6 +31,7 @@ from django.db import IntegrityError, OperationalError
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound
+from apps.common.encryption import DecryptionError
 from .crypto import SENSITIVE_KEYS, decrypt_secret_dict
 from .models import (
     IntegrationConfig,
@@ -71,9 +72,10 @@ def _get_decrypted_config(integration_type: str) -> tuple[IntegrationConfig | No
     if secret_raw:
         try:
             secret_dict = json.loads(decrypt_secret(secret_raw))
-        except (ValueError, json.JSONDecodeError, TypeError, binascii.Error) as e:
-            # 解密失败: 仅兜解密/解析窄集异常 (PII 解密异常包含 DecryptionError 等).
-            # 编程错误 (AttributeError/NameError) 仍向上抛以便排查.
+        except (ValueError, json.JSONDecodeError, TypeError, binascii.Error, DecryptionError) as e:
+            # 解密失败 (fail-closed DecryptionError) 仍记为失败: 仅兜解密/解析窄集异常,
+            # 编程错误 (AttributeError/NameError) 仍向上抛以便排查. 密钥配错时 secret_dict 置空,
+            # 调用方 (send_email 等) 会因缺凭证优雅失败 + 记日志, 不静默返空串误导.
             logger.exception('IntegrationConfig %s: decrypt failed: %s', integration_type, e)
             secret_dict = {}
         cfg.update(secret_dict)

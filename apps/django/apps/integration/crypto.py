@@ -16,6 +16,8 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from django.conf import settings
 
+from apps.common.encryption import DecryptionError
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,12 +40,23 @@ def encrypt_secret(plaintext: str) -> str:
 
 
 def decrypt_secret(ciphertext: str) -> str:
-    """解密敏感字符串. 无效 token 返回空串并 log 警告."""
+    """解密敏感字符串.
+
+    失败模式 (P1 修复, 原 fail-open 静默返回空串 → fail-closed 明确异常):
+    InvalidToken / 解析失败抛 DecryptionError, 由 services.py / suppliers/base.py 调用方
+    捕获并转为清晰错误, 避免集成因「静默空串」而失败却无告警 (密钥配错 / 轮换期旧密文).
+
+    空密文(ciphertext 为空)视为"未配置密钥", 直接返回 '' —— 与调用方"无密钥"分支一致,
+    不抛异常 (fail-closed 只针对"有密文但解不开"的明确失败).
+    """
+    if not ciphertext:
+        return ''
     try:
         return _fernet().decrypt(ciphertext.encode('ascii')).decode('utf-8')
     except (InvalidToken, ValueError) as e:
-        logger.warning('decrypt_secret: invalid token: %s', e)
-        return ''
+        raise DecryptionError(
+            f'IntegrationConfig 密钥解密失败 (fail-closed): err_type={type(e).__name__}'
+        ) from e
 
 
 def encrypt_secret_dict(d: dict, keys: list) -> dict:
@@ -56,11 +69,18 @@ def encrypt_secret_dict(d: dict, keys: list) -> dict:
 
 
 def decrypt_secret_dict(d: dict, keys: list) -> dict:
-    """解密 dict 中指定 keys 的 value, 返回新 dict."""
+    """解密 dict 中指定 keys 的 value, 返回新 dict.
+
+    单 key 解密失败 (fail-closed DecryptionError) 记日志并保留原值, 不中断其余 key 解密;
+    保留原值(密文)而非静默置 '' 可让调用方用"仍是密文"识别失败, 不误导为"无密钥".
+    """
     out = dict(d)
     for k in keys:
         if k in out and out[k]:
-            out[k] = decrypt_secret(str(out[k]))
+            try:
+                out[k] = decrypt_secret(str(out[k]))
+            except DecryptionError as e:
+                logger.warning('decrypt_secret_dict: key=%s 解密失败: %s', k, e)
     return out
 
 
