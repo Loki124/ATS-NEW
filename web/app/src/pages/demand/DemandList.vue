@@ -604,6 +604,12 @@ const demandTypeFilterOptions = computed(() => ([
   { label: t('pages.demand.DemandList.s71'), value: 'CAMPUS' },
 ]))
 
+// 编辑表单「需求类型」下拉项 (不含 ALL 过滤项): SOCIAL / CAMPUS
+const demandTypeOptions = computed(() => ([
+  { label: t('pages.demand.DemandList.s70'), value: 'SOCIAL' },
+  { label: t('pages.demand.DemandList.s71'), value: 'CAMPUS' },
+]))
+
 const sortOptions = computed(() => ([
   { label: t('pages.demand.DemandList.s72'), value: 'updated' },
   { label: t('pages.demand.DemandList.s73'), value: 'priority' },
