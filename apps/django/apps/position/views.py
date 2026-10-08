@@ -60,7 +60,9 @@ class PositionViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewse
         from django.utils import timezone
         from nanoid import generate as nanoid_generate
         code = f'P{timezone.now().strftime("%Y%m%d")}{nanoid_generate(size=4).upper()}'
-        serializer.save(code=code)
+        # 写入守卫: recruit_type 由请求上下文(中间件按 X-Recruit-Type 注入)权威决定,
+        # 覆盖模型列默认值。否则新建职位恒落 'social', 在 campus 系统下被读侧分区过滤掉。
+        serializer.save(code=code, recruit_type=getattr(self.request, 'recruit_type', 'social'))
 
     def _detail_response(self, instance, status_code=status.HTTP_201_CREATED):
         out = PositionDetailSerializer(instance, context={'request': self.request})

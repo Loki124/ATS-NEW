@@ -92,3 +92,41 @@ def test_position_create_envelope(auth_client, scenario):
     assert resp.data['data']['code']  # 非空, perform_create 注入
     assert resp.data['data']['title'] == '新建职位'
     assert Position.objects.count() == before + 1
+
+
+def test_position_recruit_type_passthrough_campus(auth_client, scenario):
+    """穿透守卫 (2026-10-08 修复「创建成功但列表不显示」):
+
+    POST 带 ``X-Recruit-Type: CAMPUS`` 头 → 新建职位必须落库
+    ``recruit_type='CAMPUS'``；随后 CAMPUS 列表能读到、SOCIAL 列表读不到。
+
+    回归即证明: perform_create 的 serializer.save 注入 recruit_type (覆盖模型列默认值),
+    campus 系统下创建的职位不再恒落 'social' 被读侧硬分区过滤掉。
+    """
+    payload = {
+        'title': 'CAMPUS穿透职位',
+        'department': str(scenario['dept'].id),
+        'hiring_manager': str(scenario['user'].id),
+        'owner': str(scenario['user'].id),
+        'process': str(scenario['process'].id),
+    }
+    resp = auth_client.post(LIST, payload, format='json', HTTP_X_RECRUIT_TYPE='campus')
+    assert resp.status_code == 201
+    assert resp.data['success'] is True
+    code = resp.data['data']['code']
+    pos = Position.objects.get(code=code)
+    assert pos.recruit_type == 'campus', (
+        f'campus 系统创建的职位必须 recruit_type=campus, 实际 {pos.recruit_type!r}'
+    )
+
+    # CAMPUS 列表可见
+    c_resp = auth_client.get(LIST, HTTP_X_RECRUIT_TYPE='campus')
+    assert c_resp.status_code == 200
+    c_titles = {p['title'] for p in c_resp.data['data']}
+    assert 'CAMPUS穿透职位' in c_titles
+
+    # SOCIAL 列表不可见 (硬分区)
+    s_resp = auth_client.get(LIST, HTTP_X_RECRUIT_TYPE='social')
+    assert s_resp.status_code == 200
+    s_titles = {p['title'] for p in s_resp.data['data']}
+    assert 'CAMPUS穿透职位' not in s_titles, 'SOCIAL 列表不应看到 CAMPUS 职位 (硬分区)'

@@ -104,6 +104,10 @@ class DemandViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets
             requirements=vd.get('requirements', ''),
             priority=vd.get('priority', 'P1'),
             demand_type=vd.get('demand_type', 'SOCIAL'),
+            # 写入守卫: recruit_type 由请求上下文(中间件按 X-Recruit-Type 注入)权威决定,
+            # 覆盖模型列默认值。否则新建需求恒落 'social', 在 campus 系统下被读侧分区过滤掉,
+            # 表现为"创建成功但列表不显示"。
+            recruit_type=getattr(self.request, 'recruit_type', 'social'),
             actor=user,
         )
         demand = DemandService.create_demand(data)

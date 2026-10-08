@@ -116,6 +116,43 @@ class TestCreateDemandAPI:
         demand = _latest_demand(department, 'TODO-C 测试需求')
         assert demand.demand_type == 'CAMPUS'
 
+    def test_recruit_type_passthrough_campus(self, client, department, process):
+        """穿透守卫 (2026-10-08 修复「创建成功但列表不显示」):
+
+        POST 带 ``X-Recruit-Type: campus`` 头 (前端实际注入值, 见 request.ts) → 新建需求
+        必须落库 ``recruit_type='campus'``；随后 campus 列表能读到、social 列表读不到。
+
+        回归即证明: perform_create 不再绕过 ScopeQuerysetMixin 写入守卫，
+        campus 系统下创建的需求不再恒落 'social' 被读侧硬分区过滤掉。
+        """
+        headers = {'HTTP_X_RECRUIT_TYPE': 'campus'}
+        resp = client.post(
+            LIST_URL, _build_payload(department, title='CAMPUS穿透需求'),
+            format='json', **headers,
+        )
+        assert resp.status_code == 201, resp.content
+
+        demand = _latest_demand(department, 'CAMPUS穿透需求')
+        assert demand.recruit_type == 'campus', (
+            f'campus 系统创建的需求必须 recruit_type=campus, 实际 {demand.recruit_type!r}'
+        )
+
+        # CAMPUS 列表可见
+        list_resp = client.get(LIST_URL, **headers)
+        assert list_resp.status_code == 200, list_resp.content
+        body = _body(list_resp)
+        campus_titles = {d['title'] for d in (body if isinstance(body, list) else body.get('results', []))}
+        assert 'CAMPUS穿透需求' in campus_titles, 'campus 列表应能看到刚建的需求'
+
+        # SOCIAL 列表不可见 (硬分区)
+        social_resp = client.get(LIST_URL, HTTP_X_RECRUIT_TYPE='social')
+        assert social_resp.status_code == 200, social_resp.content
+        social_body = _body(social_resp)
+        social_titles = {d['title'] for d in (social_body if isinstance(social_body, list) else social_body.get('results', []))}
+        assert 'CAMPUS穿透需求' not in social_titles, (
+            'SOCIAL 列表不应看到 CAMPUS 需求 (硬分区)'
+        )
+
     def test_create_delegates_to_demand_service(self, client, department, process, hr_user):
         """API 建需求必须走 DemandService.create_demand 单一来源 (TODO-A 收口),
         而非视图内联重写 —— 守护「分叉」不回流。
