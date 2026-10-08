@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import School, Company, Major
+
+from .models import Company, Major, School
 
 # 注: 全局 camelCase 由 djangorestframework-camel-case 自动转换,
 # 序列化器一律写 snake_case, 禁止手写 camelCase + source 映射。

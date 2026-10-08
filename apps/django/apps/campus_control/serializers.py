@@ -13,9 +13,12 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.validators import UniqueTogetherValidator
 
-from .constants import DEPTS, SCHOOLS, MAJORS, SEXES, STRENGTH, STATUS, POSITIONS, LEVELS
+from .constants import DEPTS, LEVELS, MAJORS, POSITIONS, SCHOOLS, SEXES, STATUS, STRENGTH
 from .models import (
-    ControlDimension, ControlIndicator, ControlRule, Person,
+    ControlDimension,
+    ControlIndicator,
+    ControlRule,
+    Person,
 )
 
 

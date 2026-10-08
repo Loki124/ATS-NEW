@@ -10,16 +10,17 @@
 - ProcessArchiveView: 归档流程
 """
 from __future__ import annotations
-from django.db import DatabaseError
 
 import logging
-from django.db.models import Count, Q
+
+from django.db import DatabaseError
+from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from apps.common.exceptions import (
     NotFound,
@@ -33,9 +34,9 @@ from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import V2Permission
+
 # T01.2 (2026-08-04 寇豆码): HasProcessPermission / V2Permission 自身已校验登录, 显式
 # 移除裸 IsAuthenticated, 避免被全局 deny-by-default 拦截.
-
 from .models import (
     CandidateRecommendation,
     CandidateScreen,
@@ -217,6 +218,20 @@ class RecruitmentProcessViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     clone_version:  克隆新版本
     list_versions:  列出历史版本
     """
+
+    # 2026-10-08: batch-screen / batch-recommend 在 action 上单独挂了 V2Permission,
+    #   但类上从未声明任何权限码 → 此前这两个写端点对**任意登录用户**开放。
+    #   读操作仍按设计放行 (流程列表属全员可见的基础配置)。
+    permission_required_map = {
+        'create': 'recruit:settings:recruitment-process:create',
+        'update': 'recruit:settings:recruitment-process:edit',
+        'partial_update': 'recruit:settings:recruitment-process:edit',
+        'destroy': 'recruit:settings:recruitment-process:delete',
+        'archive': 'recruit:settings:recruitment-process:edit',
+        'clone_version': 'recruit:settings:recruitment-process:edit',
+        'batch_screen': 'recruit:settings:recruitment-process:edit',
+        'batch_recommend': 'recruit:settings:recruitment-process:edit',
+    }
     queryset = RecruitmentProcess.objects.all()
     permission_classes = [HasProcessPermission]
     pagination_class = StandardResultsSetPagination
@@ -248,7 +263,29 @@ class RecruitmentProcessViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 custom_q = role_entity_scope_q(user, 'process')
                 if custom_q is not None:
                     qs = qs.filter(custom_q)
-        return qs.select_related('created_by', 'updated_by')
+        # #9 (2026-10-09): stage_count 逐行用 obj.stage_links.count() 触发 N+1,
+        # prefetch 一次取回、计数走缓存; created_by/updated_by 已 join 供嵌套 UserMinimalSerializer 用。
+        return qs.select_related('created_by', 'updated_by').prefetch_related('stage_links')
+
+    def get_serializer_context(self):
+        """#9 (2026-10-09): 列表/详情里 created_by/updated_by 经嵌套 UserMinimalSerializer 渲染,
+        而该序列化器逐行查 UserRoleV2 (user_id 为整型、无 FK 反向关系)。这里按页批量取
+        created_by/updated_by 的角色映射一次注入, 消除这部分 N+1。"""
+        ctx = super().get_serializer_context()
+        if self.action in ('list', 'retrieve'):
+            from apps.core.models_permission_v2 import UserRoleV2
+            page_qs = self.get_queryset()
+            user_ids = [
+                uid for uid in
+                list(page_qs.values_list('created_by_id', flat=True)) +
+                list(page_qs.values_list('updated_by_id', flat=True))
+                if uid is not None
+            ]
+            rows = UserRoleV2.objects.filter(
+                user_id__in=user_ids, system_code='recruit',
+            ).values_list('user_id', 'role_code')
+            ctx['role_map'] = {uid: code for uid, code in rows}
+        return ctx
 
     def create(self, request, *args, **kwargs):
         """创建流程（含 stages）"""
@@ -699,6 +736,8 @@ class ExpressionValidationView(APIView):
     """表达式校验 - 实时反馈给前端"""
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission.
     permission_classes = [V2Permission]
+    # 2026-10-08: 该端点不写库, 但走 POST; 未声明权限码会被写操作守卫拒绝, 故显式声明。
+    permission_required = 'recruit:settings:recruitment-process:edit'
 
     @extend_schema(
         summary='条件表达式校验',

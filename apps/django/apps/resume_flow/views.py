@@ -11,13 +11,14 @@
 from __future__ import annotations
 
 import logging
+
 from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.common.exceptions import NotFound, PermissionDenied, StateTransitionError, ValidationError
+from apps.common.exceptions import StateTransitionError, ValidationError
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.views import EnvelopeReadOnlyMixin
@@ -46,6 +47,16 @@ class ApprovalFlowViewSet(EnvelopeReadOnlyMixin, viewsets.ModelViewSet):
     """
     queryset = ApprovalFlow.objects.all()
     permission_classes = [V2Permission]
+    # 2026-10-08: 写操作显式授权 (此前未声明 → 任意登录用户可新建/批准/驳回/转交审批流)。
+    permission_required_map = {
+        'create': 'recruit:settings:approval-flow:create',
+        'update': 'recruit:settings:approval-flow:edit',
+        'partial_update': 'recruit:settings:approval-flow:edit',
+        'destroy': 'recruit:settings:approval-flow:edit',
+        'approve': 'recruit:settings:approval-flow:edit',
+        'reject': 'recruit:settings:approval-flow:edit',
+        'delegate': 'recruit:settings:approval-flow:edit',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'candidate']
@@ -216,7 +227,6 @@ class ApprovalFlowViewSet(EnvelopeReadOnlyMixin, viewsets.ModelViewSet):
         nodes = flow.nodes or []
         for node in nodes:
             if node.get('nodeId') == node_id:
-                old_approver = node.get('approverId', '')
                 node['approverId'] = delegate_to
                 break
 

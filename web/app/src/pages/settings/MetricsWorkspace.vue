@@ -354,10 +354,11 @@
     <n-modal
       v-model:show="showTemplateModal"
       preset="card"
-      :closable="true"
+      :closable="false"
       class="tpl-modal"
       :mask-closable="false"
-      :style="{ width: 'auto', minWidth: '460px', maxWidth: 'min(940px, 96vw)', maxHeight: '90vh' }"
+      :close-on-esc="!savingTpl"
+      :style="{ width: 'min(920px, calc(100vw - 48px))', maxHeight: 'min(88vh, 900px)' }"
     >
       <template #header>
         <div class="tpl-head">
@@ -369,6 +370,16 @@
             </div>
             <div v-if="templateMetaLine" class="tpl-head-meta">{{ templateMetaLine }}</div>
           </div>
+          <button
+            type="button"
+            class="tpl-close"
+            :title="t('metrics.tpl.close')"
+            :aria-label="t('metrics.tpl.close')"
+            :disabled="savingTpl"
+            @click="showTemplateModal = false"
+          >
+            <n-icon :component="CloseOutline" :size="18" />
+          </button>
         </div>
       </template>
 
@@ -391,8 +402,10 @@
             </n-form-item>
           </div>
           <div v-if="selectedTemplateDefinition" class="tpl-inherit">
-            <span class="tpl-inherit-k">出参</span>
+            <span class="tpl-inherit-k">{{ t('metrics.tpl.outputParam') }}</span>
             <span class="tpl-inherit-v">{{ returnTypeLabel(selectedTemplateDefinition.returnType) }}</span>
+            <span class="tpl-inherit-sep">·</span>
+            <span class="tpl-inherit-k">{{ t('metrics.tpl.outputUnit') }}</span>
             <template v-if="outputUnitOptions.length > 1">
               <button
                 v-for="u in outputUnitOptions"
@@ -407,7 +420,7 @@
             </template>
             <span v-else class="tpl-inherit-v tpl-inherit-strong">{{ tplForm.unit || outputUnitOptions[0] || t('metrics.tpl.noUnit') }}</span>
             <span class="tpl-inherit-sep">/</span>
-            <span class="tpl-inherit-k">取值</span>
+            <span class="tpl-inherit-k">{{ t('metrics.tpl.valueModeLabel') }}</span>
             <span class="tpl-inherit-v">{{ valueModeLabel }}</span>
           </div>
         </section>
@@ -447,6 +460,7 @@
                   <span class="tpl-range-static">值</span>
                   <n-input v-model:value="tplForm.paramConfig.suffix" placeholder="后缀" class="tpl-mini" />
                 </div>
+                <span class="tpl-sample">{{ t('metrics.tpl.sample') }}：{{ displaySample }}</span>
               </div>
               <div class="tpl-param-field">
                 <span class="tpl-param-lbl">{{ t('metrics.tpl.allOption') }}</span>
@@ -1625,6 +1639,17 @@ const rangePreviewValues = computed<string[]>(() => {
 })
 const rangePreviewMore = computed<boolean>(() => false)
 
+// 「显示格式」实时样例：前缀 + 取值 + 单位 + 后缀（后缀已含单位则不重复补单位）
+const displaySample = computed<string>(() => {
+  const c = tplForm.value.paramConfig
+  const mn = Number(c.min)
+  const sampleNum = Number.isFinite(mn) ? fmtNum(mn) : '3'
+  const unit = currentParamUnit.value
+  let suffix = c.suffix || ''
+  if (unit && !suffix.endsWith(unit)) suffix = `${suffix}${unit}`
+  return `${c.prefix || ''}${sampleNum}${suffix}`
+})
+
 const supportedOperatorOptions = computed<OptionItem[]>(() => {
   const d = selectedTemplateDefinition.value
   if (!d?.supportedOperators?.length) return []
@@ -2533,16 +2558,38 @@ onUnmounted(() => {
 
 .tpl-unit-field { margin-bottom: var(--space-4); }
 
-/* ===== 指标模板弹窗（重构 v3：区域分块 / 品牌仪表盘） ===== */
-.tpl-modal { width: auto; --tpl-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace; }
-.tpl-modal :deep(.n-card) { max-height: 90vh; border-radius: var(--radius-lg); overflow: hidden; }
-.tpl-modal :deep(.n-card__header) {
-  padding: var(--space-4) var(--space-5);
-  background: linear-gradient(120deg, var(--brand-soft), transparent 62%);
+/* ===== 指标模板弹窗（v3.1：滚动归位 / 关闭按钮归位 / 出参单位与样例） =====
+ * ⚠️ 类名铁律（naive-ui 2.44.1 实测）：
+ *    header  = .n-card-header   （单横线 block 类）
+ *    content = .n-card-content  （单横线 block 类）
+ *    footer  = .n-card__footer  （双下划线 element 类）
+ *    弹窗 teleport 到 body，且 class 直接落在卡片元素自身（.n-card.n-modal）→
+ *    内部元素用 :global() 后代选择器，不能用 :deep(.n-card) 这种「卡片自身」写法。 */
+:global(.tpl-modal) {
+  --tpl-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+/* 卡片自身：flex 列 + 高度上限；只有内容区滚动 → footer/header 恒定在卡内（按钮不再溢出弹窗） */
+:global(.tpl-modal.n-card.n-modal) {
+  display: flex;
+  flex-direction: column;
+  max-height: min(88vh, 900px);
+  border-radius: var(--radius-lg);
+}
+:global(.n-modal.tpl-modal .n-card-header) {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-5);
+  background: linear-gradient(120deg, var(--brand-soft), transparent 60%);
   border-bottom: 1px solid var(--border-hairline);
 }
-.tpl-modal :deep(.n-card__content) { padding: 0; }
-.tpl-modal :deep(.n-card__footer) {
+:global(.n-modal.tpl-modal .n-card-content) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0; /* 内边距统一由 .tpl-form 给，避免与全局 --modal-pad-* 叠加 */
+}
+:global(.n-modal.tpl-modal .n-card__footer) {
+  flex-shrink: 0;
   padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--border-hairline);
   background: var(--surface);
@@ -2556,51 +2603,70 @@ onUnmounted(() => {
   background: var(--brand-600); color: var(--on-brand);
   box-shadow: 0 4px 12px var(--brand-a32);
 }
-.tpl-head-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tpl-head-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .tpl-head-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-16); font-weight: 700; color: var(--ink); line-height: 1.3; }
 .tpl-head-meta { font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--ink-faint); letter-spacing: .01em; }
+/* 关闭按钮：视觉 32×32，命中区扩至 44×44（R-102） */
+.tpl-close {
+  position: relative;
+  margin-left: auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex-shrink: 0; padding: 0;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; color: var(--ink-soft); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.tpl-close::after { content: ''; position: absolute; inset: -6px; border-radius: inherit; }
+.tpl-close:hover { background: var(--g1); color: var(--ink); }
+.tpl-close:disabled { opacity: .5; cursor: not-allowed; }
 
-/* 表单主体 + 编号计数器 */
-.tpl-form { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-4); counter-reset: tplsec; }
-.tpl-fields { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0 var(--space-4); }
+/* 表单主体：单一滚动容器，分区面板之间 12px 节奏 */
+.tpl-form { padding: var(--space-4) var(--space-5) var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); counter-reset: tplsec; }
+.tpl-fields { display: grid; grid-template-columns: 1fr 1.2fr; gap: var(--space-3) var(--space-4); }
 .tpl-alltext { width: 120px; min-width: 0; }
 
-/* 全局收紧表单项底部间距与标签间距 */
+/* 全局收紧表单项底部间距与标签间距（标签降为次要级灰） */
 .tpl-form :deep(.n-form-item) { margin-bottom: 0 !important; }
 .tpl-form :deep(.n-form-item-feedback-wrapper) { min-height: 0 !important; }
-.tpl-form :deep(.n-form-item-label) { padding-bottom: 2px !important; font-size: var(--fs-12); }
+.tpl-form :deep(.n-form-item-label) { padding-bottom: 2px !important; font-size: var(--fs-12); color: var(--ink-soft); }
 
-/* 分区（品牌编号方块） */
-.tpl-sec { counter-increment: tplsec; }
-.tpl-sec-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2); }
-.tpl-sec-unit { font-family: var(--tpl-mono); }
+/* 分区面板：全弹窗唯一的容器层级（内部不再嵌套边框卡片） */
+.tpl-sec {
+  counter-increment: tplsec;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+}
+.tpl-sec-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3); }
 .tpl-sec-head::before {
   content: counter(tplsec, decimal-leading-zero);
   font-family: var(--tpl-mono);
-  font-size: var(--fs-12); font-weight: 700;
+  font-size: 11px; font-weight: 700; letter-spacing: -.02em;
   color: var(--on-brand);
   background: var(--brand-600);
-  width: 22px; height: 22px; border-radius: 6px;
+  width: 20px; height: 20px; border-radius: 6px;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   box-shadow: 0 2px 6px var(--brand-a32);
 }
 .tpl-sec-title { font-size: var(--fs-13); font-weight: 600; color: var(--ink); }
-.tpl-sec-count { margin-left: auto; font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--brand-text); background: var(--brand-soft); padding: 1px 8px; border-radius: 999px; }
+.tpl-sec-unit { font-family: var(--tpl-mono); }
+.tpl-sec-count { margin-left: auto; font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--brand-text); background: var(--brand-soft); padding: 1px 8px; border-radius: var(--radius-pill); font-variant-numeric: tabular-nums; }
 .tpl-sec-units { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
 .tpl-sec-static { margin-left: auto; font-family: var(--tpl-mono); color: var(--brand-text); font-weight: 600; font-size: var(--fs-12); }
 
-/* 继承信息（品牌浅底块） */
+/* 继承信息：出参 / 单位 / 取值方式 —— 品牌浅底信息条（左侧色条标识「继承自指标定义」） */
 .tpl-inherit {
   display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
-  margin-top: var(--space-2);
-  padding: var(--space-1) var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background: var(--brand-tint);
-  border: 1px solid var(--brand-a12);
-  border-radius: var(--radius-md);
+  border-left: 3px solid var(--brand-600);
+  border-radius: var(--radius-sm);
   font-size: var(--fs-12);
 }
-.tpl-inherit-k { color: var(--ink-faint); font-family: var(--tpl-mono); }
+.tpl-inherit-k { color: var(--ink-soft); }
 .tpl-inherit-v { color: var(--ink); font-weight: 600; }
 .tpl-inherit-strong { color: var(--brand-text); }
 .tpl-inherit-sep { color: var(--ink-faint); }
@@ -2608,74 +2674,78 @@ onUnmounted(() => {
 /* 单位 pill（品牌选中） */
 .tpl-pill {
   display: inline-flex; align-items: center;
-  padding: 3px 12px; border-radius: var(--radius-pill);
+  padding: 2px 10px; border-radius: var(--radius-pill);
   border: 1px solid var(--border-hairline); background: var(--surface);
-  color: var(--ink-soft); font-size: var(--fs-12); line-height: 1.4; cursor: pointer;
+  color: var(--ink-soft); font-size: var(--fs-12); line-height: 1.5; cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.tpl-pill:hover { border-color: var(--brand-600); }
+.tpl-pill:hover { border-color: var(--brand-600); color: var(--brand-text); }
 .tpl-pill.is-on { background: var(--brand-600); border-color: var(--brand-600); color: var(--on-brand); font-weight: 600; }
 
-/* 参数配置区域块 */
-.tpl-param-block { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); background: var(--brand-tint); border: 1px solid var(--brand-a12); border-radius: var(--radius-md); }
-.tpl-param-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
-.tpl-param-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.tpl-param-lbl { color: var(--ink-soft); font-size: var(--fs-12); font-family: var(--tpl-mono); line-height: 1.4; }
-.tpl-param-ctl { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; min-width: 0; }
+/* 参数配置：流式单行，字段按内容宽度贴左（不再 4 等分拉散） */
+.tpl-param-block { display: flex; flex-direction: column; gap: var(--space-3); }
+.tpl-param-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-6); }
+.tpl-param-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.tpl-param-lbl { color: var(--ink-soft); font-size: var(--fs-12); font-weight: 500; line-height: 1.4; }
+.tpl-param-ctl { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .tpl-param-ctl .n-input-number { flex-shrink: 0; }
-.tpl-range-num { width: 84px; }
-.tpl-range-static { color: var(--ink-soft); font-size: var(--fs-12); white-space: nowrap; }
-.tpl-mini { width: 58px; min-width: 0; }
-.tpl-alltext { width: 120px; min-width: 0; }
+.tpl-range-num { width: 76px; }
+.tpl-range-static { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; }
 .tpl-range-sep { color: var(--ink-faint); }
+/* 显示格式实时样例：技术值保留等宽 + 品牌色强调 */
+.tpl-sample { font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--brand-text); font-weight: 600; white-space: nowrap; }
+.tpl-mini { width: 56px; min-width: 0; }
+.tpl-alltext { width: 120px; min-width: 0; }
 
-.tpl-preview { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--brand-a12); border-radius: var(--radius-md); font-size: var(--fs-12); line-height: 1.6; }
+/* 取值预览：浅灰条，视觉权重低于主要字段 */
+.tpl-preview { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--g1); border-radius: var(--radius-sm); font-size: var(--fs-12); line-height: 1.6; }
 .tpl-preview-tag { font-weight: 600; color: var(--brand-text); white-space: nowrap; font-family: var(--tpl-mono); }
-.tpl-preview-meta { color: var(--brand-text); opacity: .8; font-family: var(--tpl-mono); }
-.tpl-preview-vals { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.tpl-preview-meta { color: var(--ink-soft); }
+.tpl-preview-vals { color: var(--ink-soft); font-family: var(--tpl-mono); font-variant-numeric: tabular-nums; }
 
-/* 运算符区域块（紧凑标签） */
-.tpl-ops-block { padding: var(--space-3); background: var(--g1); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+/* 运算符：chip 流式排布（面板即容器，不再另加边框块） */
+.tpl-ops-block { min-width: 0; }
 .tpl-ops { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .tpl-op {
   position: relative;
   display: inline-flex; align-items: center; gap: var(--space-1);
-  padding: 4px 10px;
+  padding: 4px 11px;
   border: 1px solid var(--border-hairline); border-radius: var(--radius-pill);
   background: var(--surface); color: var(--ink-soft);
   cursor: pointer; user-select: none;
   transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.tpl-op:hover { border-color: var(--brand-600); }
+.tpl-op:hover { border-color: var(--brand-600); color: var(--brand-text); }
 .tpl-op.is-on { background: var(--brand-600); border-color: var(--brand-600); color: var(--on-brand); font-weight: 600; }
 .tpl-op-sym { font-family: var(--tpl-mono); font-size: var(--fs-12); font-weight: 700; line-height: 1; }
 .tpl-op-lbl { font-size: var(--fs-12); line-height: 1.2; white-space: nowrap; }
 .tpl-op input { position: absolute; opacity: 0; width: 0; height: 0; }
 .tpl-info-text { color: var(--ink-faint); font-size: var(--fs-13); padding: var(--space-2) 0; }
 
-/* 值域配置区域块 */
-.tpl-domain-block { padding: var(--space-3); background: var(--g1); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+/* 值域配置：重复行列表（浅灰条 + 细分隔，非嵌套卡片） */
+.tpl-domain-block { min-width: 0; }
 .tpl-segments { display: flex; flex-direction: column; gap: var(--space-2); }
-.tpl-seg-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
-.tpl-seg-tag { font-family: var(--tpl-mono); font-size: var(--fs-12); font-weight: 700; color: var(--brand-text); background: var(--brand-soft); border-radius: var(--radius-sm); padding: 2px 8px; white-space: nowrap; }
-.tpl-seg-num { width: 88px; }
-.tpl-unit-text { color: var(--ink-faint); font-size: var(--fs-12); font-family: var(--tpl-mono); }
-.tpl-seg-steplbl { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; font-family: var(--tpl-mono); }
-.tpl-seg-step { width: 70px; }
+.tpl-seg-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--g1); border-radius: var(--radius-sm); }
+.tpl-seg-tag { font-family: var(--tpl-mono); font-size: 11px; font-weight: 700; color: var(--brand-text); background: var(--brand-soft); border-radius: var(--radius-sm); padding: 2px 8px; white-space: nowrap; }
+.tpl-seg-num { width: 82px; }
+.tpl-unit-text { color: var(--ink-soft); font-size: var(--fs-12); }
+.tpl-seg-steplbl { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; }
+.tpl-seg-step { width: 68px; }
 .tpl-seg-del { margin-left: auto; }
 .tpl-add-seg { color: var(--brand-text); align-self: flex-start; }
-.domain-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin-top: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--c-success-soft); border: 1px solid color-mix(in srgb, var(--c-success) 22%, transparent); border-radius: var(--radius-md); font-size: var(--fs-12); color: var(--c-success-deep); }
+.domain-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--c-success-soft); border-radius: var(--radius-sm); font-size: var(--fs-12); color: var(--c-success-deep); }
 .ds-tag { font-weight: 600; white-space: nowrap; font-family: var(--tpl-mono); }
 .ds-vals { color: var(--ink-soft); line-height: 1.6; }
 
-/* 配置预览（仪表读数条） */
+/* 配置预览（结果读条）：左侧品牌色条标明「这是最终产出」 */
 .tpl-readout {
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--brand-tint);
   border: 1px solid var(--brand-a12);
-  border-radius: var(--radius-md);
+  border-left: 3px solid var(--brand-600);
+  border-radius: var(--radius-sm);
 }
-.tpl-readout-eyebrow { font-family: var(--tpl-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--brand-text); opacity: .85; margin-bottom: var(--space-2); }
+.tpl-readout-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--brand-text); margin-bottom: var(--space-2); }
 .tpl-readout-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-2); }
 .tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
 .pv-select { min-width: 0; width: 100%; }
@@ -2688,14 +2758,9 @@ onUnmounted(() => {
 .tpl-footer { width: 100%; }
 .tpl-footer :deep(.n-button--primary) { box-shadow: 0 4px 14px var(--brand-a32); }
 
-@media (max-width: 768px) {
-  .tpl-param-grid { grid-template-columns: 1fr 1fr; }
-}
-
 @media (max-width: 640px) {
   .tpl-fields { grid-template-columns: 1fr; }
   .tpl-foot-fields { grid-template-columns: 1fr; }
-  .tpl-param-grid { grid-template-columns: 1fr; }
   .tpl-readout-row, .tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .pv-arrow { display: none; }
 }

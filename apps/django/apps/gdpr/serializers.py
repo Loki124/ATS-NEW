@@ -2,9 +2,8 @@
 from rest_framework import serializers
 
 from .models import (
-    GDPRRequest,
     VERIFICATION_CODE_LENGTH,
-    VERIFICATION_CODE_TTL_MINUTES,
+    GDPRRequest,
 )
 
 

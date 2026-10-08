@@ -261,8 +261,6 @@ def validate_field_value(field_type: str, validation, value) -> list[str]:
     if validation is None or validation == '':
         return errors
 
-    norm = normalize_validation(field_type, validation) if not isinstance(validation, dict) else validation
-
     # 空值跳过 (必填另算)
     is_empty = value is None or value == '' or (isinstance(value, (list, dict)) and len(value) == 0)
     if is_empty:

@@ -23,10 +23,11 @@ import json
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+from apps.common.encryption import DecryptionError
 
 from ..crypto import decrypt_secret
-from apps.common.encryption import DecryptionError
 
 #: 成功业务码集合（规范 §3.2 / §4.2：code=0 表示成功）。
 SUCCESS_CODES = (0, '0', None)
@@ -44,23 +45,23 @@ class CreateOrderRequest:
     """
 
     # —— 规范 §3.2 必填字段（在统一契约里仍允许缺省，由 adapter 决定必填性）——
-    product_token: Optional[str] = None          # 套餐唯一标识（必填）
-    candidate_name: Optional[str] = None         # 候选人姓名（必填）
-    phone: Optional[str] = None                  # 候选人手机号（必填）
-    operator_name: Optional[str] = None          # 委托人/经办人姓名（必填）
-    operator_phone: Optional[str] = None         # 委托人手机号（必填）
+    product_token: str | None = None          # 套餐唯一标识（必填）
+    candidate_name: str | None = None         # 候选人姓名（必填）
+    phone: str | None = None                  # 候选人手机号（必填）
+    operator_name: str | None = None          # 委托人/经办人姓名（必填）
+    operator_phone: str | None = None         # 委托人手机号（必填）
     # —— 规范 §3.2 可选字段 ——
-    email: Optional[str] = None                  # 候选人邮箱
-    operator_email: Optional[str] = None         # 委托人邮箱
-    id_card: Optional[str] = None                # 候选人身份证号（PII）
-    auth_way: Optional[int] = None               # 授权方式 1/2/3
-    callback_url: Optional[str] = None           # 回调地址
-    expect_entry_time: Optional[str] = None      # 预计入职日期 yyyy-MM-dd
-    remark: Optional[str] = None                 # 备注
-    contact_candidate: Optional[int] = None      # 是否可联系候选人 1/0
-    request_id: Optional[str] = None             # 幂等请求号（UUID）
+    email: str | None = None                  # 候选人邮箱
+    operator_email: str | None = None         # 委托人邮箱
+    id_card: str | None = None                # 候选人身份证号（PII）
+    auth_way: int | None = None               # 授权方式 1/2/3
+    callback_url: str | None = None           # 回调地址
+    expect_entry_time: str | None = None      # 预计入职日期 yyyy-MM-dd
+    remark: str | None = None                 # 备注
+    contact_candidate: int | None = None      # 是否可联系候选人 1/0
+    request_id: str | None = None             # 幂等请求号（UUID）
     # —— 向后兼容（既有后端 wire 格式，T6 保留）——
-    candidate_id: Optional[str] = None           # 候选人 ID（平台侧）
+    candidate_id: str | None = None           # 候选人 ID（平台侧）
     items: List[str] = field(default_factory=list)  # 背调项目列表（平台侧）
 
 
@@ -74,8 +75,8 @@ class BackgroundCheckResult:
 
     success: bool
     message: str = ''
-    data: Optional[dict] = None
-    duration_ms: Optional[int] = None
+    data: dict | None = None
+    duration_ms: int | None = None
     raw: Any = None
 
 
@@ -107,7 +108,7 @@ def verify_callback_signature(payload: dict, app_key: str) -> bool:
     return hmac.compare_digest(expected, str(sign).lower())
 
 
-def replay_allowed(ts_int: int, now_ms: Optional[int] = None,
+def replay_allowed(ts_int: int, now_ms: int | None = None,
                    window_ms: int = 5 * 60 * 1000) -> bool:
     """§5.2 重放窗口判定：``abs(now - ts) <= window`` 视为合法。
 
@@ -179,14 +180,14 @@ class BaseBackgroundCheckSupplier(ABC):
             return {}
 
     @staticmethod
-    def _resolve_app_id(cfg: Optional[dict]) -> str:
+    def _resolve_app_id(cfg: dict | None) -> str:
         """camel/snake 回退：``AppId`` 优先，回退 ``appId``。"""
         if not cfg:
             return ''
         return cfg.get('AppId') or cfg.get('appId') or ''
 
     @staticmethod
-    def _resolve_app_key(secret: Optional[dict]) -> str:
+    def _resolve_app_key(secret: dict | None) -> str:
         """camel/snake 回退：``api_key`` 优先，回退 ``apiKey``。"""
         if not secret:
             return ''
@@ -196,7 +197,7 @@ class BaseBackgroundCheckSupplier(ABC):
 
     # ---------------------------------------------------------- 成功判定（D2）
     @staticmethod
-    def _is_success(resp: Optional[dict], success_codes: tuple = SUCCESS_CODES) -> bool:
+    def _is_success(resp: dict | None, success_codes: tuple = SUCCESS_CODES) -> bool:
         """按业务信封 code 判定成功（默认 code ∈ (0, '0', None)）。"""
         if not isinstance(resp, dict):
             return False
@@ -272,7 +273,7 @@ class BaseBackgroundCheckSupplier(ABC):
 
     # ---------------------------------------------------------- 抽象网络方法
     @abstractmethod
-    def create_order(self, req: 'CreateOrderRequest') -> BackgroundCheckResult:
+    def create_order(self, req: CreateOrderRequest) -> BackgroundCheckResult:
         """创建背调订单。"""
 
     @abstractmethod
@@ -284,7 +285,7 @@ class BaseBackgroundCheckSupplier(ABC):
         """轮询订单详情（§6.4 兜底）；返回内含最新 status 的对象。"""
 
     @abstractmethod
-    def query_products(self, product_token: Optional[str] = None) -> BackgroundCheckResult:
+    def query_products(self, product_token: str | None = None) -> BackgroundCheckResult:
         """套餐查询（§3.4）。"""
 
     @abstractmethod

@@ -183,10 +183,11 @@ class DemandPositionMetricValueTest(TestCase):
         )
 
     def _make_demand(self):
+        from django.contrib.auth import get_user_model
+
         from apps.core.models import Department
         from apps.demand.models import Demand
         from apps.process.models import RecruitmentProcess
-        from django.contrib.auth import get_user_model
         user = get_user_model().objects.create_user(
             username=f'tst_hr_{_new_id()[:8]}', password='Test@1234')
         dept = Department.objects.create(id=_new_id(), name='tst_部门', code=_new_id()[:10])
@@ -201,10 +202,11 @@ class DemandPositionMetricValueTest(TestCase):
         )
 
     def _make_position(self, demand=None):
+        from django.contrib.auth import get_user_model
+
         from apps.core.models import Department
         from apps.position.models import Position
         from apps.process.models import RecruitmentProcess
-        from django.contrib.auth import get_user_model
         user = get_user_model().objects.create_user(
             username=f'tst_mgr_{_new_id()[:8]}', password='Test@1234')
         dept = Department.objects.create(id=_new_id(), name='tst_部门', code=_new_id()[:10])

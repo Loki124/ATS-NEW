@@ -13,12 +13,12 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from django.core.cache import cache
 
-from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeType
 from apps.data_permission.expr_compiler import compile_scope_q
+from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeType
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ _COLUMN_RULES_CACHE_TTL = 60
 _SEVERITY = {'READ': 0, 'MASK': 1, 'NONE': 2}
 
 
-def most_restrictive(a: Optional[str], b: Optional[str]) -> Optional[str]:
+def most_restrictive(a: str | None, b: str | None) -> str | None:
     """取两条权限中最严格的一条; 任一为 None 则返回另一条."""
     if a is None:
         return b
@@ -75,7 +75,7 @@ def _column_rules_for_entity(entity: str) -> List[Tuple[str, str, str, str]]:
     return out
 
 
-def column_permission_for(user, entity: str, field: str) -> Optional[str]:
+def column_permission_for(user, entity: str, field: str) -> str | None:
     """返回该用户对某实体字段的列级权限 (READ/MASK/NONE) 或 None (无 DataPermissionRule 规则)."""
     rules = _column_rules_for_entity(entity)
     if not rules:
@@ -87,13 +87,13 @@ def column_permission_for(user, entity: str, field: str) -> Optional[str]:
             perms.append(perm)
     if not perms:
         return None
-    result: Optional[str] = None
+    result: str | None = None
     for p in perms:
         result = most_restrictive(result, p)
     return result
 
 
-def clear_column_cache(entity: Optional[str] = None) -> None:
+def clear_column_cache(entity: str | None = None) -> None:
     """规则变更后清列级缓存 (entity 为空时按已知实体全清)."""
     if entity:
         cache.delete(f'data_perm:col:{entity}')

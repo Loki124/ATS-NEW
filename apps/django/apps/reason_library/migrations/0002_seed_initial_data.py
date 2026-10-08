@@ -20,8 +20,8 @@ def _unseed(apps, schema_editor):
     直接清掉即可。
     """
     from apps.reason_library.models import (
-        CategoryAssignment, ReasonTag, RuleCategory,
-        RuleSceneAssignment, SceneRule,
+        ReasonTag,
+        SceneRule,
     )
     ReasonTag.objects.filter(type='system', deleted_at__isnull=True).delete()
     SceneRule.objects.filter(is_system=True).delete()

@@ -6,11 +6,11 @@ class ChannelConfig(AppConfig):
     verbose_name = '渠道管理'
 
     def ready(self):
-        from apps.dictionary.registry import register_dictionary_seed
         from apps.channel.seeds import (
             seed_application_channel_type,
             seed_resume_source_type,
         )
+        from apps.dictionary.registry import register_dictionary_seed
 
         register_dictionary_seed(seed_application_channel_type)
         register_dictionary_seed(seed_resume_source_type)

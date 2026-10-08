@@ -14,14 +14,13 @@
   - POST /api/v1/gdpr/requests/{id}/verify/ - 候选人验证
   - POST /api/v1/gdpr/requests/{id}/process/ - 超管处理 (approve_forget/approve_export/reject)
 """
-from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, status as drf_status
+from rest_framework import status as drf_status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
@@ -35,7 +34,7 @@ from .serializers import (
     GDPRRequestSerializer,
     GDPRVerifySerializer,
 )
-from .services import GdprService
+from .services import GdprService, send_verification_code
 
 
 class GDPRRequestViewSet(AuditMixin, EnvelopeReadOnlyMixin, viewsets.ModelViewSet):
@@ -67,7 +66,7 @@ class GDPRRequestViewSet(AuditMixin, EnvelopeReadOnlyMixin, viewsets.ModelViewSe
     def create(self, request, *args, **kwargs):
         """候选人提交 GDPR 请求 — 公开, 无需登录.
 
-        响应包含 _plaintext_code (仅这一次, 走邮件/SMS 发给候选人, 不再可查).
+        验证码**只**通过邮件/短信下发给候选人登记邮箱, 绝不在 HTTP 响应里返回。
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -76,11 +75,15 @@ class GDPRRequestViewSet(AuditMixin, EnvelopeReadOnlyMixin, viewsets.ModelViewSe
             request_type=serializer.validated_data['request_type'],
             submitted_email=serializer.validated_data['submitted_email'],
         )
+        # 2026-10-08: 此前把明文验证码放进响应体 —— 匿名调用者只要知道候选人 id
+        #   和任意邮箱就能拿到验证码, 再调公开的 verify 把请求置为"已验证",
+        #   让审批人误以为是候选人本人发起的删除/导出。验证码不得出现在响应里。
+        plaintext_code = getattr(req, '_plaintext_code', None)
+        if plaintext_code:
+            send_verification_code(req, plaintext_code)
         out = GDPRRequestSerializer(req, context={'request': request}).data
-        # ⚠️ _plaintext_code 只在这一次响应里返回, view 不存日志, 不进 audit.
-        out['verification_code'] = req._plaintext_code  # noqa: SLF001
         out['verification_code_expires_at'] = req.verification_code_expires_at
-        out['verification_message'] = '请通过邮件/短信查看验证码, 15 分钟内 verify 有效'
+        out['verification_message'] = '验证码已发送至候选人登记邮箱, 15 分钟内 verify 有效'
         # 2026-09-30 信封 initiative: 收敛到 success_response 补齐 code
         return success_response(out, status_code=drf_status.HTTP_201_CREATED)
 

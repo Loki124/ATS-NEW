@@ -11,19 +11,20 @@ from rest_framework.decorators import (
 )
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from apps.common.pagination import StandardResultsSetPagination
 
+from apps.common.pagination import StandardResultsSetPagination
 from apps.core.role_v2_query import is_super_admin
 from apps.core.views_auth import RegisterRateThrottle
+
+from . import services
 from .models import RegistrationApplication
 from .serializers import (
     RegisterSerializer,
-    VerifyRegisterCodeSerializer,
-    ResendRegisterCodeSerializer,
     RegistrationApplicationSerializer,
     RegistrationReviewSerializer,
+    ResendRegisterCodeSerializer,
+    VerifyRegisterCodeSerializer,
 )
-from . import services
 
 logger = logging.getLogger(__name__)
 

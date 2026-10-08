@@ -15,12 +15,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -64,15 +62,10 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         from apps.process.models import (
-            ProcessStageLink,
             ProcessTemplate,
             RecruitmentProcess,
             RecruitmentStage,
-            StageRule,
         )
-        from apps.entry_condition.models import EntryConditionRule, EntryConditionRuleStatus
-        from apps.time_limit.models import TimeLimitRule
-        from apps.automation.models import AutomationRule
 
         if options['reset']:
             self.stdout.write(self.style.WARNING('删除已有预置模板...'))
@@ -100,14 +93,17 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('所有模板加载完成'))
 
     def load_template(self, path: Path, stages: dict, dry_run: bool = False):
-        from apps.process.models import (
-            ProcessStageLink, ProcessTemplate, RecruitmentProcess, StageRule,
-        )
-        from apps.entry_condition.models import EntryConditionRule, EntryConditionRuleStatus
-        from apps.time_limit.models import TimeLimitRule
         from apps.automation.models import AutomationRule
+        from apps.entry_condition.models import EntryConditionRule, EntryConditionRuleStatus
+        from apps.process.models import (
+            ProcessStageLink,
+            ProcessTemplate,
+            RecruitmentProcess,
+            StageRule,
+        )
+        from apps.time_limit.models import TimeLimitRule
 
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             data = json.load(f)
 
         self.stdout.write(f'\n加载模板: {data["name"]} ({data["code"]})')

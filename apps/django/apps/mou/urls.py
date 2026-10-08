@@ -1,13 +1,15 @@
 """mou URLs - 2026-07-01 stub for permissions-v2/* (含 5 个 endpoint + scopes)"""
-from rest_framework.routers import DefaultRouter
-from rest_framework.response import Response
-from rest_framework.decorators import action, api_view, permission_classes
 from django.urls import path
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.routers import DefaultRouter
 
 from .views import (
-    MouAgreementViewSet, MouContainerViewSet,
-    MutualExclusionGroupViewSet, MouRuleViewSet,
+    MouAgreementViewSet,
+    MouContainerViewSet,
+    MouRuleViewSet,
+    MutualExclusionGroupViewSet,
 )
 
 

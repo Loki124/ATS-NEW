@@ -10,6 +10,7 @@
 # pytest_plugins（它实际作用于全量测试而非本目录，语义有误导性），保留会让
 # `testpaths = tests apps` 在收集阶段直接报错。
 import pytest
+
 from apps.candidate.models import Candidate, CandidateState
 from apps.process.models import RecruitmentProcess
 
@@ -73,8 +74,8 @@ def clean_candidate(db):
 @pytest.fixture
 def candidate_with_active_app(db, published_position):
     """已有 active application 的候选人（用于测试 occupied 状态）"""
-    from apps.candidate.models import Candidate
     from apps.application.models import Application, ApplicationState
+    from apps.candidate.models import Candidate
     cand = Candidate.objects.create(name='重复测试', phone='13911111111')
     Application.objects.create(
         candidate=cand,

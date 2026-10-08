@@ -1,7 +1,8 @@
 """Integration Models (PRD v4 §14.4 外部系统集成)"""
 from django.db import models
-from apps.common.models import TimestampedModel, SoftDeleteModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import SoftDeleteManager, SoftDeleteModel, TimestampedModel
 
 
 def gen_id():

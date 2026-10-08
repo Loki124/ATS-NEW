@@ -2,8 +2,9 @@
 # 手动调整操作顺序：year 字段必须先于 AlterUniqueTogether 添加，
 # 否则在 MySQL/SQLite 上会因唯一约束引用尚不存在的列而失败。
 
-import apps.campus_control.models
 from django.db import migrations, models
+
+import apps.campus_control.models
 
 
 class Migration(migrations.Migration):

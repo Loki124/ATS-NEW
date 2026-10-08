@@ -5,7 +5,7 @@
 2. RemoveConstraint uniq_cat_tag (UNIQUE(category, tag))。
 3. AddConstraint uniq_tag (UNIQUE(tag)) — 全局唯一, 不可跨分类重复。
 """
-from django.db import migrations, models
+from django.db import migrations
 from django.db.models import UniqueConstraint
 
 

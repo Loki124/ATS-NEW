@@ -143,7 +143,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS('\n✅ Demo Data V2 初始化完成'))
         self.stdout.write('默认账号:')
-        self.stdout.write('  - 超级管理员: admin / admin123  (已绑 SUPER_ADMIN → TMPL_ADMIN → 全权限)')
+        self.stdout.write('  - 超级管理员: admin  (已绑 SUPER_ADMIN → TMPL_ADMIN → 全权限; 密码不会被重置)')
         self.stdout.write('  - HR:         hr_zhang / Pass@1234  (已绑 HR → TMPL_SPECIALIST)')
         self.stdout.write('  - HRBP:       hrbp_liu / Pass@1234  (已绑 HRBP → TMPL_SPECIALIST)')
         self.stdout.write('  - 用人经理:    hm_li / Pass@1234      (已绑 HIRING_MANAGER → TMPL_SPECIALIST)')
@@ -240,23 +240,26 @@ class Command(BaseCommand):
                 created += 1
             else:
                 updated += 1
-        # admin 已存在确认（不重建）— 强制确保密码正确
+        # admin 已存在确认（不重建）
+        # 2026-10-08: 不再把 admin 密码强制重置为 admin123 —— 一次例行 demo 初始化
+        #   就会把生产超管口令打回弱口令。只补齐标志位, 绝不动密码。
         admin = User.objects.filter(username='admin').first()
         if admin:
-            admin.set_password('admin123')
             admin.is_superuser = True
             admin.is_staff = True
             admin.is_active = True
-            admin.save()
+            admin.save(update_fields=['is_superuser', 'is_staff', 'is_active'])
         self.stdout.write(
-            f'✓ Demo User 初始化完成（{created} 新建 / {updated} 已存在 / admin 密码重置为 admin123）'
+            f'✓ Demo User 初始化完成（{created} 新建 / {updated} 已存在 / admin 密码保持不变）'
         )
 
     def bind_user_roles_v2(self):
         """建 ROOT_MGMT 管理单元 + 给 admin + 6 demo user 绑 UserRoleV2."""
         from apps.core.models import User
         from apps.core.models_permission_v2 import (
-            ManagementUnit, RoleV2, UserRoleV2,
+            ManagementUnit,
+            RoleV2,
+            UserRoleV2,
         )
 
         # 1. 建 ROOT_MGMT（管理单元）

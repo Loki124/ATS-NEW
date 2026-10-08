@@ -14,17 +14,15 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.utils import timezone
 
-from apps.common.exceptions import StateTransitionError
 from apps.core.models import User
 
-from ..models import Application, ApplicationHistory, ApplicationState
+from ..models import Application, ApplicationHistory
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +49,7 @@ class SoftRejectService:
 
     @staticmethod
     def count_soft_rejects_by_stage(candidate_id: str, stage_id: str,
-                                    process_id: Optional[str] = None,
+                                    process_id: str | None = None,
                                     days: int = 365) -> int:
         """统计候选人在某阶段累计软拒次数（跨申请）"""
         cutoff = timezone.now() - timedelta(days=days)
@@ -69,7 +67,7 @@ class SoftRejectService:
 
     @staticmethod
     def check_threshold_and_pool(candidate_id: str, process_id: str,
-                                  stage_id: str, actor: Optional[User] = None) -> bool:
+                                  stage_id: str, actor: User | None = None) -> bool:
         """达到阈值则自动入人才库
 
         返回：是否触发了入人才库
@@ -122,7 +120,7 @@ class SoftRejectService:
 
     @staticmethod
     def suggest_reapply_initial_stage(candidate_id: str, position_id: str,
-                                      process_stage_links: List) -> Optional[Any]:
+                                      process_stage_links: List) -> Any | None:
         """建议二次投递的初始阶段（跳过最近软拒阶段）
 
         process_stage_links: QuerySet/列表 of ProcessStageLink，按 order 排序

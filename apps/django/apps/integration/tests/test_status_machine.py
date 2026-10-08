@@ -4,13 +4,13 @@
 - ALLOWED_ORDER_TRANSITIONS 中每个合法转移都能成功驱动（updated + is_legal_transition=True）
 - 一个非法转移被拒绝但仍落库（is_legal_transition=False，订单按供应商权威更新）
 """
+from apps.integration.models import (
+    ALLOWED_ORDER_TRANSITIONS,
+    BGOrderStatus,
+)
 from apps.integration.services import (
     apply_callback_to_order,
     create_background_check_order,
-)
-from apps.integration.models import (
-    BGOrderStatus,
-    ALLOWED_ORDER_TRANSITIONS,
 )
 from apps.integration.tests.helpers import make_payload
 

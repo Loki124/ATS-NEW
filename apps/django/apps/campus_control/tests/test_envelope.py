@@ -17,7 +17,10 @@ import uuid
 import pytest
 
 from apps.campus_control.models import (
-    ControlDimension, ControlIndicator, ControlRule, Person,
+    ControlDimension,
+    ControlIndicator,
+    ControlRule,
+    Person,
 )
 
 pytestmark = pytest.mark.django_db

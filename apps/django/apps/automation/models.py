@@ -7,9 +7,10 @@
 4. 动作 (action): 自动推进/跳过/发提醒/入库
 """
 from django.db import models
-from apps.common.models import SoftDeleteModel, TimestampedModel
-from apps.process.models import RecruitmentStage, RecruitmentProcess
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import SoftDeleteModel, TimestampedModel
+from apps.process.models import RecruitmentProcess, RecruitmentStage
 
 
 def gen_id():

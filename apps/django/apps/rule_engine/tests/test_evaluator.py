@@ -6,7 +6,13 @@
 import pytest
 
 from apps.process.services.expression_service import extract_ids, validate_expression
-from apps.rule_engine.models import Condition, ConditionLogic, Rule, UnifiedOperator, UnifiedTriggerType
+from apps.rule_engine.models import (
+    Condition,
+    ConditionLogic,
+    Rule,
+    UnifiedOperator,
+    UnifiedTriggerType,
+)
 from apps.rule_engine.services import ConditionEvaluator, EvaluationContext
 
 pytestmark = pytest.mark.django_db

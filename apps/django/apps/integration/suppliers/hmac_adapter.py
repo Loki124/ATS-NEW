@@ -12,19 +12,20 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import requests
 
+from apps.integration.ssrf import ssrf_safe_get
+
 from .base import (
-    BaseBackgroundCheckSupplier,
     BackgroundCheckResult,
+    BaseBackgroundCheckSupplier,
     CreateOrderRequest,
-    SUCCESS_CODES,
 )
 
 
-def _safe_json(response: 'requests.Response') -> Dict[str, Any]:
+def _safe_json(response: requests.Response) -> Dict[str, Any]:
     """解析 JSON 响应；失败返回 {}（不抛异常）。
 
     窄集: 仅 JSON 解析异常 (ValueError/TypeError/JSONDecodeError/requests.exceptions.JSONDecodeError).
@@ -78,7 +79,7 @@ class HmacBackgroundCheckSupplier(BaseBackgroundCheckSupplier):
                 duration_ms=int((time.time() - t0) * 1000),
             )
 
-    def _get_json(self, path: str, query: Optional[dict] = None) -> BackgroundCheckResult:
+    def _get_json(self, path: str, query: dict | None = None) -> BackgroundCheckResult:
         """GET（带签名头）；按业务信封 code 判定成功。"""
         url = self._url(path)
         t0 = time.time()
@@ -144,7 +145,7 @@ class HmacBackgroundCheckSupplier(BaseBackgroundCheckSupplier):
             raw=res.raw,
         )
 
-    def query_products(self, product_token: Optional[str] = None) -> BackgroundCheckResult:
+    def query_products(self, product_token: str | None = None) -> BackgroundCheckResult:
         """套餐查询（§3.4）：``productToken`` 可选，传则只查该套餐。"""
         query: Dict[str, Any] = {}
         if product_token:
@@ -166,7 +167,10 @@ class HmacBackgroundCheckSupplier(BaseBackgroundCheckSupplier):
             )
         t0 = time.time()
         try:
-            resp = requests.get(report_url, timeout=15)
+            # 2026-10-08 (#15): 原 `requests.get(report_url)` 服务端拉取任意 URL ——
+            # report_url 来自操作员输入或供应商回调, 可被用来打 169.254.169.254 (云元数据)
+            # / 127.0.0.1 / 10.x 等内网, 形成 SSRF。改用 SSRF 安全 GET。
+            resp = ssrf_safe_get(report_url, timeout=15)
             duration_ms = int((time.time() - t0) * 1000)
             size = len(resp.content) if resp.content is not None else 0
             ok = resp.status_code == 200
@@ -182,7 +186,9 @@ class HmacBackgroundCheckSupplier(BaseBackgroundCheckSupplier):
                 duration_ms=duration_ms,
                 raw=resp,
             )
-        except requests.RequestException as e:
+        except (requests.RequestException, ValueError) as e:
+            # ValueError 来自 ssrf_safe_get (SSRF 防护): 报告地址打到内网/云元数据等,
+            # 必须当作拉取失败, 绝不发起请求。
             return BackgroundCheckResult(
                 success=False,
                 message=f'报告拉取异常: {e}',

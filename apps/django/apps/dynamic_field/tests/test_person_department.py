@@ -7,10 +7,11 @@
   - 序列化层接受 PERSON / DEPARTMENT 作为 field_type (DRF ChoiceField 契约)
 """
 import pytest
-from apps.dynamic_field.models import DynamicField
-from apps.dynamic_field.serializers import DynamicFieldSerializer
+
 from apps.core.models import User
 from apps.core.models_permission_v2 import ManagementUnit
+from apps.dynamic_field.models import DynamicField
+from apps.dynamic_field.serializers import DynamicFieldSerializer
 
 
 @pytest.mark.django_db

@@ -8,6 +8,7 @@
 import uuid
 
 import pytest
+
 from apps.automation.models import AutomationLog, AutomationRule
 from apps.process.models import RecruitmentProcess, RecruitmentStage
 from apps.rule_engine.bridge import (

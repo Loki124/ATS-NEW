@@ -8,6 +8,7 @@ import uuid
 from unittest.mock import Mock, patch
 
 import pytest
+
 from apps.automation.models import AutomationRule
 from apps.automation.services import AutomationEngine, TriggerContext
 from apps.process.models import RecruitmentProcess, RecruitmentStage

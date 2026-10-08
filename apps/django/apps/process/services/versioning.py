@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import logging
 from copy import deepcopy
-from typing import List, Tuple
+from typing import List
 
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.utils import timezone
+
+from ..models import RecruitmentProcess
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +261,7 @@ def clone_process_with_new_version(
     process,
     new_name: str = None,
     actor=None,
-) -> 'RecruitmentProcess':
+) -> RecruitmentProcess:
     """克隆流程并生成新版本（深拷贝所有 stage_links 和 stage_rules）
 
     用于：

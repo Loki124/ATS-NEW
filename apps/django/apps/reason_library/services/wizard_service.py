@@ -15,8 +15,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Dict, List
 
 from django.db import IntegrityError, transaction
 from django.utils.dateparse import parse_datetime
@@ -43,7 +43,7 @@ class WizardService:
         self,
         rule_id: str,
         payload: Dict[str, Any],
-        if_match: Optional[str] = None,
+        if_match: str | None = None,
         user: Any = None,
     ) -> SceneRule:
         """保存 rule + 完整树 + 场景绑定。
@@ -72,7 +72,7 @@ class WizardService:
                 )
             # tz 统一: DB updated_at 是 aware UTC, naive 需补 tz 才能比较
             if expected.tzinfo is None:
-                expected = expected.replace(tzinfo=timezone.utc)
+                expected = expected.replace(tzinfo=UTC)
             exp_trunc = expected.replace(microsecond=0)
             act_trunc = rule.updated_at.replace(microsecond=0)
             if exp_trunc != act_trunc:
@@ -343,7 +343,7 @@ class WizardService:
 
     # -----------------------------------------------------------------------
     # helpers
-    def _parse_dt(self, raw: str) -> Optional[datetime]:
+    def _parse_dt(self, raw: str) -> datetime | None:
         dt = parse_datetime(raw)
         if dt is not None:
             return dt

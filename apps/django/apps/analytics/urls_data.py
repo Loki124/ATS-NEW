@@ -10,7 +10,7 @@ FE web/app/src/api/data.ts 调:
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import KpiViewSet, DataSubscriptionViewSet
+from .views import DataSubscriptionViewSet, KpiViewSet
 from .views_export import DataExportView
 
 router = DefaultRouter()

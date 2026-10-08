@@ -1,7 +1,8 @@
 """Core 通用 URL - 2026-07-01: 加 /users/departments/ alias (FE 期望 path)"""
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-from .views import UserViewSet, DepartmentViewSet, RoleViewSet, PermissionViewSet
+
+from .views import DepartmentViewSet, PermissionViewSet, RoleViewSet, UserViewSet
 
 # 2026-06-30 花无缺: 改回具名前缀 (之前误改成 r'' 致 user-detail 错吃 candidates/invitations 路径).
 #   router r'users' + r'^$' 模式 在 v1 namespace 下编译为 '^api/v1/users/$' (有 users/ 前缀),

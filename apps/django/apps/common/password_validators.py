@@ -8,6 +8,7 @@ CommonPassword + Numeric, 8 位且无复杂度要求, 对以"候选人隐私"为
 仅 prod.py 引用; base.py (dev/test) 保持宽松以不干扰测试 fixture。
 """
 import re
+
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 

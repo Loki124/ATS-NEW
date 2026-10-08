@@ -1,9 +1,9 @@
 """Time Limit Views"""
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema
 
 from apps.candidate.models import Candidate
 from apps.common.exceptions import NotFound
@@ -18,7 +18,6 @@ from .serializers import (
     TimeLimitRuleSerializer,
 )
 from .services import (
-    TimeLimitCalcResult,
     calc_time_limit,
     compute_locked_until,
 )

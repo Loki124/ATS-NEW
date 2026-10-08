@@ -11,10 +11,10 @@
 双写链路严格可选：仅当 RULE_ENGINE_DOUBLE_WRITE 为真时执行；任何异常都被吞掉并仅记
 日志。软删传播由 bridge 在下次 sync 时统一处理（soft_delete() 触发 post_save）。
 """
-from django.db import DatabaseError
 import logging
 
 from django.conf import settings
+from django.db import DatabaseError
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 

@@ -10,15 +10,17 @@ dev 库 Application=0，一切自建（参考 test_change_process.py 的 seed �
 """
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 from django.utils import timezone
-from unittest.mock import MagicMock
+from nanoid import generate as nanoid_generate
 
 from apps.application.models import (
     Application,
     ApplicationHistory,
-    ApplicationState,
     ApplicationStageRecord,
+    ApplicationState,
 )
 from apps.application.services import ApplicationService
 from apps.candidate.models import Candidate
@@ -31,7 +33,6 @@ from apps.process.models import (
     StageRule,
     StageType,
 )
-from nanoid import generate as nanoid_generate
 
 pytestmark = pytest.mark.django_db
 

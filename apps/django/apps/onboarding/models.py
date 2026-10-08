@@ -1,8 +1,9 @@
 """Onboarding Models (PRD v4 §6.7)"""
 from django.db import models
 from django_fsm import FSMField, FSMModelMixin, transition
-from apps.common.models import FullAuditModel
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import FullAuditModel
 
 
 def gen_id():
@@ -67,7 +68,6 @@ class Onboarding(FSMModelMixin, FullAuditModel):
 
     @transition(field=state, source=OnboardingState.PREPARING, target=OnboardingState.COMPLETED)
     def complete(self):
-        from django.utils import timezone
         self.actual_start_date = self.start_date
 
     @transition(field=state, source=[OnboardingState.PREPARING, OnboardingState.DELAYED], target=OnboardingState.DELAYED)

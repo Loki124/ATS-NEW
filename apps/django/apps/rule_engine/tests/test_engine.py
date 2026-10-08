@@ -127,7 +127,7 @@ def test_dispatch_main_path_matches_and_executes():
     assert r.rule_id == rule.id
     assert r.matched is True
     # 执行器被调用
-    assert CALLS == [(rule.id, UnifiedActionType.ALLOW)]
+    assert [(rule.id, UnifiedActionType.ALLOW)] == CALLS
     # 写了日志
     assert r.log_id is not None
     log = RuleExecutionLog.objects.get(pk=r.log_id)

@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import List
 
 from django.db import transaction
 from django.utils import timezone
@@ -41,7 +40,7 @@ class DemandCreateData:
     priority: str = 'P1'
     demand_type: str = 'SOCIAL'
     recruit_type: str = 'social'
-    actor: Optional[User] = None
+    actor: User | None = None
 
 
 class DemandService:
@@ -51,8 +50,8 @@ class DemandService:
     @transaction.atomic
     def create_demand(data: DemandCreateData) -> Demand:
         """创建需求 (DRAFT 状态)"""
-        from apps.process.models import RecruitmentProcess
         from apps.core.models import Department
+        from apps.process.models import RecruitmentProcess
 
         try:
             process = RecruitmentProcess.objects.get(id=data.process_id, deleted_at__isnull=True)
@@ -191,8 +190,8 @@ class DemandService:
     @transaction.atomic
     def upgrade_demand_process(
         demand: Demand,
-        actor: Optional[User] = None,
-        target_process: Optional[RecruitmentProcess] = None,
+        actor: User | None = None,
+        target_process: RecruitmentProcess | None = None,
     ) -> tuple[Demand, List[str]]:
         """需求升级到最新流程版本（决策 3 / §4.2）。
 
@@ -274,7 +273,6 @@ class DemandService:
     @staticmethod
     def update_filled_count(demand_id: str) -> Demand:
         """从职位同步 filled_count"""
-        from apps.position.models import Position
         demand = Demand.objects.get(id=demand_id)
         demand.filled_count = sum(
             p.filled_count for p in demand.positions.filter(deleted_at__isnull=True)

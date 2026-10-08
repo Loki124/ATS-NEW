@@ -12,10 +12,8 @@ from __future__ import annotations
 
 import logging
 from copy import deepcopy
-from typing import List
 
 from django.db import transaction
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +21,12 @@ logger = logging.getLogger(__name__)
 @transaction.atomic
 def apply_template_to_process(template, name: str, code: str, actor=None):
     """从模板创建流程"""
+    from apps.automation.models import AutomationRule
     from apps.entry_condition.models import (
         ConditionItem,
         EntryConditionRule,
     )
     from apps.time_limit.models import TimeLimitRule
-    from apps.automation.models import AutomationRule
 
     from ..models import (
         ProcessStageLink,
@@ -122,7 +120,6 @@ def apply_template_to_process(template, name: str, code: str, actor=None):
 
     # 5. 创建 time_limit_rules
     for tl_data in rules_data.get('time_limit_rules', []):
-        link_id = tl_data.get('link_id')  # 可能是模板里的占位 id
         # 真实 link 可能是按顺序匹配第一个匹配的 stage
         # 这里简化：按 stage_name 匹配
         stage_name = tl_data.get('stage_name')
@@ -189,12 +186,8 @@ def apply_template_to_process(template, name: str, code: str, actor=None):
 
 def export_process_to_template_snapshot(process) -> dict:
     """把现有流程导出为模板快照（用于"另存为模板"）"""
-    from apps.entry_condition.models import (
-        ConditionItem,
-        EntryConditionRule,
-    )
-    from apps.time_limit.models import TimeLimitRule
     from apps.automation.models import AutomationRule
+    from apps.time_limit.models import TimeLimitRule
 
     stages = []
     for link in process.stage_links.filter(deleted_at__isnull=True).order_by('order'):

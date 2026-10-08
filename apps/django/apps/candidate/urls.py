@@ -3,14 +3,14 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    CandidateTagViewSet,
-    CandidateViewSet,
-    CandidateResumeFieldsView,
-    CandidateBatchRecommendView,
     CandidateBatchArchiveView,
     CandidateBatchAssignView,
-    CandidateBatchScreenView,
     CandidateBatchExportView,
+    CandidateBatchRecommendView,
+    CandidateBatchScreenView,
+    CandidateResumeFieldsView,
+    CandidateTagViewSet,
+    CandidateViewSet,
 )
 
 # config/urls.py: path('candidates/', include(...))

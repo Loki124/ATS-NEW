@@ -1,9 +1,8 @@
 """Add Candidate V2 - Celery tasks"""
-from django.db import DatabaseError
 import logging
 
 from celery import shared_task
-from django.db import transaction
+from django.db import DatabaseError, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +18,8 @@ def parse_resume_task(self, job_id):
     progress/phase 倒序覆盖。
     """
     from .models import ParseJob
-    from .services.resume_parser import ResumeParserService, ParseError
     from .services.duplicate_check import DuplicateCheckService
+    from .services.resume_parser import ParseError, ResumeParserService
 
     try:
         with transaction.atomic():
@@ -76,13 +75,15 @@ def score_batch_task(self, candidate_ids, submit_mode, task_id):
     数据源：P1 最小策略 — candidate.extra['resume'] + position.extra['jd'] JSONField。
     无数据时退化为空 dict → 低分兜底。
     """
-    from .sse import broadcast_event
-    from .services.scoring import ScoringService
-    from apps.candidate.models import Candidate
     from apps.application.models import Application
+    from apps.candidate.models import Candidate
+    from apps.metrics.services.candidate_snapshot import build_candidate_snapshots
+
     # 2026-09-25: 评分触发点（函数内导入，避免模块级循环依赖）
     from apps.metrics.services.rule_trigger import evaluate_scene
-    from apps.metrics.services.candidate_snapshot import build_candidate_snapshots
+
+    from .services.scoring import ScoringService
+    from .sse import broadcast_event
 
     # per P1 audit 候选快照 N+1 修复: 整批一次 IN 预取 (O(1) 查询), 逐候选复用,
     # 避免评分一批 N 候选时重复 O(N) 快照查询.

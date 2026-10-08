@@ -11,22 +11,28 @@
   - bu 对齐：position.department.name 须与 DEPTS 对齐
   - 迁移回填 RunPython 真实数据不炸（项目铁律）
 """
+import importlib
 from datetime import date
 from decimal import Decimal
 
-import importlib
 import pytest
 from django.apps import apps as django_apps
 from django.db import IntegrityError
 
+from apps.campus_control.calc import compute_rollover_target
 from apps.campus_control.models import (
-    ControlDimension, ControlIndicator, ControlRule, Person,
+    ControlDimension,
+    ControlIndicator,
+    ControlRule,
+    Person,
 )
 from apps.campus_control.services import (
-    ControlRuleViolation, copy_rule, toggle_rule, validate_offer_against_rules,
+    ControlRuleViolation,
+    copy_rule,
+    toggle_rule,
+    validate_offer_against_rules,
     validate_rule_unique,
 )
-from apps.campus_control.calc import compute_rollover_target
 
 # 模块级 transaction=True：本文件测试大量使用 save() 内 select_for_update 自动补号，
 # 在 SQLite :memory: + db fixture 的 savepoint 模式下会逃逸回滚导致数据跨测试残留。

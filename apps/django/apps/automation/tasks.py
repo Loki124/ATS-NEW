@@ -6,11 +6,11 @@ P0-2 修复: 所有调度任务已从裸 @shared_task 改为
 - 连续失败 N 次后通知超管
 - 任务成功自动清理失败计数
 """
-from django.db import DatabaseError
 import logging
 from typing import Dict
 
 from celery import shared_task
+from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.common.celery_utils import retryable_scheduled_task
@@ -101,9 +101,9 @@ def _skipped_result(rule, reason: str):
 @shared_task(name='apps.automation.tasks.check_automation_failure_rate')
 def check_automation_failure_rate() -> Dict:
     """检查自动化规则失败率，超过阈值则告警"""
-    from .models import AutomationRule, AutomationLog
-    from apps.notification.services import NotificationService
     from apps.core.models import User
+
+    from .models import AutomationLog, AutomationRule
 
     # P1-3: .iterator() 流式查询
     rules = AutomationRule.objects.filter(enabled=True).iterator(chunk_size=200)

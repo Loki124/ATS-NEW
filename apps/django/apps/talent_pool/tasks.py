@@ -1,10 +1,10 @@
 """Talent Pool Celery tasks (PRD v4 §14.7)"""
-from django.db import DatabaseError
 import logging
 from datetime import timedelta
 from typing import Dict, List
 
 from celery import shared_task
+from django.db import DatabaseError
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 @shared_task(name='apps.talent_pool.tasks.recommend_candidates')
 def recommend_candidates() -> Dict:
     """智能推荐人才库候选人给开放职位（每小时）"""
-    from .models import TalentPoolEntry
-    from apps.position.models import Position, PositionState
     from apps.notification.services import NotificationService
+    from apps.position.models import Position, PositionState
+
+    from .models import TalentPoolEntry
 
     open_positions = Position.objects.filter(
         state=PositionState.RECRUITING,

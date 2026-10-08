@@ -9,11 +9,11 @@
 """
 import pytest
 from django.utils import timezone
+from nanoid import generate as nanoid_generate
 from rest_framework.test import APIRequestFactory
 
 from apps.metrics.models import AtomicMetric, DerivedMetric, MetricTemplate
 from apps.process.views import EntryConditionFieldCatalogView
-from nanoid import generate as nanoid_generate
 
 
 def _cid() -> str:

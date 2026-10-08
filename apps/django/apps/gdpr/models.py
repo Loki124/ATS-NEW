@@ -1,14 +1,11 @@
 """GDPR Models (PRD v4 §4.4)"""
 import hashlib
-import hmac
-import secrets
 
 from django.db import models
 from django.utils import timezone
-from datetime import timedelta
-
-from apps.common.models import TimestampedModel, SoftDeleteModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import SoftDeleteManager, SoftDeleteModel, TimestampedModel
 
 
 def gen_id():

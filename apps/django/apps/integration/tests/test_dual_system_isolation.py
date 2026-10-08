@@ -17,7 +17,7 @@ from django.db.models import Q
 from django.test import RequestFactory
 
 from apps.candidate.models import Candidate
-from apps.candidate.services import CandidateService, CandidateCreateData
+from apps.candidate.services import CandidateCreateData, CandidateService
 from apps.core.middleware import RecruitTypeMiddleware
 from apps.core.permissions_v2 import ScopeQuerysetMixin
 from apps.core.scope_resolver import recruit_type_filter_q, scope_filter_q

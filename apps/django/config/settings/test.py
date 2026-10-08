@@ -21,6 +21,28 @@ DATABASES = {
     }
 }
 
+# 2026-10-08 (#26): CI 测试库对齐生产 MySQL 8。
+#   test-backend job 已起 mysql:8.0 service, 但此前 test settings 写死 SQLite →
+#   "CI 绿、生产炸" 风险 (排序规则 / JSON 函数 / 时区等行为差异)。
+#   设 DB_ENGINE=mysql 即切到 MySQL; 其余连接参数由 DB_* 环境变量注入
+#   (CI 用 mysql service 的 root + 空密码 + 127.0.0.1:3306)。本地快速通道仍默认 SQLite。
+if os.environ.get('DB_ENGINE', 'sqlite') == 'mysql':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DB_NAME', 'ats_test'),
+            'USER': os.environ.get('DB_USER', 'root'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+            'PORT': os.environ.get('DB_PORT', '3306'),
+            'OPTIONS': {'charset': 'utf8mb4'},
+            'TEST': {
+                'CHARSET': 'utf8mb4',
+                'COLLATION': 'utf8mb4_unicode_ci',
+            },
+        }
+    }
+
 # 关闭密码哈希，加速测试
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
@@ -53,6 +75,11 @@ REST_FRAMEWORK = {
 
 # 关掉 v2 权限 bootstrap (单测中显式调, 见 spec §4.2)
 PERMISSION_V2_BOOTSTRAP_DISABLED = True
+
+# 2026-10-08: 关闭权限码集合缓存。否则某个用例跑过 seed_v2_init 后, 缓存里会留下
+#   全量 resource_code, 后续用例按 action 派生出 :edit/:delete 并因未授权而 403
+#   —— 表现为 batch-screen 等用例**依赖执行顺序**偶发失败。
+V2_PERM_CODES_CACHE_TTL = 0
 
 # 更快邮件
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'

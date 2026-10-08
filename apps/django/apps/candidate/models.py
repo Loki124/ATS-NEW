@@ -1,11 +1,12 @@
 """Candidate Models (PRD v4 §14.3)"""
 from django.db import models
 from django_fsm import FSMField, FSMModelMixin, transition
-from apps.common.models import TimestampedModel, FullAuditModel, SoftDeleteModel, SoftDeleteManager
-from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
-from apps.common.encryption import EncryptedCharField
-from apps.campus_control.constants import SCHOOLS, MAJORS
 from nanoid import generate as nanoid_generate
+
+from apps.campus_control.constants import MAJORS, SCHOOLS
+from apps.common.encryption import EncryptedCharField
+from apps.common.models import FullAuditModel, SoftDeleteManager, SoftDeleteModel, TimestampedModel
+from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
 
 
 def gen_id():

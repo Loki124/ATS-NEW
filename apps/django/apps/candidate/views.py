@@ -23,33 +23,34 @@ logger = logging.getLogger(__name__)
 
 import logging
 
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models import Q
-from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
 from django.http import HttpResponse
 from django.utils import timezone
-from django.contrib.auth import get_user_model
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from apps.candidate.scope import assert_candidates_visible, scoped_candidates
 from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions import IsHROrAbove
-from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 from apps.core.scope_resolver import scope_filter_q
 
 from .models import (
     Candidate,
-    CandidateTag,
     CandidateFieldValue,
-    CandidateScreening,
     CandidatePositionRecommendation,
+    CandidateScreening,
+    CandidateTag,
 )
 from .serializers import (
     CandidateCreateSerializer,
@@ -72,6 +73,11 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
     """候选人 ViewSet — 增加部门 scope 过滤防 IDOR"""
     queryset = Candidate.objects.filter(deleted_at__isnull=True).select_related(
         'source_channel', 'referrer',
+    ).prefetch_related(
+        # #9 (2026-10-09): CandidateListSerializer.get_application_count 逐行查
+        # obj.applications, 列表 N 行 -> N 次计数查询。prefetch 一次取回,
+        # 序列化器里的 .filter(deleted_at__isnull=True).count() 走缓存不落库。
+        'applications',
     )
     permission_classes = [V2Permission]
     permission_required = 'recruit:candidate:list'
@@ -370,9 +376,22 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         """合并重复候选人"""
         serializer = CandidateMergeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        primary_id = serializer.validated_data['primary_id']
+        duplicate_ids = serializer.validated_data['duplicate_ids']
+        # 2026-10-08: 合并会迁移申请/历史并软删被合并人, 属不可逆写操作。
+        #   此前完全不校验数据范围 —— 知道 id 就能合并任意部门的候选人。
+        invisible = assert_candidates_visible(request, [primary_id, *duplicate_ids])
+        if invisible:
+            logger.warning(
+                '拒绝越权合并 user=%s 不可见候选人=%s', request.user.id, invisible,
+            )
+            return Response(
+                {'error': f'无权访问候选人: {", ".join(invisible)}'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         result = CandidateService.merge_candidates(
-            primary_id=serializer.validated_data['primary_id'],
-            duplicate_ids=serializer.validated_data['duplicate_ids'],
+            primary_id=primary_id,
+            duplicate_ids=duplicate_ids,
             actor=request.user,
         )
         return Response({
@@ -437,11 +456,13 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
             created_to = datetime.fromisoformat(created_to.replace('Z', '+00:00'))
         limit = int(data.get('limit', 50))
         offset = int(data.get('offset', 0))
+        # 2026-10-08: 搜索也必须走数据范围, 否则 HR 能搜到其他部门的候选人。
         results = CandidateService.search_candidates(
             keyword=keyword, state=state,
             source_channel_id=source_channel_id, referrer_id=referrer_id,
             tag=tag, created_from=created_from, created_to=created_to,
             limit=limit, offset=offset,
+            base_qs=scoped_candidates(request),
         )
         return Response({
             'count': len(results),
@@ -528,9 +549,14 @@ class CandidateResumeFieldsView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def _check_candidate(self, pk):
-        # 候选人不存在时返回 404 (避免 FK 约束校验失败导致 500)
-        if not Candidate.objects.filter(id=pk).exists():
+    def _check_candidate(self, request, pk):
+        """校验候选人存在**且在当前用户数据范围内**。
+
+        2026-10-08: 原实现只查 `Candidate.objects.filter(id=pk).exists()` ——
+        任意登录用户拿到 id 就能读写他人扩展简历字段 (纯 IDOR)。
+        """
+        if not scoped_candidates(request).filter(id=pk).exists():
+            # 越权与不存在都返 404, 不泄露"该 id 是否存在"
             return Response(
                 {'success': False, 'message': '候选人不存在'},
                 status=status.HTTP_404_NOT_FOUND,
@@ -538,7 +564,7 @@ class CandidateResumeFieldsView(APIView):
         return None
 
     def get(self, request, pk=None):
-        err = self._check_candidate(pk)
+        err = self._check_candidate(request, pk)
         if err is not None:
             return err
         values = CandidateFieldValue.objects.filter(candidate_id=pk)
@@ -546,7 +572,7 @@ class CandidateResumeFieldsView(APIView):
         return Response({'success': True, 'data': data})
 
     def put(self, request, pk=None):
-        err = self._check_candidate(pk)
+        err = self._check_candidate(request, pk)
         if err is not None:
             return err
         payload = request.data or {}
@@ -605,10 +631,20 @@ class CandidateBatchRecommendView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # 2026-10-08: 越权的 id 直接报失败, 不再写入推荐记录。
+        invisible = set(assert_candidates_visible(request, candidate_ids))
         results = []
         for cid in candidate_ids:
+            if cid in invisible:
+                results.append({
+                    'candidate_id': cid,
+                    'success': False,
+                    'recommendation_id': None,
+                    'error': 'FORBIDDEN_SCOPE',
+                })
+                continue
             try:
-                cand = Candidate.objects.get(pk=cid)
+                cand = scoped_candidates(request).get(pk=cid)
                 rec = CandidatePositionRecommendation.objects.create(
                     candidate=cand,
                     position=position,
@@ -644,12 +680,16 @@ class CandidateBatchArchiveView(APIView):
         if not candidate_ids:
             raise ValidationError('candidate_ids 不能为空')
 
-        qs = Candidate.objects.filter(id__in=candidate_ids)
-        rt = _current_recruit_type(request)
-        if rt:
-            qs = qs.filter(recruit_type=rt)
+        # 2026-10-08: 只归档数据范围内的候选人; 越权的 id 显式报失败, 不静默跳过。
+        invisible = set(assert_candidates_visible(request, candidate_ids))
+        qs = scoped_candidates(request).filter(id__in=candidate_ids)
         updated = qs.update(is_archived=True, archived_at=timezone.now())
-        results = [{'candidate_id': cid, 'success': True} for cid in candidate_ids]
+        results = [
+            {'candidate_id': cid,
+             'success': cid not in invisible,
+             'error': None if cid not in invisible else 'FORBIDDEN_SCOPE'}
+            for cid in candidate_ids
+        ]
         return Response({'success': True, 'data': {'results': results, 'updated': updated}})
 
 
@@ -678,12 +718,16 @@ class CandidateBatchAssignView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        qs = Candidate.objects.filter(id__in=candidate_ids)
-        rt = _current_recruit_type(request)
-        if rt:
-            qs = qs.filter(recruit_type=rt)
+        # 2026-10-08: 只分配数据范围内的候选人; 越权的 id 显式报失败。
+        invisible = set(assert_candidates_visible(request, candidate_ids))
+        qs = scoped_candidates(request).filter(id__in=candidate_ids)
         updated = qs.update(recruiter=recruiter)
-        results = [{'candidate_id': cid, 'success': True} for cid in candidate_ids]
+        results = [
+            {'candidate_id': cid,
+             'success': cid not in invisible,
+             'error': None if cid not in invisible else 'FORBIDDEN_SCOPE'}
+            for cid in candidate_ids
+        ]
         return Response({'success': True, 'data': {'results': results, 'updated': updated}})
 
 
@@ -704,10 +748,20 @@ class CandidateBatchScreenView(APIView):
         if result not in ('PASS', 'FAIL', 'KEEP'):
             raise ValidationError("result 必须是 'PASS' / 'FAIL' / 'KEEP'")
 
+        # 2026-10-08: 越权的 id 直接报失败, 不再写入初筛记录。
+        invisible = set(assert_candidates_visible(request, candidate_ids))
         results = []
         for cid in candidate_ids:
+            if cid in invisible:
+                results.append({
+                    'candidate_id': cid,
+                    'success': False,
+                    'screening_id': None,
+                    'error': 'FORBIDDEN_SCOPE',
+                })
+                continue
             try:
-                cand = Candidate.objects.get(pk=cid)
+                cand = scoped_candidates(request).get(pk=cid)
                 rec = CandidateScreening.objects.create(
                     candidate=cand,
                     result=result,
@@ -740,17 +794,16 @@ class CandidateBatchExportView(APIView):
     permission_classes = [IsHROrAbove]
 
     def post(self, request):
-        from django.db.models import Q
-        import csv
         import io
+
+        from django.db.models import Q
 
         candidate_ids = request.data.get('candidate_ids') or []
         filter_ = request.data.get('filter') or {}
 
-        qs = Candidate.objects.all()
-        rt = _current_recruit_type(request)
-        if rt:
-            qs = qs.filter(recruit_type=rt)
+        # 2026-10-08: 导出必须走数据范围。此前 `Candidate.objects.all()` 让任意
+        #   HR 能导出全公司候选人的手机号/邮箱。
+        qs = scoped_candidates(request)
         if candidate_ids:
             qs = qs.filter(id__in=candidate_ids)
         elif filter_:
@@ -762,7 +815,10 @@ class CandidateBatchExportView(APIView):
         qs = qs.select_related('recruiter')[:2000]
 
         buf = io.StringIO()
-        writer = csv.writer(buf)
+        # 2026-10-08: 用净化 writer —— 姓名/公司/职位是用户可控内容, 以 = + - @ 开头时
+        #   会被 Excel 当公式执行 (数据外带)。
+        from apps.common.csv_safe import SafeCsvWriter
+        writer = SafeCsvWriter(buf)
         writer.writerow([
             '姓名', '手机号', '邮箱', '性别', '最高学历', '当前公司', '当前职位',
             '期望薪资', '当前城市', '招聘类型', '状态', '是否归档', '招聘官', '创建时间',

@@ -64,8 +64,9 @@ class ExportTaskViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
     def dashboard_summary(self, request):
         """HR 个人看板汇总数据（简版）"""
         from django.db.models import Count
-        from apps.candidate.models import Candidate
+
         from apps.application.models import Application
+        from apps.candidate.models import Candidate
         from apps.demand.models import Demand
         from apps.position.models import Position
 
@@ -161,6 +162,13 @@ class DataSubscriptionViewSet(viewsets.ModelViewSet):
     queryset = DataSubscription.objects.filter(is_active=True)
     serializer_class = DataSubscriptionSerializer
     permission_classes = [V2Permission]
+    # 2026-10-08: 写操作显式授权 (此前未声明 → 任意登录用户可增删改他人数据订阅)。
+    permission_required_map = {
+        'create': 'recruit:settings:data-dashboard:create',
+        'update': 'recruit:settings:data-dashboard:edit',
+        'partial_update': 'recruit:settings:data-dashboard:edit',
+        'destroy': 'recruit:settings:data-dashboard:delete',
+    }
     pagination_class = StandardResultsSetPagination
 
     def perform_create(self, serializer):

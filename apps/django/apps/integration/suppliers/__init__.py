@@ -3,14 +3,14 @@
 对外导出统一契约与默认工厂，便于 services / tests 直接引用。
 """
 from .base import (
-    BaseBackgroundCheckSupplier,
     BackgroundCheckResult,
+    BaseBackgroundCheckSupplier,
     CreateOrderRequest,
-    verify_callback_signature,
     replay_allowed,
+    verify_callback_signature,
 )
-from .hmac_adapter import HmacBackgroundCheckSupplier
 from .factory import get_supplier, register_provider
+from .hmac_adapter import HmacBackgroundCheckSupplier
 
 __all__ = [
     'BaseBackgroundCheckSupplier',

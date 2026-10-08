@@ -16,7 +16,7 @@
 """
 from rest_framework import serializers
 
-from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule
+from .models import DynamicField, FieldGroup, FieldLinkageRule, FieldModule
 from .system_fields import SYSTEM_FIELD_LOCKED_KEYS
 from .validators import normalize_validation
 
@@ -67,7 +67,6 @@ class FieldGroupSerializer(serializers.ModelSerializer):
         import re
 
         from django.utils.text import slugify
-
         from nanoid import generate as nanoid_generate
 
         base = re.sub(r'[^a-z0-9_]+', '_', slugify(name or '').replace('-', '_')).strip('_')

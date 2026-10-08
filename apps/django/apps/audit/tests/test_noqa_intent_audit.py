@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-
 AUDIT_DIR = Path('apps/audit')
 
 
@@ -80,6 +79,7 @@ def test_audit_kill_switch_cache_read_failure_returns_false(monkeypatch):
     这是 audit noqa 的典型场景: cache 容错不能 500 业务请求.
     """
     from django.core.cache import cache as django_cache
+
     from apps.audit.middleware import _is_killed
 
     # mock cache.get 抛 ConnectionError (mocked)
@@ -100,6 +100,7 @@ def test_record_failure_cache_failure_returns_negative_one(monkeypatch):
       2. 不外抛异常
     """
     from django.core.cache import cache as django_cache
+
     from apps.audit.middleware import _record_failure
 
     def buggy_incr(*args, **kwargs):

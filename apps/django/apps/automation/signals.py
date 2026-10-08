@@ -8,8 +8,8 @@
 """
 import logging
 
-from django.db import IntegrityError, OperationalError
 from django.conf import settings
+from django.db import IntegrityError, OperationalError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 

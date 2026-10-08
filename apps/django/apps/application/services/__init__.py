@@ -20,7 +20,7 @@ import logging
 import secrets
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 from django.db import transaction
 from django.utils import timezone
@@ -28,16 +28,14 @@ from django_fsm import TransitionNotAllowed
 
 from apps.common.exceptions import (
     NotFound,
-    PermissionDenied,
     StateTransitionError,
 )
-from apps.process.models import ProcessStageLink, RecruitmentProcess
-from apps.process.services.sequential_invitation import get_next_sequential_processor as _get_next_processor
-from apps.time_limit.services import calc_time_limit
 from apps.core.models import User
 from apps.position.models import Position
+from apps.process.models import ProcessStageLink, RecruitmentProcess
+from apps.time_limit.services import calc_time_limit
 
-from ..models import Application, ApplicationHistory, ApplicationState, ApplicationStageRecord
+from ..models import Application, ApplicationHistory, ApplicationStageRecord, ApplicationState
 from .stage_mapping import StageMappingError, resolve_stage_mapping
 
 logger = logging.getLogger(__name__)
@@ -81,21 +79,21 @@ class ApplicationCreateData:
     """创建申请入参"""
     candidate_id: str
     position_id: str
-    process_id: Optional[str] = None  # 不传则用 position.process
-    initial_stage_id: Optional[str] = None  # 不传则用流程首个必经阶段
-    actor: Optional[User] = None
-    extra: Optional[Dict[str, Any]] = None
+    process_id: str | None = None  # 不传则用 position.process
+    initial_stage_id: str | None = None  # 不传则用流程首个必经阶段
+    actor: User | None = None
+    extra: Dict[str, Any] | None = None
 
 
 @dataclass
 class AdvanceResult:
     """推进结果"""
     application: Application
-    from_stage_id: Optional[str]
-    to_stage_id: Optional[str]
+    from_stage_id: str | None
+    to_stage_id: str | None
     to_stage_name: str
     record: ApplicationStageRecord
-    matched_rule_id: Optional[str] = None
+    matched_rule_id: str | None = None
     automation_triggered: bool = False
 
 
@@ -198,7 +196,7 @@ class ApplicationService:
         )
 
         # 创建初始 stage_record
-        record = ApplicationStageRecord.objects.create(
+        ApplicationStageRecord.objects.create(
             application=application,
             link=first_link,
             stage=first_link.stage,
@@ -236,7 +234,7 @@ class ApplicationService:
     @staticmethod
     @transaction.atomic
     def start_application(application: Application,
-                          actor: Optional[User] = None) -> Application:
+                          actor: User | None = None) -> Application:
         """启动申请"""
         if application.state != ApplicationState.PENDING:
             raise StateTransitionError(
@@ -258,7 +256,7 @@ class ApplicationService:
 
         # 触发自动化
         try:
-            from apps.automation.services import run_automation_for_trigger, TriggerContext
+            from apps.automation.services import TriggerContext, run_automation_for_trigger
             ctx = TriggerContext(
                 trigger_type='STAGE_ENTERED',
                 candidate_id=application.candidate_id,
@@ -288,7 +286,7 @@ class ApplicationService:
     @transaction.atomic
     def advance_application_to_next_stage(
         application: Application,
-        actor: Optional[User] = None,
+        actor: User | None = None,
         skip_entry_condition: bool = False,
         reason: str = '',
     ) -> AdvanceResult:
@@ -470,7 +468,7 @@ class ApplicationService:
 
         # 触发自动化
         try:
-            from apps.automation.services import run_automation_for_trigger, TriggerContext
+            from apps.automation.services import TriggerContext, run_automation_for_trigger
             ctx = TriggerContext(
                 trigger_type='STAGE_ENTERED',
                 candidate_id=application.candidate_id,
@@ -505,7 +503,7 @@ class ApplicationService:
     def jump_application_to_stage(
         application: Application,
         target_stage_id: str,
-        actor: Optional[User] = None,
+        actor: User | None = None,
         skip_entry_condition: bool = False,
         reason: str = '',
     ) -> AdvanceResult:
@@ -614,7 +612,7 @@ class ApplicationService:
     @staticmethod
     @transaction.atomic
     def soft_reject(application: Application, reason: str,
-                    actor: Optional[User] = None) -> Application:
+                    actor: User | None = None) -> Application:
         """软拒当前阶段（PRD §6.3 规则1：保留所有历史记录）
 
         - 当前 record 标记 REJECTED
@@ -658,7 +656,7 @@ class ApplicationService:
     @staticmethod
     @transaction.atomic
     def withdraw(application: Application, reason: str,
-                 actor: Optional[User] = None) -> Application:
+                 actor: User | None = None) -> Application:
         """候选人主动撤回"""
         if application.state not in WITHDRAWABLE_STATES:
             raise StateTransitionError(
@@ -700,7 +698,7 @@ class ApplicationService:
     @staticmethod
     @transaction.atomic
     def pause(application: Application, reason: str,
-              actor: Optional[User] = None) -> Application:
+              actor: User | None = None) -> Application:
         if application.state != ApplicationState.ACTIVE:
             raise StateTransitionError(
                 f'Cannot pause in state {application.state}',
@@ -720,7 +718,7 @@ class ApplicationService:
 
     @staticmethod
     @transaction.atomic
-    def resume(application: Application, actor: Optional[User] = None) -> Application:
+    def resume(application: Application, actor: User | None = None) -> Application:
         if application.state != ApplicationState.PAUSED:
             raise StateTransitionError(
                 f'Cannot resume in state {application.state}',
@@ -745,8 +743,8 @@ class ApplicationService:
     @transaction.atomic
     def upgrade_workflow_version(
         application: Application,
-        actor: Optional[User] = None,
-        target_process: Optional[RecruitmentProcess] = None,
+        actor: User | None = None,
+        target_process: RecruitmentProcess | None = None,
     ) -> Application:
         """把申请升到同一流程线（``code``）的最新版本行（BR-104 / §1.3）。
 
@@ -905,7 +903,7 @@ class ApplicationService:
         application: Application,
         target_process: RecruitmentProcess,
         target_stage_link: ProcessStageLink,
-        actor: Optional[User] = None,
+        actor: User | None = None,
         reason: str = '',
     ) -> Application:
         """跨流程线迁移（决策 2 / §3.2）。
@@ -1091,7 +1089,7 @@ class ApplicationService:
 
     @staticmethod
     def _apply_auto_archive(
-        application: Application, actor: Optional[User], rule_name: str = '',
+        application: Application, actor: User | None, rule_name: str = '',
     ) -> Application:
         """自动归档（archive_rules 命中）：整申请置归档终态。
 
@@ -1136,7 +1134,7 @@ class ApplicationService:
 
     @staticmethod
     def _apply_auto_skip_and_advance(
-        application: Application, from_link: Any, actor: Optional[User],
+        application: Application, from_link: Any, actor: User | None,
     ) -> Application:
         """自动跳过 + 级联推进（skip_rules 命中）。
 
@@ -1237,7 +1235,7 @@ class ApplicationService:
             # 被跳过的阶段永不触发，仅候选真实进入的落地阶段在开关开启时触发。
             if AUTO_SKIP_ADVANCE_TRIGGERS_STAGE_ENTERED:
                 try:
-                    from apps.automation.services import run_automation_for_trigger, TriggerContext
+                    from apps.automation.services import TriggerContext, run_automation_for_trigger
                     ctx = TriggerContext(
                         trigger_type='STAGE_ENTERED',
                         candidate_id=application.candidate_id,
@@ -1256,7 +1254,7 @@ class ApplicationService:
         return application
 
     @staticmethod
-    def _apply_stage_entry_skip_archive(application: Application, actor: Optional[User]) -> None:
+    def _apply_stage_entry_skip_archive(application: Application, actor: User | None) -> None:
         """阶段进入后的 skip/archive 挂接（advance / jump 两处生产入口共用）。
 
         在 ``evaluate_stage_entry`` 通过后调用：对当前已进入的 link 求值，
@@ -1305,12 +1303,12 @@ def create_application(data: ApplicationCreateData) -> Application:
     return ApplicationService.create_application(data)
 
 
-def start_application(application: Application, actor: Optional[User] = None) -> Application:
+def start_application(application: Application, actor: User | None = None) -> Application:
     return ApplicationService.start_application(application, actor)
 
 
 def advance_application_to_next_stage(
-    application: Application, actor: Optional[User] = None,
+    application: Application, actor: User | None = None,
     skip_entry_condition: bool = False, reason: str = '',
 ) -> AdvanceResult:
     return ApplicationService.advance_application_to_next_stage(
@@ -1320,34 +1318,34 @@ def advance_application_to_next_stage(
 
 def jump_application_to_stage(
     application: Application, target_stage_id: str,
-    actor: Optional[User] = None, skip_entry_condition: bool = False, reason: str = '',
+    actor: User | None = None, skip_entry_condition: bool = False, reason: str = '',
 ) -> AdvanceResult:
     return ApplicationService.jump_application_to_stage(
         application, target_stage_id, actor, skip_entry_condition, reason,
     )
 
 
-def soft_reject(application: Application, reason: str, actor: Optional[User] = None) -> Application:
+def soft_reject(application: Application, reason: str, actor: User | None = None) -> Application:
     return ApplicationService.soft_reject(application, reason, actor)
 
 
 def withdraw_application(application: Application, reason: str,
-                         actor: Optional[User] = None) -> Application:
+                         actor: User | None = None) -> Application:
     return ApplicationService.withdraw(application, reason, actor)
 
 
 def pause_application(application: Application, reason: str,
-                      actor: Optional[User] = None) -> Application:
+                      actor: User | None = None) -> Application:
     return ApplicationService.pause(application, reason, actor)
 
 
-def resume_application(application: Application, actor: Optional[User] = None) -> Application:
+def resume_application(application: Application, actor: User | None = None) -> Application:
     return ApplicationService.resume(application, actor)
 
 
 def upgrade_workflow_version(
     application: Application,
-    actor: Optional[User] = None,
-    target_process: Optional[RecruitmentProcess] = None,
+    actor: User | None = None,
+    target_process: RecruitmentProcess | None = None,
 ) -> Application:
     return ApplicationService.upgrade_workflow_version(application, actor, target_process)

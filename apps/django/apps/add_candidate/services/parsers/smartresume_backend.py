@@ -14,14 +14,14 @@ import json
 import logging
 import os
 import subprocess
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from ..resume_parser import (
     Education,
     Experience,
     LowConfidenceError,
-    ParseError,
     ParsedResume,
+    ParseError,
     _normalize_phone,
 )
 from .base import ResumeParserBackend
@@ -69,7 +69,7 @@ _DEGREE_MAP = {
 }
 
 
-def _map_degree(raw: Optional[str]) -> Optional[str]:
+def _map_degree(raw: str | None) -> str | None:
     if not raw:
         return None
     low = (raw or "").lower()
@@ -154,7 +154,7 @@ class SmartResumeBackend(ResumeParserBackend):
         return parsed
 
     @staticmethod
-    def _resolve_cwd(settings: Any, script: str) -> Optional[str]:
+    def _resolve_cwd(settings: Any, script: str) -> str | None:
         """解析 SmartResume 子进程工作目录（仓库根）。
 
         - 显式配置 ``SMARTRESUME_CWD`` 且目录存在 -> 直接用（最高优先级）。
@@ -255,7 +255,7 @@ def _period_from(obj: Any) -> str:
     return "未知"
 
 
-def _coerce_int(v: Any) -> Optional[int]:
+def _coerce_int(v: Any) -> int | None:
     if isinstance(v, int):
         return v
     if isinstance(v, str) and v.isdigit():
@@ -263,14 +263,14 @@ def _coerce_int(v: Any) -> Optional[int]:
     return None
 
 
-def _coerce_float(v: Any) -> Optional[float]:
+def _coerce_float(v: Any) -> float | None:
     try:
         return float(v)
     except (TypeError, ValueError):
         return None
 
 
-def _extract_json(text: str) -> Optional[Dict[str, Any]]:
+def _extract_json(text: str) -> Dict[str, Any] | None:
     """从 CLI 混合输出中提取第一个 JSON 对象。"""
     start = text.find("{")
     if start == -1:

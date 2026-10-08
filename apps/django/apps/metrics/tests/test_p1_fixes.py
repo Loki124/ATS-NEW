@@ -6,8 +6,9 @@ Fix2: build_candidate_snapshot 内部委托新增的 build_candidate_snapshots �
       rule_trigger.filter_candidates_by_scene / add_candidate.tasks.score_batch_task 复用预取,
       把逐候选 O(N) 快照查询降到 O(1)。
 """
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from apps.candidate.models import Candidate
 from apps.metrics.models import AtomicMetric, MetricTemplate

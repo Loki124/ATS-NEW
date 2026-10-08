@@ -3,11 +3,11 @@ from django.urls import path
 
 from .views import (
     register_view,
-    verify_register_code_view,
-    resend_register_code_view,
-    registration_list_view,
     registration_approve_view,
+    registration_list_view,
     registration_reject_view,
+    resend_register_code_view,
+    verify_register_code_view,
 )
 
 urlpatterns = [

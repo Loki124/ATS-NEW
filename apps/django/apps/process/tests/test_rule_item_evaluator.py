@@ -5,14 +5,15 @@
     - legacy CANDIDATE（field=candidate.age）命中 / 未命中
     - evaluate_rule 用 expression '(1 AND 2)' 组合两条 item
 """
-import pytest
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
+
+import pytest
+from nanoid import generate as nanoid_generate
 
 from apps.candidate.models import Candidate
 from apps.metrics.models import AtomicMetric, MetricTemplate
 from apps.process.services.rule_item_evaluator import RuleItemEvaluator
-from nanoid import generate as nanoid_generate
 
 
 def _cid() -> str:

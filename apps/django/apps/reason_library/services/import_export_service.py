@@ -14,14 +14,13 @@ from typing import Any, Dict
 
 from django.db import IntegrityError, transaction
 
-from ..exceptions import BizCode, BizException
 from ..models import (
-    CategoryAssignment,
     MAX_CATEGORY_LEVEL,
+    SCENE_OPTIONS,
+    CategoryAssignment,
     ReasonTag,
     RuleCategory,
     RuleSceneAssignment,
-    SCENE_OPTIONS,
     SceneRule,
 )
 

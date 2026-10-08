@@ -1,8 +1,10 @@
 """mou serializers - 2026-07-01 修 PUT 400 (mouType null 兜底)"""
 import re
 import uuid
+
 from rest_framework import serializers
-from .models import MouAgreement, MouContainer, MutualExclusionGroup, MouRule
+
+from .models import MouAgreement, MouContainer, MouRule, MutualExclusionGroup
 
 
 def _camel_to_snake(name):

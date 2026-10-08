@@ -8,8 +8,9 @@
 - status + current_node_id 两字段加 service guard，不引入 FSM 库
 """
 from django.db import models
-from apps.common.models import SoftDeleteModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import SoftDeleteManager, SoftDeleteModel
 
 
 def gen_id():

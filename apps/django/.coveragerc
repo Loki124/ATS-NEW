@@ -1,0 +1,25 @@
+[run]
+# 2026-10-08 (#25): 后端覆盖率门禁配套配置。
+# 只统计 apps/ 业务代码; 排除迁移、测试、样板文件。
+source = apps
+omit =
+    */migrations/*
+    */tests/*
+    */test_*.py
+    */apps.py
+    */wsgi.py
+    */asgi.py
+    */__init__.py
+    apps/manage.py
+
+[report]
+show_missing = True
+# 与 CI 的 --cov-fail-under 保持一致; 本地 `pytest --cov` 不带参数时也生效。
+fail_under = 70
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    @abstractmethod

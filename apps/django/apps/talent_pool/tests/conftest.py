@@ -6,6 +6,7 @@
 # 2026-08-03 R7：`pytest_plugins = ['tests.conftest']` 已上提到 rootdir 顶层
 # conftest（apps/django/conftest.py）；pytest 8+ 禁止在非顶层 conftest 声明。
 import pytest
+
 from apps.candidate.models import Candidate, CandidateState
 
 

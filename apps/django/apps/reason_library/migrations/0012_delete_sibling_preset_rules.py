@@ -11,7 +11,6 @@
 """
 from django.db import migrations
 
-
 SIBLING_NAMES = [
     '预置默认规则 · 取消面试',
     '预置默认规则 · 放入人才库',

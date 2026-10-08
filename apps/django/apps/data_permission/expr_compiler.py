@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from django.db.models import Q
 
@@ -154,7 +154,7 @@ def _eval_expr(expr: str, max_index: int, index_map: Dict[int, Q], strict: bool)
 # 对外校验接口
 # ---------------------------------------------------------------------------
 
-def validate_expr(expr: str, max_index: int) -> Optional[str]:
+def validate_expr(expr: str, max_index: int) -> str | None:
     """校验表达式（引用编号须 ∈ 1..max_index）。返回非法原因；合法返回 None。
 
     不依赖真实 index_map（只验证编号范围），故可独立用于前端等价校验 / 后端保存校验。
@@ -172,7 +172,7 @@ def validate_expr(expr: str, max_index: int) -> Optional[str]:
 # 编译：条件 -> Q，组 -> Q，组间 -> Q
 # ---------------------------------------------------------------------------
 
-def _op_to_q(field: str, operator: str, value=None, meta: dict | None = None) -> Optional[Q]:
+def _op_to_q(field: str, operator: str, value=None, meta: dict | None = None) -> Q | None:
     """把 UnifiedOperator（含关系维度小写 in/not_in）映射成 Django Q。
 
     属性条件右值=字面量（property filter）：record.field OP value。
@@ -235,9 +235,9 @@ def _op_to_q(field: str, operator: str, value=None, meta: dict | None = None) ->
 
 def _compile_condition(
     cond: dict,
-    field_map: Dict[str, Optional[str]],
+    field_map: Dict[str, str | None],
     attribute_map: Dict[str, dict] | None = None,
-) -> Optional[Q]:
+) -> Q | None:
     """单条条件 -> Q。
 
     - 关系维度（kind 缺省 / 'relationship'）：沿用原逻辑（维度 -> ORM 字段 -> in/not_in）。
@@ -303,7 +303,7 @@ def _build_attribute_map(entity: str) -> Dict[str, dict]:
         return {}
 
 
-def compile_scope_q(payload: dict, entity: str) -> Optional[Q]:
+def compile_scope_q(payload: dict, entity: str) -> Q | None:
     """把 {expr, groups} 编译为 Q。无有效条件/表达式 -> 返回 None（调用方回退默认 scope）。
 
     payload 结构：
@@ -358,7 +358,7 @@ def compile_scope_q(payload: dict, entity: str) -> Optional[Q]:
 # 保存期校验（payload 结构 + 语法 + 维度支持性）
 # ---------------------------------------------------------------------------
 
-def validate_scope_payload(payload: dict, entity: str) -> Optional[str]:
+def validate_scope_payload(payload: dict, entity: str) -> str | None:
     """保存前校验 CUSTOM scope_payload。返回非法原因；合法返回 None。"""
     if not isinstance(payload, dict):
         return 'scope_payload 必须是对象'

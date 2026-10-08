@@ -43,13 +43,14 @@
 # =====================================================================
 
 import logging
-import uuid
+
 from django.db import transaction
 from django.urls import path
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from apps.core.permissions import ResourceScoped, IsAuthenticatedReadOnly
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
+from apps.core.permissions import IsAuthenticatedReadOnly, ResourceScoped
 from apps.core.views_auth import LoginRateThrottle
 
 logger = logging.getLogger('apps.stub')
@@ -350,7 +351,7 @@ def permissions_user_roles(request, user_id):
     T30.175: V1 UserRole 表已 DROP, 改读/写 UserRoleV2 (role_code) + RoleV2.
     2026-09-19: 补 POST 真实现 — 此前 GET-only, 前端「分配角色」弹窗一直 405 失败.
     """
-    from apps.core.models_permission_v2 import UserRoleV2, RoleV2
+    from apps.core.models_permission_v2 import RoleV2, UserRoleV2
     from apps.core.serializers import RoleSerializer
     try:
         uid = int(user_id)
@@ -400,7 +401,7 @@ def permissions_user_info(request):
 
     T30.175: V1 UserRole 表已 DROP, 改读 UserRoleV2 + RoleV2.
     """
-    from apps.core.models_permission_v2 import UserRoleV2, RoleV2
+    from apps.core.models_permission_v2 import RoleV2, UserRoleV2
     user = request.user
     role_codes = list(UserRoleV2.objects.filter(
         user_id=user.id, system_code='recruit',

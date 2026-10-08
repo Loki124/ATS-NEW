@@ -3,22 +3,18 @@
 P0-2 修复: 所有调度任务用 @retryable_scheduled_task
 (DB 抖动自动重试 + 连续失败告警)
 """
-from django.db import DatabaseError
 import logging
 from datetime import timedelta
-from typing import Dict, List
+from typing import Dict
 
-from celery import shared_task
+from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.common.celery_utils import retryable_scheduled_task
 
 from .services import (
-    TimeLimitCalcResult,
-    calc_time_limit,
-    compute_locked_until,
-    is_time_exceeded,
     get_remaining_days,
+    is_time_exceeded,
 )
 
 logger = logging.getLogger(__name__)

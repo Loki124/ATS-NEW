@@ -16,9 +16,16 @@ Person 的 position（职务）/ level（职级）用于命中指定范围。
 from django.db import models, transaction
 
 from apps.common.models import FullAuditModel, UUIDModel
+
 from .constants import (
-    DEPTS, SCHOOLS, MAJORS, SEXES, DIMS, STRENGTH, STATUS,
-    POSITIONS, LEVELS,
+    DEPTS,
+    LEVELS,
+    MAJORS,
+    POSITIONS,
+    SCHOOLS,
+    SEXES,
+    STATUS,
+    STRENGTH,
 )
 
 
@@ -212,6 +219,23 @@ class Person(FullAuditModel, UUIDModel):
         verbose_name = '人员主数据'
         verbose_name_plural = '人员主数据'
         ordering = ['bu', 'code']
+        # 2026-10-08 审查 #10 (P-13): 列表/核算高频过滤 bu/position/level/school/sex/major
+        # 此前仅 user_id 有索引, 其余全表扫描。__year 提取无法走索引, 应改为日期范围查询,
+        # actual_entry_date 建索引支撑范围扫描。
+        indexes = [
+            models.Index(fields=['status', 'bu', 'school'],
+                         name='idx_person_status_bu_school'),
+            models.Index(fields=['status', 'position', 'level'],
+                         name='idx_person_status_pos_level'),
+            models.Index(fields=['status', 'major', 'sex'],
+                         name='idx_person_status_major_sex'),
+            models.Index(fields=['status', 'bu', 'position'],
+                         name='idx_person_status_bu_pos'),
+            models.Index(fields=['status', 'school', 'major'],
+                         name='idx_person_status_school_major'),
+            models.Index(fields=['status', 'actual_entry_date'],
+                         name='idx_person_status_entry'),
+        ]
 
     def __str__(self):
         return f'{self.code}·{self.name}'

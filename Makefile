@@ -5,7 +5,7 @@
 
 SHELL := /bin/zsh
 .DEFAULT_GOAL := help
-.PHONY: help install backend web clean status
+.PHONY: help install backend web clean status test lint
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -40,6 +40,16 @@ status:  ## Show git status + service health
 	@echo "---"
 	@curl -s -o /dev/null -w "backend  http://localhost:8000  → %{http_code}\n" http://localhost:8000/health/ || echo "backend  ✗"
 	@curl -s -o /dev/null -w "frontend http://localhost:5212  → %{http_code}\n" http://localhost:5212 || echo "frontend ✗"
+
+# ────── Tests / Lint (对齐 CI 能力, 2026-10-09 #42) ──────
+
+test:  ## Run backend + frontend test suites
+	cd apps/django && . .venv/bin/activate && pytest -m "not quarantine" --cov=apps --cov-report=term-missing --cov-fail-under=70
+	cd web/app && pnpm test
+
+lint:  ## Run Python (ruff) + frontend (eslint) linters
+	cd apps/django && . .venv/bin/activate && ruff check apps
+	cd web/app && pnpm lint
 
 clean:  ## Remove caches and build artifacts
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

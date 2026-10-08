@@ -21,7 +21,6 @@ from pathlib import Path
 
 import pytest
 
-
 CORE_DIR = Path('apps/core')
 
 
@@ -85,9 +84,11 @@ def test_health_check_db_failure_returns_degraded_not_500():
 
     这是 core noqa 的核心契约: 健康检查自身失败是矛盾状态, 必须给降级信号而非崩溃.
     """
-    from apps.core.views_health import health_check
     from unittest.mock import patch
+
     from django.db import connection
+
+    from apps.core.views_health import health_check
 
     def buggy_cursor():
         from django.db import OperationalError
@@ -106,6 +107,7 @@ def test_permissions_deny_by_default():
     这是 core noqa 的安全契约: 权限检查失败必须 deny, 不应因异常放行.
     """
     from unittest.mock import MagicMock, patch
+
     from apps.core.permissions import ResourceScoped
 
     perm = ResourceScoped()
@@ -137,6 +139,7 @@ def test_scope_resolver_fail_closed_on_unexpected_exception():
     这是 core noqa 的关键安全契约: scope 计算异常时收紧而非放宽权限.
     """
     from unittest.mock import MagicMock, patch
+
     from apps.core import scope_resolver
 
     # mock UserRoleV2.objects.filter 返回一个会让 management_unit_ids 抛 ValueError 的对象

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
-from django.db import transaction
+from django.db import OperationalError, transaction
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound, ValidationError
@@ -27,7 +27,7 @@ class InterviewCreateData:
     location: str = ''
     meeting_url: str = ''
     interviewer_ids: List[str] = None
-    actor: Optional[User] = None
+    actor: User | None = None
 
 
 class InterviewService:
@@ -35,6 +35,7 @@ class InterviewService:
     @transaction.atomic
     def create_interview(data: InterviewCreateData) -> Interview:
         from nanoid import generate as nanoid_generate
+
         from apps.application.models import Application, ApplicationStageRecord
         try:
             application = Application.objects.get(id=data.application_id, deleted_at__isnull=True)

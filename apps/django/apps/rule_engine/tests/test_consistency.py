@@ -8,11 +8,12 @@
 import uuid
 
 import pytest
+from django.core.management import call_command
+
 from apps.automation.models import AutomationRule
 from apps.process.models import RecruitmentProcess, RecruitmentStage
 from apps.rule_engine.management.commands.check_rule_engine_consistency import Command
 from apps.rule_engine.models import Rule
-from django.core.management import call_command
 
 pytestmark = pytest.mark.django_db
 

@@ -12,13 +12,13 @@ QA-4 在 round-2/3 重跑确认：原 0005_candidate_id_card_hash.py 的 backfil
 - 身份证为空 / 缺失的行被正确跳过 (id_card_hash 留空串)
 - reverse callback 正确清空 hash
 """
+# 直接按文件路径 import 0005 (Django migrations 包不会 re-export migration 函数)
+import importlib
 import os
 import re
 
 import pytest
 
-# 直接按文件路径 import 0005 (Django migrations 包不会 re-export migration 函数)
-import importlib
 _mig_0005 = importlib.import_module('apps.candidate.migrations.0005_candidate_id_card_hash')
 backfill_id_card_hash = _mig_0005.backfill_id_card_hash
 reverse_backfill_id_card_hash = _mig_0005.reverse_backfill_id_card_hash
@@ -37,7 +37,6 @@ def _migration_era_hash(plaintext):
     """
     return hash_for_search(plaintext, LEGACY_HASH_SALT)
 from apps.candidate.models import Candidate
-
 
 # ─────────────────────────────────────────────────────────────
 # 1. 形参遮蔽不复存在：backfill 源码层面不能再访问 apps.<module>

@@ -1,9 +1,11 @@
 """Seed V2 权限基础数据. Idempotent — 重复跑 update_or_create.
 T15: 60 resources + 4 templates + 1 tenant config.
 """
+import os
+import secrets
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
-
 
 SYSTEM = 'recruit'
 
@@ -68,7 +70,13 @@ RESOURCES = [
     ('recruit:talent_pool:menu:view', '人才库菜单', 'MENU', 'talent_pool'),
     ('recruit:talent_pool:list', '人才库列表', 'BUTTON', 'talent_pool'),
     ('recruit:talent_pool:create', '入库', 'BUTTON', 'talent_pool'),
+    ('recruit:talent_pool:edit', '编辑人才库条目', 'BUTTON', 'talent_pool'),
+    ('recruit:talent_pool:delete', '移出人才库', 'BUTTON', 'talent_pool'),
     ('recruit:talent_pool:export', '导出人才库', 'BUTTON', 'talent_pool'),
+    # 2026-10-08: 人才库标签写操作此前无任何权限码, 视图未声明 → 任意登录用户可增删改
+    ('recruit:talent_pool:tag:create', '新增人才库标签', 'BUTTON', 'talent_pool'),
+    ('recruit:talent_pool:tag:edit', '编辑人才库标签', 'BUTTON', 'talent_pool'),
+    ('recruit:talent_pool:tag:delete', '删除人才库标签', 'BUTTON', 'talent_pool'),
     # --- module: mou ---
     ('recruit:mou:menu:view', 'MOU菜单', 'MENU', 'mou'),
     ('recruit:mou:list', 'MOU列表', 'BUTTON', 'mou'),
@@ -206,7 +214,9 @@ RESOURCES = [
     ('recruit:settings:recruitment-stage:edit', '编辑招聘阶段', 'BUTTON', 'settings'),
     # 招聘流程 (config)
     ('recruit:settings:recruitment-process:menu:view', '招聘流程菜单', 'MENU', 'settings'),
+    ('recruit:settings:recruitment-process:create', '新建招聘流程', 'BUTTON', 'settings'),
     ('recruit:settings:recruitment-process:edit', '编辑招聘流程', 'BUTTON', 'settings'),
+    ('recruit:settings:recruitment-process:delete', '删除招聘流程', 'BUTTON', 'settings'),
     # 面试轮次 (config)
     ('recruit:settings:recruitment-round:menu:view', '面试轮次菜单', 'MENU', 'settings'),
     ('recruit:settings:recruitment-round:edit', '编辑面试轮次', 'BUTTON', 'settings'),
@@ -257,6 +267,10 @@ RESOURCES = [
     # 统一规则引擎 (config)
     ('recruit:settings:rule-engine:menu:view', '统一规则引擎菜单', 'MENU', 'settings'),
     ('recruit:settings:rule-engine:edit', '编辑规则引擎', 'BUTTON', 'settings'),
+    # 审批流 (resume_flow) — 2026-10-08 补齐: 此前视图未声明权限码, 写操作对全员开放
+    ('recruit:settings:approval-flow:menu:view', '审批流菜单', 'MENU', 'settings'),
+    ('recruit:settings:approval-flow:create', '新建审批流', 'BUTTON', 'settings'),
+    ('recruit:settings:approval-flow:edit', '审批/驳回/转交', 'BUTTON', 'settings'),
     # 码表库 (management)
     ('recruit:settings:code-tables:menu:view', '码表库菜单', 'MENU', 'settings'),
     ('recruit:settings:code-tables:create', '新增码表', 'BUTTON', 'settings'),
@@ -337,7 +351,9 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **opts):
         from apps.core.models_permission_v2 import (
-            PermissionResource, PermissionTemplate, TenantConfig,
+            PermissionResource,
+            PermissionTemplate,
+            TenantConfig,
         )
 
         created_resources = updated_resources = 0
@@ -370,6 +386,11 @@ class Command(BaseCommand):
                 },
             )
 
+        # 2026-10-08: V2Permission 缓存了已注册权限码集合用于按 action 派生,
+        #   seed 增删了资源码必须立刻失效, 否则线上要等 5 分钟才认新码。
+        from apps.core.permissions_v2 import invalidate_known_codes
+        invalidate_known_codes()
+
         all_codes = list(PermissionResource.objects.filter(
             system_code=SYSTEM, status=1,
         ).values_list('resource_code', flat=True))
@@ -397,7 +418,10 @@ class Command(BaseCommand):
         """创建/更新 admin 超级管理员并绑定 SUPER_ADMIN 角色."""
         from apps.core.models import User
         from apps.core.models_permission_v2 import (
-            ManagementUnit, PermissionTemplate, RoleV2, UserRoleV2,
+            ManagementUnit,
+            PermissionTemplate,
+            RoleV2,
+            UserRoleV2,
         )
 
         admin, created = User.objects.update_or_create(
@@ -411,8 +435,26 @@ class Command(BaseCommand):
                 'is_active': True,
             },
         )
-        admin.set_password('admin123')
-        admin.save()
+        # 2026-10-08: 不再写入固定口令 admin123, 也不再重置已有 admin 的密码。
+        #   原实现每次执行 seed 都会把生产超管口令打回弱口令 —— 一次例行 seed
+        #   就等于把系统门户敞开。现在:
+        #     - 新建 admin: 口令取 ADMIN_INITIAL_PASSWORD, 未设则随机生成并只打印一次
+        #     - 已存在 admin: 不动密码
+        initial_password = None
+        if created:
+            initial_password = os.environ.get('ADMIN_INITIAL_PASSWORD') or ''
+            if not initial_password:
+                initial_password = secrets.token_urlsafe(20)
+                from_env = False
+            else:
+                from_env = True
+            admin.set_password(initial_password)
+            admin.save(update_fields=['password'])
+            if not from_env:
+                self.stdout.write(self.style.WARNING(
+                    f'⚠ 已为新建的 admin 生成随机口令 (只显示这一次): {initial_password}\n'
+                    '  请立即登录修改并妥善保存。'
+                ))
 
         # 确保 TMPL_ADMIN 模板存在（正常 seed_v2_init 已创建）
         tmpl_admin = PermissionTemplate.objects.filter(
@@ -457,8 +499,10 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f'✓ admin 初始化完成（{"新建" if created else "已存在, 重置密码"}）'
-                ' → SUPER_ADMIN / admin123'
+                f'✓ admin 初始化完成（{"新建" if created else "已存在, 密码保持不变"}）'
+                ' → SUPER_ADMIN' + (
+                    '（口令来自 ADMIN_INITIAL_PASSWORD）' if initial_password else ''
+                )
             )
         )
         return created

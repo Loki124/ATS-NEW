@@ -13,6 +13,7 @@
 """
 from django.urls import path
 
+from .sse import ScoringStreamView
 from .views import (
     BulkCreateView,
     DuplicateCheckView,
@@ -23,7 +24,6 @@ from .views import (
     ScoringStartView,
     UploadAndParseView,
 )
-from .sse import ScoringStreamView
 
 app_name = 'add_candidate'
 

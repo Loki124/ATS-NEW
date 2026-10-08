@@ -19,10 +19,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 from django.db import transaction
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +32,15 @@ class SequentialProcessorInfo:
     user_id: str
     order: int
     processed: bool = False
-    decision: Optional[str] = None  # PASS / FAIL / PENDING
-    processed_at: Optional[str] = None
+    decision: str | None = None  # PASS / FAIL / PENDING
+    processed_at: str | None = None
 
 
 def get_next_sequential_processor(
     processor_order: List[str],
     current_index: int,
     history: List[dict],
-) -> Optional[SequentialProcessorInfo]:
+) -> SequentialProcessorInfo | None:
     """获取下一位顺序处理人
 
     Args:
@@ -79,7 +78,7 @@ def advance_sequential_processor(
     stage_rule,
     current_user_id: str,
     decision: str,
-) -> Optional[str]:
+) -> str | None:
     """推进顺序处理人到下一位
 
     Args:

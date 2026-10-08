@@ -111,15 +111,23 @@ python manage.py loaddata seeds/07_demo_user.json
 # -----------------------------------------------------------------------------
 if [ -z "$SKIP_SUPERUSER" ]; then
     warn "    创建超级管理员（Ctrl+C 可跳过）"
+    # 2026-10-08: 不再使用固定口令 admin123。
+    #   优先用 createsuperuser 交互输入; 非交互回退时用 ADMIN_INITIAL_PASSWORD,
+    #   未设置则由 secrets 生成随机口令并只打印一次。
     python manage.py createsuperuser --noinput \
         --username admin --email admin@example.com 2>/dev/null \
         || python manage.py shell -c "
+import secrets
 from apps.core.models import User
 if not User.objects.filter(username='admin').exists():
-    u = User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+    import os
+    pwd = os.environ.get('ADMIN_INITIAL_PASSWORD') or secrets.token_urlsafe(20)
+    u = User.objects.create_superuser('admin', 'admin@example.com', pwd)
     u.employee_id = 'EMP-0001'
     u.save()
-    print('已创建默认 admin / admin123')
+    print('已创建 admin, 口令: ' + pwd + ' (请立即登录修改)')
+else:
+    print('admin 已存在, 密码保持不变')
 " || warn "跳过超级管理员创建"
 fi
 

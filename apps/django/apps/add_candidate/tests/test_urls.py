@@ -11,7 +11,6 @@ Phase 2 Task 1：验证 7 个 endpoint 都能被 Django URL dispatcher 正确解
 import pytest
 from django.urls import resolve, reverse
 
-
 # 完整 namespace 路径（v1 在 config/urls.py 中包裹）
 MOUNT = 'v1:add_candidate'
 

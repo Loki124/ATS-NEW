@@ -1,16 +1,19 @@
 """Auth 视图 - 登录/登出/刷新"""
 import logging
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.db.models import F
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
-from django.contrib.auth import authenticate
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+
+from .jwt_tokens import MyRefreshToken
 
 logger = logging.getLogger(__name__)
 # T01.2 (2026-08-04 寇豆码): 显式声明 IsAuthenticated, 覆盖全局 deny-by-default.
@@ -48,9 +51,11 @@ def login_view(request):
         )
 
     # 支持多种登录方式（单一查询定位，避免 4 次串行 ORM + check_password 的 N+1）
-    from .models import User
     from django.db.models import Q
+
     from apps.accounts.models import RegistrationApplication
+
+    from .models import User
 
     candidate_user = User.objects.filter(deleted_at__isnull=True).filter(
         Q(username=username) | Q(employee_id=username) | Q(email=username) | Q(phone=username),
@@ -80,9 +85,10 @@ def login_view(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    refresh = RefreshToken.for_user(candidate_user)
-    from apps.core.models_permission_v2 import UserRoleV2
+    refresh = MyRefreshToken.for_user(candidate_user)
     from django.db.utils import OperationalError, ProgrammingError
+
+    from apps.core.models_permission_v2 import UserRoleV2
     try:
         roles = list(UserRoleV2.objects.filter(
             user_id=candidate_user.id, system_code='recruit',
@@ -129,6 +135,8 @@ def logout_view(request):
 @throttle_classes([ChangePasswordRateThrottle])
 def change_password_view(request):
     """更改当前用户密码"""
+    from .models import User
+
     user = request.user
     old_password = request.data.get('oldPassword') or request.data.get('old_password')
     new_password = request.data.get('newPassword') or request.data.get('new_password')
@@ -156,7 +164,38 @@ def change_password_view(request):
 
     user.set_password(new_password)
     user.save(update_fields=['password'])
+    # 2026-10-09 (#19): 改密即撤销所有 outstanding refresh token (旧 token 刷新时被拒)。
+    User.objects.filter(id=user.id).update(token_version=F('token_version') + 1)
     return Response({'success': True, 'message': '密码修改成功'})
+
+
+class TokenRefreshViewWithVersion(TokenRefreshView):
+    """2026-10-09 (#19): 刷新前校验 token_version, 改密/禁用后旧 refresh 一律拒绝。
+
+    仅校验带 token_version 声明的新 token; 存量无该声明 (含测试 fixture) 的 token 放行,
+    保证向后兼容。非法/过期 token 交 simplejwt 自身返回 401。
+    """
+
+    def post(self, request, *args, **kwargs):
+        raw = request.data.get('refresh')
+        if raw:
+            try:
+                token = MyRefreshToken(raw)
+                user_id = token.get('user_id')
+                claim = token.get('token_version')
+                if user_id is not None and claim is not None:
+                    from .models import User
+
+                    user = User.objects.filter(id=user_id, deleted_at__isnull=True).first()
+                    if user is None or user.token_version != claim:
+                        return Response(
+                            {'success': False, 'code': 'token_revoked',
+                             'message': '登录态已失效，请重新登录'},
+                            status=status.HTTP_401_UNAUTHORIZED,
+                        )
+            except (InvalidToken, TokenError):
+                pass  # 交给 simplejwt 自身处理非法/过期 token
+        return super().post(request, *args, **kwargs)
 
 
 @api_view(['GET', 'PATCH'])
@@ -168,11 +207,14 @@ def me_view(request):
     PATCH: 仅更新 uiSettings（合并写入 JSON，不覆盖整段），返回更新后的 me。
     """
     from django.db.utils import OperationalError, ProgrammingError
+
+    from apps.core.models import UserPreference
     from apps.core.models_permission_v2 import (
-        PermissionResource, RolePermissionV2, UserRoleV2,
+        PermissionResource,
+        RolePermissionV2,
+        UserRoleV2,
     )
     from apps.core.scope_resolver import resolve_scope
-    from apps.core.models import UserPreference
 
     user = request.user
 

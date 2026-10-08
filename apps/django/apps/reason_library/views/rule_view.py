@@ -15,36 +15,45 @@
 """
 from __future__ import annotations
 
-import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
+from django.utils.dateparse import parse_datetime
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
-from django.utils.dateparse import parse_datetime
 
 from ..exceptions import ApiResponse, BizCode, BizException
 from ..filters import SceneRuleFilter
 from ..models import (
-    CategoryAssignment, ReasonTag, RuleCategory,
-    RuleSceneAssignment, SceneRule,
+    RuleCategory,
+    RuleSceneAssignment,
+    SceneRule,
 )
 from ..permissions import (
-    IsAdminOrReadOnly, IsAuthenticatedReadOnly, SystemOrAdminPermission,
+    IsAdminOrReadOnly,
+    IsAuthenticatedReadOnly,
+    SystemOrAdminPermission,
 )
 from ..serializers import (
-    SceneRuleCreateSerializer, SceneRuleDetailSerializer,
-    SceneRuleListSerializer, SceneRuleUpdateSerializer, SceneRuleVersionSerializer,
+    SceneRuleCreateSerializer,
+    SceneRuleDetailSerializer,
+    SceneRuleListSerializer,
+    SceneRuleUpdateSerializer,
+    SceneRuleVersionSerializer,
 )
 from ..services.active_query_service import invalidate_active_cache
 from ..services.import_export_service import (
-    create_rule_from_import, export_rule_json,
+    create_rule_from_import,
+    export_rule_json,
 )
 from ..services.rule_version_service import (
-    SceneRuleVersionNotFound, create_version_snapshot, list_versions, rollback_rule,
+    SceneRuleVersionNotFound,
+    create_version_snapshot,
+    list_versions,
+    rollback_rule,
 )
 from . import _api
 
@@ -360,7 +369,7 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
             return  # 无 If-Match 头 → 跳过校验 (兼容未带头的客户端)
         # tz 统一: DB updated_at 是 aware UTC, parse 后 naive 需要补 tz 才能比较
         if expected.tzinfo is None:
-            expected = expected.replace(tzinfo=timezone.utc)
+            expected = expected.replace(tzinfo=UTC)
         # 比较: 用 ISO 字符串截断到秒 (DB 精度限制)
         expected_trunc = expected.replace(microsecond=0)
         actual_trunc = obj.updated_at.replace(microsecond=0)

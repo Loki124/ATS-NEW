@@ -11,7 +11,6 @@
 """
 from __future__ import annotations
 
-import csv
 import io
 import logging
 from typing import List
@@ -26,13 +25,16 @@ from rest_framework.request import Request
 from ..exceptions import ApiResponse, BizCode, BizException
 from ..filters import ReasonTagFilter
 from ..io_tag import (
-    TagFileParseError, build_tag_template_csv, build_tag_template_workbook,
+    TagFileParseError,
+    build_tag_template_csv,
+    build_tag_template_workbook,
     parse_tag_rows,
 )
 from ..models import CategoryAssignment, ReasonTag
 from ..permissions import IsAdminOrReadOnly, IsAuthenticatedReadOnly
 from ..serializers import (
-    ReasonTagDetailSerializer, ReasonTagSerializer,
+    ReasonTagDetailSerializer,
+    ReasonTagSerializer,
 )
 from . import _api
 
@@ -157,7 +159,9 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
     def export_csv(self, request: Request, *args, **kwargs):
         """GET /tags/export/ — 导出全部标签 CSV (utf-8-sig BOM, Excel 兼容)。"""
         buf = io.StringIO()
-        writer = csv.writer(buf)
+        # 2026-10-08: 防 CSV 公式注入 (标签名/提示语由管理员录入)
+        from apps.common.csv_safe import SafeCsvWriter
+        writer = SafeCsvWriter(buf)
         writer.writerow(['code', 'name', 'en_name', 'tip', 'type', 'enabled'])
         for t in ReasonTag.objects.filter(deleted_at__isnull=True).order_by('type', 'name'):
             writer.writerow([t.code or '', t.name, t.en_name or '', t.tip or '', t.type, 'true' if t.enabled else 'false'])

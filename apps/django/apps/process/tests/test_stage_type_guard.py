@@ -6,8 +6,8 @@
 """
 import pytest
 
-from apps.process.serializers import RecruitmentStageSerializer
 from apps.process.models import RecruitmentStage
+from apps.process.serializers import RecruitmentStageSerializer
 
 
 @pytest.mark.django_db

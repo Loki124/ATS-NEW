@@ -9,12 +9,11 @@ apps/core/tests/test_data_permission_unit_enforcement.py).
 - 超管 bypass (与 FieldACL 既有语义一致).
 """
 from django.core.cache import cache
+from rest_framework.test import APIClient, APITestCase
 
-from rest_framework.test import APITestCase, APIClient
-
-from apps.core.models import User, Department
-from apps.core.models_permission_v2 import RoleV2, RolePermissionV2, UserRoleV2
 from apps.candidate.models import Candidate
+from apps.core.models import Department, User
+from apps.core.models_permission_v2 import RolePermissionV2, RoleV2, UserRoleV2
 from apps.data_permission.models import DataPermissionRule
 
 

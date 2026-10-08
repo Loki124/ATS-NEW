@@ -1,12 +1,15 @@
 """Tests for has_perm + scope_resolver. INSERT-heavy tests skipped until T17 v2 schema."""
 import pytest
 from django.contrib.auth import get_user_model
+
+from apps.core.models_permission_v2 import (
+    PermissionResource,
+    RolePermissionV2,
+    TenantConfig,
+    UserRoleV2,
+)
 from apps.core.permission_check import has_perm
 from apps.core.scope_resolver import resolve_scope
-from apps.core.models_permission_v2 import (
-    PermissionResource, RolePermissionV2, UserRoleV2, TenantConfig,
-)
-
 
 User = get_user_model()
 

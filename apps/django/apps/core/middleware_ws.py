@@ -17,12 +17,13 @@ P1-1 修复: Token 传输改用 Sec-WebSocket-Protocol 子协议，
 - 若客户端未使用子协议,降级到 query string
 """
 from urllib.parse import parse_qs
+
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
-from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.tokens import UntypedToken
 
 User = get_user_model()
 

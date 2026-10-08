@@ -6,12 +6,12 @@ T30.175 (V2 cutover follow-up):
 - UserSerializer._apply_role_type 改写 UserRoleV2 (用 role_code 字符串 + system_code).
 """
 import re
-from rest_framework import serializers
-from .models import User, Department
+
 from django.db import transaction
+from rest_framework import serializers
 
+from .models import Department, User
 from .models_permission_v2 import PermissionResource, RoleV2, UserRoleV2  # noqa: F401
-
 
 _camel_to_snake_re = re.compile(r'(?<!^)(?=[A-Z])')
 
@@ -207,11 +207,16 @@ class UserMinimalSerializer(serializers.ModelSerializer):
             ret['status'] = 'ACTIVE'
         else:
             ret['status'] = 'LOCKED' if instance.is_superuser else 'INACTIVE'
-        ret['roleType'] = (
-            UserRoleV2.objects.filter(
-                user_id=instance.pk, system_code='recruit',
-            ).values_list('role_code', flat=True).first() or 'HR'
-        )
+        role_map = self.context.get('role_map')
+        if role_map is not None:
+            # #9 (2026-10-09): 列表场景由 get_serializer_context 批量注入, 免逐行查询
+            ret['roleType'] = role_map.get(instance.pk, 'HR')
+        else:
+            ret['roleType'] = (
+                UserRoleV2.objects.filter(
+                    user_id=instance.pk, system_code='recruit',
+                ).values_list('role_code', flat=True).first() or 'HR'
+            )
         # 2026-09-19: 用户类型字段接入列表 (前端「用户类型」列 + 客户端筛选依赖此字段)
         ret['userType'] = instance.user_type
         # 用户唯一标识（对外稳定 ID，新建自动生成、存量已回填）

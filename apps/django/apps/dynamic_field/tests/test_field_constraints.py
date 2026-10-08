@@ -11,7 +11,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.dynamic_field.models import DynamicField, DynamicFieldValue
-from apps.dynamic_field.validators import validate_field_value, normalize_validation
+from apps.dynamic_field.validators import normalize_validation, validate_field_value
 
 RESOURCE = 'Candidate'
 LIST_URL = f'/api/v1/dynamic-fields/{RESOURCE}/fields/'

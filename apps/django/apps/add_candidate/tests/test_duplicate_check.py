@@ -9,18 +9,19 @@
 6. 全无命中 → clean
 """
 import pytest
+
 from apps.add_candidate.services.duplicate_check import (
     DuplicateCheckService,
-    DuplicateStatus,
     DuplicateInfo,
+    DuplicateStatus,
 )
 
 
 @pytest.fixture
 def candidate_with_active_app(db, published_position, hr_user):
     """存在候选人 + 有 active application"""
-    from apps.candidate.models import Candidate
     from apps.application.models import Application, ApplicationState
+    from apps.candidate.models import Candidate
     cand = Candidate.objects.create(
         name='张三',
         phone='13800138001',
@@ -43,8 +44,8 @@ def candidate_with_active_app(db, published_position, hr_user):
 @pytest.fixture
 def candidate_archived_only(db, published_position, hr_user):
     """存在候选人 + 只有归档 application（无 active）"""
-    from apps.candidate.models import Candidate
     from apps.application.models import Application, ApplicationState
+    from apps.candidate.models import Candidate
     cand = Candidate.objects.create(
         name='李四',
         phone='13800138002',

@@ -16,16 +16,15 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.core.models import Department, User
-from apps.process.models import RecruitmentProcess, RecruitmentStage, ProcessStageLink
-from apps.candidate.models import Candidate
-from apps.demand.models import Demand
-from apps.position.models import Position
 from apps.application.models import Application, ApplicationStageRecord
+from apps.candidate.models import Candidate
+from apps.core.models import Department, User
+from apps.demand.models import Demand
 from apps.interview.models import Interview
 from apps.offer.models import Offer
+from apps.position.models import Position
+from apps.process.models import ProcessStageLink, RecruitmentProcess, RecruitmentStage
 from apps.referral.models import Referral
-
 
 SEARCH_URL = '/api/v1/search/'
 
@@ -122,7 +121,7 @@ def interview(db, application, stage):
             link=stage,
             stage=stage.stage,
         ),
-        scheduled_at=datetime.datetime(2026, 8, 20, 10, 0, 0, tzinfo=datetime.timezone.utc),
+        scheduled_at=datetime.datetime(2026, 8, 20, 10, 0, 0, tzinfo=datetime.UTC),
     )
 
 

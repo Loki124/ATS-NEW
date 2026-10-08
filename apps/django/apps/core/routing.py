@@ -1,12 +1,11 @@
 """Channels WebSocket 路由 + 工具函数"""
 from __future__ import annotations
 
+from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.urls import re_path
-from asgiref.sync import async_to_sync
 
 from . import consumers
-
 
 websocket_urlpatterns = [
     re_path(r'ws/notifications/$', consumers.NotificationConsumer.as_asgi()),

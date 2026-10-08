@@ -16,8 +16,8 @@ from rest_framework.test import APIClient
 
 from apps.dynamic_field.models import DynamicField
 from apps.dynamic_field.validators import (
-    validate_field_value,
     normalize_validation,
+    validate_field_value,
 )
 
 RESOURCE = 'Candidate'

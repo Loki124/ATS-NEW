@@ -1,18 +1,15 @@
 """Entry Condition Serializers (PRD v4 §10)"""
 from __future__ import annotations
 
-from rest_framework import serializers
 from django.db import transaction
+from rest_framework import serializers
 
 from apps.process.models import ProcessStageLink
 
 from .models import (
-    ConditionFieldType,
     ConditionItem,
-    ConditionOperator,
     EntryConditionLog,
     EntryConditionRule,
-    EntryConditionRuleStatus,
 )
 
 

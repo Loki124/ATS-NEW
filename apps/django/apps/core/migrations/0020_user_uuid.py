@@ -1,5 +1,6 @@
-from django.db import migrations, models
 import uuid as uuid_lib
+
+from django.db import migrations, models
 
 
 def populate_user_uuid(apps, schema_editor):

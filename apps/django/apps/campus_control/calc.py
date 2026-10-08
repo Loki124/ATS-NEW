@@ -16,9 +16,15 @@ from datetime import date as _date
 from decimal import Decimal
 
 from .constants import (
-    RATIO_NORMAL, RATIO_BELOW, RATIO_ABOVE,
-    COUNT_MET, COUNT_GAP, COUNT_UNSET,
-    VERDICT_BLOCK, VERDICT_WARN, VERDICT_PASS, VERDICT_LEVEL,
+    COUNT_GAP,
+    COUNT_MET,
+    COUNT_UNSET,
+    RATIO_ABOVE,
+    RATIO_NORMAL,
+    VERDICT_BLOCK,
+    VERDICT_LEVEL,
+    VERDICT_PASS,
+    VERDICT_WARN,
     month_to_index,
 )
 

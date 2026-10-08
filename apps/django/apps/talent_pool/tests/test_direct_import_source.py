@@ -1,5 +1,6 @@
 """验证 EntrySource 枚举包含 DIRECT_IMPORT"""
 import pytest
+
 from apps.talent_pool.models import TalentPoolEntry
 
 

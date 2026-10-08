@@ -11,16 +11,15 @@
 3. 与 celery_app.py 的 task_acks_late=True 配合,保证任务不丢
 """
 from __future__ import annotations
-import redis
-from django.db import DatabaseError
 
 import logging
 from functools import wraps
 from typing import Any, Callable, TypeVar
 
+import redis
 from celery import shared_task as _celery_shared_task
 from django.core.cache import cache
-from django.db import OperationalError, InterfaceError
+from django.db import InterfaceError, OperationalError
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +94,8 @@ def _alert_on_fatal_failure(task_name: str, exc: BaseException, retry_count: int
     cache.set(alert_key, '1', timeout=ALERT_COUNTER_TTL)
 
     try:
-        from apps.notification.services import NotificationService
         from apps.core.models import User
+        from apps.notification.services import NotificationService
 
         admins = list(User.objects.filter(is_superuser=True, is_active=True)[:5])
         for admin in admins:

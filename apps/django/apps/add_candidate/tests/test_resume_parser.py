@@ -13,19 +13,18 @@ import json
 import os
 import subprocess
 import tempfile
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from apps.add_candidate.services.resume_parser import (
-    ResumeParserService,
-    ParsedResume,
-    ParseError,
-)
-from apps.add_candidate.services.parsers import get_backend, BackendNotFoundError
+from apps.add_candidate.services.parsers import BackendNotFoundError, get_backend
 from apps.add_candidate.services.parsers.career_core_backend import CareerCoreBackend
 from apps.add_candidate.services.parsers.smartresume_backend import SmartResumeBackend
-
+from apps.add_candidate.services.resume_parser import (
+    ParsedResume,
+    ParseError,
+    ResumeParserService,
+)
 
 # ===== 样本数据 =====
 CAREER_SAMPLE = {

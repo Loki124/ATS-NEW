@@ -15,8 +15,8 @@ import uuid
 import pytest
 from django.core.management import call_command
 
-from apps.campus_control.models import ControlDimension, ControlIndicator, ControlRule
 from apps.automation.models import AutomationRule
+from apps.campus_control.models import ControlDimension, ControlIndicator, ControlRule
 from apps.mou.models import MouRule
 from apps.rule_engine.bridge import (
     AUTOMATION_SOURCE_APP,
@@ -316,6 +316,7 @@ def test_mou_rename_preserves_db_table():
 def _mk_automation_rule(condition_json):
     """建 AutomationRule 不走完整 signals → 直接 ORM.create 避免拉太多外键。"""
     import uuid as _uuid
+
     from apps.process.models import RecruitmentProcess, RecruitmentStage
     rid = _uuid.uuid4().hex[:12]
     # process / stage 是 FK NOT NULL，用最小集合 placeholder 行

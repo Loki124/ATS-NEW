@@ -6,7 +6,7 @@ v2.4 建模：
 - 规则：院校/专业为「全局」；性别按「部门」各一套，同(适用范围,年度)同维度加和 == 100%。
 - 人数目标（年度 + 12 月）直接承载于规则上（指标层）。
 """
-from .constants import DEPTS, SCHOOLS, MAJORS, SEXES  # noqa: F401
+from .constants import DEPTS, MAJORS, SCHOOLS, SEXES  # noqa: F401
 
 
 def _monthly_from_annual(annual: int) -> list:

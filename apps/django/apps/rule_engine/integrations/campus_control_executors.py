@@ -47,7 +47,8 @@ class ConstraintValidator(ActionExecutor):
 
     def execute(self, context, action, rule) -> ActionResult:
         from apps.campus_control.services import (
-            ControlRuleViolation, validate_offer_against_rules,
+            ControlRuleViolation,
+            validate_offer_against_rules,
         )
 
         # 解析上下文：candidate 必填；position/level/start_date 尽量从 extra 取

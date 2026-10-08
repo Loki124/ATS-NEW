@@ -11,8 +11,8 @@ from apps.core.permissions import IsSuperAdmin
 
 from .models import FieldACL
 from .serializers import (
-    FieldACLSerializer,
     FieldAclRuleSerializer,
+    FieldACLSerializer,
     permission_to_action,
 )
 

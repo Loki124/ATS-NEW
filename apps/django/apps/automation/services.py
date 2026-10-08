@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.db import transaction
 from django.utils import timezone
@@ -30,7 +30,6 @@ from django.utils import timezone
 from .models import (
     AutomationLog,
     AutomationRule,
-    AutomationRule as Rule,  # alias
 )
 
 logger = logging.getLogger(__name__)
@@ -41,10 +40,10 @@ class TriggerContext:
     """触发器上下文"""
     trigger_type: str  # STAGE_ENTERED / STATE_CHANGED / EVALUATION_SUBMITTED / SCHEDULED
     candidate_id: str
-    application_id: Optional[str] = None
-    stage_id: Optional[str] = None
-    evaluation_id: Optional[str] = None
-    extra: Optional[Dict[str, Any]] = None
+    application_id: str | None = None
+    stage_id: str | None = None
+    evaluation_id: str | None = None
+    extra: Dict[str, Any] | None = None
 
 
 @dataclass
@@ -53,7 +52,7 @@ class RuleMatchResult:
     rule: AutomationRule
     matched: bool
     conditions_detail: List[Dict[str, Any]]
-    skip_reason: Optional[str] = None
+    skip_reason: str | None = None
 
 
 @dataclass
@@ -66,7 +65,7 @@ class ExecutionResult:
     skip_reason: str = ''
     error_message: str = ''
     execution_ms: int = 0
-    log_id: Optional[str] = None
+    log_id: str | None = None
 
 
 class AutomationEngine:
@@ -374,7 +373,7 @@ class AutomationEngine:
     @transaction.atomic
     def _action_auto_advance(self, rule: AutomationRule) -> ExecutionResult:
         """AUTO_ADVANCE: 自动推进到下一阶段"""
-        from apps.application.models import Application, ApplicationStageRecord
+        from apps.application.models import Application
         from apps.application.services import advance_application_to_next_stage
 
         if not self.context.application_id:
@@ -500,7 +499,7 @@ class AutomationEngine:
         if recipient_type == 'CURRENT_HANDLER':
             # 找当前处理人
             if self.context.application_id:
-                from apps.application.models import Application, ApplicationStageRecord
+                from apps.application.models import Application
                 try:
                     app = Application.objects.get(id=self.context.application_id)
                     sr = app.current_stage_record

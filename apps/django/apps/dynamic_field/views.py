@@ -32,6 +32,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+
 def _field_key_aliases(field_key: str) -> set[str]:
     """返回某个 field_key 在入站 JSON body 里可能出现的全部拼写。
 
@@ -62,17 +63,18 @@ def _build_field_map(field_qs) -> dict[str, object]:
     return mapping
 
 
-from .models import DynamicField, FieldModule, FieldGroup, FieldLinkageRule, DynamicFieldValue
+from apps.common.response import success_response
+
+from .models import DynamicField, DynamicFieldValue, FieldGroup, FieldLinkageRule, FieldModule
 from .serializers import (
     DUPLICATE_FIELD_KEY_MESSAGE,
     DynamicFieldSerializer,
-    FieldModuleSerializer,
     FieldGroupSerializer,
     FieldLinkageRuleSerializer,
+    FieldModuleSerializer,
 )
-from .system_fields import SYSTEM_FIELD_LOCKED_KEYS, SYSTEM_FIELD_IDENTITY_KEYS
+from .system_fields import SYSTEM_FIELD_IDENTITY_KEYS, SYSTEM_FIELD_LOCKED_KEYS
 from .validators import validate_field_value
-from apps.common.response import success_response
 
 # CSV 单元格内容上限：Excel 单元格硬上限 32,767 字符，超限会让 Excel 打开 CSV 时
 # 解析错位（实测 School 字段 options 126,778 字符 → 列位整体位移）。
@@ -81,6 +83,10 @@ CSV_CELL_MAX_LEN = 2000
 # 截断标记：导入端据此识别「该单元格已被截断」，跳过该字段，
 # 避免用不完整数据覆盖库中完整值。
 CSV_TRUNCATION_MARK = '…[已截断'
+
+# 自定义 list 的硬上限（见 DynamicFieldViewSet.list）：正常规模远低于此值，
+# 仅用于防止字段定义病态膨胀时一次性序列化全表。
+MAX_FIELD_ROWS = 500
 
 
 class DynamicFieldViewSet(viewsets.ModelViewSet):
@@ -263,6 +269,10 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(module_id=module_id)
         if group_id:
             queryset = queryset.filter(group_id=group_id)
+        # 2026-10-08: 自定义 list 不走 DRF 分页, 此前完全无上限 —— 字段定义被灌到
+        #   几千条时, 这个接口会一次性序列化全表 (且每字段还要解析 options source)。
+        #   正常规模远低于该上限, 故不影响现有行为, 只挡住病态膨胀。
+        queryset = queryset[:MAX_FIELD_ROWS]
         serializer = self.get_serializer(queryset, many=True)
         return success_response(serializer.data)
 
@@ -622,7 +632,9 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
                 for rec in records
             ]
             buf = io.StringIO()
-            writer = csv.DictWriter(buf, fieldnames=list(safe_records[0].keys()) if safe_records else [
+            # 2026-10-08: 防 CSV 公式注入 (字段定义里的 placeholder/help_text 等可由用户输入)
+            from apps.common.csv_safe import SafeCsvDictWriter
+            writer = SafeCsvDictWriter(buf, fieldnames=list(safe_records[0].keys()) if safe_records else [
                 'field_key', 'label', 'field_type', 'is_required', 'is_visible',
                 'placeholder', 'help_text', 'default_value', 'order_index',
                 'group_name', 'module_code', 'group_code', 'options', 'validation',
@@ -1119,7 +1131,7 @@ DEFAULT_PRESET_FIELDS: dict[str, list[dict]] = {
 }
 
 
-def _seed_preset_fields(resource: str, module: 'FieldModule') -> int:
+def _seed_preset_fields(resource: str, module: FieldModule) -> int:
     """幂等 seed 三模块默认预设字段。
 
     - 存在性判断含软删记录 (``DynamicField.objects`` 为默认管理器, 软删记录仍在),

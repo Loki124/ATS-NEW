@@ -15,7 +15,7 @@ from datetime import timedelta
 from typing import Any, Dict, List
 
 from celery import shared_task
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -36,8 +36,7 @@ def check_stage_timeouts(self) -> Dict[str, Any]:
     - 触发通知给当前处理人
     - 累计 N 次超时 → 候选人自动入人才库
     """
-    from .models import Application, ApplicationState, ApplicationStageRecord
-    from .services import ApplicationService
+    from .models import ApplicationStageRecord, ApplicationState
 
     now = timezone.now()
     # 找到所有超时的当前阶段记录
@@ -79,7 +78,7 @@ def check_stage_timeouts(self) -> Dict[str, Any]:
                     app.candidate_id, app.process_id, app.current_stage_id,
                 )
             archived += 1
-        except Exception as e:  # noqa: BLE001 — Celery 阶段超时批处理, 单条记录处理失败不影响其他记录
+        except Exception:  # noqa: BLE001 — Celery 阶段超时批处理, 单条记录处理失败不影响其他记录
             logger.exception('Stage timeout handling failed for record %s', record.id)
 
     logger.info('check_stage_timeouts: overdue=%d, notifications=%d', len(overdue_records), notifications_sent)

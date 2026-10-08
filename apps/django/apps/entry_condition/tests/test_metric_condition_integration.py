@@ -6,12 +6,12 @@ MetricEngine.evaluate_metric_condition 取回 actual 并完成比较。
 注意：EntryConditionEvaluator 的 METRIC 分支不触碰 link，故用满足构造签名的 stub link。
 """
 import pytest
+from nanoid import generate as nanoid_generate
 
 from apps.candidate.models import Candidate
 from apps.entry_condition.models import ConditionFieldType, ConditionItem, ConditionOperator
 from apps.entry_condition.services import EntryConditionEvaluator
 from apps.metrics.models import AtomicMetric, MetricTemplate
-from nanoid import generate as nanoid_generate
 
 
 def _cid() -> str:

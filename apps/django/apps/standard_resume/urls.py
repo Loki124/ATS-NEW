@@ -1,11 +1,11 @@
 from django.urls import path
 
 from .views import (
-    StandardResumeConfigView,
     CandidateTableConfigView,
     FormConfigView,
-    RegistrationFormListView,
     RegistrationFormDetailView,
+    RegistrationFormListView,
+    StandardResumeConfigView,
 )
 
 urlpatterns = [

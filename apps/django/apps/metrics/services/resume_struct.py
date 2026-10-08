@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 # 匹配 YYYY[./-]MM([./-]DD)?，容忍空格。
 # 末尾 (?!\d) 关键：否则 "2018.07 - 2020.06" 的可选日部分会把 "- 2020" 的
@@ -30,14 +30,14 @@ from typing import Any, Dict, List, Optional, Tuple
 _DATE_RE = re.compile(r'(\d{4})\s*[./\-]\s*(\d{1,2})(?:\s*[./\-]\s*(\d{1,2}))?(?!\d)')
 
 
-def _to_date(year: str, month: str, day: Optional[str]) -> Optional[date]:
+def _to_date(year: str, month: str, day: str | None) -> date | None:
     try:
         return date(int(year), int(month), int(day) if day else 1)
     except (TypeError, ValueError):
         return None
 
 
-def parse_period(period: Any) -> Tuple[Optional[date], Optional[date]]:
+def parse_period(period: Any) -> Tuple[date | None, date | None]:
     """解析经历时间段字符串 → (start_date, end_date)。
 
     支持："2018.07 - 2020.06" / "2018.07-2020.06" / "2018-07-01 - 2020-06-30" /
@@ -64,7 +64,7 @@ def parse_period(period: Any) -> Tuple[Optional[date], Optional[date]]:
     return (start, end)
 
 
-def _iso(value: Optional[date]) -> Optional[str]:
+def _iso(value: date | None) -> str | None:
     return value.isoformat() if value else None
 
 

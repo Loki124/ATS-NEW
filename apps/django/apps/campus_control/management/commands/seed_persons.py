@@ -12,11 +12,10 @@
 执行：`python manage.py seed_persons`
 """
 from datetime import date
+
 from django.core.management.base import BaseCommand
 
 from apps.campus_control.models import Person
-from apps.campus_control.constants import DEPTS, SCHOOLS, MAJORS, SEXES
-
 
 # 4 BU × 2 性别 × 2 职务 × 2 职级 × {在职 1 + 在途Offer 1 + 在途待入职 1} = 96 行
 # 实际只取代表性 25 条覆盖：3 状态 × 4 BU × 2 性别 × 1~2 岗位

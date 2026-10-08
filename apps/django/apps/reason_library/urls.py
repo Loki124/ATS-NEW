@@ -12,7 +12,6 @@ from .views.scene_view import SceneView
 from .views.tag_view import ReasonTagViewSet
 from .views.wizard_view import WizardSaveView
 
-
 router = DefaultRouter()
 # 子资源前缀先注册: 'tags' / 'rules' / 'scenes' / 'active' 都优先于 r''
 router.register(r'tags', ReasonTagViewSet, basename='reason-tag')

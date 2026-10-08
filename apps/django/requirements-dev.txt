@@ -18,6 +18,11 @@
 pytest==9.1.1
 pytest-django==4.12.0
 pytest-cov==7.1.0
+# 2026-10-09 (#40): pytest-randomly 默认随机化用例顺序, 暴露跨用例状态污染
+#   (审计指出 offer/test_offer_hook.py 曾有手动清表注释, 历史上踩过顺序依赖坑)。
+#   factory_boy 替换手写 raw SQL / ORM fixture, 收敛数据构造 (tests/factories.py 起步)。
+pytest-randomly==3.15.0
+factory_boy==3.3.0
 
 # === Code Quality ===
 # R9: 这几个当前 .venv 里都没装, 也没有任何 CI 步骤在跑。
@@ -33,3 +38,6 @@ isort>=5.13
 mypy>=1.10
 django-stubs>=5.0
 djangorestframework-stubs>=3.15
+# 2026-10-08 (#27): ruff 是实际接入 CI 的 lint 门禁 (见 ci.yml 的 Lint 步骤)。
+#   规则集见 apps/django/ruff.toml (阶段一: F/E9/I bug-catcher; B/UP/SIM 待存量清理后启用)。
+ruff==0.14.0

@@ -13,9 +13,10 @@
 - 本 signal 仅当对应标志未置位时才补写兜底记录, created_by=None 表示"非业务路径触发的变更"
 """
 import logging
+
+from django.db import IntegrityError, OperationalError
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from django.db import IntegrityError, OperationalError
 
 from .models import Candidate, CandidateHistory
 

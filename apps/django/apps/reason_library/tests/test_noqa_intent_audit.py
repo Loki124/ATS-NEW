@@ -15,7 +15,6 @@ from pathlib import Path
 
 import pytest
 
-
 RL_DIR = Path('apps/reason_library')
 
 
@@ -80,6 +79,7 @@ def test_tag_file_parse_error_is_re_raised():
     统一兜底 → TagFileParseError 让上层有标准化处理路径.
     """
     from io import BytesIO
+
     from apps.reason_library.io_tag import TagFileParseError, parse_tag_rows
 
     # 构造一个 UploadedFile stub with .xlsx extension 但内容非法

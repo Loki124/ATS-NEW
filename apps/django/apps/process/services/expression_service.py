@@ -9,11 +9,10 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List
 
 from ..expressions import (
-    ExpressionError,
     ExpressionEvaluator,
     extract_used_ids,
     suggest_expression_fix,
@@ -29,11 +28,11 @@ class ExpressionValidationResult:
     """表达式校验结果 - 统一返回结构"""
     valid: bool
     expression: str
-    error: Optional[str] = None
-    error_pos: Optional[int] = None
-    suggestion: Optional[str] = None
-    used_ids: Optional[List[int]] = None
-    max_id: Optional[int] = None
+    error: str | None = None
+    error_pos: int | None = None
+    suggestion: str | None = None
+    used_ids: List[int] | None = None
+    max_id: int | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)

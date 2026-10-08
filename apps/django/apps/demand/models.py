@@ -1,10 +1,11 @@
 """Demand Models (PRD v4 §14.1)"""
 from django.db import models
 from django_fsm import FSMField, transition
-from apps.common.models import FullAuditModel
-from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
-from apps.process.models import RecruitmentProcess
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import FullAuditModel
+from apps.process.models import RecruitmentProcess
+from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
 
 
 def gen_id():

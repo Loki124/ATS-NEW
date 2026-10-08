@@ -4,8 +4,9 @@
 运维在管理界面更新 secret 后, 由 encrypt_migration 一次性把老 config 中的敏感字段加密
 迁移到 encrypted_secret 字段. 之后从 config 取明文路径走 _get_decrypted_config.
 """
-from django.db import migrations, models
 import json
+
+from django.db import migrations, models
 
 
 def encrypt_existing_secrets(apps, schema_editor):

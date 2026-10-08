@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from apps.process.models import StageRule
 from apps.process.services.rule_item_evaluator import RuleItemEvaluator
@@ -36,8 +36,8 @@ class SkipArchiveDecision:
 
     skip: bool = False
     archive: bool = False
-    skip_rule: Optional[Dict[str, Any]] = None
-    archive_rule: Optional[Dict[str, Any]] = None
+    skip_rule: Dict[str, Any] | None = None
+    archive_rule: Dict[str, Any] | None = None
     detail: str = ''
 
 
@@ -53,7 +53,7 @@ def _enabled_rules(rules: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def evaluate_stage_skip_archive(
     link: Any,
     candidate: Any,
-    context: Optional[Dict[str, Any]] = None,
+    context: Dict[str, Any] | None = None,
 ) -> SkipArchiveDecision:
     """评估某 link（阶段）进入时的自动跳过 / 自动归档规则。
 

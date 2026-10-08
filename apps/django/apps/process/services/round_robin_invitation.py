@@ -14,9 +14,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import List, Optional
+from typing import List
 
-from django.db import models
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -26,7 +25,7 @@ logger = logging.getLogger(__name__)
 class RoundRobinCandidate:
     """抢单池候选 HR"""
     user_id: str
-    last_assigned_at: Optional[str] = None
+    last_assigned_at: str | None = None
     current_load: int = 0  # 当前在处理的候选人数
     score: float = 0.0     # 优先级评分（越低越优先）
 
@@ -35,7 +34,7 @@ def pick_round_robin_processor(
     pool_user_ids: List[str],
     last_assignment_map: dict,
     load_map: dict,
-) -> Optional[str]:
+) -> str | None:
     """从抢单池中挑选下一位处理人
 
     策略：先按 last_assigned_at 升序（同时间按 load 升序）
@@ -98,8 +97,8 @@ def should_reassign(
 
 def get_round_robin_status(
     stage_rule,
-    current_assignee: Optional[str],
-    current_assignee_since: Optional[str],
+    current_assignee: str | None,
+    current_assignee_since: str | None,
 ) -> dict:
     """获取轮流邀约状态（前端展示用）"""
     return {

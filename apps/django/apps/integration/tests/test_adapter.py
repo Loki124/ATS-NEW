@@ -5,12 +5,12 @@ fetch_report 五个抽象方法 + to_canonical_status 映射。
 """
 import time
 
+from apps.integration.models import BGOrderStatus
 from apps.integration.suppliers.base import (
+    BackgroundCheckResult,
     BaseBackgroundCheckSupplier,
     CreateOrderRequest,
-    BackgroundCheckResult,
 )
-from apps.integration.models import BGOrderStatus
 
 
 class MockSupplier(BaseBackgroundCheckSupplier):

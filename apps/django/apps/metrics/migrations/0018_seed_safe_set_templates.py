@@ -12,7 +12,6 @@ MetricTemplate（模板名=指标名；operators 用合法 UnifiedOperator code�
 """
 from django.db import migrations
 
-
 TEMPLATES = [
     {'name': '性别', 'kind': 'atomic', 'metric_name': '性别',
      'calc_func': None, 'params': None, 'unit': None,

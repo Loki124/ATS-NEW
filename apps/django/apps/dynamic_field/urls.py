@@ -2,9 +2,9 @@ from django.urls import path
 
 from .views import (
     DynamicFieldViewSet,
-    FieldModuleViewSet,
     FieldGroupViewSet,
     FieldLinkageRuleViewSet,
+    FieldModuleViewSet,
 )
 
 _detail = {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}

@@ -57,13 +57,46 @@ jobs:
       # R11: 原来是 `pytest tests/`, 只覆盖 77/204 个用例 —— apps/*/tests/ 下的
       #      127 个用例 (权限 V2、字段 ACL、状态机等核心逻辑) 在 CI 里从来没跑过。
       #      改成全量收集 (pytest.ini 的 testpaths = tests apps), 隔离区单独排除。
+      - name: Lint (ruff)
+        working-directory: apps/django
+        run: |
+          . .venv/bin/activate
+          # 2026-10-08 (#27): Python lint 门禁。规则集见 apps/django/ruff.toml。
+          #   阶段一聚焦 bug-catcher (F/E9/I), 非零即失败, 防"只许减少、不许新增"。
+          ruff check apps
+
+      # 2026-10-09 (#43): 技术债注释扫描。规范: TODO/FIXME/HACK/XXX 必须带 #issue 编号,
+      #   否则不可审计、等于永久没人跟。当前 warn-only (报告但不阻断), 待存量裸标记补完
+      #   编号后翻 --strict 成硬门禁 (与 ruff 同源: 只许减少、不许新增)。
+      - name: Tech-debt TODO scan (warn-only)
+        working-directory: apps/django
+        run: |
+          . .venv/bin/activate
+          python scripts_scan_todo.py
+
       - name: Run tests (full suite, quarantine excluded)
         working-directory: apps/django
         env:
           DJANGO_SETTINGS_MODULE: config.settings.test
+          # 2026-10-08 (#26): 测试库对齐生产 MySQL 8 —— 复用上方 mysql:8.0 service,
+          #   不再跑 SQLite (避免 "CI 绿、生产炸" 的排序规则/JSON 函数差异)。
+          DB_ENGINE: mysql
+          DB_NAME: ats_test
+          DB_USER: root
+          DB_PASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          # 2026-10-08: 后端覆盖率门禁 (见 #25)。低于此值 CI 失败。
+          #   阈值保守设 70, 后续随补齐率提升再上调。
+          COV_MIN: '70'
         run: |
           . .venv/bin/activate
-          pytest --tb=short -v --maxfail=10 ${{ env.QUARANTINE }}
+          # 2026-10-08: 隔离名单不再由仓库级 QUARANTINE 变量承载 (不可审计),
+          #   改为代码内 pytest marker: 给用例打 @pytest.mark.quarantine 即可隔离。
+          #   tests/test_quarantine_guard.py 会守卫"名单里的用例是否仍真的失败"。
+          #   .coveragerc 负责 source=apps 与排除 migrations/tests, 故这里只传 --cov=apps。
+          pytest --tb=short -v --maxfail=10 -m "not quarantine" --cov=apps \
+            --cov-report=term-missing --cov-fail-under=${{ env.COV_MIN }}
 
   test-frontend:
     name: Frontend Build + Tests
@@ -88,9 +121,11 @@ jobs:
         working-directory: web/app
         run: npm run build
 
-      - name: Unit tests
+      # 2026-10-08 (#25): 前端覆盖率门禁。vitest.config.ts 里设了 thresholds,
+      #   低于阈值本条直接失败。html 报告落 artifact 供复盘。
+      - name: Unit tests (with coverage gate)
         working-directory: web/app
-        run: npm test
+        run: npm test -- --coverage
 
       # R11: 原来是 `npm run lint || true`, 挂了也当过。
       #   现已确认全仓 eslint 零 error 零 warning, 直接收成硬门禁。

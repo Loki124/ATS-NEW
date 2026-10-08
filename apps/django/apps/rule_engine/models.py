@@ -14,7 +14,6 @@ from django.db import models
 
 from apps.common.models import FullAuditModel, UUIDModel
 
-
 # ---------------------------------------------------------------------------
 # 枚举（统一三大规则族 / 触发 / 动作 / 运算符 / 条件类型 / 优先级 / 状态 / 结果）
 # 全部用 models.TextChoices，数据库存值与枚举名一致（如 'TCA' / 'P0'）。
@@ -188,6 +187,11 @@ class Rule(FullAuditModel, UUIDModel):
         ordering = ['priority', 'priority_rank']
         indexes = [
             models.Index(fields=['source_app', 'legacy_id'], name='rule_src_legacy'),
+            # 2026-10-08 审查 #10 (P-14): 规则加载热点
+            models.Index(
+                fields=['trigger_type', 'enabled', 'status', 'deleted_at'],
+                name='idx_rule_trigger_enabled',
+            ),
         ]
 
     def __str__(self):
@@ -292,6 +296,11 @@ class RuleExecutionLog(FullAuditModel, UUIDModel):
         verbose_name = '统一执行日志'
         verbose_name_plural = '统一执行日志'
         ordering = ['-triggered_at']
+        # 2026-10-08 审查 #10 (P-14): 熔断热点 count(rule, evaluate_result)
+        indexes = [
+            models.Index(fields=['rule', 'evaluate_result'],
+                         name='idx_rulelog_rule_eval'),
+        ]
 
     def __str__(self):
         return f'{self.rule_category}/{self.evaluate_result}@{self.triggered_at}'

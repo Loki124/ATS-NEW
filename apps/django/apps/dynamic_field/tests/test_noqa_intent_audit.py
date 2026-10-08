@@ -15,7 +15,6 @@ from pathlib import Path
 
 import pytest
 
-
 DF_DIR = Path('apps/dynamic_field')
 
 
@@ -96,8 +95,9 @@ def test_signals_auto_create_metric_on_field_swallows_operational_error(db, monk
     monkeypatch.setattr(metrics_models.AtomicMetric.objects, 'create', buggy_create)
 
     # 触发 post_save: 直接调用 receiver 函数
-    from apps.dynamic_field.signals import auto_create_metric_on_field
     from types import SimpleNamespace
+
+    from apps.dynamic_field.signals import auto_create_metric_on_field
     fake_instance = SimpleNamespace(
         resource='Candidate',
         field_type='TEXT',

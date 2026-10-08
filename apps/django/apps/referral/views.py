@@ -1,11 +1,10 @@
 """Referral Views (DRF) - PRD v4 §6.4"""
-from django.db import DatabaseError
 import logging
 
+from django.db import DatabaseError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin
@@ -13,8 +12,8 @@ from apps.common.views import EnvelopeWriteMixin
 
 logger = logging.getLogger(__name__)
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
 from apps.core.permissions import is_super_admin
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 
 from .models import Referral
 from .serializers import (
@@ -95,7 +94,6 @@ class ReferralViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewse
         """自动检测 N+1/N+2 类型"""
         instance = self.get_object()
         # 简化的检测逻辑：基于 referrer 与 candidate 部门关系
-        from apps.core.models import User
         try:
             referrer_dept = instance.referrer.department
             candidate_dept = instance.candidate.latest_application_position.position.department if hasattr(instance.candidate, 'latest_application_position') else None

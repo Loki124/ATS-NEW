@@ -1,7 +1,8 @@
 """Field ACL Models (PRD v4 §4.4)"""
 from django.db import models
-from apps.common.models import TimestampedModel
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import TimestampedModel
 
 
 def gen_id():

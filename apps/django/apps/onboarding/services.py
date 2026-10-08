@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from django.db import transaction
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -24,15 +24,15 @@ class OnboardingCreateData:
     position_id: str
     start_date: str
     todo_list: List[str] = None
-    actor: Optional[User] = None
+    actor: User | None = None
 
 
 class OnboardingService:
     @staticmethod
     @transaction.atomic
     def create_onboarding(data: OnboardingCreateData) -> Onboarding:
-        from apps.offer.models import Offer
         from apps.candidate.models import Candidate
+        from apps.offer.models import Offer
         from apps.position.models import Position
         try:
             offer = Offer.objects.get(id=data.offer_id, deleted_at__isnull=True)
@@ -47,7 +47,8 @@ class OnboardingService:
         # → 事务回滚 → Onboarding 不落库（与 offer/services.py 一致语义）。
         # 入参从 offer 派生（offer.level / offer.position_title / offer.start_date）。
         from apps.campus_control.services import (
-            validate_offer_against_rules, ControlRuleViolation,
+            ControlRuleViolation,
+            validate_offer_against_rules,
         )
         start_date_obj = None
         if data.start_date:
@@ -86,7 +87,7 @@ class OnboardingService:
             position=position,
             start_date=data.start_date,
             todo_list=default_todo,
-            todo_completed={item: False for item in default_todo},
+            todo_completed=dict.fromkeys(default_todo, False),
             state=OnboardingState.PENDING,
             created_by=data.actor,
             updated_by=data.actor,
@@ -118,7 +119,8 @@ class OnboardingService:
         # ── v2.10 T03：Onboarding 钩子（人员比例管控 — 节点 5）──
         # 入参从 offer 派生（offer.level / offer.position_title / offer.start_date）。
         from apps.campus_control.services import (
-            validate_offer_against_rules, ControlRuleViolation,
+            ControlRuleViolation,
+            validate_offer_against_rules,
         )
         offer = ob.offer
         start_date_obj = None

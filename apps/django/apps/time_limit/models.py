@@ -7,9 +7,10 @@
 - 生效方式：ALL / NEW_ONLY
 """
 from django.db import models
+from nanoid import generate as nanoid_generate
+
 from apps.common.models import SoftDeleteModel, TimestampedModel
 from apps.process.models import ProcessStageLink
-from nanoid import generate as nanoid_generate
 
 
 def gen_id():

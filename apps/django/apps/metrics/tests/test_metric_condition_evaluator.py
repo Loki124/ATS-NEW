@@ -10,11 +10,11 @@
 """
 import pytest
 from django.utils import timezone
+from nanoid import generate as nanoid_generate
 
 from apps.candidate.models import Candidate
 from apps.metrics.models import AtomicMetric, DerivedMetric, MetricTemplate
 from apps.metrics.services.metric_engine import MetricEngine
-from nanoid import generate as nanoid_generate
 
 
 def _cid() -> str:

@@ -10,11 +10,10 @@
 日志。campus_control 用硬删 + is_active（无统一软删语义），故「软删传播」由本信号的
 post_delete 处理（legacy 行已物理删除，统一侧转为软删，便于一致性命令识别）。
 """
-from django.db import DatabaseError
-
 import logging
 
 from django.conf import settings
+from django.db import DatabaseError
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 

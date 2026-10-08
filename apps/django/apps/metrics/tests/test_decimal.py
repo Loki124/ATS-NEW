@@ -4,8 +4,9 @@
 - metric_engine 的期望值解析 / 比较全程 Decimal（BETWEEN / IN / EQ / GT ...）
 - 端到端：数值规则用字符串值也能精确比较
 """
-import pytest
 from decimal import Decimal
+
+import pytest
 
 from apps.metrics.models import MetricDataType
 from apps.metrics.services.field_resolver import TypeCastError, type_cast

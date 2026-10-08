@@ -9,11 +9,12 @@
 """
 import pytest
 from django.db import transaction
+
 from apps.add_candidate.services.bulk_create import (
-    BulkCreateService,
     BulkCreateDraft,
-    BulkCreateResult,
     BulkCreateError,
+    BulkCreateResult,
+    BulkCreateService,
 )
 
 

@@ -4,10 +4,15 @@
 create_order / cancel_order / query_order / query_products / fetch_report / health。
 验证成功判定、HTTP 码分支、响应归一化、无 URL 早退、签名头随请求发出。
 """
+import socket
 from unittest.mock import patch
 
 from apps.integration.suppliers.base import CreateOrderRequest
 from apps.integration.suppliers.hmac_adapter import HmacBackgroundCheckSupplier
+
+# 2026-10-08 (#15): fetch_report 经 ssrf_safe_get 发起, 会先解析目标主机 DNS 以判定内网。
+# 离线测试用这个桩把任意主机解析到公网 IP, 避免真实 DNS (sp.test 不可解析 → 误判内网)。
+_PUBLIC_DNS = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 0))]
 
 
 class _Resp:
@@ -125,8 +130,9 @@ def test_query_products_with_token_query(mock_get):
 
 
 # ---------------------------------------------------------- fetch_report
+@patch('apps.integration.ssrf.socket.getaddrinfo', return_value=_PUBLIC_DNS)
 @patch('apps.integration.suppliers.hmac_adapter.requests.get')
-def test_fetch_report_ok(mock_get):
+def test_fetch_report_ok(mock_get, _mock_dns):
     mock_get.return_value = _Resp(200, content=b'PDF-BYTES', headers={'Content-Type': 'application/pdf'})
     s = _make_supplier()
 

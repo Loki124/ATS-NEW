@@ -12,6 +12,7 @@
 import logging
 
 import pytest
+from nanoid import generate as nanoid_generate
 
 from apps.candidate.models import Candidate
 from apps.metrics.models import AtomicMetric, MetricTemplate
@@ -25,7 +26,6 @@ from apps.process.services.skip_archive_evaluator import (
     SkipArchiveDecision,
     evaluate_stage_skip_archive,
 )
-from nanoid import generate as nanoid_generate
 
 
 def _cid() -> str:

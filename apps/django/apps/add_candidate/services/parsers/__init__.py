@@ -9,8 +9,8 @@
 from .base import (
     BackendNotFoundError,
     ResumeParserBackend,
-    get_backend,
     get_active_backend_name,
+    get_backend,
     probe_backends,
 )
 from .career_core_backend import CareerCoreBackend

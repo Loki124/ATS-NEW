@@ -26,7 +26,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 REGISTRY: Dict[str, Dict[str, Any]] = {}
 
@@ -55,9 +55,9 @@ def register(
     input_kind: str = '',
     output_type: str = '',
     unit: str = '',
-    param_schema: Optional[List[Dict[str, Any]]] = None,
-    units: Optional[List[str]] = None,
-    param_units: Optional[List[str]] = None,
+    param_schema: List[Dict[str, Any]] | None = None,
+    units: List[str] | None = None,
+    param_units: List[str] | None = None,
 ) -> Callable:
     """注册一个派生计算函数（幂等，同名覆盖）。
 
@@ -93,7 +93,7 @@ def register(
     return deco
 
 
-def get(name: str) -> Optional[Dict[str, Any]]:
+def get(name: str) -> Dict[str, Any] | None:
     return REGISTRY.get(name)
 
 
@@ -150,7 +150,7 @@ def _validate_input_kind(items: Any, input_kind: str) -> None:
             )
 
 
-def compute(name: str, items: Any, params: Optional[dict] = None, data: Optional[dict] = None) -> Any:
+def compute(name: str, items: Any, params: dict | None = None, data: dict | None = None) -> Any:
     entry = REGISTRY.get(name)
     if entry is None:
         raise DerivedComputeError(f'未注册的计算函数: {name}')
@@ -162,7 +162,7 @@ def compute(name: str, items: Any, params: Optional[dict] = None, data: Optional
 # 内置计算函数
 # ---------------------------------------------------------------------------
 
-def _to_date(value: Any) -> Optional[date]:
+def _to_date(value: Any) -> date | None:
     """宽松解析日期：date / datetime / ISO 字符串；失败返回 None（不抛）。"""
     if isinstance(value, datetime):
         return value.date()
@@ -191,7 +191,7 @@ def _items_of(items: Any) -> List[dict]:
     return [it for it in items if isinstance(it, dict)]
 
 
-def _span(item: dict) -> Optional[tuple]:
+def _span(item: dict) -> tuple | None:
     """取一段经历的 (start, end)；在职（无 end）按今天计。"""
     start = _to_date(item.get('start_date') or item.get('startDate'))
     if start is None:
@@ -272,13 +272,13 @@ def count_in_window(items: Any, params: dict, data: dict) -> int:
         },
     ],
 )
-def highest_edu(items: Any, params: dict, data: dict) -> Optional[str]:
+def highest_edu(items: Any, params: dict, data: dict) -> str | None:
     """「第一学历/最高学历必须是本科及以上」。"""
     order = params.get('degree_order')  # 兼容旧参数
     if not order:
         preset = params.get('degree_order_preset') or 'standard'
         order = BACHELOR_UP_ORDER if preset == 'bachelor_up' else DEFAULT_DEGREE_ORDER
-    best: Optional[str] = None
+    best: str | None = None
     best_rank = -1
     for item in _items_of(items):
         degree = item.get('degree') or item.get('education') or item.get('学历')
@@ -298,7 +298,7 @@ def highest_edu(items: Any, params: dict, data: dict) -> Optional[str]:
     input_kind='date', output_type='number', unit='岁',
     param_schema=[],
 )
-def age_from_birthday(items: Any, params: dict, data: dict) -> Optional[int]:
+def age_from_birthday(items: Any, params: dict, data: dict) -> int | None:
     raw = items[0] if isinstance(items, list) and items else items
     birthday = _to_date(raw.get('birthday') if isinstance(raw, dict) else raw)
     if birthday is None:

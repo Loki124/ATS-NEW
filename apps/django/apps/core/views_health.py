@@ -1,6 +1,6 @@
 """健康检查"""
-from django.http import JsonResponse
 from django.db import DatabaseError, connection
+from django.http import JsonResponse
 
 
 def health_check(request):

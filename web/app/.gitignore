@@ -19,3 +19,11 @@ test-results/
 
 # Playwright 真机截图留证（不入库，仅本地核验用）
 e2e/__shots__/
+
+# vitest 运行期缓存（watch 模式生成的临时转译文件，禁止提交）
+*.timestamp-*.mjs
+*.vitest-cache/
+coverage/
+
+# TS 增量编译产物
+*.tsbuildinfo

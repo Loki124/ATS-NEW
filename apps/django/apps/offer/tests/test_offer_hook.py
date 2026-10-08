@@ -201,8 +201,8 @@ def test_create_offer_rollover_disabled_v24_compat():
 
 def test_submit_approval_rollover_block():
     """v2.10 节点 2 (submit_approval) + 浮动开启：硬约束命中 → 400 + state 不变。"""
-    from apps.offer.services import OfferService as _OS
     from apps.offer.models import OfferState
+    from apps.offer.services import OfferService as _OS
     Person.objects.all().delete()
     ControlRule.objects.all().delete()
     User = get_user_model()
@@ -250,8 +250,8 @@ def test_submit_approval_rollover_block():
 
 def test_send_to_candidate_rollover_block():
     """v2.10 节点 3 (send_to_candidate) + 浮动开启：硬约束命中 → 400 + state 不变。"""
-    from apps.offer.services import OfferService as _OS
     from apps.offer.models import OfferState
+    from apps.offer.services import OfferService as _OS
     User = get_user_model()
     user = User.objects.create_user(username=_uid("hr_st"), password="Test@1234")
     dept = Department.objects.create(id=_uid("dept_st"), name="能电BG", code=_uid("STC"))

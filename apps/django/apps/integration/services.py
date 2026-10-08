@@ -13,46 +13,44 @@
 from __future__ import annotations
 
 import binascii
-import hashlib
-import hmac
 import json
 import logging
 import smtplib
 import time
 import uuid
-from dataclasses import dataclass
-from datetime import datetime as dt_datetime, timezone as dt_timezone
+from datetime import UTC
+from datetime import datetime as dt_datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import requests
 from django.db import IntegrityError, OperationalError
 from django.utils import timezone
 
-from apps.common.exceptions import NotFound
 from apps.common.encryption import DecryptionError
-from .crypto import SENSITIVE_KEYS, decrypt_secret_dict
+
 from .models import (
+    ALLOWED_ORDER_TRANSITIONS,
+    BackgroundCheckOrder,
+    BackgroundCheckOrderEvent,
+    BGChannel,
+    BGOrderStatus,
     IntegrationConfig,
     IntegrationSyncLog,
     IntegrationType,
-    BackgroundCheckOrder,
-    BackgroundCheckOrderEvent,
-    BGOrderStatus,
-    BGRiskLevel,
-    ALLOWED_ORDER_TRANSITIONS,
+    nanoid_generate,
 )
 from .serializers import BackgroundCheckOrderSerializer
-
-# T6: 背调供应商统一适配器（HMAC 双签 / 状态机 / query+report 接口）
-from .suppliers.factory import get_supplier
 from .suppliers.base import (
     BaseBackgroundCheckSupplier,
     CreateOrderRequest,
-    verify_callback_signature,
     replay_allowed,
+    verify_callback_signature,
 )
+
+# T6: 背调供应商统一适配器（HMAC 双签 / 状态机 / query+report 接口）
+from .suppliers.factory import get_supplier
 
 logger = logging.getLogger(__name__)
 
@@ -150,8 +148,8 @@ def send_email(to: str, subject: str, body: str, html: bool = False) -> bool:
 # ============================================================
 # 短信
 # ============================================================
-def send_sms(phone: str, content: str, template_id: Optional[str] = None,
-             template_params: Optional[Dict[str, Any]] = None) -> bool:
+def send_sms(phone: str, content: str, template_id: str | None = None,
+             template_params: Dict[str, Any] | None = None) -> bool:
     """发送短信"""
     try:
         config, cfg = _get_decrypted_config(IntegrationType.SMS)
@@ -178,7 +176,6 @@ def _send_sms_aliyun(cfg, phone, content, template_id, template_params) -> bool:
         import base64
         import hashlib
         import hmac
-        import time
         import uuid
         access_key_id = cfg.get('access_key_id')
         access_key_secret = cfg.get('access_key_secret')
@@ -264,7 +261,7 @@ def send_wecom_message(user_id: str, content: str, title: str = '') -> bool:
         return False
 
 
-def send_wecom_robot(webhook_url: str, content: str, mentioned: Optional[List[str]] = None) -> bool:
+def send_wecom_robot(webhook_url: str, content: str, mentioned: List[str] | None = None) -> bool:
     """发送企微群机器人消息"""
     try:
         payload = {
@@ -366,11 +363,11 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
                              *, candidate_name: str = '', phone: str = '',
                              operator_name: str = '', operator_phone: str = '',
                              channel: str = 'SYSTEM_ORDER', remark: str = '',
-                             parent_order_id: str = '', bg_suggestions: Optional[list] = None,
+                             parent_order_id: str = '', bg_suggestions: list | None = None,
                              has_existing_report: bool = False,
                              package_name: str = '', bg_result: str = '',
-                             contactable: Optional[bool] = None,
-                             subject_snapshot: Optional[dict] = None,
+                             contactable: bool | None = None,
+                             subject_snapshot: dict | None = None,
                              expected_onboarding_date: str = '') -> Dict[str, Any]:
     """发起背调（T6 委托供应商适配器；保持对外 dict 形状与落库行为）。
 
@@ -437,24 +434,24 @@ def request_background_check(candidate_id: str, items: List[str], config_id: str
         logger.exception('Background check request failed: %s', e)
         return {'success': False, 'error': str(e)}
 
-def _ms_to_datetime(ms) -> Optional[dt_datetime]:
+def _ms_to_datetime(ms) -> dt_datetime | None:
     """Unix 毫秒时间戳 -> 时区感知 datetime（UTC），非法值返回 None。"""
     if ms is None:
         return None
     try:
-        return dt_datetime.fromtimestamp(int(ms) / 1000, tz=dt_timezone.utc)
+        return dt_datetime.fromtimestamp(int(ms) / 1000, tz=UTC)
     except (TypeError, ValueError, OverflowError, OSError):
         return None
 
 
 def create_background_check_order(config: IntegrationConfig, candidate_id: str, items: List[str],
                                   order_number: str, candidate_name: str = '',
-                                  request_payload: Optional[dict] = None,
+                                  request_payload: dict | None = None,
                                   *, channel: str = 'SYSTEM_ORDER', remark: str = '',
                                   is_supplementary: bool = False, parent_order_id: str = '',
-                                  bg_suggestions: Optional[list] = None,
+                                  bg_suggestions: list | None = None,
                                   package_name: str = '', bg_result: str = '',
-                                  subject_snapshot: Optional[dict] = None) -> BackgroundCheckOrder:
+                                  subject_snapshot: dict | None = None) -> BackgroundCheckOrder:
     """落初始背调订单（状态机起点 status=0 已受理）。
 
     幂等：同一 (config, order_number) 已存在则直接返回，不重复写 CREATE 事件。
@@ -490,13 +487,13 @@ def create_background_check_order(config: IntegrationConfig, candidate_id: str, 
 
 def upload_background_check_report(candidate_id: str, candidate_name: str = '', phone: str = '',
                                    report_url: str = '', remark: str = '',
-                                   answers: Optional[list] = None,
-                                   bg_suggestions: Optional[list] = None,
+                                   answers: list | None = None,
+                                   bg_suggestions: list | None = None,
                                    parent_order_id: str = '',
                                    operator_name: str = '',
                                    package_name: str = '', bg_provider: str = '',
                                    bg_time: str = '', bg_result: str = '',
-                                   subject_snapshot: Optional[dict] = None) -> Dict[str, Any]:
+                                   subject_snapshot: dict | None = None) -> Dict[str, Any]:
     """已有报告上传 / 自主背调（步骤式弹窗「已有报告」分支）。
 
     不调用供应商接口，直接落一条 channel=SELF、status=已完成(1) 的订单，
@@ -612,8 +609,8 @@ def aggregate_bg_suggestions(candidate_id: str) -> List[Dict[str, Any]]:
 
 
 def apply_callback_to_order(payload: dict, config: IntegrationConfig,
-                            sync_log: Optional[IntegrationSyncLog] = None
-                            ) -> tuple[BackgroundCheckOrder, Optional[BackgroundCheckOrderEvent], str]:
+                            sync_log: IntegrationSyncLog | None = None
+                            ) -> tuple[BackgroundCheckOrder, BackgroundCheckOrderEvent | None, str]:
     """回调驱动订单状态机（规范 §5.3 幂等 + 状态机转移）。
 
     参数:
@@ -679,7 +676,7 @@ def apply_callback_to_order(payload: dict, config: IntegrationConfig,
 
 
 def cancel_background_check_order(order: BackgroundCheckOrder,
-                                  config: Optional[IntegrationConfig] = None) -> Dict[str, Any]:
+                                  config: IntegrationConfig | None = None) -> Dict[str, Any]:
     """平台发起取消（状态机置 6 已取消）。
 
     T6: 先委托供应商适配器做签名出向（best-effort），再在平台侧置为已取消。
@@ -721,7 +718,7 @@ def cancel_background_check_order(order: BackgroundCheckOrder,
         result = {'success': False, 'message': f'取消异常: {e}'}
     return result
 
-def verify_background_check_callback(payload: dict, app_id: str) -> tuple[bool, int, str, Optional[IntegrationConfig]]:
+def verify_background_check_callback(payload: dict, app_id: str) -> tuple[bool, int, str, IntegrationConfig | None]:
     """校验背调供应商异步回调（规范 §5.2 验签 + 重放防护）。
 
     参数 / 返回 同原实现；签名公式与重放窗口判定已收敛到 suppliers.base
@@ -736,7 +733,7 @@ def verify_background_check_callback(payload: dict, app_id: str) -> tuple[bool, 
         return False, 40001, '缺少必填字段(number/status/timestamp/sign)', None
 
     # 2. 按 X-App-Id 定位已启用的背调供应商配置
-    matched: Optional[IntegrationConfig] = None
+    matched: IntegrationConfig | None = None
     for c in IntegrationConfig.objects.filter(type=IntegrationType.BACKGROUND_CHECK, is_active=True):
         cfg_app_id = (c.config or {}).get('AppId') or (c.config or {}).get('appId')
         if cfg_app_id and cfg_app_id == app_id:
@@ -800,7 +797,7 @@ def query_background_check_order(order_number: str, config_id: str = None) -> Di
         return {'success': False, 'error': str(e)}
 
 
-def fetch_background_check_report(order: 'BackgroundCheckOrder') -> Dict[str, Any]:
+def fetch_background_check_report(order: BackgroundCheckOrder) -> Dict[str, Any]:
     """拉取背调报告（T6 新增接口）。
 
     委托供应商适配器 fetch_report（GET order.report_url），落审计日志后返回统一 dict。
@@ -827,7 +824,7 @@ def fetch_background_check_report(order: 'BackgroundCheckOrder') -> Dict[str, An
         logger.exception('fetch_background_check_report failed: %s', e)
         return {'success': False, 'error': str(e)}
 
-def bg_callback_envelope(code: int, message: str, data: Optional[dict] = None, request_id: Optional[str] = None) -> dict:
+def bg_callback_envelope(code: int, message: str, data: dict | None = None, request_id: str | None = None) -> dict:
     """统一回调响应信封（规范 §3.2）。
 
     - 成功: code=0, HTTP 200

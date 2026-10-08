@@ -19,7 +19,6 @@ from __future__ import annotations
 import binascii
 import hashlib
 import logging
-from typing import Any, Optional
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 from django.conf import settings
@@ -91,14 +90,14 @@ def _get_fernet():
     return _mk_fernet(_single_key())
 
 
-def encrypt_value(plaintext: Optional[str]) -> Optional[str]:
+def encrypt_value(plaintext: str | None) -> str | None:
     """加密字符串. None/空 返 None (不加密, 节省存储)."""
     if not plaintext:
         return plaintext
     return _get_fernet().encrypt(plaintext.encode('utf-8')).decode('ascii')
 
 
-def decrypt_value(ciphertext: Optional[str], field_name: Optional[str] = None) -> Optional[str]:
+def decrypt_value(ciphertext: str | None, field_name: str | None = None) -> str | None:
     """解密字符串. None/空 返 None.
 
     失败模式 (2026-09-27 P0-1 修复, 原 fail-open 静默返回密文):
@@ -153,7 +152,7 @@ def _digest(salt: str, plaintext: str) -> str:
     return h.hexdigest()
 
 
-def hash_for_search(plaintext: Optional[str], salt: Optional[str] = None) -> str:
+def hash_for_search(plaintext: str | None, salt: str | None = None) -> str:
     """用于搜索/查重的不可逆 hash (salt 前置的 SHA-256).
 
     算法说明: 实现是 **salt 前置的 SHA-256** (salt + ':' + 标准化明文), 不是 HMAC
@@ -179,7 +178,7 @@ def hash_for_search(plaintext: Optional[str], salt: Optional[str] = None) -> str
 
 
 def verify_hash_for_search(
-    plaintext: Optional[str], stored_hash: Optional[str], salt: Optional[str] = None
+    plaintext: str | None, stored_hash: str | None, salt: str | None = None
 ) -> bool:
     """双读校验: 同时兼容 v1(存量) 与 v2(外部 salt), 供灰度切换期查重使用.
 
@@ -199,7 +198,7 @@ def verify_hash_for_search(
 
 
 def hash_candidates_for_search(
-    plaintext: Optional[str], salt: Optional[str] = None
+    plaintext: str | None, salt: str | None = None
 ) -> list:
     """返回该明文**所有可能已落库**的哈希形态, 供 DB 层 OR 查询做双读。
 

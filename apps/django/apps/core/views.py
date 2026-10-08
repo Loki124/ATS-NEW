@@ -5,29 +5,35 @@ T30.175 (V2 cutover follow-up):
 - UserViewSet.get_queryset / PermissionViewSet.get_queryset 改用 role_v2_query 辅助
 - PermissionViewSet 改用 V2 PermissionResource (V1 permissions 表已 DROP)
 """
-from rest_framework import viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
-from .models import User, Department
+
+from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
+from apps.core.models_permission_v2 import (
+    PermissionResource,
+    RolePermissionV2,
+    RoleV2,
+    UserRoleV2,
+)
+
+from .models import Department, User
+from .permissions import IsSuperAdmin, UserViewPermission
+from .permissions_v2 import V2Permission
+from .role_v2_query import HRBP_TIER, is_super_admin, user_has_any_role
 from .serializers import (
-    UserSerializer, UserMinimalSerializer,
     DepartmentSerializer,
+    UserMinimalSerializer,
+    UserSerializer,
+)
+from .serializers_permission_v2 import (
+    PermissionResourceSerializer,
 )
 from .serializers_permission_v2 import (
     RoleSerializer as RoleV2Serializer,
-    PermissionResourceSerializer,
 )
-from .permissions import IsAuthenticated, IsSuperAdmin, UserViewPermission
-from .role_v2_query import user_has_any_role, is_super_admin
-from apps.common.pagination import StandardResultsSetPagination
-from apps.common.mixins import SoftDeleteViewSetMixin
-from apps.common.views import EnvelopeWriteMixin
-from apps.core.models_permission_v2 import (
-    RoleV2, UserRoleV2, RolePermissionV2, PermissionResource,
-)
-from .permissions_v2 import V2Permission
 
 
 class UserViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
@@ -53,6 +59,21 @@ class UserViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         if is_super_admin(user) or user_has_any_role(user, HRBP_TIER):
             return qs
         return qs.filter(pk=user.pk)
+
+    def get_serializer_context(self):
+        """#9 (2026-10-09): UserMinimalSerializer.to_representation 此前逐行查
+        UserRoleV2 (user_id 是整数字段、无 FK 反向关系, 无法 prefetch_related),
+        N 个用户 -> N 次查询。这里按当前页用户批量取 role_code 映射一次注入 context,
+        序列化器优先读 role_map, 列表查询从 N+1 降为 1。"""
+        ctx = super().get_serializer_context()
+        if self.action in ('list', 'active'):
+            from apps.core.models_permission_v2 import UserRoleV2
+            user_ids = list(self.get_queryset().values_list('id', flat=True))
+            rows = UserRoleV2.objects.filter(
+                user_id__in=user_ids, system_code='recruit',
+            ).values_list('user_id', 'role_code')
+            ctx['role_map'] = {uid: code for uid, code in rows}
+        return ctx
 
     def list(self, request, *args, **kwargs):
         """list 默认按 UserMinimalSerializer 脱敏 phone/email, 防止 HR 拿到全员手机号"""
@@ -82,6 +103,15 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
+    # 2026-10-08: 写操作必须显式授权。此前未声明任何权限码 → V2Permission 对写操作
+    #   也默认放行, 任意登录用户都能新建/修改/删除部门 (部门又被 L1-L4 scope 解析使用,
+    #   篡改部门即改变他人可见数据范围)。读操作仍按设计放行 (组织树属基础数据)。
+    permission_required_map = {
+        'create': 'recruit:settings:department:create',
+        'update': 'recruit:settings:department:edit',
+        'partial_update': 'recruit:settings:department:edit',
+        'destroy': 'recruit:settings:department:delete',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['name', 'code']

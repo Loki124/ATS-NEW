@@ -9,7 +9,8 @@ from django.db import IntegrityError
 from rest_framework.test import APIClient
 
 from apps.reason_library.models import (
-    RuleSceneAssignment, SceneRule,
+    RuleSceneAssignment,
+    SceneRule,
 )
 
 pytestmark = pytest.mark.django_db

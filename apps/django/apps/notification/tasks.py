@@ -23,7 +23,6 @@ def send_pending_reminders() -> Dict:
 
     for log in pending:
         try:
-            from .services import NotificationService
             if log.channel == 'EMAIL':
                 from apps.integration.services import send_email
                 success = send_email(

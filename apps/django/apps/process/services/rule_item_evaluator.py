@@ -22,22 +22,11 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from apps.metrics.models import MetricDataType
-from apps.metrics.services.candidate_snapshot import (
-    build_candidate_snapshot,
-    build_demand_snapshot,
-    build_position_snapshot,
-)
-from apps.metrics.services.field_resolver import (
-    FieldResolveError,
-    FieldResolverRegistry,
-    TypeCastError,
-    type_cast,
-)
-from apps.metrics.services.metric_engine import MetricEngine
-
+# 2026-10-09 (#21): 以下 metrics 符号改为方法内惰性导入 (见 evaluate_item /
+#   _infer_data_type_from_value / _evaluate_legacy_item), 切断 process → metrics
+#   模块级循环依赖 (metrics.services.template_impact 仍模块级引用 process.models.StageRule)。
 logger = logging.getLogger(__name__)
 
 # skip/archive 支持的 legacy 条件类型
@@ -63,6 +52,9 @@ class RuleItemEvaluator:
 
         item 键：condition_type / field / operator / value / meta（meta 可选）。
         """
+        # 2026-10-09 (#21): 惰性导入, 切断 process → metrics 模块级循环依赖
+        from apps.metrics.services.metric_engine import MetricEngine
+
         try:
             condition_type = item.get('condition_type')
             operator = item.get('operator')
@@ -127,6 +119,9 @@ class RuleItemEvaluator:
         避免数值字段退化为 string 导致字典序比较（如 '40' < '9' 误判）。
         list/tuple 取首元素递归推断（兼容 BETWEEN/IN 的数值列表）。
         """
+        # 2026-10-09 (#21): 惰性导入, 切断 process → metrics 模块级循环依赖
+        from apps.metrics.models import MetricDataType
+
         if isinstance(value, bool):
             return MetricDataType.BOOLEAN
         if isinstance(value, (int, float, Decimal)):
@@ -145,6 +140,21 @@ class RuleItemEvaluator:
     @classmethod
     def _evaluate_legacy_item(cls, item: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """legacy 条件项：三类快照 + FieldResolverRegistry 点路径解析（不依赖 ORM Evaluator）。"""
+        # 2026-10-09 (#21): 惰性导入, 切断 process → metrics 模块级循环依赖
+        from apps.metrics.models import MetricDataType
+        from apps.metrics.services.candidate_snapshot import (
+            build_candidate_snapshot,
+            build_demand_snapshot,
+            build_position_snapshot,
+        )
+        from apps.metrics.services.field_resolver import (
+            FieldResolveError,
+            FieldResolverRegistry,
+            TypeCastError,
+            type_cast,
+        )
+        from apps.metrics.services.metric_engine import MetricEngine
+
         operator = item.get('operator')
         field = item.get('field')
         ctx = context or {}

@@ -74,7 +74,7 @@ def _upload(content, name='rules.xlsx'):
 def _valid_row(indicator='985', bu='', position='', level='', year=2026,
                annual=120, monthly=None, strength='硬约束'):
     mt = monthly if monthly is not None else [10] * 12
-    return [f'院校标签', indicator, bu, position, level, year, strength, annual, *mt]
+    return ['院校标签', indicator, bu, position, level, year, strength, annual, *mt]
 
 
 # ============================ 模板 ============================

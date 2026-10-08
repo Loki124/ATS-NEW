@@ -12,11 +12,11 @@ from rest_framework.test import APIClient
 
 from apps.candidate.models import (
     Candidate,
-    CandidateScreening,
     CandidatePositionRecommendation,
+    CandidateScreening,
 )
-from apps.position.models import Position
 from apps.core.models import Department
+from apps.position.models import Position
 from apps.process.models import RecruitmentProcess
 
 

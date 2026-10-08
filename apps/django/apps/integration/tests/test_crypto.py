@@ -16,10 +16,10 @@ from django.test import override_settings
 
 from apps.common.encryption import DecryptionError
 from apps.integration.crypto import (
+    _fernet,
     decrypt_secret,
     decrypt_secret_dict,
     encrypt_secret,
-    _fernet,
 )
 
 # 测试内自生成密钥, 避免依赖环境 INTEGRATION_FERNET_KEY.

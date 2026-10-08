@@ -19,6 +19,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
+      // 2026-10-08 (#25): 覆盖率门禁。低于阈值 → CI 失败, 防止"测试越写越少还判绿"。
+      //   门槛保守: 现状未知, 先锁 70/55/65/70, 后续随覆盖补齐再上调。
+      thresholds: {
+        statements: 70,
+        branches: 55,
+        functions: 65,
+        lines: 70,
+      },
     },
   },
 })

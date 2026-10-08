@@ -267,6 +267,13 @@ else:
         }
     }
 
+# 2026-10-08: 连接复用 + 健康检查。
+#   Django 默认 CONN_MAX_AGE=0 —— 每个请求结束就断开, 高并发下 MySQL 的 TCP 三次握手
+#   与认证开销会变成实实在在的延迟和负载。SQLite 无意义, 不设置。
+if DATABASES['default']['ENGINE'] != 'django.db.backends.sqlite3':
+    DATABASES['default']['CONN_MAX_AGE'] = env.int('DB_CONN_MAX_AGE', default=60)
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+
 # === 密码校验 ===
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -318,6 +325,14 @@ AUTH_USER_MODEL = 'core.User'
 
 # Default deny-by-default shadow toggle. Keep False in production.
 ATSSEC_DRY_RUN = False
+
+# 2026-10-08: V2Permission 写操作守卫。
+#   此前未声明 permission_required 的视图对写操作也默认放行，导致只持「:list」权限的
+#   账号可对同一 ModelViewSet 执行 create/update/destroy（权限提升）。
+#   现在写操作必须显式声明 permission_required / permission_required_map。
+#   灰度切换：先置 False 跑一轮，收集日志中「未声明权限码的写操作」告警，
+#   逐个补声明后再置 True 并移除本开关。生产必须为 True。
+V2_STRICT_WRITE_GUARD = env.bool('V2_STRICT_WRITE_GUARD', default=True)
 
 # === 统一规则引擎 双写 / 委托开关（Phase 2，2026-08-31，设计文档 §3.2 / §6 Phase 2）===
 # 双写（默认开）：automation 记录保存/软删时，best-effort 镜像到 rule_engine 统一表。
@@ -392,7 +407,9 @@ REST_FRAMEWORK = {
 # === JWT 配置 ===
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(
-        minutes=env.int('JWT_ACCESS_TOKEN_LIFETIME_MINUTES', default=60)
+        # 2026-10-09 (#19): access 缩至 15 分钟内 (原 60), 缩短被盗用窗口;
+        #   撤销靠 refresh 端的 token_version 校验 (见 apps.core.jwt_tokens / views_auth)。
+        minutes=env.int('JWT_ACCESS_TOKEN_LIFETIME_MINUTES', default=15)
     ),
     'REFRESH_TOKEN_LIFETIME': timedelta(
         days=env.int('JWT_REFRESH_TOKEN_LIFETIME_DAYS', default=7)
@@ -499,6 +516,10 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TIMEZONE = 'Asia/Shanghai'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
+# 2026-10-09 (#13 / P-34): 软时限比硬时限早 5 分钟触发, 让任务有机会捕获
+#   SoftTimeLimitExceeded 把状态标 FAILED, 避免硬超时直接杀进程导致 ExportTask
+#   等长期卡在 RUNNING (analytics/tasks.py)。
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_BEAT_SCHEDULE = {
     'check-stage-time-limit': {

@@ -5,13 +5,17 @@ import functools
 import logging
 from typing import Callable
 
-from rest_framework.response import Response
-
-from apps.common.exceptions import ATSException
+from apps.common.exceptions import (
+    ATSException,
+    UnauthenticatedError,
+)
 from apps.common.exceptions import (
     NotFound as CommonNotFound,
+)
+from apps.common.exceptions import (
     PermissionDenied as CommonPermissionDenied,
-    UnauthenticatedError,
+)
+from apps.common.exceptions import (
     ValidationError as CommonValidationError,
 )
 

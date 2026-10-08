@@ -8,10 +8,11 @@
 - 空 JD / 空简历 / 异常输入
 """
 import pytest
+
 from apps.add_candidate.services.scoring import (
-    ScoringService,
-    ScoreResult,
     ScoreDimension,
+    ScoreResult,
+    ScoringService,
 )
 
 

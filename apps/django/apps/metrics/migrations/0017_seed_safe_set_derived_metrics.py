@@ -12,7 +12,6 @@
 """
 from django.db import migrations
 
-
 METRICS = [
     {
         'name': '跳槽频率',

@@ -15,8 +15,9 @@ from django.contrib.auth import get_user_model
 from openpyxl import Workbook, load_workbook
 from rest_framework.test import APIClient
 
-from ..models import AtomicMetric, MetricTemplate
 from apps.audit.models import AuditLog
+
+from ..models import AtomicMetric, MetricTemplate
 
 USER = get_user_model()
 

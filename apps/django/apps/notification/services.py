@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.db import OperationalError, transaction
 from django.utils import timezone
@@ -36,10 +36,10 @@ class SendNotificationData:
     content: str
     link: str = ''
     source: str = 'SYSTEM'
-    source_id: Optional[str] = None
+    source_id: str | None = None
     channel: str = 'IN_APP'
-    template_code: Optional[str] = None
-    variables: Optional[Dict[str, Any]] = None
+    template_code: str | None = None
+    variables: Dict[str, Any] | None = None
     priority: str = 'NORMAL'
 
 
@@ -111,7 +111,7 @@ class NotificationDispatcher:
                 subject=log.subject,
                 body=log.content,
             )
-        except (OperationalError,) as e:
+        except OperationalError as e:
             # integration.send_email() 已自行 swallow 第三方 IO 异常并返回 False,
             # 这里只兜 ORM 落库失败; 其他编程错误不再静默吞, 让其崩出以便排查。
             logger.exception('Email log persist failed: %s', e)
@@ -133,7 +133,7 @@ class NotificationDispatcher:
                 phone=recipient.phone,
                 content=log.content,
             )
-        except (OperationalError,) as e:
+        except OperationalError as e:
             logger.exception('SMS log persist failed: %s', e)
             log.failed_reason = str(e)
             log.save(update_fields=['failed_reason'])
@@ -154,7 +154,7 @@ class NotificationDispatcher:
                 content=log.content,
                 title=log.subject,
             )
-        except (OperationalError,) as e:
+        except OperationalError as e:
             logger.exception('Wecom log persist failed: %s', e)
             log.failed_reason = str(e)
             log.save(update_fields=['failed_reason'])
@@ -277,7 +277,7 @@ class NotificationService:
     def list_notifications(
         user: User,
         unread_only: bool = False,
-        event: Optional[str] = None,
+        event: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> List[NotificationLog]:
@@ -314,9 +314,9 @@ class NotificationService:
 # ============================================================
 def send_notification(
     recipient_id: str, title: str, content: str,
-    link: str = '', source: str = 'SYSTEM', source_id: Optional[str] = None,
-    channel: str = 'IN_APP', template_code: Optional[str] = None,
-    variables: Optional[Dict[str, Any]] = None,
+    link: str = '', source: str = 'SYSTEM', source_id: str | None = None,
+    channel: str = 'IN_APP', template_code: str | None = None,
+    variables: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """便捷函数"""
     data = SendNotificationData(

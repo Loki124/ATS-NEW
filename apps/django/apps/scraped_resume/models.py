@@ -23,7 +23,8 @@
 将由 T06 (G30 任务) 落地, 这里留 stub 文档指引.
 """
 from django.db import models
-from apps.common.models import SoftDeleteModel, SoftDeleteManager
+
+from apps.common.models import SoftDeleteManager, SoftDeleteModel
 
 
 class ScrapedResume(SoftDeleteModel):

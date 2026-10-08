@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-
 APP_DIR = Path('apps/application')
 
 
@@ -88,6 +87,7 @@ def test_start_application_state_transition_error_on_invalid_state():
     然后 application.start() 抛 Exception — 验证 except 块将其包成 StateTransitionError.
     """
     from unittest.mock import MagicMock
+
     from apps.application.models import ApplicationState
     from apps.application.services import ApplicationService
     from apps.application.services.__init__ import StateTransitionError
@@ -104,10 +104,10 @@ def test_start_application_state_transition_error_on_invalid_state():
 def test_pause_rejects_resume_state():
     """pause_application 是 free function (services/__init__.py:1070). 模拟 application.pause() 抛 Exception → noqa 块应包成 StateTransitionError."""
     from unittest.mock import MagicMock
-    from apps.application.services import pause_application
-    from apps.application.services.__init__ import StateTransitionError
 
     from apps.application.models import ApplicationState
+    from apps.application.services import pause_application
+    from apps.application.services.__init__ import StateTransitionError
 
     mock_app = MagicMock()
     mock_app.state = ApplicationState.ACTIVE  # 通过前置 state != ACTIVE 校验, 走到 try 块

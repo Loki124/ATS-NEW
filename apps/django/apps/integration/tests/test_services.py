@@ -8,9 +8,9 @@ import pytest
 
 from apps.integration import services
 from apps.integration.models import (
-    IntegrationSyncLog,
     BackgroundCheckOrder,
     BGOrderStatus,
+    IntegrationSyncLog,
 )
 from apps.integration.tests.test_adapter import MockSupplier
 

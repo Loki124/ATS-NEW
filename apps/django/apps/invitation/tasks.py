@@ -1,10 +1,10 @@
 """Invitation Celery tasks (PRD v4 §14.6)"""
-from django.db import DatabaseError
 import logging
 from datetime import timedelta
 from typing import Dict
 
 from celery import shared_task
+from django.db import DatabaseError
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -39,8 +39,9 @@ def cleanup_expired() -> Dict:
 @shared_task(name='apps.invitation.tasks.send_invitation_reminders')
 def send_invitation_reminders() -> Dict:
     """给快过期的邀约发送提醒（每 6 小时）"""
-    from .models import Invitation, InvitationState
     from apps.notification.services import NotificationService
+
+    from .models import Invitation, InvitationState
 
     now = timezone.now()
     threshold = now + timedelta(hours=4)

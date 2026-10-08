@@ -10,7 +10,7 @@ from apps.common.exceptions import NotFound, ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 from apps.process.models import RecruitmentProcess
 
 from .models import Demand, DemandApproval, DemandSetting

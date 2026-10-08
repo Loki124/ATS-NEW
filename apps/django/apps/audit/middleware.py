@@ -8,13 +8,13 @@ P1-2 修复: 写库失败时降级 + 速率限制
 - 累计 > THROTTLE 阈值后改为 ERROR 级别,避免 log 爆炸
 - 累计 > KILL_SWITCH 阈值后临时禁用中间件,直到运维确认恢复
 """
-import redis
-from django.db import DatabaseError
 import json
 import logging
 import time
 
+import redis
 from django.core.cache import cache
+from django.db import DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,91 @@ THROTTLE_THRESHOLD = 50      # 累计 50 次失败 → 升级到 ERROR
 KILL_SWITCH_THRESHOLD = 500  # 累计 500 次失败 → 临时禁用中间件
 KILL_SWITCH_KEY = 'audit:disabled'
 KILL_SWITCH_TTL = 600  # 禁用 10 分钟,运维可手动重置
+
+# === 2026-10-08: 请求体脱敏 ===
+# 原实现在 DEBUG 下直接 `request.body[:512]` 写日志 —— 登录密码、refresh token、
+# 验证码、候选人手机号/邮箱/身份证会原样落进日志, 而 dev 配置的 apps logger 正是
+# DEBUG (dev.py:39-43)。日志一旦被共享/备份/采集, 等于明文凭据泄露。
+#
+# 规则: 永不记录原始请求体。只保留"哪些字段被提交了"这一结构信息, 值一律脱敏。
+import re as _re
+
+_SENSITIVE_KEY_RE = _re.compile(
+    r'password|passwd|token|refresh|secret|authorization|cookie'
+    r'|otp|smscode|captcha|apikey|api_key'
+    r'|phone|mobile|email|idcard|id_card|ssn|cvv|cvc|card|bank'
+    r'|verification|code',
+    _re.I,
+)
+
+# 这些路径的请求体整体不记录任何字段结构
+_REDACT_WHOLE_BODY_PATHS = (
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/change-password',
+    '/api/v1/auth/refresh',
+    '/api/v1/gdpr',
+    '/api/v1/accounts/register',
+)
+
+_REDACTED = '<redacted>'
+_MAX_VALUE_LEN = 32
+
+
+def _redact_value(value):
+    """标量值脱敏: 只保留类型与长度, 不保留内容。"""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return '<bool>'
+    if isinstance(value, (int, float)):
+        return '<num>'
+    if isinstance(value, str):
+        return f'<str len={len(value)}>' if len(value) > _MAX_VALUE_LEN else _REDACTED
+    return f'<{type(value).__name__}>'
+
+
+def _redact_structure(obj, depth=0):
+    """递归脱敏: 保留键名结构, 值一律替换为占位符; 敏感键名本身也打码。"""
+    if depth > 3:
+        return '<deep>'
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            key = str(k)
+            if _SENSITIVE_KEY_RE.search(key):
+                out[key] = _REDACTED
+            elif isinstance(v, (dict, list)):
+                out[key] = _redact_structure(v, depth + 1)
+            else:
+                out[key] = _redact_value(v)
+        return out
+    if isinstance(obj, list):
+        return [_redact_structure(v, depth + 1) for v in obj[:10]]
+    return _redact_value(obj)
+
+
+def safe_body_summary(request):
+    """生成可安全写入日志的请求体摘要 (永不包含原始值)。"""
+    if request.method in SKIP_METHODS:
+        return ''
+    path = getattr(request, 'path', '') or ''
+    if any(path.startswith(p) for p in _REDACT_WHOLE_BODY_PATHS):
+        return '<omitted: sensitive endpoint>'
+    try:
+        raw = request.body
+    except Exception:  # noqa: BLE001 — body 已被消费或不可读, 跳过即可
+        return '<unreadable>'
+    if not raw:
+        return ''
+    if len(raw) > 8192:
+        return f'<omitted: body too large ({len(raw)} bytes)>'
+    try:
+        parsed = json.loads(raw.decode('utf-8', errors='replace'))
+    except (ValueError, UnicodeDecodeError):
+        # 非 JSON (form-data / multipart 上传) —— 结构不可控, 整体跳过
+        return '<omitted: non-json body>'
+    return json.dumps(_redact_structure(parsed), ensure_ascii=False)[:512]
 
 
 def _is_killed() -> bool:
@@ -154,17 +239,9 @@ class AuditMiddleware:
         user_id = getattr(user, 'id', None) if user and user.is_authenticated else None
 
         # 仅 DEBUG 级别记录详细信息，避免日志爆炸
+        # 2026-10-08: body 一律走 safe_body_summary() 脱敏, 不再写原始请求体
         if logger.isEnabledFor(logging.DEBUG):
-            body_summary = ''
-            # P1-2 修复补充: DRF view 已消费 request.body 流,二次读取会抛异常
-            # 仅当 body 流未被消费时尝试读取,否则跳过 (不影响业务)
-            if request.method not in SKIP_METHODS:
-                try:
-                    if request.body and not getattr(request, '_body_consumed', False):
-                        raw = request.body[:512].decode('utf-8', errors='replace')
-                        body_summary = raw
-                except Exception:  # noqa: BLE001 — response body 解析失败回退原文截断显示, 不阻断审计日志写入
-                    body_summary = '<unreadable>'
+            body_summary = safe_body_summary(request)
 
             logger.debug(
                 'audit method=%s path=%s status=%s user=%s duration=%dms body=%s',

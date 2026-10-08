@@ -10,7 +10,6 @@ from django.contrib.auth import get_user_model
 from django.db.utils import OperationalError, ProgrammingError
 from rest_framework.test import APIClient
 
-
 User = get_user_model()
 
 
@@ -79,7 +78,7 @@ def test_sync_resources_persists_codes(admin, seed_templates):
     assert res.status_code in (200, 201), res.content[:300]
 
     # 2. 创建 2 个测试资源
-    from apps.core.models_permission_v2 import PermissionResource, RoleV2, RolePermissionV2
+    from apps.core.models_permission_v2 import PermissionResource, RolePermissionV2, RoleV2
     PermissionResource.objects.get_or_create(
         resource_code='test:sync:res1',
         defaults={'system_code': 'recruit', 'resource_name': 'S1',
@@ -158,7 +157,7 @@ def test_sync_resources_empty_array_clears(admin):
     client = APIClient()
     client.force_authenticate(user=admin)
 
-    from apps.core.models_permission_v2 import RoleV2, RolePermissionV2, PermissionResource
+    from apps.core.models_permission_v2 import PermissionResource, RolePermissionV2, RoleV2
     PermissionResource.objects.get_or_create(
         resource_code='test:clear:res',
         defaults={'system_code': 'recruit', 'resource_name': 'C1',

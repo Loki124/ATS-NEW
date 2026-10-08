@@ -2,17 +2,17 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import timedelta
+from typing import Dict, List
 
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.utils import timezone
 
-from apps.candidate.models import Candidate
 from apps.application.models import Application
+from apps.candidate.models import Candidate
 from apps.demand.models import Demand
-from apps.position.models import Position
 from apps.offer.models import Offer
+from apps.position.models import Position
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class AnalyticsService:
     """数据中心业务服务"""
 
     @staticmethod
-    def get_funnel_data(department_id: Optional[str] = None, days: int = 30) -> Dict:
+    def get_funnel_data(department_id: str | None = None, days: int = 30) -> Dict:
         """招聘漏斗数据"""
         from_date = timezone.now() - timedelta(days=days)
         apps_qs = Application.objects.filter(created_at__gte=from_date, deleted_at__isnull=True)

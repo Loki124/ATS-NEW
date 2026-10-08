@@ -16,9 +16,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import StandardResumeConfig, RegistrationForm
+from .models import RegistrationForm, StandardResumeConfig
 from .serializers import RegistrationFormSerializer
-
 
 # 候选人信息登记表默认配置（前端首次加载为空时回退）
 DEFAULT_CANDIDATE_INFO_TABLE = {

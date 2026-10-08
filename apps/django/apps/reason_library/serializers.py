@@ -11,10 +11,13 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from .models import (
-    CategoryAssignment, MAX_CATEGORY_LEVEL,
-    ReasonTag, RuleCategory, RuleSceneAssignment, SceneRule, SceneRuleVersion,
+    CategoryAssignment,
+    ReasonTag,
+    RuleCategory,
+    RuleSceneAssignment,
+    SceneRule,
+    SceneRuleVersion,
 )
-
 
 # ---------------------------------------------------------------------------
 # ReasonTag

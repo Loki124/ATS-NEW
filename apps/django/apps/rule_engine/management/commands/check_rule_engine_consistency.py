@@ -19,15 +19,10 @@ deleted_qs 为空；其硬删行的统一镜像由各自 signals.post_delete 软
 from django.core.management.base import BaseCommand
 
 from apps.rule_engine.bridge import (
-    AUTOMATION_LEGACY_MODEL,
     AUTOMATION_SOURCE_APP,
-    CAMPUS_CONTROL_LEGACY_MODEL,
     CAMPUS_CONTROL_SOURCE_APP,
-    ENTRY_CONDITION_LEGACY_MODEL,
     ENTRY_CONDITION_SOURCE_APP,
-    MOU_LEGACY_MODEL,
     MOU_SOURCE_APP,
-    TIME_LIMIT_LEGACY_MODEL,
     TIME_LIMIT_SOURCE_APP,
     sync_automation_rule_to_unified,
     sync_control_rule_to_unified,

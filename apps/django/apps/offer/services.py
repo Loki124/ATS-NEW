@@ -1,13 +1,11 @@
 """Offer Services (PRD v4 §6.6, §14.5) - Offer 业务逻辑"""
 from __future__ import annotations
-from django.db import DatabaseError
 
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -47,7 +45,7 @@ class OfferCreateData:
     expire_date: str
     level: str = ''
     position_title: str = ''
-    actor: Optional[User] = None
+    actor: User | None = None
 
 
 class OfferService:
@@ -55,6 +53,7 @@ class OfferService:
     @transaction.atomic
     def create_offer(data: OfferCreateData) -> Offer:
         from nanoid import generate as nanoid_generate
+
         from apps.application.models import Application
         from apps.candidate.models import Candidate
         from apps.position.models import Position
@@ -77,7 +76,8 @@ class OfferService:
             except (ValueError, TypeError):
                 start_date_obj = None
         from apps.campus_control.services import (
-            validate_offer_against_rules, ControlRuleViolation,
+            ControlRuleViolation,
+            validate_offer_against_rules,
         )
         try:
             hook_result = validate_offer_against_rules(
@@ -135,7 +135,8 @@ class OfferService:
         #   硬约束命中 → 抛 DRFValidationError(400) → 事务回滚 → offer 状态不变。
         #   软约束命中 → logger.warning 放行。
         from apps.campus_control.services import (
-            validate_offer_against_rules, ControlRuleViolation,
+            ControlRuleViolation,
+            validate_offer_against_rules,
         )
         # 解析 offer.start_date：可能是 ISO 字符串或 date 对象；解析失败则传 None（跳过月度判定）
         start_date_obj = None
@@ -198,7 +199,8 @@ class OfferService:
         # ── v2.10 T03：Offer 钩子（人员比例管控 — 节点 3）──
         # 与 create_offer / submit_approval 同入口（Q-A10 单一函数）。
         from apps.campus_control.services import (
-            validate_offer_against_rules, ControlRuleViolation,
+            ControlRuleViolation,
+            validate_offer_against_rules,
         )
         try:
             hook_result = validate_offer_against_rules(
@@ -230,8 +232,8 @@ class OfferService:
             from apps.notification.services import send_notification
             send_notification(
                 recipient_id=str(offer.candidate_id) if hasattr(offer, 'candidate_id') else str(actor.id),
-                title=f'Offer 已发送',
-                content=f'您的 Offer 已生成, 请查收',
+                title='Offer 已发送',
+                content='您的 Offer 已生成, 请查收',
                 link=f'/offers/{offer.id}',
                 source='offer.sent',
                 source_id=str(offer.id),

@@ -13,17 +13,18 @@ PRD v2 §5.2 (bulk-create endpoint) + §5.5 (3 方向路由)
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List
 
 from django.db import transaction
 
 from apps.application.models import Application, ApplicationState
 from apps.candidate.models import Candidate, CandidateState
 from apps.candidate.services import CandidateService
+from apps.core.models import User
+
 # 2026-09-25: 简历解析结果结构化落 extra（供指标库派生指标对真实数据取值）
 from apps.metrics.services.resume_struct import build_structured_extra
-from apps.core.models import User
 from apps.talent_pool.models import TalentPoolEntry  # EntrySource 是 TalentPoolEntry 的嵌套类
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 # ===== 异常 =====
 class BulkCreateError(Exception):
     """批量创建错误"""
-    def __init__(self, code: str, message: str, draft_id: Optional[str] = None):
+    def __init__(self, code: str, message: str, draft_id: str | None = None):
         self.code = code
         self.draft_id = draft_id
         super().__init__(f'{code}: {message} (draft_id={draft_id})' if draft_id else f'{code}: {message}')
@@ -48,7 +49,7 @@ class BulkCreateDraft:
     phone: str
     email: str
     parsed_data: dict
-    position_id: Optional[str] = None
+    position_id: str | None = None
     channel: str = '招聘网站'
     source: str = ''
     provider: str = ''

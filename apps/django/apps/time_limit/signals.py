@@ -9,10 +9,10 @@ time_limit 的条件内联在 TimeLimitRule.conditions（JSON），随规则头 
 只需在规则上挂信号即可；软删由 SoftDeleteViewSetMixin 调用 soft_delete()（触发
 post_save），bridge 在下次 sync 时统一传播到统一侧。
 """
-from django.db import DatabaseError
 import logging
 
 from django.conf import settings
+from django.db import DatabaseError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 

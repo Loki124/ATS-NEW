@@ -10,7 +10,10 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.reason_library.models import (
-    CategoryAssignment, ReasonTag, RuleCategory, RuleSceneAssignment,
+    CategoryAssignment,
+    ReasonTag,
+    RuleCategory,
+    RuleSceneAssignment,
     TagType,
 )
 

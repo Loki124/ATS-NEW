@@ -8,12 +8,10 @@
 """
 from __future__ import annotations
 
-import hashlib
 import hmac
 import logging
 import secrets
 from datetime import timedelta
-from typing import Dict, List, Optional
 
 from django.db import transaction
 from django.utils import timezone
@@ -24,16 +22,53 @@ from apps.core.models import User
 from apps.core.role_v2_query import is_super_admin
 
 from .models import (
-    GDPRRequest,
-    GDPRRequestStatus,
-    GDPRRequestType,
     VERIFICATION_CODE_LENGTH,
     VERIFICATION_CODE_TTL_MINUTES,
     VERIFICATION_MAX_ATTEMPTS,
+    GDPRRequest,
+    GDPRRequestStatus,
+    GDPRRequestType,
     hash_verification_code,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def send_verification_code(req, plaintext_code: str) -> bool:
+    """把验证码发送到候选人登记邮箱。
+
+    2026-10-08: 验证码此前直接放在 HTTP 响应体里返回给**匿名**调用者 ——
+    只要知道候选人 id + 任意邮箱就能拿到验证码, 再用公开的 verify 端点把请求
+    置为"已验证", 使审批人误以为请求确由候选人本人发起。现在验证码只走邮件下发。
+
+    日志只记录邮箱后 4 位, 避免把 PII 写进日志。
+    """
+    from django.conf import settings
+    from django.core.mail import send_mail
+
+    to = (getattr(req, 'submitted_email', '') or '').strip()
+    if not to:
+        logger.warning('GDPR request %s: 无登记邮箱, 验证码无法下发', req.id)
+        return False
+
+    try:
+        send_mail(
+            subject='【招聘系统】个人信息处理请求验证码',
+            message=(
+                f'你发起的个人信息处理请求验证码为: {plaintext_code}\n'
+                f'有效期 {VERIFICATION_CODE_TTL_MINUTES} 分钟。\n'
+                '如非本人操作请忽略本邮件。'
+            ),
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+            recipient_list=[to],
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception('GDPR request %s: 验证码邮件发送失败', req.id)
+        return False
+
+    logger.info('GDPR request %s: 验证码已发送至邮箱 ***%s', req.id, to[-4:])
+    return True
 
 
 class GdprService:
@@ -69,6 +104,15 @@ class GdprService:
             candidate = Candidate.objects.get(id=candidate_id, deleted_at__isnull=True)
         except Candidate.DoesNotExist as e:
             raise NotFound(f'候选人 {candidate_id} 不存在') from e
+
+        # 2026-10-08: 提交邮箱必须与候选人已登记邮箱一致, 否则任何人凭任意邮箱
+        #   就能发起「以候选人名义」的删除/导出请求, 身份验证形同虚设。
+        #   用恒定时间比较, 避免通过响应耗时侧信道枚举邮箱。
+        registered = (getattr(candidate, 'email', '') or '').strip().lower()
+        if not registered or not hmac.compare_digest(
+            registered, (submitted_email or '').strip().lower(),
+        ):
+            raise ValidationError('提交邮箱与候选人登记邮箱不一致')
 
         # 生成 + hash 验证码
         code = secrets.token_hex(VERIFICATION_CODE_LENGTH // 2)  # 8 字符 hex (4 bytes)

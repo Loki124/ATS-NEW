@@ -12,11 +12,11 @@
 非功能约束：任何异常都不许 500 —— 由项目全局 DRF exception_handler + 本层显式
 try/except 双重保障，执行类错误降级为该步 FAIL 并在 error 字段给出人话提示。
 """
+from io import BytesIO
 from typing import List
 
 from django.core.cache import cache
 from django.http import HttpResponse
-from io import BytesIO
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
@@ -29,15 +29,14 @@ from apps.rule_engine.models import UnifiedOperator
 
 from .io_template import (
     _log_template_audit,
+    build_template_export_csv,
     build_template_export_rows,
     build_template_export_workbook,
-    build_template_export_csv,
-    build_template_template_workbook,
     build_template_template_csv,
+    build_template_template_workbook,
     import_templates,
 )
 from .models import AtomicMetric, DerivedMetric, MetricRule, MetricTemplate
-from .services.template_impact import get_template_affected_rules
 from .serializers import (
     AtomicMetricSerializer,
     DerivedMetricSerializer,
@@ -52,9 +51,18 @@ from .services.candidate_snapshot import (
     build_position_snapshot,
     list_candidate_paths,
 )
-from .services.derived_registry import get as get_derived_func, list_funcs
+from .services.derived_registry import get as get_derived_func
+from .services.derived_registry import list_funcs
 from .services.metric_engine import MetricEngine
 from .services.operator_matrix import operators_for
+from .services.rule_trigger import (
+    _build_rule_context,
+    count_candidates,
+    default_candidate_ids,
+    evaluate_scene,
+    filter_candidates_by_scene,
+)
+from .services.template_impact import get_template_affected_rules
 from .services.template_version import (
     SEMANTIC_FIELDS,
     RollbackBlocked,
@@ -63,13 +71,6 @@ from .services.template_version import (
     create_version_snapshot,
     list_versions,
     rollback_template,
-)
-from .services.rule_trigger import (
-    _build_rule_context,
-    count_candidates,
-    default_candidate_ids,
-    evaluate_scene,
-    filter_candidates_by_scene,
 )
 
 # MVP 示例候选人数据（PRD F-08 要求测试数据区；真实接入时替换为业务快照）
@@ -297,7 +298,6 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         处理建议。返回体经 CamelCaseJSONRenderer 转 camelCase（entryConditions /
         ruleId / processName / templateStatus 等），前端读 camelCase。
         """
-        from .services.template_impact import get_template_affected_rules
 
         try:
             data = get_template_affected_rules(pk)
@@ -414,6 +414,15 @@ class FilterBySceneView(APIView):
             candidate_ids = default_candidate_ids(limit=FILTER_MAX_CANDIDATES)
             total = count_candidates()
         elif isinstance(raw_ids, list):
+            # 2026-10-08: 显式传 IDs 时此前没有上限 —— 一次同步 HTTP 请求可以塞进
+            #   上万候选人, 每条还要跑 N×R×C 的规则计算, 足以打满 worker。
+            #   超过上限直接 413, 引导前端走 filter-async 异步任务。
+            if len(raw_ids) > FILTER_MAX_CANDIDATES:
+                return Response(
+                    {'error': f'同步筛选最多 {FILTER_MAX_CANDIDATES} 条，'
+                              f'当前 {len(raw_ids)} 条，请改用异步任务 filter-async'},
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                )
             candidate_ids = [str(i) for i in raw_ids]
             total = len(candidate_ids)
         else:

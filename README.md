@@ -39,10 +39,9 @@ ATS-NEW/
 
 ### 使用 Docker 启动全栈
 
-```bash
-make up
-# 启动后访问 http://localhost:5212 (前端) 或 http://localhost:8000 (后端)
-```
+容器编排（docker-compose / Dockerfile / nginx.conf / webhook 接收器 / systemd unit）已迁移到独立仓库
+[ats-deploy-infra](https://gitee.com/loki126/ats-deploy-infra.git)，本仓库不再包含任何部署/运维文件。
+生产部署（含 Gitee webhook 自动部署）请参照该仓库 README。
 
 ### 本地手动启动
 

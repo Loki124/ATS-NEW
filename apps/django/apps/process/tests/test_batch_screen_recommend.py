@@ -3,7 +3,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.candidate.models import Candidate
-from apps.process.models import CandidateScreen, CandidateRecommendation
+from apps.process.models import CandidateRecommendation, CandidateScreen
 
 
 @pytest.mark.django_db

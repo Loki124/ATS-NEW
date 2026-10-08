@@ -13,9 +13,15 @@
  * 行为与原各实例 + 已移除的 main.ts 包装等价；main.ts 全局 axios.create 包装作为兜底已于 2026-09-29 移除。
  */
 import axios, { type AxiosInstance } from 'axios'
+import { createDiscreteApi } from 'naive-ui'
 import config from '../config'
 import { useSystemStore } from '../stores/system'
 import { useUserStore } from '../stores/user'
+
+// 2026-10-08 (#30): 404/500 全局提示原挂在 main.ts 的「默认 axios 实例」拦截器上，
+// 但全仓 40+ 业务请求都走本文件的 createApi() 实例, 默认实例从不用于业务请求 →
+// 那些 404(后端缺实现)/500(后端 bug) 提示从未生效。现把处理收到本实例的响应拦截器里。
+const _toast = createDiscreteApi(['message']).message
 
 export interface CreateApiOptions {
   baseURL?: string
@@ -159,8 +165,22 @@ export function createApi(opts: CreateApiOptions = {}): AxiosInstance {
     headers: { 'Content-Type': 'application/json' },
   })
   inst.interceptors.request.use(injectAuthHeaders as any)
-  // 成功态信封归一；失败态（含 401）走刷新重试
-  inst.interceptors.response.use(normalizeEnvelopeMeta as any, (e: any) => refreshOn401(inst, e))
+  // 成功态信封归一；失败态：404/500 提示 + 401 刷新重试
+  inst.interceptors.response.use(normalizeEnvelopeMeta as any, (e: any) => {
+    const status = e?.response?.status
+    const url = e?.config?.url ?? '<unknown>'
+    if (status === 404) {
+      // 后端 endpoint 不存在 (开发期常见) —— 这是 "后端 app 缺" 不是 "权限问题"
+      console.warn(
+        `[API 404] 后端没实现这个 endpoint: ${url}\n` +
+        `  → 这是 "后端 app 缺" 不是 "权限问题". 看报告: REPORT-2026-06-29-ats-complete.md §10`
+      )
+    } else if (status === 500) {
+      console.error(`[API 500] 后端 bug: ${url}`, e?.response?.data)
+      _toast.error('服务繁忙，请稍后重试')
+    }
+    return refreshOn401(inst, e)
+  })
   return inst
 }
 

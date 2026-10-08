@@ -12,6 +12,7 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         from django.conf import settings
+
         from . import signals  # noqa
         if getattr(settings, 'PERMISSION_V2_BOOTSTRAP_DISABLED', False):
             logger.warning('[bootstrap_v2] PERMISSION_V2_BOOTSTRAP_DISABLED=True, 启动校验被显式关闭')

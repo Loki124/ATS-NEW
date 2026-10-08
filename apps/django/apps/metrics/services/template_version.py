@@ -15,8 +15,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from apps.metrics.models import (
     AtomicMetric,
     DerivedMetric,
@@ -96,7 +94,7 @@ def build_snapshot(tpl: MetricTemplate) -> dict:
     }
 
 
-def diff_snapshots(old: Optional[dict], new: Optional[dict]) -> list:
+def diff_snapshots(old: dict | None, new: dict | None) -> list:
     """返回在 new 中相对 old **值不同**的键名列表（只比较两 dict 共有的键）。
 
     用于 changed_fields。值用 `==` 比较（JSON 字段 list/dict 的相等判定即可）。

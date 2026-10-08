@@ -58,7 +58,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 from apps.process.models import ProcessStageLink, RecruitmentProcess, RecruitmentStage
 
@@ -111,9 +111,9 @@ class StageMapping:
     link: ProcessStageLink
     strategy: str
     remapped: bool
-    source_link_id: Optional[str] = None
-    source_stage_id: Optional[str] = None
-    source_order: Optional[int] = None
+    source_link_id: str | None = None
+    source_stage_id: str | None = None
+    source_order: int | None = None
 
     @property
     def stage(self) -> RecruitmentStage:
@@ -138,8 +138,8 @@ class StageMapping:
 # 内部工具
 # ============================================================
 def _extract_current_link(
-    source: Union['Application', ProcessStageLink, None],
-) -> Optional[ProcessStageLink]:
+    source: Union[Application, ProcessStageLink, None],
+) -> ProcessStageLink | None:
     """把入参归一成 ``ProcessStageLink | None``。
 
     支持三种入参（§2.2 要求「application 或 current_link」）：
@@ -187,7 +187,7 @@ def _live_links(new_process: RecruitmentProcess) -> List[ProcessStageLink]:
 # 对外 API
 # ============================================================
 def resolve_stage_mapping(
-    source: Union['Application', ProcessStageLink, None],
+    source: Union[Application, ProcessStageLink, None],
     new_process: RecruitmentProcess,
 ) -> StageMapping:
     """解析落点并返回完整结论（含策略与审计快照）。
@@ -266,7 +266,7 @@ def resolve_stage_mapping(
 
 
 def resolve_target_link(
-    source: Union['Application', ProcessStageLink, None],
+    source: Union[Application, ProcessStageLink, None],
     new_process: RecruitmentProcess,
 ) -> ProcessStageLink:
     """§2.2 主入口：只要落点关联本身。

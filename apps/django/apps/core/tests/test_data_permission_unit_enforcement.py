@@ -20,7 +20,9 @@ def test_management_unit_scope_produces_dept_q():
     """管理单元(org_scope 直接部门列表) -> scope_filter_q 产出 referrer__department__in Q."""
     from apps.core.models_permission_v2 import ManagementUnit, UserRoleV2
     from apps.core.scope_resolver import (
-        resolve_scope, unit_ids_to_dept_ids, scope_filter_q,
+        resolve_scope,
+        scope_filter_q,
+        unit_ids_to_dept_ids,
     )
 
     User = get_user_model()
@@ -60,6 +62,7 @@ def test_management_unit_scope_produces_dept_q():
 def test_no_management_unit_scope_falls_to_self():
     """无管理单元范围 -> SELF (created_by=user.pk), 非全量也非部门过滤."""
     from django.contrib.auth import get_user_model
+
     from apps.core.scope_resolver import scope_filter_q
 
     User = get_user_model()
@@ -83,7 +86,9 @@ def test_unit_all_company_resolves_to_all_q():
     """整公司级单元 (org_scope={'level':'ROOT'}) -> 空 Q() (全量可见)."""
     from apps.core.models_permission_v2 import ManagementUnit, UserRoleV2
     from apps.core.scope_resolver import (
-        unit_ids_to_dept_ids, ALL_UNIT_SENTINEL, scope_filter_q,
+        ALL_UNIT_SENTINEL,
+        scope_filter_q,
+        unit_ids_to_dept_ids,
     )
 
     User = get_user_model()
@@ -113,7 +118,7 @@ def test_unit_all_company_resolves_to_all_q():
 def test_unit_dict_unknown_shape_self_fallback():
     """dict 但无可解析 dept 子键且非整公司 -> 不泄漏 key; 用户无范围则 SELF 兜底."""
     from apps.core.models_permission_v2 import ManagementUnit, UserRoleV2
-    from apps.core.scope_resolver import unit_ids_to_dept_ids, scope_filter_q
+    from apps.core.scope_resolver import scope_filter_q, unit_ids_to_dept_ids
 
     User = get_user_model()
     u = User.objects.create_user(username='enf_weird', password='x')
@@ -145,9 +150,11 @@ def test_unit_dict_unknown_shape_self_fallback():
 def test_management_unit_member_user_produces_created_by_in():
     """管理单元含 USER 成员 -> scope_filter_q 叠加 created_by__in=user_ids."""
     from apps.core.models_permission_v2 import (
-        ManagementUnit, UserRoleV2, ManagementUnitMember,
+        ManagementUnit,
+        ManagementUnitMember,
+        UserRoleV2,
     )
-    from apps.core.scope_resolver import scope_filter_q, collect_unit_member_users
+    from apps.core.scope_resolver import collect_unit_member_users, scope_filter_q
 
     User = get_user_model()
     u = User.objects.create_user(username='enf_member', password='x')

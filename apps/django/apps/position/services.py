@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 from django.db import transaction
 from django.utils import timezone
 
-from apps.common.exceptions import NotFound, PermissionDenied
+from apps.common.exceptions import NotFound
 from apps.core.models import User
 
 from .models import Position, PositionState
@@ -30,7 +29,7 @@ class PositionCreateData:
     salary_max: float = 0
     description: str = ''
     requirements: str = ''
-    actor: Optional[User] = None
+    actor: User | None = None
 
 
 class PositionService:
@@ -38,6 +37,7 @@ class PositionService:
     @transaction.atomic
     def create_position(data: PositionCreateData) -> Position:
         from nanoid import generate as nanoid_generate
+
         from apps.core.models import Department
         from apps.process.models import RecruitmentProcess
 

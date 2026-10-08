@@ -8,12 +8,10 @@
 """
 from __future__ import annotations
 
-import json
 import logging
 from functools import lru_cache
 
 from cryptography.fernet import Fernet, InvalidToken
-
 from django.conf import settings
 
 from apps.common.encryption import DecryptionError

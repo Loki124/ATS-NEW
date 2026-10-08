@@ -6,13 +6,16 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-
 import pytest
 from rest_framework.test import APIClient
 
 from apps.reason_library.models import (
-    CategoryAssignment, ReasonTag, RuleCategory,
-    RuleSceneAssignment, SceneRule, TagType,
+    CategoryAssignment,
+    ReasonTag,
+    RuleCategory,
+    RuleSceneAssignment,
+    SceneRule,
+    TagType,
 )
 
 pytestmark = pytest.mark.django_db

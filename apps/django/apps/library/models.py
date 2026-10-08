@@ -4,7 +4,8 @@
 # Company 字段: id, name, code, industry, scale, is_benchmark, description, status
 from django.db import models
 from nanoid import generate as nanoid_generate
-from apps.common.models import SoftDeleteModel, SoftDeleteManager
+
+from apps.common.models import SoftDeleteManager, SoftDeleteModel
 
 
 class School(SoftDeleteModel):

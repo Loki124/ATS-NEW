@@ -1,7 +1,8 @@
 """mou models - 2026-07-01 stub for permissions-v2/* (G36 任务待补真业务)"""
 from django.db import models
-from apps.common.models import SoftDeleteModel, SoftDeleteManager
-from apps.core.models import User, Department
+
+from apps.common.models import SoftDeleteManager, SoftDeleteModel
+from apps.core.models import Department, User
 
 
 class MouAgreement(SoftDeleteModel):

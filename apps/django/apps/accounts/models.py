@@ -6,9 +6,9 @@
 - 注册即建 User(is_active=False), 审核通过才激活; 拒绝保持 is_active=False.
 """
 from django.db import models
-from apps.common.models import TimestampedModel
-
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import TimestampedModel
 
 
 def gen_id():

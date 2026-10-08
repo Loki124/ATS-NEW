@@ -29,18 +29,16 @@ from django.db.models import Q
 from django.db.models.query import QuerySet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
-from apps.common.response import success_response
 from rest_framework.views import APIView
 
 from apps.candidate.models import Candidate
+from apps.common.masking import mask_phone
+from apps.common.response import success_response
 from apps.demand.models import Demand
-from apps.position.models import Position
 from apps.interview.models import Interview
 from apps.offer.models import Offer
+from apps.position.models import Position
 from apps.referral.models import Referral
-
-from apps.common.masking import mask_phone
 
 
 # ---------------------------------------------------------------------------

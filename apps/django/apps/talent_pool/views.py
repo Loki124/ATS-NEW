@@ -1,22 +1,19 @@
 """Talent Pool Views (DRF) - PRD v4 §14.7"""
 from django.db import transaction
-from django.db.models import F, Count
+from django.db.models import Count, F
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from rest_framework import status
-
-# 2026-09-25: 入池触发点 —— 执行「入池」场景的指标规则
-from apps.metrics.services.rule_trigger import evaluate_scene
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import is_super_admin
-from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 
+# 2026-09-25: 入池触发点 —— 执行「入池」场景的指标规则
+from apps.metrics.services.rule_trigger import evaluate_scene
 from apps.reason_library.models import RecruitType
 
 from .models import TalentPoolEntry, TalentPoolTag
@@ -219,6 +216,13 @@ class TalentPoolTagViewSet(AuditMixin, viewsets.ModelViewSet):
     serializer_class = TalentPoolTagSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
+    # 2026-10-08: 写操作显式授权 (此前未声明 → 任意登录用户可增删改人才库标签)。
+    permission_required_map = {
+        'create': 'recruit:talent_pool:tag:create',
+        'update': 'recruit:talent_pool:tag:edit',
+        'partial_update': 'recruit:talent_pool:tag:edit',
+        'destroy': 'recruit:talent_pool:tag:delete',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category']

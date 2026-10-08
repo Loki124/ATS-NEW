@@ -11,7 +11,6 @@
 from django.db import migrations
 from django.utils import timezone
 
-
 PRESET_TAGS = [
     ('已录用', 'Hired', ''),
     ('已离职', 'Resigned', ''),

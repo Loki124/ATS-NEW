@@ -1,6 +1,5 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import axios, { type AxiosResponse, type AxiosError } from 'axios'  // 2026-06-29: 全局 axios 拦截器需要
 import App from './App.vue'
 import router from './router'
 import { naivePlugin } from './plugins/naive'
@@ -28,33 +27,9 @@ const _toast = _discrete.message
 // G-2026-09-23 双系统 X-Recruit-Type 注入原在此处通过劫持 axios.create 全局包装实现；
 // 2026-09-29 已移除该全局猴子补丁（P1-2 收尾）：X-Recruit-Type 现由 request.ts(createApi) 与
 // api/auth.ts 各自请求拦截器在运行时读取 useSystemStore().current 注入，切换系统下次请求即生效。
-// 仅下方全局 response 拦截器（404/500 处理）保留。
-
-// 2026-06-29 花无缺: 全局 axios 拦截器 — 区分 401/403 (真权限) vs 404 (endpoint 缺)
-// 之前 404 被 catch 走 → UI 显示 "无权限" / "加载失败" → 兵哥误以为权限问题.
-// 真实根因: 后端 9 个 app 缺实现 (mou/library/scraped-resume 等), 兵哥看到的"超管没权限"全是 404.
-// 全局 hook 让任何 .vue 在 catch 404 时 console.warn 出来, 真实 401/403 仍触发 logout.
-axios.interceptors.response.use(
-  (resp: AxiosResponse) => resp,
-  (err: AxiosError) => {
-    const status = err?.response?.status
-    const url = err?.config?.url ?? '<unknown>'
-    if (status === 404) {
-      // 后端 endpoint 不存在 (开发期常见 — Plan 注释里说"待实现"但还没做)
-      // ★ 2026-08-23 V3 §新 #4 收口：404 静默 + 仅 console.warn，不弹 toast（避免吓用户"接口不存在"）
-      // 业务页自己跳占位（Placeholder.vue 机制）
-      console.warn(
-        `[API 404] 后端没实现这个 endpoint: ${url}\n` +
-        `  → 这是 "后端 app 缺" 不是 "权限问题". 看报告: REPORT-2026-06-29-ats-complete.md §10`
-      )
-    } else if (status === 500) {
-      console.error(`[API 500] 后端 bug: ${url}`, err?.response?.data)
-      // ★ V3 §新 #4 改文案：从"服务异常，请稍后再试" → "服务繁忙，请稍后重试"（避免暗示系统 bug）
-      _toast.error('服务繁忙，请稍后重试')
-    }
-    return Promise.reject(err)
-  }
-)
+// 2026-10-08 (#30): 原挂在此「默认 axios 实例」上的 404/500 全局提示也已移除 —— 全仓业务请求
+// 都走 request.ts 的 createApi() 实例, 默认实例从不用于业务请求, 那段提示是死代码。
+// 404/500/401 处理现统一在 request.ts 的响应拦截器里 (见该文件 refreshOn401 + 404/500 分支)。
 
 const app = createApp(App)
 

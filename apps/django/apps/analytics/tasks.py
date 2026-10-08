@@ -1,9 +1,10 @@
 """Analytics Celery tasks (PRD v4 §14.9)"""
-from django.db import DatabaseError
 import logging
 from typing import Dict
 
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
+from django.db import DatabaseError
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -12,8 +13,8 @@ logger = logging.getLogger(__name__)
 @shared_task(name='apps.analytics.tasks.run_export_task')
 def run_export_task(export_task_id: str) -> Dict:
     """执行导出任务（异步）"""
+
     from .models import ExportTask
-    from django.http import HttpResponse
 
     try:
         task = ExportTask.objects.get(id=export_task_id)
@@ -50,6 +51,7 @@ def run_export_task(export_task_id: str) -> Dict:
 
         # 写入文件
         import os
+
         from django.conf import settings
         export_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
         os.makedirs(export_dir, exist_ok=True)
@@ -67,10 +69,11 @@ def run_export_task(export_task_id: str) -> Dict:
                     ws.append([str(v) for v in row.values()])
             wb.save(filepath)
         elif task.format == 'CSV':
-            import csv
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
                 if data:
-                    writer = csv.DictWriter(f, fieldnames=data[0].keys())
+                    # 2026-10-08: 防 CSV 公式注入
+                    from apps.common.csv_safe import SafeCsvDictWriter
+                    writer = SafeCsvDictWriter(f, fieldnames=data[0].keys())
                     writer.writeheader()
                     writer.writerows(data)
         else:  # PDF
@@ -90,7 +93,7 @@ def run_export_task(export_task_id: str) -> Dict:
         task.status = 'COMPLETED'
         task.completed_at = timezone.now()
         task.save()
-    except (DatabaseError, ValueError, TypeError, AttributeError, OSError) as e:  # Celery 导出任务兜底: 任何异常都标记 FAILED, 不让 task 永久 running
+    except (DatabaseError, ValueError, TypeError, AttributeError, OSError, SoftTimeLimitExceeded) as e:  # Celery 导出任务兜底: 任何异常都标记 FAILED, 不让 task 永久 running
         logger.exception(f'Export task {export_task_id} failed: {e}')
         task.status = 'FAILED'
         task.error_message = str(e)

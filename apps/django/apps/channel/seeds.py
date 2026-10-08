@@ -3,7 +3,7 @@
 「应聘渠道」字典 = 候选人应聘来源渠道的枚举 single source of truth，
 供候选人来源字段 / 渠道分析等场景引用。
 """
-from apps.dictionary.models import DictionaryType, DictionaryItem
+from apps.dictionary.models import DictionaryItem, DictionaryType
 
 # (key, 名称, 英文名, 排序) —— 顺序即兵哥 2026-09-18 确认的展示顺序
 APPLICATION_CHANNEL_ITEMS = [

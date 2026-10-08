@@ -299,10 +299,9 @@ def test_flip_order_is_actually_enforced_by_database() -> None:
     old = make_process('W933', 1, is_latest=True)
     new = make_process('W933', 2, is_latest=False)
 
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            new.is_latest = True
-            new.save(update_fields=['is_latest'])
+    with pytest.raises(IntegrityError), transaction.atomic():
+        new.is_latest = True
+        new.save(update_fields=['is_latest'])
 
     old.refresh_from_db()
     assert old.is_latest is True

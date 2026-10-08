@@ -212,7 +212,6 @@ class Command(BaseCommand):
 
     def import_currencies(self, data_dir=None):
         """导入 ISO 4217 全量币种（来自 apps/code_table/data_std.py）。"""
-        from apps.code_table.data_std import CURRENCIES
 
         objs = [
             Currency(
@@ -231,7 +230,6 @@ class Command(BaseCommand):
 
     def import_industries(self, data_dir=None):
         """导入 GB/T 4754 国民经济行业分类（门类 + 大类，来自 data_std.py）。"""
-        from apps.code_table.data_std import INDUSTRIES
 
         objs = [
             Industry(

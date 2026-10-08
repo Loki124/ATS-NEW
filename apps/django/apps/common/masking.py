@@ -12,13 +12,13 @@
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 #: 掩码占位符
 MASK_TOKEN = '***'
 
 
-def mask_phone(value: Optional[str]) -> str:
+def mask_phone(value: str | None) -> str:
     """手机号: 13812348000 -> 138****8000; 短号码整体打码."""
     if not value:
         return '' if value is None else value
@@ -28,7 +28,7 @@ def mask_phone(value: Optional[str]) -> str:
     return '*' * len(s)
 
 
-def mask_phone_tail(value: Optional[str]) -> str:
+def mask_phone_tail(value: str | None) -> str:
     """只保留后 4 位: 13812348000 -> ***8000 的更严格版本, 用于日志 / __str__.
 
     R15: Candidate.__str__ 会被 Django admin / repr / logger 反复调用,
@@ -42,7 +42,7 @@ def mask_phone_tail(value: Optional[str]) -> str:
     return MASK_TOKEN
 
 
-def mask_email(value: Optional[str]) -> str:
+def mask_email(value: str | None) -> str:
     """邮箱: alice@example.com -> a***@example.com."""
     if not value:
         return '' if value is None else value
@@ -55,7 +55,7 @@ def mask_email(value: Optional[str]) -> str:
     return f'***@{domain}'
 
 
-def mask_id_card(value: Optional[str]) -> str:
+def mask_id_card(value: str | None) -> str:
     """身份证: 110101199001011234 -> 110***********1234."""
     if not value:
         return '' if value is None else value

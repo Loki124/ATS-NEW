@@ -143,7 +143,7 @@ def test_role_v2_create_with_v2_columns_succeeds():
 @pytest.mark.v2_permission
 def test_user_role_v2_create_with_v2_columns_succeeds():
     """RT-2 (续): UserRoleV2 真入库 + granted_by_id 等 V2 字段全 OK."""
-    from apps.core.models_permission_v2 import UserRoleV2, RoleV2
+    from apps.core.models_permission_v2 import RoleV2, UserRoleV2
 
     role = RoleV2.objects.create(
         system_code='recruit',
@@ -220,8 +220,9 @@ def test_no_migration_drift_in_core_app():
     注: 整个项目还有 candidate / gdpr / integration 漂移 (Phase 2 T02 范围),
     本测试只筛 `core` app 验证 0004_v2_apply_schema 自洽.
     """
-    import subprocess
     import os
+    import subprocess
+
     from django.conf import settings
     manage_py = os.path.join(settings.BASE_DIR, 'manage.py')
     env = os.environ.copy()
@@ -292,8 +293,12 @@ def test_clone_from_template_end_to_end_smoke():
     schema 不再 OperationalError).
     """
     from django.core.management import call_command
+
     from apps.core.models_permission_v2 import (
-        RoleV2, RolePermissionV2, PermissionResource, PermissionTemplate,
+        PermissionResource,
+        PermissionTemplate,
+        RolePermissionV2,
+        RoleV2,
     )
 
     # 1. seed V2 基础数据 (资源 + 模板)

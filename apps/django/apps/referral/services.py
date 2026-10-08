@@ -1,12 +1,10 @@
 """Referral Services (PRD v4 §6.4 N+1/N+2 推荐)"""
 from __future__ import annotations
-from django.db import DatabaseError
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound, ValidationError
@@ -24,7 +22,7 @@ class ReferralCreateData:
     position_id: str
     referral_type: str
     note: str = ''
-    actor: Optional[User] = None
+    actor: User | None = None
 
 
 class ReferralService:
@@ -66,9 +64,8 @@ class ReferralService:
     def _auto_detect_type(referrer_id: str, candidate_id: str, position_id: str) -> str:
         """自动检测 N+1/N+2：基于推荐人/候选人/职位的部门层级关系"""
         try:
-            from apps.candidate.models import Candidate
-            from apps.position.models import Position
             from apps.core.models import User
+            from apps.position.models import Position
 
             referrer = User.objects.only('id', 'department_id').get(id=referrer_id)
             position = Position.objects.only('id', 'department_id').get(id=position_id)

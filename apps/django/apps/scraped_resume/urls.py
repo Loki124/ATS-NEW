@@ -1,5 +1,6 @@
 """scraped_resume URLs — 2026-06-29. 直接 path 避免 router basename '-' 问题."""
 from django.urls import path
+
 from .views import ScrapedResumeViewSet
 
 # config/urls.py: path('scraped-resumes/', include(...))

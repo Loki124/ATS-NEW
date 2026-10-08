@@ -19,8 +19,8 @@ from django.utils import timezone
 from apps.application.models import Application
 from apps.candidate.models import Candidate
 from apps.core.models import Department
-from apps.onboarding.models import Onboarding, OnboardingState
 from apps.offer.models import Offer, OfferState
+from apps.onboarding.models import Onboarding, OnboardingState
 from apps.position.models import Position
 from apps.process.models import RecruitmentProcess
 

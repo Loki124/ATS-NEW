@@ -7,12 +7,12 @@
 - ProcessTemplate: 流程模板
 - StageRule: 阶段规则（自动流转/默认处理人/限时）
 """
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
-from django.core.exceptions import ValidationError
-from django_fsm import FSMField, transition
-from apps.common.models import TimestampedModel, SoftDeleteModel, FullAuditModel, SoftDeleteManager
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import FullAuditModel, SoftDeleteManager, SoftDeleteModel
 
 
 def gen_id():

@@ -15,6 +15,7 @@ import logging
 import os
 import time
 import uuid
+from typing import Dict, List
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -30,19 +31,78 @@ ALLOWED_EXT = {
 #: 单文件上限 20MB
 MAX_UPLOAD = 20 * 1024 * 1024
 
+#: 2026-10-08 (#17 / S-07): 各扩展名允许的「文件头魔数」(content sniffing), 防伪造扩展名。
+#: 旧版 Office (doc/xls/ppt, OLE2) 与新版 (docx/xlsx/pptx, ZIP) 及 zip 压缩包共用
+#: OLE2 / PK 签名, 无法靠魔数区分, 故归为同一类接受。
+#: 纯文本 (txt/csv) 不靠魔数, 单独按「可 utf-8 解码且无 NUL 字节」校验。
+EXT_SIGS: Dict[str, List[bytes]] = {
+    '.pdf': [b'%PDF'],
+    '.png': [b'\x89PNG\r\n\x1a\n'],
+    '.jpg': [b'\xff\xd8\xff'],
+    '.jpeg': [b'\xff\xd8\xff'],
+    '.gif': [b'GIF87a', b'GIF89a'],
+    '.webp': [b'RIFF'],                 # 另需 head[8:12] == b'WEBP'
+    '.bmp': [b'BM'],
+    '.doc': [b'\xd0\xcf\x11\xe0'],
+    '.xls': [b'\xd0\xcf\x11\xe0'],
+    '.ppt': [b'\xd0\xcf\x11\xe0'],
+    '.docx': [b'PK\x03\x04'],
+    '.xlsx': [b'PK\x03\x04'],
+    '.pptx': [b'PK\x03\x04'],
+    '.zip': [b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08'],
+    '.rar': [b'Rar!\x1a\x07'],
+    '.txt': [],                        # 纯文本类: 见 _magic_ok
+    '.csv': [],
+}
+_TEXT_EXT = {'.txt', '.csv'}
+
 
 def _ext(file) -> str:
     return os.path.splitext(file.name or '')[1].lower()
 
 
+def _magic_ok(ext: str, head: bytes) -> bool:
+    if ext in _TEXT_EXT:
+        # 纯文本: 必须能按 utf-8 解码且无 NUL 字节 (防二进制伪装成文本触发解析器漏洞)
+        if b'\x00' in head:
+            return False
+        try:
+            head.decode('utf-8')
+        except UnicodeDecodeError:
+            return False
+        return True
+    sigs = EXT_SIGS.get(ext)
+    if not sigs:
+        return True  # 未知扩展 (正常不会发生, ALLOWED_EXT 已卡过)
+    for sig in sigs:
+        if head.startswith(sig):
+            if ext == '.webp' and head[8:12] != b'WEBP':
+                continue
+            return True
+    return False
+
+
+def check_magic_bytes(ext: str, file) -> None:
+    """content sniffing: 文件头必须与扩展名声明的类型一致, 否则拒绝 (防伪造扩展名上传恶意文件)。"""
+    file.seek(0)
+    head = file.read(512)
+    file.seek(0)
+    if not _magic_ok(ext, head):
+        raise ValueError(f'文件内容与扩展名「{ext or "未知"}」不符, 疑似伪造类型')
+
+
 def _validate(file) -> None:
     if not file:
         raise ValueError('未收到文件')
+    if getattr(file, 'size', 0) <= 0:
+        raise ValueError('文件内容为空')
     if file.size > MAX_UPLOAD:
         raise ValueError(f'文件大小 {file.size // 1024}KB 超过 {MAX_UPLOAD // 1024}KB 上限')
     ext = _ext(file)
     if ext not in ALLOWED_EXT:
         raise ValueError(f'不支持的文件类型「{ext or "未知"}」，仅允许图片/文档/压缩包')
+    # 2026-10-08 (#17): 扩展名白名单只是第一道, 真正拦伪造靠魔数校验
+    check_magic_bytes(ext, file)
 
 
 def save_upload(file) -> dict:
@@ -62,7 +122,13 @@ def _save_local(file) -> dict:
     ext = _ext(file)
     rel = f'uploads/{time.strftime("%Y%m%d")}/{uuid.uuid4().hex}{ext}'
     saved = default_storage.save(rel, file)
-    url = settings.MEDIA_URL + saved
+    # 2026-10-08 (#17): 下载鉴权。开启 SECURE_MEDIA_DOWNLOAD 后, 返回经鉴权的
+    # 下载端点 URL (由 MediaDownloadView 校验登录后流式吐文件), 而非直接暴露 MEDIA_URL。
+    # 默认关闭, 保证 dev / 无对象存储场景行为与前端现有消费方式兼容。
+    if getattr(settings, 'SECURE_MEDIA_DOWNLOAD', False):
+        url = f'/api/v1/media/secure/{saved}'
+    else:
+        url = settings.MEDIA_URL + saved
     return {
         'id': saved,
         'name': file.name,

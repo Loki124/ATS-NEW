@@ -32,13 +32,13 @@ pytestmark = pytest.mark.django_db
 def real_executors():
     """临时从全局 action_registry 移除 test_engine 的 catch-all 测试执行器，确保真实
     ALLOW/LOCK 执行器在委托派发时被命中；测试结束后恢复原注册表（避免影响其它模块）。"""
-    from apps.rule_engine.services import action_registry
     from apps.rule_engine.integrations.entry_condition_executors import (
         register_entry_condition_executors,
     )
     from apps.rule_engine.integrations.time_limit_executors import (
         register_time_limit_executors,
     )
+    from apps.rule_engine.services import action_registry
     register_entry_condition_executors()
     register_time_limit_executors()
     saved = list(action_registry._executors)

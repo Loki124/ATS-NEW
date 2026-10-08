@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from apps.process.services.expression_service import (
     evaluate_expression,
@@ -27,6 +27,7 @@ from apps.process.services.expression_service import (
 logger = logging.getLogger(__name__)
 
 from .models import (
+    Action,
     Condition,
     EvaluateResult,
     Rule,
@@ -53,14 +54,14 @@ class EvaluationContext:
     领域对象（候选人/需求/阶段）填充进 extra。
     """
     trigger_type: str
-    candidate_id: Optional[str] = None
-    application_id: Optional[str] = None
-    stage_id: Optional[str] = None
-    link_id: Optional[str] = None
-    process_id: Optional[str] = None
+    candidate_id: str | None = None
+    application_id: str | None = None
+    stage_id: str | None = None
+    link_id: str | None = None
+    process_id: str | None = None
     extra: Dict[str, Any] = field(default_factory=dict)
     # Phase 2：委托派发时透传触发人（User 实例），供业务执行器（如自动推进）复用。
-    actor: Optional[Any] = None
+    actor: Any | None = None
 
 
 @dataclass
@@ -78,7 +79,7 @@ class ExecutionResult:
     rule_id: str
     matched: bool
     action_results: List[ActionResult] = field(default_factory=list)
-    log_id: Optional[str] = None
+    log_id: str | None = None
 
 
 class ActionExecutor:
@@ -92,7 +93,7 @@ class ActionExecutor:
         """是否支持该 action_type。"""
         raise NotImplementedError("Phase 0 skeleton — 实现于 Phase 2+")
 
-    def execute(self, context: EvaluationContext, action: 'Action', rule: Rule) -> ActionResult:
+    def execute(self, context: EvaluationContext, action: Action, rule: Rule) -> ActionResult:
         """执行动作。"""
         raise NotImplementedError("Phase 0 skeleton — 实现于 Phase 2+")
 
@@ -110,7 +111,7 @@ class ActionExecutorRegistry:
     def register(self, executor: ActionExecutor) -> None:
         self._executors.append(executor)
 
-    def dispatch(self, context: EvaluationContext, action: 'Action', rule: Rule) -> ActionResult:
+    def dispatch(self, context: EvaluationContext, action: Action, rule: Rule) -> ActionResult:
         for executor in self._executors:
             try:
                 if executor.supports(action.action_type):
@@ -299,7 +300,7 @@ class ScopeMatcher:
     _LIST_DIMS = ('positions', 'priority', 'stages', 'referral_type', 'departments')
 
     @classmethod
-    def matches(cls, scope_json: Optional[dict], context: EvaluationContext) -> bool:
+    def matches(cls, scope_json: dict | None, context: EvaluationContext) -> bool:
         if not scope_json:
             return True
         for dim in cls._SCALAR_DIMS:
@@ -349,7 +350,7 @@ class RuleEngine:
     _PRIORITY_WEIGHT = {'P0': 0, 'P1': 1, 'P2': 2}
 
     def dispatch(self, context: EvaluationContext,
-                 source_app: Optional[str] = None) -> List[ExecutionResult]:
+                 source_app: str | None = None) -> List[ExecutionResult]:
         """根据上下文派发匹配的规则并执行动作。
 
         Args:
@@ -429,7 +430,7 @@ class RuleEngine:
     # --- 内部辅助 ---
 
     def _load_candidate_rules(self, context: EvaluationContext,
-                              source_app: Optional[str] = None) -> List[Rule]:
+                              source_app: str | None = None) -> List[Rule]:
         """① 加载 trigger_type 匹配 / 启用 / 未软删 的规则；② 按优先级排序。"""
         qs = Rule.objects.filter(
             trigger_type=context.trigger_type,

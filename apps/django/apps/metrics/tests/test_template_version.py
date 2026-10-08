@@ -501,8 +501,9 @@ class TestCalcParamsSchemaValidation:
 
     def test_required_param_missing_rejected(self, auth_client, monkeypatch):
         """required 参数缺失时序列化器应拒绝（直接校验静态方法）。"""
-        from .. import serializers as sers
         from rest_framework import serializers as drf
+
+        from .. import serializers as sers
         fake_func = {'param_schema': [
             {'key': 'k', 'label': 'K', 'type': 'number', 'required': True},
         ]}

@@ -45,9 +45,9 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
-from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 
-from .models import Application, ApplicationHistory, ApplicationStageRecord
+from .models import Application
 from .serializers import (
     ApplicationAdvanceSerializer,
     ApplicationChangeProcessSerializer,
@@ -80,6 +80,9 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     """申请 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Application.objects.filter(deleted_at__isnull=True).select_related(
         'candidate', 'position', 'process', 'current_link', 'current_stage', 'grabbed_by',
+        # #9 (2026-10-09): ApplicationListSerializer.get_is_in_grab_pool 逐行访问
+        # obj.current_link.stage_rule.is_grab_mode, 列表 N 行 -> N 次查询。
+        'current_link__stage_rule',
     )
     permission_classes = [V2Permission]
     permission_required = 'recruit:application:list'
@@ -211,9 +214,9 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     @action(detail=True, methods=['post'], url_path='check-stage-transition')
     def check_stage_transition(self, request, id=None):
         """检查能否推进到下一阶段(不实际推进)"""
-        from apps.process.models import ProcessStageLink
-        from apps.entry_condition.services import evaluate_stage_entry
         from apps.entry_condition.models import EntryConditionRule
+        from apps.entry_condition.services import evaluate_stage_entry
+        from apps.process.models import ProcessStageLink
 
         application = self.get_object()
         entry_condition_id = (request.data or {}).get('entryConditionId')
@@ -621,6 +624,13 @@ class InvitationViewSet(viewsets.ViewSet):
     """邀请 ViewSet"""
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
+    # 2026-10-08: 写操作显式授权。respond 是候选人/面试官回填响应, 只需「可见邀请」即可,
+    #   过度收紧会让候选人无法应答; create/send 才有实际副作用, 要求 invitation:create。
+    permission_required_map = {
+        'create': 'recruit:invitation:create',
+        'send_invitation': 'recruit:invitation:create',
+        'respond': 'recruit:invitation:list',
+    }
 
     def create(self, request):
         """创建邀请"""

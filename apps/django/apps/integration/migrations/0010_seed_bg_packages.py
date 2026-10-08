@@ -12,7 +12,6 @@ from copy import deepcopy
 
 from django.db import migrations
 
-
 # 标准背调套餐目录（用户指定，按参考图忠实转录）
 BG_PACKAGES = [
     {

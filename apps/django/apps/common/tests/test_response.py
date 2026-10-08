@@ -1,11 +1,11 @@
 """P1-3 统一信封 helper 单测（纯函数，不触库，可在 SQLite 下运行）。"""
-from rest_framework.test import APIRequestFactory
-
-from apps.common.response import success_response, error_response
-from apps.common.views import EnvelopeWriteMixin
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.test import APIRequestFactory
+
+from apps.common.response import error_response, success_response
+from apps.common.views import EnvelopeWriteMixin
 
 
 def test_success_response_basic_shape():

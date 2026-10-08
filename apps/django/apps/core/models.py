@@ -8,10 +8,11 @@
   init_demo_data.py 死文件已删（V1 Role/RolePermission 已被 DROP 且含 admin123 弱口令）;
   migrate_v2_data.py 保留为优雅跳过的死命令（T01.2 将改读 *_v1_backup 表重写）.
 """
+import uuid as uuid_lib
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.utils import timezone
-import uuid as uuid_lib
 
 
 class UserManager(BaseUserManager):
@@ -128,6 +129,10 @@ class User(AbstractUser):
     last_login_at = models.DateTimeField(null=True, blank=True, verbose_name='最后登录时间')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    # 2026-10-09 (#19): 令牌版本。改密/禁用时 +1, 使所有 outstanding refresh token 失效
+    #   (simplejwt 默认不撤销旧 refresh; 配合缩短后的 access 有效期实现"撤销")。
+    token_version = models.PositiveIntegerField(default=0, db_index=True, verbose_name='令牌版本')
 
     objects = UserManager()
 
@@ -309,11 +314,11 @@ class UserPreference(models.Model):
 # ---- V2 权限系统 (spec §3.2, T2) ----
 # 显式 import 让 Django 注册器发现 V2 models (V1/V2 共存于 T17 drop_old 前)
 from .models_permission_v2 import (  # noqa: E402,F401
+    ManagementUnit,
     PermissionResource,
     PermissionTemplate,
-    RoleV2,
     RolePermissionV2,
-    ManagementUnit,
-    UserRoleV2,
+    RoleV2,
     TenantConfig,
+    UserRoleV2,
 )

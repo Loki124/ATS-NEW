@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import csv
 import io
-from zipfile import BadZipFile
 from typing import Dict, List
+from zipfile import BadZipFile
 
 from django.core.files.uploadedfile import UploadedFile
 from openpyxl import Workbook, load_workbook

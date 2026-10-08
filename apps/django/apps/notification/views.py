@@ -38,6 +38,9 @@ class NotificationLogViewSet(AuditMixin, viewsets.ReadOnlyModelViewSet):
     queryset = NotificationLog.objects.all()
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
+    # 2026-10-08: mark_read 只作用于 recipient=当前用户 的通知, 不存在"给别人授权"
+    #   的概念, 故声明为自助操作豁免写守卫。用集合而非开关, 便于脚本扫描审计。
+    v2_self_service_actions = {'mark_read'}
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['event', 'channel', 'recipient']

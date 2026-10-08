@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .candidate_snapshot import (
     build_candidate_snapshot,
@@ -73,7 +73,7 @@ def count_candidates() -> int:
     return Candidate.objects.filter(deleted_at__isnull=True).count()
 
 
-def evaluate_scene(scene: str, candidate_id: str, snapshot: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def evaluate_scene(scene: str, candidate_id: str, snapshot: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """执行某场景下全部启用规则，返回汇总结论。
 
     返回：

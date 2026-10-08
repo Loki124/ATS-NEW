@@ -10,8 +10,9 @@
  本模块只负责「规则的可视化配置与存储」(管理面)。
 """
 from django.db import models
-from apps.common.models import TimestampedModel
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import TimestampedModel
 
 
 def gen_id():

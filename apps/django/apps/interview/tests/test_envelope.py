@@ -12,12 +12,12 @@ import datetime
 import pytest
 from rest_framework.test import APIClient
 
-from apps.core.models import Department, User
-from apps.process.models import RecruitmentProcess, RecruitmentStage, ProcessStageLink
-from apps.candidate.models import Candidate
-from apps.position.models import Position
 from apps.application.models import Application, ApplicationStageRecord
+from apps.candidate.models import Candidate
+from apps.core.models import Department, User
 from apps.interview.models import Interview, InterviewEvaluation
+from apps.position.models import Position
+from apps.process.models import ProcessStageLink, RecruitmentProcess, RecruitmentStage
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ def interview(db):
         code='INT001',
         application=application,
         stage_record=stage_record,
-        scheduled_at=datetime.datetime(2026, 8, 20, 10, 0, 0, tzinfo=datetime.timezone.utc),
+        scheduled_at=datetime.datetime(2026, 8, 20, 10, 0, 0, tzinfo=datetime.UTC),
     )
 
 

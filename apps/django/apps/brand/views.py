@@ -14,8 +14,8 @@ Logo 上传端点 ``/api/v1/brand/logo/``:
 import os
 import uuid
 
-from django.core.files.storage import default_storage
 from django.conf import settings
+from django.core.files.storage import default_storage
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -23,11 +23,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.response import success_response
+
 from .models import BrandInfo
 from .serializers import BrandInfoSerializer
 
 # Logo 仅允许图片类型, 单文件上限 2MB
-ALLOWED_LOGO_EXT = {'.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif'}
+# 2026-10-08 (#17 / S-07): 移除 .svg —— SVG 是 XML, 可内嵌 <script> 成为持久型 XSS
+#   存储/分发点, 且魔数校验拦不住 (SVG 无稳定二进制头)。只允许位图 + WebP。
+ALLOWED_LOGO_EXT = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
 MAX_LOGO_SIZE = 2 * 1024 * 1024
 
 
@@ -83,9 +86,14 @@ class BrandLogoUploadView(APIView):
         if ext not in ALLOWED_LOGO_EXT:
             return Response(
                 {
-                    'detail': f'不支持的图片类型「{ext or "未知"}」, 仅允许 PNG/JPG/SVG/WebP/GIF',
+                    'detail': f'不支持的图片类型「{ext or "未知"}」, 仅允许 PNG/JPG/WebP/GIF',
                     'code': 'UNSUPPORTED_TYPE',
                 },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if getattr(file, 'size', 0) <= 0:
+            return Response(
+                {'detail': '文件内容为空', 'code': 'EMPTY_FILE'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if file.size > MAX_LOGO_SIZE:
@@ -94,6 +102,15 @@ class BrandLogoUploadView(APIView):
                     'detail': f'文件大小 {file.size // 1024}KB 超过 {MAX_LOGO_SIZE // 1024}KB 上限',
                     'code': 'FILE_TOO_LARGE',
                 },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # 2026-10-08 (#17): 魔数校验, 防伪造扩展名上传 (.gif 伪装成 .png 等)
+        try:
+            from apps.common.storage import check_magic_bytes
+            check_magic_bytes(ext, file)
+        except ValueError as e:
+            return Response(
+                {'detail': str(e), 'code': 'BAD_MAGIC'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         rel_path = f'brand/logos/{uuid.uuid4().hex}{ext}'

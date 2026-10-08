@@ -3,8 +3,13 @@ from django.db.utils import OperationalError, ProgrammingError
 from rest_framework import serializers
 
 from .models_permission_v2 import (
-    PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, ManagementUnitMember,
+    ManagementUnit,
+    ManagementUnitMember,
+    PermissionResource,
+    PermissionTemplate,
+    RolePermissionV2,
+    RoleV2,
+    UserRoleV2,
 )
 
 
@@ -127,6 +132,21 @@ class UserRoleSerializer(serializers.ModelSerializer):
         model = UserRoleV2
         fields = ['id', 'user_id', 'role_code', 'system_code', 'management_unit_ids',
                   'valid_from', 'valid_to', 'granted_by_id', 'granted_at', 'updated_at']
+
+    # 2026-10-08: 特权角色只能由「真正的」Django 超级管理员授予。
+    #   不能用 role_v2_query.is_super_admin() 判断 —— 它对持 SUPER_ADMIN **角色**的人
+    #   也返回 True, 那正是要防止扩散的对象: 否则任一 SUPER_ADMIN 角色持有者都能
+    #   再授一个出去, 特权无限复制且无从收敛。这里只认 Django is_superuser 标志。
+    PRIVILEGED_ROLE_CODES = frozenset({'SUPER_ADMIN'})
+
+    def validate_role_code(self, value):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if value in self.PRIVILEGED_ROLE_CODES and not getattr(user, 'is_superuser', False):
+            raise serializers.ValidationError(
+                f'只有 Django 超级管理员可以授予 {value} 角色。'
+            )
+        return value
 
     def create(self, validated_data):
         validated_data['granted_by_id'] = self.context['request'].user.id

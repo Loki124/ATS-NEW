@@ -79,28 +79,17 @@ npm run dev              # → http://localhost:5212
 ## 3. 跑测试（1 分钟）
 
 ```bash
-# 后端全量: 1873 passed / 0 failed / 1 skipped（2026-10-02 基线，详见 08-测试体系.md）
-# ⚠️ QUARANTINE: 9 条原 deselect 已于 2026-10-01 实测全部 PASS（自愈）; 跳过名单由
-#   GitHub 仓库级 QUARANTINE 环境变量承载, 闭环=在仓库 Settings 清空该变量。
+# 后端全量 (2026-10-08: 隔离区已代码内化, 用 -m "not quarantine" 排除, 详见 08-测试体系.md §2.4)
 cd apps/django
 source .venv/bin/activate
-pytest --tb=line -q --no-header -p no:cacheprovider \
-  --deselect apps/add_candidate/tests/test_views.py::TestUploadAndParseView::test_upload_single_pdf_success \
-  --deselect apps/add_candidate/tests/test_views.py::TestParseStatusView::test_get_processing_job \
-  --deselect apps/add_candidate/tests/test_views.py::TestReplaceFileView::test_replace_success \
-  --deselect apps/add_candidate/tests/test_views.py::TestBulkCreateView::test_bulk_create_pending \
-  --deselect apps/add_candidate/tests/test_views.py::TestScoringEndpoints::test_scoring_start_returns_stream_url \
-  --deselect apps/add_candidate/tests/test_views.py::TestScoringEndpoints::test_scoring_stream_returns_event_stream \
-  --deselect apps/core/tests/test_sync_resources_t29.py::test_sync_resources_persists_codes \
-  --deselect apps/core/tests/test_sync_resources_t29.py::test_sync_resources_rejects_invalid_codes \
-  --deselect apps/core/tests/test_sync_resources_t29.py::test_sync_resources_empty_array_clears
+pytest --tb=line -q --no-header -p no:cacheprovider -m "not quarantine" --cov=apps --cov-fail-under=70
 
-# 前端 132 tests
+# 前端 (带覆盖率门禁)
 cd web/app
-npm test
+npm test -- --coverage
 ```
 
-**预期**：1873 passed / 0 failed / 1 skipped（2026-10-02 全量基线）。QUARANTINE 状态详见 `docs/01-wiki/08-测试体系.md` §2.4。
+**预期**：全量通过且覆盖率不低于门禁（后端 70 / 前端见 vitest thresholds）。隔离区为空（9 条 deselect 已于 2026-10-01 实测全部 PASS 并随 `apps/*/tests/` 全量收集进入正式回归）。
 
 ---
 

@@ -8,7 +8,7 @@ import pytest
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_clone_from_template_creates_role_with_permissions(auth_client):
-    from apps.core.models_permission_v2 import PermissionTemplate, RoleV2, RolePermissionV2
+    from apps.core.models_permission_v2 import PermissionTemplate, RolePermissionV2, RoleV2
 
     PermissionTemplate.objects.create(
         system_code='recruit',

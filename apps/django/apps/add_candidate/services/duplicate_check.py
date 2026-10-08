@@ -19,9 +19,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from apps.application.models import ApplicationState
 from apps.candidate.models import Candidate
@@ -54,8 +52,8 @@ ACTIVE_STATES = (
 class DuplicateInfo:
     """查重结果"""
     status: DuplicateStatus
-    matched_candidate: Optional[Candidate]
-    active_application_id: Optional[str] = None
+    matched_candidate: Candidate | None
+    active_application_id: str | None = None
     # 便于前端展示的字段
     history: str = ''
     cur_status_label: str = ''
@@ -85,10 +83,10 @@ class DuplicateCheckService:
     @classmethod
     def find(
         cls,
-        phone: Optional[str],
-        email: Optional[str],
-        id_card: Optional[str],
-        moka_id: Optional[str],
+        phone: str | None,
+        email: str | None,
+        id_card: str | None,
+        moka_id: str | None,
     ) -> DuplicateInfo:
         """查重，返回 DuplicateInfo"""
         # 复用现有 _find_duplicate 找候选人
@@ -131,7 +129,6 @@ class DuplicateCheckService:
     @classmethod
     def _build_history(cls, candidate: Candidate) -> str:
         """生成「历史应聘」文案"""
-        from apps.position.models import Position
         last_app = candidate.applications.filter(
             deleted_at__isnull=True,
         ).order_by('-created_at').first()

@@ -86,16 +86,16 @@ class ScoringStreamView(APIView):
         owner_key = f'add_candidate:scoring:owner:{task_id}'
         owner_id = _get_redis().get(owner_key)
         if owner_id is None:
-            from rest_framework.response import Response
             from rest_framework import status as http_status
+            from rest_framework.response import Response
             return Response(
                 {'detail': 'Task not found or expired', 'code': 'TASK_NOT_FOUND'},
                 status=http_status.HTTP_404_NOT_FOUND,
             )
         owner_id = owner_id.decode() if isinstance(owner_id, bytes) else str(owner_id)
         if owner_id != str(request.user.id) and not is_super_admin(request.user):
-            from rest_framework.response import Response
             from rest_framework import status as http_status
+            from rest_framework.response import Response
             return Response(
                 {'detail': 'Permission denied', 'code': 'FORBIDDEN'},
                 status=http_status.HTTP_403_FORBIDDEN,

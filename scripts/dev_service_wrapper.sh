@@ -67,21 +67,35 @@ case "$SERVICE" in
     ;;
 esac
 
-fe_healthy() { curl --noproxy '*' -s -o /dev/null "http://localhost:5212/" 2>/dev/null; }
-be_healthy() { [[ "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000/health/" 2>/dev/null)" == "200" ]]; }
+# 探活：仅 200 视为健康。
+fe_healthy() { [[ "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' --max-time 3 "http://localhost:5212/" 2>/dev/null)" == "200" ]]; }
+# 探活：200/503/500 均视为“进程存活”（503/500=底座未就绪但服务在跑）；
+# 仅连接失败（无响应）才视为真正死亡，避免把“降级”误判为“假活”而反复杀掉重启。
+be_healthy() {
+  local code
+  code="$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:8000/health/" 2>/dev/null)"
+  [[ "$code" == "200" || "$code" == "503" || "$code" == "500" ]]
+}
 # celery worker 无 HTTP 端口：健康=子进程仍存活（崩溃由 launchd/包装器重启兜底）
 celery_healthy() { kill -0 "$PID" 2>/dev/null; }
 
-# 杀掉占用目标端口、但【不是本子进程】的孤儿，确保本包装器独占端口
+# 杀掉占用目标端口、但【不是本子进程】的全部孤儿，确保本包装器独占端口
+# （旧逻辑只 kill head -1，多孤儿并发时会残留 → 新进程 “port already in use”）
 free_port() {
-  local holder
-  holder="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1)"
-  if [[ -n "$holder" && "$holder" != "$PID" ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] killing orphan pid $holder holding :$PORT" >> "$LOG_DIR/$SERVICE-wrapper.log"
-    kill -9 "$holder" 2>/dev/null || true
+  local holders h
+  holders="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | grep -v -x "$PID")"
+  if [[ -n "$holders" ]]; then
+    for h in $holders; do
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] killing orphan pid $h holding :$PORT" >> "$LOG_DIR/$SERVICE-wrapper.log"
+      kill -9 "$h" 2>/dev/null || true
+    done
     sleep 1
   fi
 }
+
+# 退出时清理本包装器拉起的子进程，避免 wrapper 被 launchd 强杀后留下孤儿
+cleanup() { [[ -n "${PID:-}" ]] && kill -9 "$PID" 2>/dev/null; }
+trap cleanup EXIT
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] wrapper for $SERVICE starting (max_restarts=$MAX_RESTARTS)" >> "$LOG_DIR/$SERVICE-wrapper.log"
 
@@ -126,7 +140,7 @@ while true; do
     kill -9 "$PID" 2>/dev/null || true
     wait "$PID" 2>/dev/null || true
     restart_count=$((restart_count + 1))
-    echo "[$(date '+%Y-%m-%d %H:%m:%S')] $SERVICE failed to become healthy (restart #$restart_count)" >> "$LOG_DIR/$SERVICE-wrapper.log"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $SERVICE failed to become healthy (restart #$restart_count)" >> "$LOG_DIR/$SERVICE-wrapper.log"
   fi
 
   if [[ $restart_count -ge $MAX_RESTARTS ]]; then

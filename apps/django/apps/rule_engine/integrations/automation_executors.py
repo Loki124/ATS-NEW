@@ -16,10 +16,10 @@ automation 的循环依赖。
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from ..services import ActionExecutor, ActionResult, action_registry
 from ..models import UnifiedActionType
+from ..services import ActionExecutor, ActionResult, action_registry
 
 logger = logging.getLogger(__name__)
 

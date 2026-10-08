@@ -12,13 +12,13 @@ from __future__ import annotations
 import logging
 import os
 import shutil
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from ..resume_parser import ParseError, ParsedResume
+from ..resume_parser import ParsedResume, ParseError
 
 logger = logging.getLogger(__name__)
 
-_REGISTRY: Dict[str, type["ResumeParserBackend"]] = {}
+_REGISTRY: Dict[str, type[ResumeParserBackend]] = {}
 
 
 class BackendNotFoundError(ParseError):
@@ -36,14 +36,14 @@ class ResumeParserBackend:
         raise NotImplementedError
 
     @classmethod
-    def register(cls, backend_cls: type["ResumeParserBackend"]) -> None:
+    def register(cls, backend_cls: type[ResumeParserBackend]) -> None:
         if not backend_cls.name:
             raise ValueError("backend must define a non-empty `name`")
         _REGISTRY[backend_cls.name] = backend_cls
         logger.debug("注册简历解析后端: %s", backend_cls.name)
 
     @classmethod
-    def get(cls, name: str) -> "ResumeParserBackend":
+    def get(cls, name: str) -> ResumeParserBackend:
         backend_cls = _REGISTRY.get(name)
         if backend_cls is None:
             raise BackendNotFoundError(name)
@@ -54,7 +54,7 @@ class ResumeParserBackend:
         return list(_REGISTRY.keys())
 
 
-def get_backend(name: Optional[str] = None) -> ResumeParserBackend:
+def get_backend(name: str | None = None) -> ResumeParserBackend:
     """返回配置（或指定）的后端实例。
 
     - 显式传 name：直接走该后端（测试 / 脚本兼容，未知后端如实抛 ``BackendNotFoundError``）。

@@ -184,12 +184,30 @@ def _ensure_v2_schema(django_db_setup, django_db_blocker):
                         module = __import__(app_config.name + '.views', fromlist=[''])
                         for attr_name in dir(module):
                             cls = getattr(module, attr_name, None)
-                            if cls is None or not hasattr(cls, 'permission_required'):
+                            if cls is None:
                                 continue
-                            if isinstance(cls.permission_required, str):
-                                resource_codes.add(cls.permission_required)
-                            elif isinstance(cls.permission_required, (list, tuple)):
-                                resource_codes.update(cls.permission_required)
+                            # 2026-10-08: 只声明了 permission_required_map 的视图
+                            # (写操作显式授权、读操作留空) 也必须采到, 否则写用例 403。
+                            declared = getattr(cls, 'permission_required', None)
+                            mapping = getattr(cls, 'permission_required_map', None)
+                            if declared is None and not mapping:
+                                continue
+                            if isinstance(declared, str):
+                                resource_codes.add(declared)
+                                # 2026-10-08: V2Permission 现在按 action 派生写权限码
+                                # (:create/:edit/:delete)。测试库里 PermissionResource
+                                # 未 seed, 派生码若存在就会要求 HR 持有, 故此处一并授予,
+                                # 让 fixture 语义等价于「该资源的所有操作都放行」。
+                                base = declared.rsplit(':', 1)[0]
+                                resource_codes.update(
+                                    f'{base}:{s}'
+                                    for s in ('create', 'edit', 'delete')
+                                )
+                            elif isinstance(declared, (list, tuple)):
+                                resource_codes.update(declared)
+                            # 显式 action 覆盖表里的码也必须授予, 否则写用例 403
+                            if isinstance(mapping, dict):
+                                resource_codes.update(mapping.values())
                     except ImportError:
                         pass
                 # 给 HR/HRBP/SUPER_ADMIN 三个角色都授权

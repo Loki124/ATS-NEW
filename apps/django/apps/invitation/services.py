@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 from django.db import transaction
 from django.utils import timezone
@@ -22,7 +21,7 @@ class InvitationCreateData:
     inviter_id: str
     expire_at: str
     is_grab_pool: bool = False
-    actor: Optional[User] = None
+    actor: User | None = None
 
 
 class InvitationService:

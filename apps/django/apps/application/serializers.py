@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.candidate.serializers import CandidateListSerializer
 from apps.position.serializers import PositionListSerializer
 from apps.process.serializers import (
     RecruitmentProcessDetailSerializer,
@@ -126,6 +125,11 @@ class ApplicationListSerializer(serializers.ModelSerializer):
             and getattr(obj.current_link, 'stage_rule', None)
             and obj.current_link.stage_rule.is_grab_mode
         )
+
+
+# 2026-10-09 (#20): 惰性导入, 去掉 application → candidate 模块级边, 切断循环依赖。
+#   candidate 侧仅方法内引用 application, 此处晚于 candidate 包加载, 不构成环。
+from apps.candidate.serializers import CandidateListSerializer
 
 
 class ApplicationDetailSerializer(serializers.ModelSerializer):

@@ -8,16 +8,19 @@
 
 注：人数规划看板（compute_count / plan 端点）已在 v2.8 真删，本命令不再覆盖人数规划断言。
 """
-from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 
 from apps.campus_control.calc import (
-    compute_ratio, simulate, check_dimension_sums, _scope_key,
+    _scope_key,
+    check_dimension_sums,
+    compute_ratio,
+    simulate,
 )
-from apps.campus_control.constants import VERDICT_BLOCK, RATIO_ABOVE
+from apps.campus_control.constants import RATIO_ABOVE, VERDICT_BLOCK
 from apps.campus_control.sample_data import (
-    SAMPLE_PERSONS, build_rules,
+    SAMPLE_PERSONS,
+    build_rules,
 )
 
 

@@ -1,6 +1,8 @@
 """Celery task 测试"""
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from apps.add_candidate.models import ParseJob
 from apps.add_candidate.tasks import parse_resume_task
 
@@ -13,11 +15,11 @@ class TestParseResumeTask:
     @patch('apps.add_candidate.services.resume_parser.ResumeParserService.parse')
     def test_parse_success_updates_job(self, mock_parse, mock_dup_find, hr_user, tmp_path):
         """成功解析 → ParseJob.status=done, parsed_data/duplicate_data 填充"""
-        from apps.add_candidate.services.resume_parser import ParsedResume
         from apps.add_candidate.services.duplicate_check import (
             DuplicateInfo,
             DuplicateStatus,
         )
+        from apps.add_candidate.services.resume_parser import ParsedResume
         mock_parse.return_value = ParsedResume(
             name='张三', phone='13800138000', email='z@x.com', gender='男', age=30,
             edu='本科', educations=[], experiences=[], confidence=0.95,

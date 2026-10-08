@@ -72,8 +72,10 @@ def issue_code(email: str, full_name: str = '') -> EmailVerificationCode:
         status='ACTIVE',
     )
     _send_code_email(email, code, full_name)
-    if getattr(settings, 'DEBUG', False):
-        logger.info('[DEV] Register verification code for %s: %s', email, code)
+    # 2026-10-08: 不再把验证码明文写日志 (dev.py 的 apps logger 是 DEBUG,
+    #   这条会原样落到日志文件; 验证码等同一次性凭据)。
+    #   本地调试请直接看 console 邮件后端 (EMAIL_BACKEND=console) 的输出。
+    logger.info('Register verification code issued for %s (已发送邮件)', email)
     return rec
 
 

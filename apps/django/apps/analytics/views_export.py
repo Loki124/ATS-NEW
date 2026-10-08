@@ -11,7 +11,6 @@ G35 字段级 ACL (PRD v4 §4.4 G43):
 每行走 FieldAclService.apply_acl(entity, row, user) — 默认敏感字段
 (phone/email/id_card_no/salary/bonus 等) 按角色脱敏; 超管 bypass.
 """
-import csv
 import logging
 from typing import Callable, Dict, List
 
@@ -24,6 +23,9 @@ from apps.core.permissions_v2 import V2Permission
 from apps.field_acl.services import FieldAclService
 
 logger = logging.getLogger(__name__)
+
+# 2026-10-08: 导出行数硬上限。此前无任何上限, 一次请求可拉全表并常驻内存。
+MAX_EXPORT_ROWS = 10000
 
 
 class _Echo:
@@ -100,9 +102,16 @@ CSV_FIELDS: Dict[str, List[tuple]] = {
 
 
 # ---- 资源 → 行迭代器 (raw dict, 走 apply_acl 后再 yield 给 CSV/JSON) ----
-def _iter_candidates():
+# 2026-10-08: 所有迭代器**必须**接收 request 并按数据范围过滤。
+#   此前全部 `Model.objects.filter(...)` 全表读取, 只靠 FieldAcl 做列级脱敏 ——
+#   列级 ACL 管不了行: 姓名/公司/岗位/状态这些非敏感字段会把全公司数据完整导出。
+def _iter_candidates(request):
     from apps.candidate.models import Candidate
-    for c in Candidate.objects.filter(deleted_at__isnull=True).iterator(chunk_size=200):
+    from apps.core.entity_scope import scoped_queryset
+    qs = scoped_queryset(
+        request, Candidate.objects.filter(deleted_at__isnull=True), 'candidate',
+    )
+    for c in qs.iterator(chunk_size=200):
         yield {
             'id': c.id,
             'name': c.name,
@@ -113,15 +122,21 @@ def _iter_candidates():
             'current_company': getattr(c, 'current_company', None),
             'current_position': getattr(c, 'current_position', None),
             'experience_years': getattr(c, 'experience_years', None),
-            'state': c.state,
+            # 2026-10-08: 原为 c.state —— Candidate 上并无该字段 (FSM 字段叫
+            #   current_state), 导致候选人导出恒 500。这是导出功能从未真正可用的原因。
+            'state': getattr(c, 'current_state', None),
             'source': getattr(c, 'source', None),
             'created_at': c.created_at.isoformat() if getattr(c, 'created_at', None) else '',
         }
 
 
-def _iter_demands():
+def _iter_demands(request):
+    from apps.core.entity_scope import scoped_queryset
     from apps.demand.models import Demand
-    for d in Demand.objects.filter(deleted_at__isnull=True).iterator(chunk_size=200):
+    qs = scoped_queryset(
+        request, Demand.objects.filter(deleted_at__isnull=True), 'demand',
+    )
+    for d in qs.iterator(chunk_size=200):
         yield {
             'id': d.id,
             'title': d.title,
@@ -134,9 +149,13 @@ def _iter_demands():
         }
 
 
-def _iter_positions():
+def _iter_positions(request):
+    from apps.core.entity_scope import scoped_queryset
     from apps.position.models import Position
-    for p in Position.objects.filter(deleted_at__isnull=True).iterator(chunk_size=200):
+    qs = scoped_queryset(
+        request, Position.objects.filter(deleted_at__isnull=True), 'position',
+    )
+    for p in qs.iterator(chunk_size=200):
         yield {
             'id': p.id,
             'title': p.title,
@@ -148,9 +167,13 @@ def _iter_positions():
         }
 
 
-def _iter_offers():
+def _iter_offers(request):
+    from apps.core.entity_scope import scoped_queryset
     from apps.offer.models import Offer
-    for o in Offer.objects.filter(deleted_at__isnull=True).iterator(chunk_size=200):
+    qs = scoped_queryset(
+        request, Offer.objects.filter(deleted_at__isnull=True), 'offer',
+    )
+    for o in qs.iterator(chunk_size=200):
         yield {
             'id': o.id,
             'candidate_id': str(getattr(o, 'candidate_id', '') or ''),
@@ -162,9 +185,13 @@ def _iter_offers():
         }
 
 
-def _iter_interviews():
+def _iter_interviews(request):
+    from apps.core.entity_scope import scoped_queryset
     from apps.interview.models import Interview
-    for i in Interview.objects.filter(deleted_at__isnull=True).iterator(chunk_size=200):
+    qs = scoped_queryset(
+        request, Interview.objects.filter(deleted_at__isnull=True), 'interview',
+    )
+    for i in qs.iterator(chunk_size=200):
         yield {
             'id': i.id,
             'round_name': getattr(i, 'round_name', None),
@@ -177,9 +204,13 @@ def _iter_interviews():
         }
 
 
-def _iter_onboardings():
+def _iter_onboardings(request):
+    from apps.core.entity_scope import scoped_queryset
     from apps.onboarding.models import Onboarding
-    for o in Onboarding.objects.filter(deleted_at__isnull=True).iterator(chunk_size=200):
+    qs = scoped_queryset(
+        request, Onboarding.objects.filter(deleted_at__isnull=True), 'onboarding',
+    )
+    for o in qs.iterator(chunk_size=200):
         yield {
             'id': o.id,
             'candidate_id': str(getattr(o, 'candidate_id', '') or ''),
@@ -245,11 +276,12 @@ class DataExportView(APIView):
         requested = [f.strip() for f in fields_param.split(',') if f.strip()] if fields_param else None
 
         if fmt == 'csv':
-            return self._csv_response(resource, requested, request.user)
-        return self._json_response(resource, requested, request.user)
+            return self._csv_response(resource, requested, request)
+        return self._json_response(resource, requested, request)
 
     # ----- CSV 流式 -----
-    def _csv_response(self, resource: str, requested, user):
+    def _csv_response(self, resource: str, requested, request):
+        user = request.user
         field_specs = CSV_FIELDS[resource]
         if requested:
             valid_keys = {f[0] for f in field_specs}
@@ -265,12 +297,20 @@ class DataExportView(APIView):
         entity = ENTITY_MAP[resource]
 
         def stream():
-            writer = csv.writer(_Echo())
+            # 2026-10-08: 用净化 writer, 防止候选人姓名/公司等被 Excel 当公式执行
+            from apps.common.csv_safe import SafeCsvWriter
+            writer = SafeCsvWriter(_Echo())
             # UTF-8 BOM 让 Excel 正确识别 UTF-8 中文
             yield '\ufeff'
             yield writer.writerow(labels)
             count = 0
-            for raw in RESOURCE_ITER[resource]():
+            for raw in RESOURCE_ITER[resource](request):
+                if count >= MAX_EXPORT_ROWS:
+                    logger.warning(
+                        'data export truncated: resource=%s user=%s limit=%d',
+                        resource, getattr(user, 'username', '?'), MAX_EXPORT_ROWS,
+                    )
+                    break
                 row = FieldAclService.apply_acl(entity, raw, user)
                 yield writer.writerow([row.get(k, '') for k in keys])
                 count += 1
@@ -287,10 +327,17 @@ class DataExportView(APIView):
         return resp
 
     # ----- JSON 全量 -----
-    def _json_response(self, resource: str, requested, user):
+    def _json_response(self, resource: str, requested, request):
+        user = request.user
         entity = ENTITY_MAP[resource]
         rows = []
-        for raw in RESOURCE_ITER[resource]():
+        for raw in RESOURCE_ITER[resource](request):
+            if len(rows) >= MAX_EXPORT_ROWS:
+                logger.warning(
+                    'data export (json) truncated: resource=%s user=%s limit=%d',
+                    resource, getattr(user, 'username', '?'), MAX_EXPORT_ROWS,
+                )
+                break
             row = FieldAclService.apply_acl(entity, raw, user)
             if requested:
                 row = {k: row.get(k) for k in requested if k in row}

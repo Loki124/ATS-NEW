@@ -11,8 +11,11 @@ from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsSuperAdmin
 
 from .models import (
+    ColumnPermission,
     DataPermissionRule,
-    DimensionType, RuleLevel, RowScopeType, ColumnPermission,
+    DimensionType,
+    RowScopeType,
+    RuleLevel,
 )
 from .serializers import DataPermissionRuleSerializer
 

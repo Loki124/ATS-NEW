@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-
 CAND_DIR = Path('apps/candidate')
 
 
@@ -105,9 +104,10 @@ def test_upsert_by_phone_retry_on_integrity_error(monkeypatch):
 
     这是 services.py 真窄化的核心契约: 并发场景 ORM 唯一键冲突后应返已存在记录.
     """
+    from django.db import IntegrityError
+
     from apps.candidate.models import Candidate
     from apps.candidate.services import CandidateService
-    from django.db import IntegrityError
 
     # 先建一个 phone 已存在的候选
     existing = Candidate.objects.create(

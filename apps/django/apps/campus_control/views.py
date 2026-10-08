@@ -39,23 +39,31 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 
-from .calc import compute_ratio, simulate, _COUNTED_STATUSES
+from . import services
+from .calc import _COUNTED_STATUSES, compute_ratio, simulate
 from .constants import STATUS
 from .io_indicator import (
-    build_indicator_export_workbook, build_indicator_export_csv,
-    build_indicator_template_workbook, build_indicator_template_csv,
+    build_indicator_export_csv,
+    build_indicator_export_workbook,
+    build_indicator_template_csv,
+    build_indicator_template_workbook,
 )
 from .io_xlsx import (
-    build_export_workbook, build_template_workbook,
+    build_export_workbook,
+    build_template_workbook,
 )
 from .models import (
-    ControlDimension, ControlIndicator, ControlRule, Person,
+    ControlDimension,
+    ControlIndicator,
+    ControlRule,
+    Person,
 )
 from .serializers import (
-    ControlDimensionSerializer, ControlIndicatorSerializer,
-    ControlRuleSerializer, PersonSerializer,
+    ControlDimensionSerializer,
+    ControlIndicatorSerializer,
+    ControlRuleSerializer,
+    PersonSerializer,
 )
-from . import services
 
 
 def _jsonify(obj):
@@ -189,7 +197,9 @@ class ControlIndicatorViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
         dim = self.request.query_params.get('dimension')
         if dim:
             qs = qs.filter(dimension_id=dim)
-        return qs
+        # #9 (2026-10-09): ControlIndicatorSerializer.get_dimension_name 逐行查
+        # obj.dimension.name -> 列表 N 行 N 次查询。select_related 一次 join。
+        return qs.select_related('dimension')
 
     # ---- 权限：导入/导出/模板 需 HR 及以上；其余沿用已认证 ----
     def get_permissions(self):
@@ -288,7 +298,10 @@ class ControlRuleViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelView
             qs = qs.filter(position=position)
         if level is not None:
             qs = qs.filter(level=level)
-        return qs
+        # #9 (2026-10-09): ControlRuleSerializer 4 个 MethodField 逐行查
+        # dimension.name / indicator.name / created_by.full_name / updated_by.full_name,
+        # 列表 N 行 -> 4N 次查询。select_related 一次 join 全部吸收。
+        return qs.select_related('dimension', 'indicator', 'created_by', 'updated_by')
 
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):

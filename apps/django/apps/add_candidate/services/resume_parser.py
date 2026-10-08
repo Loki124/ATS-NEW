@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import date
-from typing import List, Optional, Any
+from typing import Any, List
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +56,12 @@ class Experience:
 @dataclass
 class ParsedResume:
     """解析后的简历结构化数据"""
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    gender: Optional[str] = None  # '男' | '女'
-    age: Optional[int] = None
-    edu: Optional[str] = None  # '本科' | '硕士' | '博士' | '大专'
+    name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    gender: str | None = None  # '男' | '女'
+    age: int | None = None
+    edu: str | None = None  # '本科' | '硕士' | '博士' | '大专'
     educations: List[Education] = field(default_factory=list)
     experiences: List[Experience] = field(default_factory=list)
     confidence: float = 0.0
@@ -83,7 +83,7 @@ class ResumeParserService:
     """
 
     @classmethod
-    def parse(cls, file_obj: Any, backend_name: Optional[str] = None) -> ParsedResume:
+    def parse(cls, file_obj: Any, backend_name: str | None = None) -> ParsedResume:
         """按配置/指定后端解析简历，返回 ParsedResume
 
         Raises:
@@ -105,7 +105,7 @@ def _normalize_phone(phone: str) -> str:
     return digits
 
 
-def _calculate_age(dob_str: str) -> Optional[int]:
+def _calculate_age(dob_str: str) -> int | None:
     """从 YYYY-MM-DD 计算年龄"""
     try:
         dob = date.fromisoformat(dob_str)

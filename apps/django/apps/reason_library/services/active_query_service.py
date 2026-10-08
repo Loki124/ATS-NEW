@@ -25,10 +25,8 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 from django.core.cache import cache
-from django.db.models import Max
 
 from ..models import RuleSceneAssignment, SceneRule
 
@@ -38,13 +36,13 @@ CACHE_KEY_TEMPLATE = 'rl:scene:{scene_name}'
 CACHE_TTL = 300  # seconds
 
 
-def _cache_key(scene_name: str, recruit_type: Optional[str] = None) -> str:
+def _cache_key(scene_name: str, recruit_type: str | None = None) -> str:
     if recruit_type:
         return f'rl:scene:{scene_name}:{recruit_type}'
     return CACHE_KEY_TEMPLATE.format(scene_name=scene_name)
 
 
-def get_active_rule(scene_name: str, recruit_type: Optional[str] = None) -> Optional[SceneRule]:
+def get_active_rule(scene_name: str, recruit_type: str | None = None) -> SceneRule | None:
     """返回当前 (scene, [recruit_type]) 的活跃 SceneRule (Q3 优先级) — 带 Redis 缓存。
 
     recruit_type 可选: 业务流当前未真正传类型 (见前端 system.ts 注释), 传 None 时退化为纯
@@ -75,7 +73,7 @@ def get_active_rule(scene_name: str, recruit_type: Optional[str] = None) -> Opti
     return _query_active_rule_no_cache(scene_name, recruit_type)
 
 
-def _query_active_rule_no_cache(scene_name: str, recruit_type: Optional[str] = None) -> Optional[SceneRule]:
+def _query_active_rule_no_cache(scene_name: str, recruit_type: str | None = None) -> SceneRule | None:
     """实际查 DB 写缓存。优先级: 显式引用(排除预置默认) > 预置默认规则兜底。"""
     # 1) 显式引用 (不含预置默认规则, 后者仅作全局兜底)
     explicit = (
@@ -104,7 +102,7 @@ def _query_active_rule_no_cache(scene_name: str, recruit_type: Optional[str] = N
     return None
 
 
-def _write_cache(scene_name: str, rule: SceneRule, recruit_type: Optional[str] = None) -> None:
+def _write_cache(scene_name: str, rule: SceneRule, recruit_type: str | None = None) -> None:
     cache.set(_cache_key(scene_name, recruit_type), {
         'rule_id': rule.id,
         'name': rule.name,

@@ -1,11 +1,16 @@
 """Smoke tests for V2 permission models. Verifies table creation + UNIQUE constraints work."""
 import pytest
 from django.contrib.auth import get_user_model
-from apps.core.models_permission_v2 import (
-    PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, TenantConfig,
-)
 
+from apps.core.models_permission_v2 import (
+    ManagementUnit,
+    PermissionResource,
+    PermissionTemplate,
+    RolePermissionV2,
+    RoleV2,
+    TenantConfig,
+    UserRoleV2,
+)
 
 User = get_user_model()
 

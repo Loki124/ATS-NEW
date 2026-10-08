@@ -7,13 +7,16 @@ scopes 动作 (apps/mou/urls.py 的 MouAgreementViewSetWithScopes) 自带 {succe
 """
 from rest_framework import viewsets
 
-from apps.common.views import EnvelopeWriteMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import MOUVIEWSetPermission  # noqa: F401
-from .models import MouAgreement, MouContainer, MutualExclusionGroup, MouRule
+
+from .models import MouAgreement, MouContainer, MouRule, MutualExclusionGroup
 from .serializers import (
-    MouAgreementSerializer, MouContainerSerializer,
-    MutualExclusionGroupSerializer, MouRuleSerializer,
+    MouAgreementSerializer,
+    MouContainerSerializer,
+    MouRuleSerializer,
+    MutualExclusionGroupSerializer,
 )
 
 

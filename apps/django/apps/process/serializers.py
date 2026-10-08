@@ -11,27 +11,21 @@
 """
 from __future__ import annotations
 
-from rest_framework import serializers
 from django.db import transaction
+from rest_framework import serializers
 
 from apps.core.serializers import UserMinimalSerializer
 
 from .models import (
     InterviewRound,
     InterviewRoundStatus,
+    ProcessingRule,
     ProcessStageLink,
     ProcessTemplate,
-    ProcessingRule,
     RecruitmentProcess,
     RecruitmentStage,
     StageRule,
     StageStatus,
-    StageType,
-)
-from .services.expression_service import (
-    validate_expression,
-    extract_ids,
-    ExpressionError,
 )
 
 
@@ -90,7 +84,7 @@ class RecruitmentStageSerializer(serializers.ModelSerializer):
         # 阶段类型必须是系统内置枚举值 (不再依赖数据字典)
         stage_type = attrs.get('stage_type')
         if stage_type:
-            from apps.process.models import StageType, STAGE_TYPE_VALUES
+            from apps.process.models import STAGE_TYPE_VALUES, StageType
             if stage_type not in STAGE_TYPE_VALUES:
                 raise serializers.ValidationError(
                     {'stage_type': f'无效的阶段类型: {stage_type}'},
@@ -280,6 +274,7 @@ class StageRuleSerializer(serializers.ModelSerializer):
 # ============================================================
 import json
 import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -430,7 +425,6 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
         if not value:
             return value
         try:
-            tokens = [t for t in value.split() if t.strip()]
             # 基础括号匹配
             if value.count('(') != value.count(')'):
                 raise serializers.ValidationError('括号不匹配')

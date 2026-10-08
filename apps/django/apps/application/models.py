@@ -4,12 +4,12 @@
 """
 from django.db import models
 from django_fsm import FSMField, transition
-from apps.common.models import FullAuditModel
-from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
-from apps.candidate.models import Candidate
-from apps.process.models import RecruitmentProcess, ProcessStageLink, RecruitmentStage
-from apps.position.models import Position
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import FullAuditModel
+from apps.position.models import Position
+from apps.process.models import ProcessStageLink, RecruitmentProcess, RecruitmentStage
+from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
 
 
 def gen_id():
@@ -44,8 +44,10 @@ class Application(FullAuditModel):
     )
     code = models.CharField(max_length=20, unique=True, verbose_name='申请编号')
 
+    # 2026-10-09 (#20): 改用字符串引用, 去掉 application → candidate 模块级导入,
+    #   切断二者间的循环依赖边 (candidate 侧本就仅方法内惰性引用 application)。
     candidate = models.ForeignKey(
-        Candidate, on_delete=models.PROTECT,
+        'candidate.Candidate', on_delete=models.PROTECT,
         related_name='applications', verbose_name='候选人',
     )
     position = models.ForeignKey(
@@ -99,6 +101,15 @@ class Application(FullAuditModel):
             models.Index(fields=['candidate', 'position']),
             models.Index(fields=['state', 'current_stage']),
             models.Index(fields=['stage_deadline']),
+            # 2026-10-08 审查 #10 (P-12): 热点过滤 — grab / 自动推进定时任务
+            models.Index(
+                fields=['state', 'is_grabbed', 'deleted_at', 'stage_entered_at'],
+                name='idx_application_state_grab',
+            ),
+            models.Index(
+                fields=['state', 'deleted_at', 'last_advanced_at'],
+                name='idx_application_state_adv',
+            ),
         ]
 
     def __str__(self):

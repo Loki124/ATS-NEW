@@ -11,7 +11,6 @@ priority / location），零表结构变更（纯 RunPython 数据写入）。
 """
 from django.db import migrations
 
-
 # (source_path, name, data_type, operators)
 POSITION_METRICS = [
     ('position.salary_min', '职位薪资下限', 'number',

@@ -14,7 +14,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from celery import shared_task
 from django.core.cache import cache
@@ -35,7 +35,7 @@ def write_progress(task_id: str, payload: Dict[str, Any]) -> None:
         logger.warning('[metrics] 写入筛选进度失败 task=%s: %s', task_id, exc)
 
 
-def read_progress(task_id: str) -> Optional[Dict[str, Any]]:
+def read_progress(task_id: str) -> Dict[str, Any] | None:
     try:
         return cache.get(_cache_key(task_id))
     except Exception:  # noqa: BLE001 — 无 Redis 时返 None (读缓存失败回退到无缓存路径, 不应阻断轮询)
@@ -44,7 +44,7 @@ def read_progress(task_id: str) -> Optional[Dict[str, Any]]:
 
 @shared_task(bind=True, queue='scoring')
 def filter_by_scene_task(self, task_id: str, scene: str,
-                         candidate_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+                         candidate_ids: List[str] | None = None) -> Dict[str, Any]:
     """按场景规则对（全量）候选人执行筛选，进度与结果写入缓存。"""
     from .services.rule_trigger import default_candidate_ids, evaluate_scene
 
@@ -63,7 +63,7 @@ def filter_by_scene_task(self, task_id: str, scene: str,
                 rejected.append({'candidateId': cid, 'reason': outcome.get('message')})
             else:
                 passed.append(cid)
-        except Exception as exc:  # noqa: BLE001 — 单条失败不中断整体 (批量筛选场景, 单条规则异常不应拖垮全量)
+        except Exception:  # noqa: BLE001 — 单条失败不中断整体 (批量筛选场景, 单条规则异常不应拖垮全量)
             logger.exception('[metrics] 筛选任务单条失败 candidate=%s', cid)
             passed.append(cid)
 

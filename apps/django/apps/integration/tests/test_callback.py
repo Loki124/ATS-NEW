@@ -5,11 +5,11 @@
 """
 import time
 
-from apps.integration.services import (
-    verify_background_check_callback,
-    apply_callback_to_order,
-)
 from apps.integration.models import BackgroundCheckOrder, BGOrderStatus
+from apps.integration.services import (
+    apply_callback_to_order,
+    verify_background_check_callback,
+)
 from apps.integration.tests.helpers import make_payload
 
 

@@ -6,7 +6,7 @@ HRBP 同时落入 HR_TIER 故安全方法也可达.
 """
 import pytest
 
-from apps.mou.models import MouAgreement, MouContainer, MutualExclusionGroup, MouRule
+from apps.mou.models import MouAgreement, MouContainer, MouRule, MutualExclusionGroup
 
 
 def _assert_envelope(body, code=0):

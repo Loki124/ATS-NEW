@@ -1,31 +1,165 @@
 """V2 权限 DRF 接入层. V2Permission 校验资源级权限, ScopeQuerysetMixin 做数据级过滤."""
-from django.db.utils import OperationalError, ProgrammingError
-from rest_framework.permissions import BasePermission
+import logging
 
+from django.conf import settings
+from django.core.cache import cache
+from django.db.utils import OperationalError, ProgrammingError
+from rest_framework.permissions import SAFE_METHODS, BasePermission
+
+from .models_permission_v2 import PermissionResource
 from .permission_check import has_perm
-from .scope_resolver import resolve_scope, unit_ids_to_dept_ids, ALL_UNIT_SENTINEL
 from .role_v2_query import is_super_admin
-from .models_permission_v2 import ManagementUnit
+from .scope_resolver import ALL_UNIT_SENTINEL, resolve_scope, unit_ids_to_dept_ids
+
+logger = logging.getLogger(__name__)
+
+# DRF action → 权限码后缀. 自定义 @action 一律按 edit 校验 (见 CUSTOM_ACTION_SUFFIX).
+ACTION_SUFFIX = {
+    'list': 'list',
+    'retrieve': 'list',
+    'create': 'create',
+    'update': 'edit',
+    'partial_update': 'edit',
+    'destroy': 'delete',
+}
+CUSTOM_ACTION_SUFFIX = 'edit'
+
+# 已注册 resource_code 集合缓存 (seed 是 idempotent 的, 变动极少, 无需每次请求回表).
+_KNOWN_CODES_CACHE_KEY = 'ats:v2:permission_resource_codes'
+_KNOWN_CODES_TTL_DEFAULT = 300
+
+
+def _codes_cache_ttl() -> int:
+    """权限码集合缓存时长。测试环境置 0 关闭缓存, 避免用例间相互污染。"""
+    return int(getattr(settings, 'V2_PERM_CODES_CACHE_TTL', _KNOWN_CODES_TTL_DEFAULT))
+
+
+def known_resource_codes() -> set:
+    """返回 PermissionResource 中已注册的 resource_code 集合 (缓存 5 分钟).
+
+    V2 schema 未应用时降级为空集合 —— 此时所有派生码都会回退到视图声明的原码,
+    等价于修复前的行为, 不会在迁移中间态把人锁死在门外.
+    """
+    codes = cache.get(_KNOWN_CODES_CACHE_KEY)
+    if codes is not None:
+        return codes
+    try:
+        codes = set(
+            PermissionResource.objects.values_list('resource_code', flat=True)
+        )
+    except (OperationalError, ProgrammingError):
+        logger.warning('V2 schema 未就绪: 权限码集合降级为空, 按 action 派生将全部回退原码')
+        codes = set()
+    cache.set(_KNOWN_CODES_CACHE_KEY, codes, _codes_cache_ttl())
+    return codes
+
+
+def invalidate_known_codes():
+    """seed / PermissionResource 变更后调用, 让缓存立即失效."""
+    cache.delete(_KNOWN_CODES_CACHE_KEY)
 
 
 class V2Permission(BasePermission):
-    """v2 统一守卫: has_perm 校验资源级权限. superuser bypass.
+    """v2 统一守卫: has_perm 校验资源级权限, 且**按 action 区分读写**. superuser bypass.
 
-    view 可声明 permission_required (str 或 list), 来自 PermissionResource.resource_code.
-    未声明 → 放行 (依赖 ScopeQuerysetMixin 做数据级过滤).
+    视图可声明三种形式 (优先级从高到低):
+
+    1. ``permission_required_map``: ``{action: code}`` 显式覆盖表, 用于资源码命名
+       不规范 / 某个 action 需要特殊码的场景 (例: sync_resources → role:assign).
+    2. ``permission_required = [code, ...]``: 列表, 视为调用方已明确意图, 原样校验
+       (任一命中即通过), 不做 action 派生.
+    3. ``permission_required = 'recruit:x:list'``: 单码, 按 action 派生 ——
+       create → :create / update|partial_update|自定义POST → :edit / destroy → :delete.
+       读操作 (GET/HEAD/OPTIONS) 直接用声明的原码.
+
+    未声明任何权限码时:
+       - 读操作 → 放行。这是有意设计: 数据看板/KPI/导出等读路径由 ScopeQuerysetMixin
+         做行级过滤 + FieldAcl 做列级脱敏 (见 analytics/views_export.py 注释)。
+       - 写操作 → **拒绝**。此前此处默认放行, 导致只持 ":list" 的账号可对同一
+         ModelViewSet 做 create/update/destroy (权限提升)。写操作必须显式声明。
+
+    派生码在 PermissionResource 中不存在时回退原码并告警 —— 避免种子数据滞后
+    (例如某资源只定义了 :list/:create) 时把合法写操作一并锁死。
     """
 
     def has_permission(self, request, view):
-        if not (request.user and request.user.is_authenticated):
+        user = request.user
+        if not (user and user.is_authenticated):
             return False
-        if is_super_admin(request.user):
+        if is_super_admin(user):
             return True
+
+        action = getattr(view, 'action', None) or ''
+        is_read = request.method in SAFE_METHODS
+
+        # 1) 显式 action 覆盖表
+        explicit = getattr(view, 'permission_required_map', None) or {}
+        if action and action in explicit:
+            return self._any(user, explicit[action])
+
+        # 2) 自助操作白名单: 只作用于当前用户自己的数据, 无资源级授权概念。
+        #    必须是 action 名集合 (而非布尔开关), 便于 scripts_scan_v2_write_guard.py
+        #    扫描审计 —— 加了什么、为什么, 一眼可见, 不留暗门。
+        if action and action in (getattr(view, 'v2_self_service_actions', None) or ()):
+            return True
+
         required = getattr(view, 'permission_required', None)
+
+        # 2) 完全未声明
         if not required:
-            # view 没声明 → 默认放行
+            if is_read:
+                return True
+            return self._reject_undeclared_write(view, request)
+
+        # 3) 多码: 调用方已明确意图, 原样校验
+        if isinstance(required, (list, tuple)):
+            return self._any(user, required)
+
+        # 4) 单码: 按 action 派生
+        return has_perm(user, self._derive(required, action, is_read))
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _any(user, codes) -> bool:
+        codes = codes if isinstance(codes, (list, tuple)) else [codes]
+        return any(has_perm(user, c) for c in codes)
+
+    @staticmethod
+    def _derive(required: str, action: str, is_read: bool) -> str:
+        """由声明的读权限码派生出当前 action 应校验的码."""
+        if is_read:
+            return required
+        suffix = ACTION_SUFFIX.get(action, CUSTOM_ACTION_SUFFIX)
+        base = required.rsplit(':', 1)[0] if ':' in required else required
+        derived = f'{base}:{suffix}'
+        if derived == required:
+            return required
+        if derived in known_resource_codes():
+            return derived
+        logger.warning(
+            'V2 权限码缺失: 资源 %r 未定义 %r (action=%s), 回退校验 %r。'
+            '请在 seed_v2_init.RESOURCES 补该码。',
+            base, derived, action or '-', required,
+        )
+        return required
+
+    @staticmethod
+    def _reject_undeclared_write(view, request) -> bool:
+        """未声明权限码的写操作: 严格模式拒绝, 灰度期可整体降级为仅告警."""
+        strict = getattr(settings, 'V2_STRICT_WRITE_GUARD', True)
+        if not strict:
+            logger.warning(
+                '[V2_STRICT_WRITE_GUARD=False 灰度中] 未声明权限码的写操作已放行: '
+                'view=%s method=%s path=%s',
+                view.__class__.__name__, request.method, request.path,
+            )
             return True
-        codes = required if isinstance(required, (list, tuple)) else [required]
-        return any(has_perm(request.user, c) for c in codes)
+        logger.warning(
+            '拒绝未声明权限码的写操作: view=%s method=%s path=%s。'
+            '请为该视图声明 permission_required / permission_required_map。',
+            view.__class__.__name__, request.method, request.path,
+        )
+        return False
 
 
 class ScopeQuerysetMixin:

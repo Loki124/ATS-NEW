@@ -19,7 +19,7 @@ import secrets
 import string
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.db import transaction
 from django.utils import timezone
@@ -27,7 +27,6 @@ from django.utils import timezone
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.core.models import User
 from apps.core.role_v2_query import is_super_admin
-from apps.position.models import Position
 
 # 2026-08-06 寇豆码: ApplicationState 是 models.py 的**模块级** TextChoices，
 #   不是 Application 的内部类 —— 原来写 `Application.ApplicationState.ACTIVE`
@@ -47,7 +46,7 @@ class GrabResult:
     application: Application
     record: ApplicationStageRecord
     grabbed_by: User
-    next_assignee: Optional[User] = None
+    next_assignee: User | None = None
     reassigned: bool = False
 
 
@@ -56,9 +55,9 @@ class InvitationCreateData:
     """创建邀请入参"""
     application_id: str
     channel: str = 'EMAIL'  # EMAIL/SMS/WECOM
-    template_code: Optional[str] = None
-    sender_id: Optional[str] = None
-    custom_message: Optional[str] = None
+    template_code: str | None = None
+    sender_id: str | None = None
+    custom_message: str | None = None
     expires_hours: int = 72
 
 
@@ -77,16 +76,20 @@ class GrabService:
     """抢单服务"""
 
     @staticmethod
-    def get_pool(stage_id: Optional[str] = None,
-                 position_id: Optional[str] = None,
+    def get_pool(stage_id: str | None = None,
+                 position_id: str | None = None,
                  limit: int = 50) -> List[Application]:
         """获取抢单池（候选人已到抢单阶段但未被认领的申请）"""
-        from apps.process.models import ProcessStageLink
         qs = Application.objects.filter(
             state=ApplicationState.ACTIVE,
             is_grabbed=False,
             deleted_at__isnull=True,
-        ).select_related('current_link', 'current_stage', 'candidate', 'position')
+        ).select_related(
+            # #9 (2026-10-09): 抢单池复用 ApplicationListSerializer, 原 select_related
+            # 缺 process / current_link__stage_rule, 致每行多 2 次查询。
+            'current_link', 'current_stage', 'candidate', 'position',
+            'process', 'current_link__stage_rule',
+        )
         if stage_id:
             qs = qs.filter(current_stage_id=stage_id)
         if position_id:
@@ -206,7 +209,6 @@ class GrabService:
         #   会解析成 apps.application.services.models（不存在）→ ModuleNotFoundError。
         #   父包的 apps/application/models.py 必须用两个点 `..models`，与本文件顶部
         #   模块级 `from ..models import ...` 保持一致。
-        from ..models import ApplicationHistory
         cutoff = timezone.now() - timedelta(minutes=threshold_minutes)
         overdue = Application.objects.filter(
             state=ApplicationState.ACTIVE,
@@ -231,7 +233,7 @@ class GrabService:
         return results
 
     @staticmethod
-    def _pick_next_assignee(application: Application) -> Optional[User]:
+    def _pick_next_assignee(application: Application) -> User | None:
         """ROUND_ROBIN: 选上次分配最早的活跃 HR"""
         from apps.process.models import StageRule
         link = application.current_link
@@ -287,7 +289,7 @@ class InvitationService:
     @transaction.atomic
     def create_invitation(data: InvitationCreateData) -> InvitationResult:
         """创建邀请（生成唯一码）"""
-        from apps.invitation.models import Invitation, InvitationChannel, InvitationStatus
+        from apps.invitation.models import Invitation, InvitationStatus
 
         try:
             application = Application.objects.get(id=data.application_id, deleted_at__isnull=True)
@@ -360,11 +362,7 @@ class InvitationService:
         except Invitation.DoesNotExist as e:
             raise NotFound(f'Invitation code {code} not found') from e
 
-        if inv.status == InvitationStatus.PENDING:
-            inv.status = InvitationStatus.OPENED
-            inv.opened_at = timezone.now()
-            inv.save()
-        elif inv.status == InvitationStatus.SENT:
+        if inv.status == InvitationStatus.PENDING or inv.status == InvitationStatus.SENT:
             inv.status = InvitationStatus.OPENED
             inv.opened_at = timezone.now()
             inv.save()

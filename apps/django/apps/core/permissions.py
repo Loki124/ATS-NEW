@@ -10,10 +10,10 @@ T01.2 (2026-08-04): 新增 IsAuthenticatedDenyByDefault + ResourceScoped fail-cl
 from rest_framework import permissions
 
 from .role_v2_query import (
-    user_has_any_role,
-    is_super_admin,
-    HRBP_TIER,
     HR_TIER,
+    HRBP_TIER,
+    is_super_admin,
+    user_has_any_role,
 )
 
 

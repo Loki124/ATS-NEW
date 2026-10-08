@@ -80,8 +80,8 @@ def test_noqa_exceptions_have_intent_comment():
 
     这是审计检查: noqa 是许可, 不是默许. 每条都必须解释为什么这里是合的。
     """
-    from pathlib import Path
     import ast
+    from pathlib import Path
     src = Path('apps/entry_condition/services.py').read_text(encoding='utf-8').splitlines(keepends=True)
     tree = ast.parse(''.join(src))
     issues = []

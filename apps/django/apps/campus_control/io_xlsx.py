@@ -17,13 +17,13 @@ v2.9 扁平模型：每条规则 = 独占 (适用范围·维度·指标·年度)
   7 年度目标人数    (int)
   8..19 1月..12月目标 (int)
 """
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from decimal import Decimal, InvalidOperation
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from .constants import STRENGTH, DEPTS, POSITIONS, LEVELS, ALL_MONTHS
+from .constants import ALL_MONTHS, DEPTS, LEVELS, POSITIONS, STRENGTH
 from .models import ControlDimension, ControlIndicator
 
 # 列头（模板首行；v2.9 扁平模型：删「目标占比(%)」列，target 写库恒为 1.0）

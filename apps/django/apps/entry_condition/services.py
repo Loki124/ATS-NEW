@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.db import DatabaseError
 
@@ -63,7 +63,7 @@ _LEGACY_CANDIDATE_FALLBACK = {
 }
 
 
-def _calc_age_from_birth_date(candidate: Candidate) -> Optional[int]:
+def _calc_age_from_birth_date(candidate: Candidate) -> int | None:
     """按身份证 / 生日计算年龄（legacy _calc_age 等价语义）。"""
     if not getattr(candidate, 'birth_date', None):
         return None
@@ -82,7 +82,7 @@ class ConditionCheckResult:
     value: Any
     passed: bool
     actual_value: Any = None
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
@@ -103,7 +103,7 @@ class StageEntryResult:
     stage_id: str
     stage_name: str
     overall_passed: bool
-    matched_rule_seq: Optional[int]
+    matched_rule_seq: int | None
     reject_message: str
     rule_results: List[RuleEvaluationResult]
 
@@ -116,7 +116,7 @@ class EntryConditionEvaluator:
         result = evaluator.evaluate()
     """
 
-    def __init__(self, link: ProcessStageLink, candidate: Candidate, context: Optional[dict] = None):
+    def __init__(self, link: ProcessStageLink, candidate: Candidate, context: dict | None = None):
         self.link = link
         self.candidate = candidate
         self.context = context or {}
@@ -144,7 +144,7 @@ class EntryConditionEvaluator:
 
         rule_results: List[RuleEvaluationResult] = []
         overall_passed = True
-        matched_rule_seq: Optional[int] = None
+        matched_rule_seq: int | None = None
         reject_message = ''
 
         # 评估每条启用的规则
@@ -184,7 +184,7 @@ class EntryConditionEvaluator:
 
         return result
 
-    def _run_via_unified_engine(self, save_log: bool) -> Optional[StageEntryResult]:
+    def _run_via_unified_engine(self, save_log: bool) -> StageEntryResult | None:
         """委托到统一规则引擎执行（RULE_ENGINE_DISPATCH=True 时）。
 
         把 entry_condition 的 (link, candidate, context) 翻译为统一引擎的 EvaluationContext，
@@ -226,7 +226,7 @@ class EntryConditionEvaluator:
 
         # 3) 翻译：任一规则命中 → 放行（取最小 rule_seq 作为 matched_rule_seq）；
         #    未命中 → 拦截，reject_message 取末条未命中规则的提示。
-        matched_rule_seq: Optional[int] = None
+        matched_rule_seq: int | None = None
         reject_message = ''
         for r in results:
             unified_rule = Rule.objects.filter(id=r.rule_id).first()
@@ -381,7 +381,7 @@ class EntryConditionEvaluator:
 
         return None
 
-    def _get_prior_stage_status(self, stage_name: str) -> Optional[str]:
+    def _get_prior_stage_status(self, stage_name: str) -> str | None:
         """获取前序阶段的状态"""
         from apps.application.models import Application, ApplicationStageRecord
         # 找到申请 + 该阶段的 stage_record
@@ -534,7 +534,7 @@ class EntryConditionEvaluator:
                     value = None
         return value
 
-    def _calc_age(self) -> Optional[int]:
+    def _calc_age(self) -> int | None:
         """根据身份证号或生日计算年龄"""
         if not self.candidate.birth_date:
             return None
@@ -639,6 +639,6 @@ class EntryConditionEvaluator:
             logger.warning('Failed to save entry condition log: %s', e)
 
 
-def evaluate_stage_entry(link: ProcessStageLink, candidate: Candidate, context: Optional[dict] = None) -> StageEntryResult:
+def evaluate_stage_entry(link: ProcessStageLink, candidate: Candidate, context: dict | None = None) -> StageEntryResult:
     """便捷函数：评估阶段进入条件"""
     return EntryConditionEvaluator(link, candidate, context).evaluate()

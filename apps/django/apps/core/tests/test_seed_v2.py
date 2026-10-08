@@ -8,7 +8,9 @@ from django.core.management import call_command
 def test_seed_creates_resources_templates_tenant():
     call_command('seed_v2_init')
     from apps.core.models_permission_v2 import (
-        PermissionResource, PermissionTemplate, TenantConfig,
+        PermissionResource,
+        PermissionTemplate,
+        TenantConfig,
     )
     assert PermissionResource.objects.count() >= 60
     assert PermissionTemplate.objects.filter(
@@ -35,7 +37,8 @@ def test_seed_is_idempotent():
 def test_seed_tmpl_admin_has_all_resources():
     call_command('seed_v2_init')
     from apps.core.models_permission_v2 import (
-        PermissionTemplate, PermissionResource,
+        PermissionResource,
+        PermissionTemplate,
     )
     admin = PermissionTemplate.objects.get(template_code='TMPL_ADMIN')
     all_codes = set(PermissionResource.objects.values_list('resource_code', flat=True))

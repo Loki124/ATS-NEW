@@ -13,12 +13,13 @@
 import uuid
 
 import pytest
+from django.core.management import call_command
+
 from apps.entry_condition.models import ConditionItem, EntryConditionRule
 from apps.process.models import ProcessStageLink, RecruitmentProcess, RecruitmentStage
 from apps.rule_engine.management.commands.check_rule_engine_consistency import Command
 from apps.rule_engine.models import Rule
 from apps.time_limit.models import TimeLimitRule
-from django.core.management import call_command
 
 pytestmark = pytest.mark.django_db
 

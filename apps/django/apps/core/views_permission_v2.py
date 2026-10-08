@@ -5,23 +5,29 @@ import json
 
 from django.db import transaction
 from django.db.utils import OperationalError, ProgrammingError
-from rest_framework import status as http_status
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import viewsets
 from django.shortcuts import get_object_or_404
+from rest_framework import status as http_status
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
-from .models_permission_v2 import (
-    PermissionResource, PermissionTemplate, RoleV2, RolePermissionV2,
-    ManagementUnit, UserRoleV2, ManagementUnitMember,
-)
-# (Tier 3) DataPermissionRule 行级镜像已移除; 列级规则由 field_acl / enforcement 直接消费.
-from .permissions_v2 import V2Permission
-from .scope_resolver import resolve_scope, compile_data_range_q, _pick_app_json
-from apps.common.views import EnvelopeReadOnlyMixin, EnvelopeWriteMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
+from apps.common.views import EnvelopeReadOnlyMixin
+
+from .models_permission_v2 import (
+    ManagementUnit,
+    ManagementUnitMember,
+    PermissionResource,
+    PermissionTemplate,
+    RolePermissionV2,
+    RoleV2,
+    UserRoleV2,
+)
+
+# (Tier 3) DataPermissionRule 行级镜像已移除; 列级规则由 field_acl / enforcement 直接消费.
+from .permissions_v2 import V2Permission
+from .scope_resolver import _pick_app_json, compile_data_range_q, resolve_scope
 
 
 class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
@@ -71,6 +77,11 @@ class RoleViewSet(viewsets.ModelViewSet):
     queryset = RoleV2.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:role:list'
+    # 2026-10-08: 同步资源是「给角色发权限」, 语义上属于分配角色而非编辑角色信息,
+    #   用 seed 里已有的 recruit:role:assign, 而不是按默认派生出的 :edit。
+    permission_required_map = {
+        'sync_resources': 'recruit:role:assign',
+    }
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     search_fields = ['role_code', 'role_name']
     filterset_fields = ['status', 'is_system']
@@ -414,7 +425,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         """
         from django.contrib.auth import get_user_model
         from django.db.models import Q
-        from .models import Department
+
 
         unit = self.get_object()
         app_code = request.query_params.get('app_code') or None

@@ -13,9 +13,9 @@ import json
 import logging
 import re
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from ..resume_parser import Education, Experience, ParseError, ParsedResume, _normalize_phone
+from ..resume_parser import Education, Experience, ParsedResume, ParseError, _normalize_phone
 from .base import ResumeParserBackend
 from .text_extract import extract_text
 
@@ -46,7 +46,7 @@ _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _GARBLED_NAME_RE = re.compile(r"^([A-Za-z])(\s+[A-Za-z])+$")
 
 
-def _looks_garbled_name(s: Optional[str]) -> bool:
+def _looks_garbled_name(s: str | None) -> bool:
     if not s:
         return False
     if re.search(r"[\u4e00-\u9fa5]", s):
@@ -63,7 +63,7 @@ _DEGREE_MAP = {
 }
 
 
-def _map_degree(raw: Optional[str]) -> Optional[str]:
+def _map_degree(raw: str | None) -> str | None:
     if not raw:
         return None
     low = (raw or "").lower()
@@ -73,7 +73,7 @@ def _map_degree(raw: Optional[str]) -> Optional[str]:
     return raw  # 兜底保留原文
 
 
-def _gv(node: Any) -> Optional[str]:
+def _gv(node: Any) -> str | None:
     """从 groundedField {value, source} 取 value；null/None 返回 None。"""
     if isinstance(node, dict):
         return node.get("value")
@@ -221,7 +221,7 @@ class CareerCoreBackend(ResumeParserBackend):
         )
 
     @staticmethod
-    def _extract_name(text: str) -> Optional[str]:
+    def _extract_name(text: str) -> str | None:
         m = _NAME_LABEL_RE.search(text)
         if m:
             return m.group(1)

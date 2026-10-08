@@ -9,7 +9,8 @@
 import uuid
 
 import pytest
-from apps.entry_condition.models import ConditionItem, EntryConditionRule, EntryConditionLog
+
+from apps.entry_condition.models import ConditionItem, EntryConditionLog, EntryConditionRule
 from apps.process.models import ProcessStageLink, RecruitmentProcess, RecruitmentStage
 from apps.rule_engine.bridge import (
     ENTRY_CONDITION_LEGACY_MODEL,

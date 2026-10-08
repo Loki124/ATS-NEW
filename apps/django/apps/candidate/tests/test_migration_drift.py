@@ -21,7 +21,6 @@ from pathlib import Path
 
 import pytest
 
-
 # 本测试通过 subprocess 跑 makemigrations --check, 本身不需要 DB 写权限,
 # 但本仓 pytest.ini 的 autouse fixture _ensure_v2_schema (在
 # tests/fixtures_common.py:154) 会无条件访问测试 DB. 必须挂 django_db

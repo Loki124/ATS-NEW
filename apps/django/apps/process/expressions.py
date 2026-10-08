@@ -11,9 +11,9 @@
 - 1 AND (2 OR 3)
 - (1 OR 2 OR 3) AND 4
 """
-import re
 import logging
-from typing import List, Dict, Any, Set, Tuple
+import re
+from typing import Any, Dict, List, Set, Tuple
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,12 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.rule_engine.adapters import UnifiedRuleDTO
-from apps.rule_engine.models import RuleCategory, UnifiedActionType, UnifiedOperator, UnifiedTriggerType
+from apps.rule_engine.models import (
+    RuleCategory,
+    UnifiedActionType,
+    UnifiedOperator,
+    UnifiedTriggerType,
+)
 
 # 复用全局 auth_client fixture（tests/fixtures_common，基于 JWT 认证的 super_user）；
 # 本模块不再自定义，避免裸用户被 IsAuthenticatedDenyByDefault 拒绝(403)。

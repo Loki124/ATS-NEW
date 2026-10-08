@@ -6,8 +6,8 @@
 - 行为级: 以 library.School 为样本, 真实创建 -> soft_delete -> 默认管理器不可见
   -> all_objects 可见 -> restore -> 默认管理器重新可见。任何一层被改坏, 行为级断言失败。
 """
-from django.test import TestCase
 from django.apps import apps
+from django.test import TestCase
 
 # C 类 21 个业务实体 (按约定补全 deleted_at, 跳过 A 类内置 / B 类配置表)
 C_MODELS = [

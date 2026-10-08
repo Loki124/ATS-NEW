@@ -13,13 +13,14 @@ from __future__ import annotations
 import logging
 
 from django.db import IntegrityError, transaction
-from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..exceptions import ApiResponse, BizCode, BizException
 from ..models import (
-    RECRUIT_TYPES, RuleSceneAssignment, SCENE_OPTIONS, SceneRule,
+    RECRUIT_TYPES,
+    SCENE_OPTIONS,
+    RuleSceneAssignment,
+    SceneRule,
 )
 from ..permissions import IsAdminOrReadOnly, IsAuthenticatedReadOnly
 from ..serializers import SceneBulkUpdateSerializer

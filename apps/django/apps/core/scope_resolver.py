@@ -3,8 +3,8 @@ import logging
 
 from django.db.utils import OperationalError, ProgrammingError
 
-from .models_permission_v2 import UserRoleV2, RoleV2, TenantConfig
 from .models import Department
+from .models_permission_v2 import RoleV2, TenantConfig, UserRoleV2
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +253,6 @@ def unit_ids_to_dept_ids(unit_ids) -> list:
             dept_ids.update(d for d in expanded if d != ALL_UNIT_SENTINEL)
         # 新增(2026-09-16): 管理单元成员 DEPT 类型真实生效到部门集合 (加法, 不破坏 org_scope 解析)
         try:
-            from .models_permission_v2 import ManagementUnitMember
             dept_ids.update(collect_unit_member_depts(list(unit_ids)))
         except (OperationalError, ProgrammingError):
             logger.warning('[unit_ids_to_dept_ids] 成员 DEPT 解析失败, 跳过该部分')
@@ -424,6 +423,7 @@ def iter_unit_scopes(unit_ids, app_code=None):
     app_code 命中时优先用 per-app 切片, 否则回退 public(消除前序 per-app 未接入执行的假绿).
     """
     from django.db.models import Q
+
     from .models_permission_v2 import ManagementUnit
     for u in ManagementUnit.objects.filter(id__in=list(unit_ids), status=1):
         dept_ids = set(_expand_org_scope(u.org_scope, u.include_children))
@@ -480,6 +480,7 @@ def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_b
         * 否则 -> Q(scope_field__in=dept_ids) | Q(created_by__in=user_ids)
     """
     from django.db.models import Q
+
     from .role_v2_query import is_super_admin
 
     # 硬系统分区: 先于行级 scope 计算, 对所有用户(含超管/匿名)生效.

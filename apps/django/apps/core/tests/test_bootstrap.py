@@ -1,6 +1,7 @@
 """Tests for PermissionBootstrap."""
 import pytest
 from django.core.exceptions import ImproperlyConfigured
+
 from apps.core import bootstrap
 
 
@@ -16,7 +17,7 @@ def test_bootstrap_missing_template_raises():
 @pytest.mark.v2_permission
 def test_bootstrap_missing_resources_raises():
     """模板齐 + 资源 < 50 → ImproperlyConfigured."""
-    from apps.core.models_permission_v2 import PermissionTemplate, TenantConfig, PermissionResource
+    from apps.core.models_permission_v2 import PermissionResource, PermissionTemplate, TenantConfig
     # 加齐 4 个模板
     for code in ('TMPL_ADMIN', 'TMPL_DIRECTOR', 'TMPL_SPECIALIST', 'TMPL_INTERVIEWER'):
         PermissionTemplate.objects.create(
@@ -48,7 +49,7 @@ def test_bootstrap_missing_resources_raises():
 @pytest.mark.v2_permission
 def test_bootstrap_all_checks_pass():
     """4 模板 + 50 资源 + tenant config 齐 → 不抛错."""
-    from apps.core.models_permission_v2 import PermissionTemplate, TenantConfig, PermissionResource
+    from apps.core.models_permission_v2 import PermissionResource, PermissionTemplate, TenantConfig
     for code in ('TMPL_ADMIN', 'TMPL_DIRECTOR', 'TMPL_SPECIALIST', 'TMPL_INTERVIEWER'):
         PermissionTemplate.objects.create(
             system_code='recruit',

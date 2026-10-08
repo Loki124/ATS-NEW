@@ -19,15 +19,14 @@ import requests
 from django.db import OperationalError
 
 from apps.integration.services import (
+    push_candidate_to_moka,
     send_email,
     send_sms,
     send_wecom_message,
     send_wecom_robot,
     sync_candidate_from_moka,
-    push_candidate_to_moka,
     sync_position_to_portal,
 )
-
 
 # ============================================================
 # 通用 helpers

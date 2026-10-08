@@ -22,7 +22,6 @@ import os
 import uuid
 
 import redis
-
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from rest_framework import status
@@ -324,7 +323,7 @@ class BulkCreateView(APIView):
 
     def post(self, request):
         from .serializers import BulkCreateRequest
-        from .services.bulk_create import BulkCreateService, BulkCreateDraft, BulkCreateError
+        from .services.bulk_create import BulkCreateDraft, BulkCreateError, BulkCreateService
 
         serializer = BulkCreateRequest(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -434,7 +433,7 @@ class ScoringStartView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        task = score_batch_task.delay(
+        score_batch_task.delay(
             candidate_ids=data['candidate_ids'],
             submit_mode='async',
             task_id=data['task_id'],

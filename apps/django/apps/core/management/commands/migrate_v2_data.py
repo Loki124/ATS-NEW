@@ -29,7 +29,10 @@ class Command(BaseCommand):
             return
         # V2 models
         from apps.core.models_permission_v2 import (
-            RoleV2, RolePermissionV2, UserRoleV2, ManagementUnit,
+            ManagementUnit,
+            RolePermissionV2,
+            RoleV2,
+            UserRoleV2,
         )
 
         n_roles = n_role_perms = n_user_roles = n_units = 0

@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable
 
 from django.utils import timezone
 
@@ -45,7 +45,7 @@ _SEPARATORS = (' ', '-', '\t')
 # ============================================================
 # 一、配置读写
 # ============================================================
-def get_config(key: str, default: Optional[dict] = None) -> dict:
+def get_config(key: str, default: dict | None = None) -> dict:
     """读取单例配置，缺失字段用默认值补齐（默认值始终作为基底）。"""
     base = dict(default or {})
     obj = DuplicateConfig.objects.filter(key=key, deleted_at__isnull=True).first()
@@ -127,7 +127,7 @@ def reset_rules() -> list[DuplicateRule]:
     )
 
 
-def list_rules(scope: Optional[str] = None) -> list[DuplicateRule]:
+def list_rules(scope: str | None = None) -> list[DuplicateRule]:
     """列出规则；scope 仅用于筛选「全局 + 指定范围」，None 表示不过滤。"""
     qs = DuplicateRule.objects.all()
     if scope:
@@ -215,7 +215,7 @@ def rule_matches(rule: DuplicateRule, left: dict, right: dict) -> dict:
     }
 
 
-def compare(left: dict, right: dict, rules: Optional[Iterable[DuplicateRule]] = None) -> dict:
+def compare(left: dict, right: dict, rules: Iterable[DuplicateRule] | None = None) -> dict:
     """比较两条候选人数据，返回命中的启用规则。
 
     仅使用 is_enabled=True 的规则；rules 显式传入时可覆盖该过滤。

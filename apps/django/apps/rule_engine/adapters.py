@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import decimal
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from apps.automation.models import AutomationRule
 from apps.campus_control.models import ControlRule
@@ -50,7 +50,7 @@ class UnifiedRuleDTO:
     legacy_model: str
     legacy_id: str
     # 可选/派生字段
-    trigger_timing: Optional[str] = None
+    trigger_timing: str | None = None
     scope_json: Dict[str, Any] = field(default_factory=dict)
     priority: str = 'P1'
     priority_rank: int = 0
@@ -384,7 +384,7 @@ class PolicyAdapter:
 # 聚合
 # ---------------------------------------------------------------------------
 
-def aggregate_rules(filters: Optional[Dict[str, Any]] = None) -> List[UnifiedRuleDTO]:
+def aggregate_rules(filters: Dict[str, Any] | None = None) -> List[UnifiedRuleDTO]:
     """聚合 6 个 legacy 源为统一 DTO 列表，并按可选 filters 过滤。
 
     filters 支持：category / trigger_type / enabled(bool|str) / source_app。

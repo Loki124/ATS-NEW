@@ -11,7 +11,7 @@
   },
   "stack": {
     "framework": "Django 6.0 + DRF 3.15 + Vue 3 + Vite 5",
-    "database": "MySQL 8 (prod) / SQLite (dev + test)",
+    "database": "MySQL 8（生产 & 本地 dev 均依赖，需 brew services start mysql；dev .env 强制 DATABASE_URL=mysql://…；Redis 同需启动）",
     "auth": "JWT (djangorestframework-simplejwt)",
     "asgiServer": "gunicorn (sync) / daphne (WebSocket via Channels)",
     "deploy": "gunicorn + whitenoise + Cloudflare Tunnel → https://ats.lokisong.cloud"

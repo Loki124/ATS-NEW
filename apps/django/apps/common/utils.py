@@ -1,6 +1,6 @@
 """通用工具函数"""
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 def normalize_phone(phone: str) -> str:
@@ -51,7 +51,7 @@ def mask_id_card(id_card: str) -> str:
     return id_card[:6] + '********' + id_card[-4:]
 
 
-def diff_dicts(old: Dict[str, Any], new: Dict[str, Any], ignore_keys: Optional[List[str]] = None) -> Dict[str, Any]:
+def diff_dicts(old: Dict[str, Any], new: Dict[str, Any], ignore_keys: List[str] | None = None) -> Dict[str, Any]:
     """计算两个字典的差异（用于审计）"""
     ignore_keys = ignore_keys or []
     diff = {'changed': {}, 'added': {}, 'removed': {}}

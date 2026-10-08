@@ -158,9 +158,8 @@ def test_multiple_versions_same_code_allowed_when_not_latest() -> None:
 def test_second_latest_via_save_raises_integrity_error() -> None:
     make_process('W901', 1, is_latest=True)
 
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            make_process('W901', 2, is_latest=True)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        make_process('W901', 2, is_latest=True)
 
     assert latest_count('W901') == 1
 
@@ -173,9 +172,8 @@ def test_second_latest_via_queryset_update_raises_integrity_error() -> None:
     make_process('W902', 1, is_latest=True)
     old = make_process('W902', 2, is_latest=False)
 
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            RecruitmentProcess.objects.filter(id=old.id).update(is_latest=True)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        RecruitmentProcess.objects.filter(id=old.id).update(is_latest=True)
 
     assert latest_count('W902') == 1
 
@@ -188,9 +186,8 @@ def test_second_latest_via_bulk_update_raises_integrity_error() -> None:
     row2 = make_process('W903', 2, is_latest=False)
 
     row2.is_latest = True
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            RecruitmentProcess.objects.bulk_update([row2], ['is_latest'])
+    with pytest.raises(IntegrityError), transaction.atomic():
+        RecruitmentProcess.objects.bulk_update([row2], ['is_latest'])
 
     assert latest_count('W903') == 1
 
@@ -203,13 +200,12 @@ def test_promote_before_demote_raises() -> None:
     old = make_process('W904', 1, is_latest=True)
     new = make_process('W904', 2, is_latest=False)
 
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            # ① 先升级新行（此刻老行仍是 latest）→ 立即违反 C3'
-            new.is_latest = True
-            new.save(update_fields=['is_latest'])
-            # ② 这行永远执行不到
-            RecruitmentProcess.objects.filter(id=old.id).update(is_latest=False)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        # ① 先升级新行（此刻老行仍是 latest）→ 立即违反 C3'
+        new.is_latest = True
+        new.save(update_fields=['is_latest'])
+        # ② 这行永远执行不到
+        RecruitmentProcess.objects.filter(id=old.id).update(is_latest=False)
 
     old.refresh_from_db()
     assert old.is_latest is True
@@ -272,9 +268,8 @@ def test_bypassed_soft_delete_leaves_stale_latest_but_flip_self_heals() -> None:
     assert stale.is_latest is True, '前置条件：软删行确实滞留了 is_latest=True'
 
     # ① 直接提升 → 响亮失败
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            RecruitmentProcess.objects.filter(id=new.id).update(is_latest=True)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        RecruitmentProcess.objects.filter(id=new.id).update(is_latest=True)
 
     # ② T2 翻转语句自愈（不过滤软删，连软删行一起降）
     with transaction.atomic():
@@ -335,19 +330,17 @@ def test_full_clean_no_false_positive_on_self_resave() -> None:
 # ============================================================
 def test_unique_code_version_seq_enforced() -> None:
     make_process('W913', 1, is_latest=True)
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            # version_seq 撞车（current_version 刻意错开，隔离出 C1）
-            make_process('W913', 1, is_latest=False, current_version='V9.9')
+    with pytest.raises(IntegrityError), transaction.atomic():
+        # version_seq 撞车（current_version 刻意错开，隔离出 C1）
+        make_process('W913', 1, is_latest=False, current_version='V9.9')
     assert RecruitmentProcess.objects.filter(code='W913').count() == 1
 
 
 def test_unique_code_current_version_enforced() -> None:
     make_process('W914', 1, is_latest=True)
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            # current_version 撞车（version_seq 刻意错开，隔离出 C2）
-            make_process('W914', 2, is_latest=False, current_version='V1.0')
+    with pytest.raises(IntegrityError), transaction.atomic():
+        # current_version 撞车（version_seq 刻意错开，隔离出 C2）
+        make_process('W914', 2, is_latest=False, current_version='V1.0')
     assert RecruitmentProcess.objects.filter(code='W914').count() == 1
 
 

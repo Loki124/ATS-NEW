@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>编辑指标模板 · Naive UI 紧凑版原型</title>
+<!-- Vue 3 + Naive UI（本地 vendor，离线可用） -->
+<script src="./vendor/vue.global.prod.js"></script>
+<script src="./vendor/naive-ui.umd.js"></script>
+<style>
+  :root{
+    --pad:20px;
+    --muted:#8a94a6;
+    --line:#eceef2;
+    --soft:#f7f8fa;
+    --brand:#5050d1;
+  }
+  html.dark{ --muted:rgba(255,255,255,.45); --line:#2f3033; --soft:#232428; }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px; margin:0 auto; padding:18px 18px 40px;}
+  .topbar{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+  .topbar h1{font-size:16px;margin:0;font-weight:600;}
+  .topbar .sub{font-size:12px;color:var(--muted);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 12px;
+    background:var(--soft);border:1px solid var(--line);border-radius:10px;margin-bottom:16px;}
+  .toolbar .grp{display:flex;gap:6px;align-items:center;padding-right:12px;border-right:1px dashed var(--line);}
+  .toolbar .grp:last-child{border-right:none;padding-right:0;}
+  .toolbar .lbl{font-size:12px;color:var(--muted);}
+
+  /* 弹窗内部紧凑样式 */
+  .dlg-body{padding:var(--pad); max-height:calc(87vh - 128px); overflow:auto; display:flex; flex-direction:column; gap:18px;}
+  .sec{display:flex; flex-direction:column; gap:10px;}
+  .sec-head{display:flex;align-items:center;gap:8px;min-height:24px;}
+  .sec-title{font-size:14px;font-weight:600;}
+  .sec-head .right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+  .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 20px;}
+  .field{display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .field > label{font-size:12px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:4px;}
+  .req{color:#d03050;}
+  .span2{grid-column:1 / -1;}
+  .num-wrap{display:flex;align-items:center;gap:8px;}
+  .unit{font-size:12px;color:var(--muted);flex:none;}
+  .err{font-size:12px;color:#d03050;display:flex;align-items:center;gap:4px;}
+  .hint{font-size:12px;color:var(--muted);}
+  .sample{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:var(--soft);border:1px solid var(--line);
+    border-radius:6px;padding:4px 10px;font-variant-numeric:tabular-nums;}
+
+  .inherit{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .inherit > div{background:var(--soft);padding:8px 12px;}
+  .inherit .k{font-size:12px;color:var(--muted);}
+  .inherit .v{font-size:13px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums;}
+  .empty{border:1px dashed var(--line);border-radius:8px;padding:14px;text-align:center;color:var(--muted);font-size:12px;}
+
+  .ops-single{display:flex;flex-wrap:wrap;gap:6px 18px;}
+
+  /* 值域段 */
+  .seg-card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:9px;background:var(--soft);}
+  .seg-top{display:flex;align-items:center;justify-content:space-between;}
+  .seg-no{font-size:12px;font-weight:600;}
+  .seg-actions{display:flex;gap:4px;}
+  .seg-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .restore{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#eef1ff;border:1px solid #c9d2ff;border-radius:8px;padding:8px 12px;font-size:13px;color:#3a3a9e;}
+  .footer-left{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+  .dirty-dot{width:8px;height:8px;border-radius:50%;background:#d03050;}
+  .nowrap{white-space:nowrap;}
+  .pcfg{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 22px;}
+  .pcfg-item{display:flex;flex-direction:column;gap:5px;min-width:0;}
+  .pcfg-item.grow{flex:1;min-width:248px;}
+  .pcfg-item > label{font-size:12px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:4px;}
+  .to{color:var(--muted);}
+  .ico{width:16px;height:16px;display:block;}
+  .ico-btn{padding:5px;border-radius:6px;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--muted);}
+  .ico-btn:hover{border-color:var(--line);color:var(--brand);}
+  .ico-btn.danger:hover{color:#d03050;}
+
+  /* 弹窗外壳紧凑化 */
+  .n-modal .n-card__content{padding:0 !important;}
+  .n-modal .n-card-header{padding:14px 20px !important;}
+  .n-modal .n-card__footer{padding:12px 20px !important;}
+  .n-modal .n-card{overflow:hidden;}
+</style>
+</head>
+<body class="light">
+<div id="app" class="wrap">
+  <div class="topbar">
+    <h1>编辑指标模板 · Naive UI 紧凑版</h1>
+    <span class="sub">沿用项目原组件库；修正运算符排版、去掉步进按钮、收紧栅格</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="grp">
+      <span class="lbl">视口</span>
+      <n-button v-for="w in viewports" :key="w.v" size="tiny" :type="frameWidth===w.v?'primary':'default'"
+        :quaternary="frameWidth!==w.v" @click="frameWidth=w.v">{{ w.t }}</n-button>
+    </div>
+    <div class="grp">
+      <span class="lbl">主题</span>
+      <n-button size="tiny" :type="theme==='light'?'primary':'default'" :quaternary="theme!=='light'" @click="theme='light'">浅色</n-button>
+      <n-button size="tiny" :type="theme==='dark'?'primary':'default'" :quaternary="theme!=='dark'" @click="theme='dark'">深色</n-button>
+    </div>
+    <div class="grp">
+      <span class="lbl">场景</span>
+      <n-button size="tiny" :type="scenario==='normal'?'primary':'default'" :quaternary="scenario!=='normal'" @click="scenario='normal'">正常</n-button>
+      <n-button size="tiny" :type="scenario==='willFail'?'primary':'default'" :quaternary="scenario!=='willFail'" @click="scenario='willFail'">强制失败</n-button>
+      <n-button size="tiny" :type="scenario==='offline'?'primary':'default'" :quaternary="scenario!=='offline'" @click="scenario='offline'">离线</n-button>
+    </div>
+    <div class="grp">
+      <span class="lbl">数据</span>
+      <n-button size="tiny" @click="metricSelected=true">有定义</n-button>
+      <n-button size="tiny" @click="metricSelected=false">未选定义</n-button>
+      <n-button size="tiny" @click="showParam=!showParam">{{ showParam?'无参数':'有参数' }}</n-button>
+    </div>
+    <div class="grp">
+      <n-button size="small" type="primary" ghost @click="visible=true" v-if="!visible">重新打开弹窗</n-button>
+    </div>
+  </div>
+
+  <n-config-provider :theme="theme==='dark'?darkTheme:undefined" :theme-overrides="themeOverrides">
+    <n-modal
+      v-model:show="visible"
+      preset="card"
+      :style="{ width: frameWidth, maxHeight: '88vh' }"
+      :content-style="{ padding: '0' }"
+      :header-style="{ padding: '14px 20px' }"
+      :footer-style="{ padding: '12px 20px' }"
+      :bordered="false"
+      :mask-closable="false"
+      :closable="false"
+      :close-on-esc="!saving"
+      class="tpl-modal"
+    >
+      <template #header>
+        <div class="tpl-head">
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;">
+              编辑指标模板
+              <n-tag v-if="hasDraft" size="small" type="warning" :bordered="false" round>草稿</n-tag>
+            </div>
+            <div class="hint" style="margin-top:2px;">引用指标定义 · {{ metricLabel || '未选择' }}</div>
+          </div>
+          <button class="ico-btn" :disabled="saving" aria-label="关闭" title="关闭" @click="requestClose">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+      </template>
+
+      <div class="dlg-body" :aria-busy="saving">
+        <div class="restore" v-if="hasDraft">
+          <span>已恢复上次填写的内容</span>
+          <n-button size="tiny" text type="primary" @click="clearDraft">清空</n-button>
+        </div>
+
+        <n-alert v-if="saveError" type="error" :bordered="false" title="没连上服务器，模板没保存成功">
+          <div style="font-size:13px;">你填的内容都还在，可以重试。</div>
+          <div style="margin-top:8px;display:flex;gap:8px;">
+            <n-button size="small" type="primary" ghost @click="save">重试保存</n-button>
+            <n-button size="tiny" text @click="copyError">复制错误信息</n-button>
+          </div>
+          <div class="hint" style="margin-top:6px;font-family:monospace;">详情：{{ failDetail }}</div>
+        </n-alert>
+
+        <n-alert v-if="Object.keys(errors).length" type="warning" :bordered="false">
+          还有 {{ Object.keys(errors).length }} 项需要补充
+        </n-alert>
+
+        <!-- 01 引用指标定义 -->
+        <section class="sec">
+          <div class="sec-head">
+            <span class="sec-title">引用指标定义</span>
+            <n-tag size="small" type="error" :bordered="false" round>必填</n-tag>
+            <n-tag size="small" type="info" :bordered="false" round>主干</n-tag>
+          </div>
+          <div class="field">
+            <n-select v-model:value="form.metric" size="small" clearable filterable
+              :options="metricOptions" :disabled="saving" placeholder="选择要引用的指标定义"
+              :status="errors.metric?'error':undefined" @update:value="onMetricChange"></n-select>
+            <div class="err" v-if="errors.metric">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>
+              {{ errors.metric }}
+            </div>
+          </div>
+          <div v-if="metricSelected" class="inherit">
+            <div><div class="k">输出参数</div><div class="v">{{ metricShortName }}（{{ form.unit }}）</div></div>
+            <div><div class="k">出参类型</div><div class="v">数值</div></div>
+            <div><div class="k">取值方式</div><div class="v">参数化 · 连续</div></div>
+          </div>
+          <div v-else class="empty">选择指标定义后，参数、运算符与值域会自动展开</div>
+        </section>
+
+        <!-- 02 模板名称 -->
+        <section class="sec" v-if="metricSelected">
+          <div class="sec-head">
+            <span class="sec-title">模板名称</span>
+            <n-tag size="small" type="error" :bordered="false" round>必填</n-tag>
+            <n-tag size="small" type="info" :bordered="false" round>主干</n-tag>
+          </div>
+          <div class="field">
+            <n-input v-model:value="form.name" size="small" placeholder="填写模板名称" maxlength="40" show-count
+              :disabled="saving" :status="errors.name?'error':undefined" @input="errors.name=''"></n-input>
+            <div class="err" v-if="errors.name">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>
+              {{ errors.name }}
+            </div>
+            <div class="hint" v-if="form.name && form.name===metricShortName">与指标定义同名</div>
+          </div>
+        </section>
+
+        <n-divider v-if="metricSelected" style="margin:0;"></n-divider>
+
+        <!-- 参数配置 -->
+        <section class="sec" v-if="metricSelected && showParam">
+          <div class="sec-head"><span class="sec-title">参数配置</span><n-tag size="small" type="info" :bordered="false" round>主干</n-tag></div>
+          <div class="pcfg">
+            <div class="pcfg-item">
+              <label>参数范围 <span class="req">*</span></label>
+              <div class="num-wrap">
+                <n-input-number v-model:value="form.rangeMin" size="small" :show-button="false" style="width:70px;" :disabled="saving" :status="errors.rangeMin?'error':undefined" @blur="errors.rangeMin=''"></n-input-number>
+                <span class="to">至</span>
+                <n-input-number v-model:value="form.rangeMax" size="small" :show-button="false" style="width:70px;" :disabled="saving" :status="errors.rangeMax?'error':undefined" @blur="errors.rangeMax=''"></n-input-number>
+                <span class="unit">{{ form.unit }}</span>
+              </div>
+              <div class="err" v-if="errors.rangeMin">{{ errors.rangeMin }}</div>
+              <div class="err" v-if="errors.rangeMax">{{ errors.rangeMax }}</div>
+            </div>
+            <div class="pcfg-item">
+              <label>参数步长 <span class="req">*</span></label>
+              <n-input-number v-model:value="form.step" size="small" :show-button="false" style="width:70px;" :min="0" :disabled="saving" :status="errors.step?'error':undefined" @blur="errors.step=''"></n-input-number>
+              <div class="err" v-if="errors.step">{{ errors.step }}</div>
+            </div>
+            <div class="pcfg-item">
+              <label>提供“全部”选项</label>
+              <div class="num-wrap" style="min-height:30px;"><n-switch v-model:value="form.allOption" size="small" :disabled="saving"></n-switch><span class="hint">{{ form.allOption?'开':'关' }}</span></div>
+            </div>
+            <div class="pcfg-item grow">
+              <label>显示格式</label>
+              <div class="num-wrap">
+                <n-input v-model:value="form.showPrefix" size="small" placeholder="前缀" style="width:74px;" maxlength="8" :disabled="saving"></n-input>
+                <span class="nowrap">数值</span>
+                <span class="unit">{{ form.unit }}</span>
+                <n-input v-model:value="form.showSuffix" size="small" placeholder="后缀" style="width:74px;" maxlength="8" :disabled="saving"></n-input>
+                <span class="sample">样例 {{ displaySample }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="hint" style="display:flex;align-items:center;gap:6px;">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+            可选出参：{{ rangePreview }}
+          </div>
+        </section>
+
+        <!-- 可用运算符 -->
+        <section class="sec" v-if="metricSelected">
+          <div class="sec-head">
+            <span class="sec-title">可用运算符</span>
+            <n-tag size="small" type="error" :bordered="false" round>必填</n-tag>
+            <n-tag size="small" type="info" :bordered="false" round>主干</n-tag>
+            <div class="right">
+              <span class="hint" style="font-variant-numeric:tabular-nums;">已启用 {{ form.operators.length }} / 共 {{ allOps.length }}</span>
+              <n-button size="tiny" text type="primary" :disabled="saving" @click="selectAllOps">全选</n-button>
+              <n-button size="tiny" text :disabled="saving" @click="clearOps">清空</n-button>
+            </div>
+          </div>
+          <n-checkbox-group v-model:value="form.operators" :disabled="saving" class="ops-single">
+            <n-checkbox v-for="op in allOpsFlat" :key="op[0]" :value="op[0]" :disabled="saving">{{ op[1] }}</n-checkbox>
+          </n-checkbox-group>
+          <div class="err" v-if="errors.operators">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>
+            {{ errors.operators }}
+          </div>
+        </section>
+
+        <!-- 值域配置 -->
+        <section class="sec" v-if="metricSelected">
+          <div class="sec-head">
+            <span class="sec-title">值域配置</span>
+            <n-tag size="small" :bordered="false" round>可选</n-tag>
+            <div class="right"><span class="hint" style="font-variant-numeric:tabular-nums;">共 {{ totalValues }} 个可选值</span></div>
+          </div>
+          <div v-if="form.segments.length===0" class="empty">还没有分段。不配置值域时，规则里这个指标只能与自由输入值比较</div>
+          <div v-for="(seg,idx) in form.segments" :key="seg.id" class="seg-card">
+            <div class="seg-top">
+              <span class="seg-no">段 {{ idx+1 }}</span>
+              <div class="seg-actions">
+                <button class="ico-btn" :aria-label="'复制第'+(idx+1)+'段'" title="复制" @click="dupSeg(seg)">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                </button>
+                <button class="ico-btn danger" :aria-label="'删除第'+(idx+1)+'段'" title="删除" @click="removeSeg(seg)">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="seg-row">
+              <n-input-number v-model:value="seg.min" size="small" :show-button="false" style="width:96px;" :disabled="saving"></n-input-number>
+              <span class="nowrap">至</span>
+              <n-input-number v-model:value="seg.max" size="small" :show-button="false" style="width:96px;" :disabled="saving"></n-input-number>
+              <span class="unit">{{ form.unit }}</span>
+              <span class="nowrap">步长</span>
+              <n-input-number v-model:value="seg.step" size="small" :show-button="false" style="width:88px;" :min="0" :disabled="saving"></n-input-number>
+            </div>
+            <div class="err" v-if="segErr(seg)">{{ segErr(seg) }}</div>
+          </div>
+          <div>
+            <n-button size="small" dashed type="primary" :disabled="saving || form.segments.length>=8" @click="addSeg">＋ 添加分段</n-button>
+          </div>
+        </section>
+
+        <!-- 可选折叠区 -->
+        <n-collapse>
+          <n-collapse-item title="备注与状态（可选）" name="remark">
+            <div class="grid2">
+              <div class="field span2">
+                <label>说明</label>
+                <n-input v-model:value="form.remark" type="textarea" size="small" maxlength="200" show-count
+                  :autosize="{minRows:2,maxRows:4}" placeholder="补充说明这个模板的用途（选填）"></n-input>
+              </div>
+              <div class="field">
+                <label>状态</label>
+                <div class="num-wrap" style="min-height:28px;">
+                  <n-switch v-model:value="form.enabled" size="small" :disabled="saving"></n-switch>
+                  <span class="hint">{{ form.enabled?'启用中':'已停用' }}</span>
+                </div>
+                <div class="hint" v-if="!form.enabled">停用后引用它的规则立即失效</div>
+              </div>
+            </div>
+          </n-collapse-item>
+          <n-collapse-item title="规则条件呈现（只读预览）" name="preview">
+            <div class="hint">这是呈现效果，不是配置项。配置完成后规则里将按此形式展示条件。</div>
+          </n-collapse-item>
+        </n-collapse>
+      </div>
+
+      <template #footer>
+        <div style="display:flex;align-items:center;width:100%;">
+          <div class="footer-left">
+            <span class="dirty-dot" v-if="dirty"></span>
+            <span v-if="dirty">有未保存的修改</span>
+            <span v-else>暂无修改</span>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:10px;">
+            <n-button size="small" :disabled="saving" @click="requestClose">放弃修改</n-button>
+            <n-button size="small" type="primary" :loading="saving" :disabled="saving" @click="save">保存模板</n-button>
+          </div>
+        </div>
+      </template>
+    </n-modal>
+  </n-config-provider>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, watch, h } = Vue;
+const { message } = naive.createDiscreteApi(['message']);
+
+createApp({
+  setup() {
+    const visible = ref(true);
+    const theme = ref('light');
+    const frameWidth = ref('760px');
+    const scenario = ref('normal');
+    const saving = ref(false);
+    const saveError = ref(false);
+    const failDetail = ref('');
+    const hasDraft = ref(true);
+    const dirty = ref(true);
+    const metricSelected = ref(true);
+    const showParam = ref(true);
+
+    const viewports = [
+      { t:'320', v:'320px' }, { t:'375', v:'375px' },
+      { t:'768', v:'720px' }, { t:'1200', v:'760px' },
+    ];
+
+    const themeOverrides = {
+      common: {
+        primaryColor:'#5050d1', primaryColorHover:'#6366f1', primaryColorPressed:'#4040b0', primaryColorSuppl:'#6366f1',
+        borderRadius:'8px', fontSizeSmall:'13px',
+      },
+    };
+
+    const metricMap = {
+      'candidate.workExperience':{ label:'平均工作时长（candidate.workExperience）', short:'平均工作时长' },
+      'candidate.age':{ label:'候选人年龄（candidate.age）', short:'候选人年龄' },
+      'candidate.eduYears':{ label:'教育年限（candidate.eduYears）', short:'教育年限' },
+      'derived.skillMatch':{ label:'技能匹配度（derived.skillMatch）', short:'技能匹配度' },
+      'derived.stability':{ label:'稳定性评分（derived.stability）', short:'稳定性评分' },
+    };
+    const metricOptions = [
+      { type:'group', label:'原子指标', key:'g1', children:[
+        { label:'平均工作时长（candidate.workExperience）', value:'candidate.workExperience' },
+        { label:'候选人年龄（candidate.age）', value:'candidate.age' },
+        { label:'教育年限（candidate.eduYears）', value:'candidate.eduYears' },
+      ]},
+      { type:'group', label:'派生指标', key:'g2', children:[
+        { label:'技能匹配度（derived.skillMatch）', value:'derived.skillMatch' },
+        { label:'稳定性评分（derived.stability）', value:'derived.stability' },
+      ]},
+    ];
+
+    const operatorCatalog = [
+      { group:'比较', items:[['eq','='],['neq','≠'],['gt','>'],['gte','≥'],['lt','<'],['lte','≤']] },
+      { group:'区间', items:[['between','区间']] },
+      { group:'集合', items:[['in','属于集合'],['notin','不属于集合']] },
+      { group:'空值', items:[['null','为空'],['notnull','不为空']] },
+    ];
+    const allOps = operatorCatalog.flatMap(g => g.items.map(i => i[0]));
+    const allOpsFlat = computed(() => operatorCatalog.flatMap(g => g.items));
+
+    const form = reactive({
+      metric:'candidate.workExperience',
+      name:'平均工作时长',
+      unit:'段',
+      rangeMin:1, rangeMax:10, step:1,
+      showPrefix:'近', showSuffix:'',
+      allOption:false,
+      operators: allOps.slice(),
+      segments:[ { id:1, min:1, max:3, step:1 } ],
+      remark:'', enabled:true,
+    });
+    const errors = reactive({});
+
+    const metricLabel = computed(() => (metricMap[form.metric]||{}).label || '');
+    const metricShortName = computed(() => (metricMap[form.metric]||{}).short || '');
+    const displaySample = computed(() => `${form.showPrefix||''}${form.rangeMin||''}${form.unit}${form.showSuffix||''}`);
+    const rangePreview = computed(() => {
+      if (!(form.rangeMin < form.rangeMax)) return '上限需大于下限才能生成预览';
+      return `${form.rangeMin} ~ ${form.rangeMax} ${form.unit}，步长 ${form.step}`;
+    });
+    const totalValues = computed(() => form.segments.reduce((s,seg) => {
+      const a=Number(seg.min), b=Number(seg.max), st=Number(seg.step)||1;
+      if(!isFinite(a)||!isFinite(b)||b<=a||st<=0) return s;
+      return s + Math.floor((b-a)/st)+1;
+    }, 0));
+
+    let segId = 2;
+    function addSeg(){ if(form.segments.length<8) form.segments.push({ id:segId++, min:form.rangeMin, max:form.rangeMax, step:form.step }); }
+    function dupSeg(seg){ if(form.segments.length<8) form.segments.push({ id:segId++, min:seg.min, max:seg.max, step:seg.step }); }
+    let lastRemoved = null;
+    function removeSeg(seg){
+      const i = form.segments.findIndex(s=>s.id===seg.id);
+      if(i<0) return;
+      lastRemoved = { item:form.segments[i], index:i };
+      form.segments.splice(i,1);
+      message.info({
+        content:`已删除第 ${i+1} 段`, duration:8000, closable:true,
+        action: h(naive.NButton, { size:'tiny', text:true, type:'primary', onClick:()=>{
+          if(lastRemoved){ form.segments.splice(lastRemoved.index,0,lastRemoved.item); lastRemoved=null; }
+        }}, { default:()=>'撤销' }),
+      });
+    }
+    function segErr(seg){
+      const a=Number(seg.min), b=Number(seg.max), st=Number(seg.step);
+      if(!isFinite(a)) return '请填写这一段的起始值';
+      if(!isFinite(b)||b<=a) return '上限要大于下限，否则这一段不会生成可选值';
+      if(isFinite(st)&&st<=0) return '步长要大于 0';
+      return '';
+    }
+    function selectAllOps(){ form.operators = allOps.slice(); }
+    function clearOps(){ form.operators = []; }
+    function onMetricChange(){ metricSelected.value = !!form.metric; if(!form.metric) form.name=''; }
+    function clearDraft(){ hasDraft.value=false; message.success('已清空草稿'); }
+    function copyError(){ navigator.clipboard && navigator.clipboard.writeText(failDetail.value); message.success('错误信息已复制'); }
+
+    const required = v => (v!==undefined && v!==null && String(v).trim()!=='');
+    function validate(){
+      const e = {};
+      if(!form.metric) e.metric = '先选择要引用的指标定义';
+      if(!required(form.name)) e.name = '请填写模板名称';
+      else if(String(form.name).length>40) e.name = '名称不超过 40 个字符';
+      if(showParam.value){
+        if(!required(form.rangeMin)) e.rangeMin='请填写参数范围下限';
+        else if(!(Number(form.rangeMin) < Number(form.rangeMax))) e.rangeMax='上限要大于下限';
+        if(!(Number(form.step)>0)) e.step='步长要大于 0';
+      }
+      if(form.operators.length===0) e.operators='至少启用 1 个运算符，否则规则里无法配置这个指标';
+      Object.keys(errors).forEach(k=>delete errors[k]);
+      Object.assign(errors, e);
+      return e;
+    }
+
+    function save(){
+      if(saving.value) return;
+      if(Object.keys(validate()).length) return;
+      saving.value = true; saveError.value = false;
+      setTimeout(() => {
+        saving.value = false;
+        if(scenario.value==='willFail'){ saveError.value=true; failDetail.value='HTTP 500 · ECONNRESET at /api/metrics/templates'; return; }
+        if(scenario.value==='offline'){ saveError.value=true; failDetail.value='navigator.onLine=false · 网络不可用'; return; }
+        hasDraft.value=false; dirty.value=false; visible.value=false;
+        message.success('模板已保存');
+      }, 900);
+    }
+    function requestClose(){ if(saving.value) return; visible.value = false; }
+
+    watch(() => [form.name, form.metric, form.operators.length, form.rangeMin, form.rangeMax, form.step, form.segments.length],
+      () => { dirty.value = true; });
+    watch(theme, t => { document.body.className = t; document.documentElement.classList.toggle('dark', t==='dark'); });
+
+    return {
+      visible, theme, frameWidth, scenario, saving, saveError, failDetail, hasDraft, dirty,
+      metricSelected, showParam, viewports, metricOptions, operatorCatalog, allOps, form, errors,
+      metricLabel, metricShortName, displaySample, rangePreview, totalValues, allOpsFlat,
+      addSeg, dupSeg, removeSeg, segErr, selectAllOps, clearOps, onMetricChange,
+      clearDraft, copyError, save, requestClose, themeOverrides, darkTheme: naive.darkTheme,
+    };
+  }
+}).use(naive).mount('#app');
+</script>
+</body>
+</html>

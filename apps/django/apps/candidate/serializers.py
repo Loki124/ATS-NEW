@@ -3,12 +3,15 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.application.models import Application, ApplicationHistory, ApplicationStageRecord
-from apps.core.models import User
 from apps.field_acl.mixins import FieldAclSerializerMixin
 
 from .models import Candidate, CandidateHistory, CandidateTag
-from .services import CandidateCreateData, normalize_phone, validate_phone, validate_email, validate_id_card
+from .services import (
+    CandidateCreateData,
+    validate_email,
+    validate_id_card,
+    validate_phone,
+)
 
 
 # ============================================================

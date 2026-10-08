@@ -7,10 +7,9 @@ V1 时代 user.user_roles 反向关联 (Django 自动, 通过 V1 UserRole.relate
 user_has_role(user, code) / user_has_any_role(user, codes) — 见下.
 """
 import logging
-from typing import Iterable, Optional
+from typing import Iterable
 
 from django.db.utils import OperationalError, ProgrammingError
-
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ def _system_code_for_user(user) -> str:
     return SYSTEM_CODE_RECRUIT
 
 
-def user_role_codes(user, system_code: Optional[str] = None) -> list:
+def user_role_codes(user, system_code: str | None = None) -> list:
     """返回 user 在 V2 user_roles 表中的所有 role_code (str 列表).
 
     出错时返回 [] (OperationalError / ProgrammingError 兜底).
@@ -64,7 +63,7 @@ def user_role_codes(user, system_code: Optional[str] = None) -> list:
         return []
 
 
-def user_has_role(user, role_code: str, system_code: Optional[str] = None) -> bool:
+def user_has_role(user, role_code: str, system_code: str | None = None) -> bool:
     """user 是否拥有指定 role_code."""
     if not (user and getattr(user, 'is_authenticated', False)):
         return False
@@ -81,7 +80,7 @@ def user_has_role(user, role_code: str, system_code: Optional[str] = None) -> bo
         return False
 
 
-def user_has_any_role(user, role_codes: Iterable[str], system_code: Optional[str] = None) -> bool:
+def user_has_any_role(user, role_codes: Iterable[str], system_code: str | None = None) -> bool:
     """user 是否拥有 role_codes 列表中的任一角色."""
     if not (user and getattr(user, 'is_authenticated', False)):
         return False

@@ -10,7 +10,7 @@
 - 视图级别只把"硬编码空列表"换成"真实 DB 查询的空列表"
 - 让 /api/v1/scraped-resumes/ 注册后不 500
 """
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -31,6 +31,11 @@ class ScrapedResumeViewSet(viewsets.ViewSet):
     """
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
+    # 2026-10-08: 写操作显式授权。scrape 目前恒返 501, import_to 会真实写入候选人。
+    permission_required_map = {
+        'scrape': 'recruit:settings:scraped-resumes:create',
+        'import_to': 'recruit:settings:scraped-resumes:create',
+    }
     pagination_class = None
 
     def list(self, request):

@@ -84,24 +84,24 @@ Prod 已开启强策略（`prod.py:132-140`）：最小长度 **12** + 至少含
 
 ---
 
-## ③ 清空 QUARANTINE 仓库变量
+## ③ 隔离区改为代码内 marker（替代 QUARANTINE 仓库变量）
 
-### 位置澄清
-本仓 CI 是 `.github/workflows/ci.yml`（GitHub Actions 语法，`ci.yml:66` `pytest ... ${{ env.QUARANTINE }}`），所以 `QUARANTINE` 是 **GitHub 仓库**变量（非 Gitee）。若你 Gitee 侧也镜像了等效 CI 变量，同样清。
+> **2026-10-08 更新**：原 GitHub 仓库级 `QUARANTINE` 变量（承载 9 条 `--deselect`）**已废弃并移除**。那份名单不在代码库内、无法审计，9 条里已自愈的会被无限期静默跳过（项目第二次踩此坑）。现改为代码内机制：
 
-### 背景
-`QUARANTINE` 是 pytest `--deselect` 隔离名单（9 条）。2026-10-01 已实测这 9 条全部 PASS（自愈项），清空即进入正式回归。
+### 机制
+- 隔离某用例：加 `@pytest.mark.quarantine` + 把 nodeid 登记进 `apps/django/tests/test_quarantine_guard.py` 的 `QUARANTINED_TESTS`（隔离区唯一真相源）。
+- CI 用 `-m "not quarantine"` 排除（见 `ci.yml` 的 test-backend job）。
+- `tests/test_quarantine_guard.py` 做**双向守卫**：隔离项若实际通过 → 硬失败逼你解除；挂 marker 未登记 → 失败。
 
-### 步骤
-- GitHub：仓库 → Settings → Secrets and variables → Actions → Variables → 找到 `QUARANTINE` → Delete
-- Gitee（若有）：仓库 → 管理 → 仓库变量 / CI 环境变量 → 删除 `QUARANTINE`
+### 是否需要手动操作
+不需要。仓库级 `QUARANTINE` 变量应**已在 GitHub/Gitee 删除**（若还在，删掉即可，CI 已不再引用它）。新的隔离流程完全在代码库内、可 review。
 
 ### 验证
-下一次 CI `test-backend` job 命令行不再带 `--deselect`，9 条从「被跳过」变「被执行并通过」。
+`pytest -m "not quarantine"` 全绿；若 `QUARANTINED_TESTS` 非空且某条已自愈，`test_quarantine_guard.py` 会变红提示解除。
 
 ---
 
 ## 风险与回滚
 - `ENCRYPTION_KEY` 配错 → 启动抛 `ImproperlyConfigured`，改回即恢复，**不破坏数据**（服务起不来而已）
 - 双读方案下旧 key 一直在 `ENCRYPTION_KEYS`，存量安全；撤旧 key 前务必先跑 `reencrypt_pii`
-- `QUARANTINE` 清空后某条若突然失败 → 在 Variables 加回该条（或修测试），不影响生产
+- 隔离某用例后若突然自愈 → 守卫测试 `test_quarantine_guard.py` 会变红，提示把 nodeid 移出 `QUARANTINED_TESTS` 并去掉 marker，不影响生产

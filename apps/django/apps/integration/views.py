@@ -1,9 +1,9 @@
 """Integration Views (DRF) - PRD v4 §14.4"""
-from django.db import DatabaseError, OperationalError
 import logging
 import time
-import requests
 
+import requests
+from django.db import DatabaseError, OperationalError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -14,28 +14,31 @@ from rest_framework.views import APIView
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions import IsSuperAdmin, IsHROrAbove
+from apps.core.permissions import IsHROrAbove, IsSuperAdmin
 
 from .models import (
-    IntegrationConfig, IntegrationSyncLog, BackgroundCheckOrder, IntegrationType,
+    BackgroundCheckOrder,
+    IntegrationConfig,
+    IntegrationSyncLog,
+    IntegrationType,
 )
 from .serializers import (
+    BackgroundCheckOrderDetailSerializer,
+    BackgroundCheckOrderSerializer,
     IntegrationConfigSerializer,
     IntegrationSyncLogSerializer,
-    BackgroundCheckOrderSerializer,
-    BackgroundCheckOrderDetailSerializer,
 )
 from .services import (
-    bg_callback_envelope,
-    verify_background_check_callback,
+    aggregate_bg_suggestions,
     apply_callback_to_order,
+    bg_callback_envelope,
     cancel_background_check_order,
-    query_background_check_order,
     fetch_background_check_report,
+    get_supplier,
+    query_background_check_order,
     request_background_check,
     upload_background_check_report,
-    aggregate_bg_suggestions,
-    get_supplier,
+    verify_background_check_callback,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,7 +62,10 @@ class IntegrationConfigViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelVie
         instance = self.get_object()
         try:
             from .services import (
-                send_email, send_sms, send_wecom_message, sync_candidate_from_moka,
+                send_email,
+                send_sms,
+                send_wecom_message,
+                sync_candidate_from_moka,
                 test_background_check_connection,
             )
             if instance.type == 'EMAIL':

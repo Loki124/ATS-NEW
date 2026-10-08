@@ -8,7 +8,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -57,7 +57,7 @@ class BizException(Exception):
         code: int,
         message: str,
         status_code: int = status.HTTP_400_BAD_REQUEST,
-        extra: Optional[dict] = None,
+        extra: dict | None = None,
     ):
         self.code = code
         self.message = message
@@ -92,7 +92,7 @@ class ApiResponse:
 
     @staticmethod
     def error(code: int, message: str, status_code: int = status.HTTP_400_BAD_REQUEST,
-              extra: Optional[dict] = None) -> Response:
+              extra: dict | None = None) -> Response:
         return Response(
             {
                 'code': code,

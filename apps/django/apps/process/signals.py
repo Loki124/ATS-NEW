@@ -5,10 +5,10 @@
 """
 import logging
 
-from django.db.models.signals import pre_delete, post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
-from .models import RecruitmentProcess, RecruitmentStage, StageStatus
+from .models import RecruitmentProcess
 
 logger = logging.getLogger(__name__)
 

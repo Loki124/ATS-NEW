@@ -1,7 +1,8 @@
 """Channel Models (PRD v4 §14.5 渠道管理)"""
 from django.db import models
-from apps.common.models import FullAuditModel
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import FullAuditModel
 
 
 def gen_id():

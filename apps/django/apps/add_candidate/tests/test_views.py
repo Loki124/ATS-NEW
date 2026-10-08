@@ -111,8 +111,9 @@ class TestParseStatusView:
     def test_other_user_cannot_view_pii(self, db, hr_user):
         """I-6: 跨用户读 PII → 403"""
         from django.contrib.auth import get_user_model
-        from apps.add_candidate.models import ParseJob
         from rest_framework.test import APIClient
+
+        from apps.add_candidate.models import ParseJob
         other = get_user_model().objects.create_user(
             username='other_hr', password='Test@1234', employee_id='E999',
             department=hr_user.department,
@@ -365,9 +366,10 @@ class TestBulkCreateRecruitTypePassthrough:
     def test_campus_bulk_create_sets_recruit_type_and_partitions_list(
         self, api_client, hr_user, super_user, mock_score_task,
     ):
+        from rest_framework.test import APIClient
+
         from apps.add_candidate.models import ParseJob
         from apps.candidate.models import Candidate
-        from rest_framework.test import APIClient
 
         ParseJob.objects.create(
             job_id='job_rt_1', draft_id='d_rt',
@@ -423,8 +425,8 @@ class TestBulkCreateCreatedByVisibility:
         """把 hr_user 的角色置为 SELF 范围(非 ALL), 并清掉租户 ALL 兜底,
         使 resolve_scope -> {'management_unit_ids': []}
         -> scope_filter_q 仅按 created_by=user.pk 过滤(复现普通生产 HR 视图)。"""
-        from apps.core.models_permission_v2 import RoleV2
         from apps.core.models import TenantConfig
+        from apps.core.models_permission_v2 import RoleV2
         TenantConfig.objects.filter(
             config_key='GLOBAL_DEFAULT_DATA_SCOPE', system_code='recruit',
         ).delete()
@@ -607,7 +609,7 @@ class TestScoringEndpoints:
     """Scoring Start + Stream 测试"""
 
     def test_scoring_start_returns_stream_url(self, api_client):
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
         with patch('apps.add_candidate.views.score_batch_task.delay') as mock_delay:
             mock_delay.return_value = MagicMock(id='task_xyz')
             response = api_client.post(
@@ -630,7 +632,7 @@ class TestScoringEndpoints:
         非当前用户 → 403。所以 fake redis 的 .get() 必须返回当前用户 id，
         否则 MagicMock 会被 str() 成 "<MagicMock ...>" 判定为他人 → 403。
         """
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
         fake_pubsub = MagicMock()
         fake_pubsub.listen.return_value = [
             {'type': 'message', 'data': json.dumps({'event': 'test', 'data': {'x': 1}})},

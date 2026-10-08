@@ -13,7 +13,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..models import SceneRule, SceneRuleVersion
 
@@ -54,7 +54,7 @@ def build_snapshot(rule: SceneRule) -> Dict[str, Any]:
     }
 
 
-def diff_snapshots(old: Optional[Dict[str, Any]], new: Optional[Dict[str, Any]]) -> List[str]:
+def diff_snapshots(old: Dict[str, Any] | None, new: Dict[str, Any] | None) -> List[str]:
     """返回在 new 中相对 old **值不同**的键名列表（只比较两 dict 共有的顶层键）。
 
     嵌套列表（categories/scene_assignments）用 `==` 比较（结构相同即相等）。

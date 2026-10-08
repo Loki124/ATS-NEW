@@ -17,10 +17,16 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.campus_control.models import (
-    ControlDimension, ControlIndicator, ControlRule, Person,
+    ControlDimension,
+    ControlIndicator,
+    ControlRule,
+    Person,
 )
 from apps.campus_control.sample_data import (
-    SAMPLE_PERSONS, DIMENSION_NAMES, INDICATOR_NAMES, build_rules,
+    DIMENSION_NAMES,
+    INDICATOR_NAMES,
+    SAMPLE_PERSONS,
+    build_rules,
 )
 
 

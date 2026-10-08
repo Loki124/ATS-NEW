@@ -2,8 +2,10 @@
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    ControlDimensionViewSet, ControlIndicatorViewSet,
-    ControlRuleViewSet, PersonViewSet,
+    ControlDimensionViewSet,
+    ControlIndicatorViewSet,
+    ControlRuleViewSet,
+    PersonViewSet,
 )
 
 router = DefaultRouter()

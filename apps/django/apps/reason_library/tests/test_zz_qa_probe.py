@@ -228,7 +228,7 @@ def test_qa_csv_empty_bytes_40002(admin_api_client):
 def test_qa_file_with_no_name_falls_back_to_csv(admin_api_client):
     """UploadedFile.name 缺失 → 走 csv 分支，不 500。"""
     client, _ = admin_api_client
-    up = io.BytesIO('name\naaa\n'.encode('utf-8'))
+    up = io.BytesIO(b'name\naaa\n')
     up.name = ''
     resp = client.post(IMPORT, {'file': up}, format='multipart')
     assert resp.status_code in (200, 400), resp.content

@@ -69,7 +69,7 @@
 
 | 项 | 值 |
 |---|---|
-| access token | 60 分钟（env `JWT_ACCESS_TOKEN_LIFETIME_MINUTES`） |
+| access token | 15 分钟（env `JWT_ACCESS_TOKEN_LIFETIME_MINUTES`，#19 已缩短） |
 | refresh token | 7 天（env `JWT_REFRESH_TOKEN_LIFETIME_DAYS`） |
 | 轮换 | ROTATE_REFRESH_TOKENS + BLACKLIST_AFTER_ROTATION |
 | 登录方式 | username / 工号 / 邮箱 / 手机号（`LoginView`） |

@@ -1,0 +1,21 @@
+# 2026-10-08 (#27): Python lint 门禁。
+# 阶段一: 聚焦「高信号、低噪音」的 bug-catcher, 门禁立即绿、防「只许减少不许新增」:
+#   F    pyflakes  —— 未用导入 / 未定义名 / 重复定义 / f-string 缺占位符 (真 bug)
+#   E9   语法错误
+#   I    isort     —— import 排序 (自动修复)
+# 阶段二 (后续批次) 再启用 B / UP / C4 / SIM 等风格规则 —— 当前存量 37 处待清理,
+# 启用即红会阻塞 CI, 故暂不纳入门禁, 仅本地 `ruff check` 可查看。
+target-version = "py314"
+line-length = 100
+
+[lint]
+# 用 select 取代 ruff 默认规则集 (默认含 E4/E7 等风格项), 仅保留 bug-catcher。
+select = ["F", "E9", "I"]
+ignore = [
+    "E402",  # 导入不在文件顶部 (存量大, 阶段二)
+]
+
+# 测试文件允许未用导入/变量 (fixture 复用、参数化样板)
+[lint.per-file-ignores]
+"**/tests/**" = ["F401", "F811", "F841"]
+"tests/**" = ["F401", "F811", "F841"]

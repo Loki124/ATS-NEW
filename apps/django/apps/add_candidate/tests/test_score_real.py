@@ -5,10 +5,11 @@
 2. 空 candidate_ids 不抛异常
 3. passed_count 只计真通过
 """
-import pytest
 from unittest.mock import patch
 
-from apps.add_candidate.services.scoring import ScoreResult, ScoreDimension
+import pytest
+
+from apps.add_candidate.services.scoring import ScoreDimension, ScoreResult
 
 
 @pytest.mark.django_db
@@ -92,8 +93,8 @@ class TestScoreBatchTaskReal:
     ):
         """passed_count 只计 result.passed=True 的候选人"""
         from apps.add_candidate.tasks import score_batch_task
-        from apps.candidate.models import Candidate
         from apps.application.models import Application, ApplicationState
+        from apps.candidate.models import Candidate
 
         # 创建两个候选人，一个过、一个不过
         cand_pass = Candidate.objects.create(

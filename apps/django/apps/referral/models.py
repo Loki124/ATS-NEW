@@ -1,7 +1,8 @@
 """Referral Models (PRD v4 §3.1, §6.4 N+1/N+2 推荐)"""
 from django.db import models
-from apps.common.models import FullAuditModel
 from nanoid import generate as nanoid_generate
+
+from apps.common.models import FullAuditModel
 
 
 def gen_id():

@@ -81,9 +81,8 @@ def test_send_in_app_attribute_error_no_longer_swallowed(super_user):
     with patch(
         'apps.notification.services.timezone.now',
         side_effect=AttributeError('mocked typo'),
-    ):
-        with pytest.raises(AttributeError, match='mocked typo'):
-            NotificationDispatcher.send_in_app(log)
+    ), pytest.raises(AttributeError, match='mocked typo'):
+        NotificationDispatcher.send_in_app(log)
 
 
 # ============================================================
@@ -117,9 +116,8 @@ def test_send_email_attribute_error_no_longer_swallowed():
     with patch(
         'apps.integration.services.send_email',
         side_effect=AttributeError('mocked typo'),
-    ):
-        with pytest.raises(AttributeError, match='mocked typo'):
-            NotificationDispatcher.send_email(log)
+    ), pytest.raises(AttributeError, match='mocked typo'):
+        NotificationDispatcher.send_email(log)
 
 
 # ============================================================
@@ -144,9 +142,8 @@ def test_send_sms_attribute_error_no_longer_swallowed():
     with patch(
         'apps.integration.services.send_sms',
         side_effect=AttributeError('mocked typo'),
-    ):
-        with pytest.raises(AttributeError, match='mocked typo'):
-            NotificationDispatcher.send_sms(log)
+    ), pytest.raises(AttributeError, match='mocked typo'):
+        NotificationDispatcher.send_sms(log)
 
 
 # ============================================================
@@ -171,9 +168,8 @@ def test_send_wecom_attribute_error_no_longer_swallowed(super_user):
     with patch(
         'apps.integration.services.send_wecom_message',
         side_effect=AttributeError('mocked typo'),
-    ):
-        with pytest.raises(AttributeError, match='mocked typo'):
-            NotificationDispatcher.send_wecom(log)
+    ), pytest.raises(AttributeError, match='mocked typo'):
+        NotificationDispatcher.send_wecom(log)
 
 
 # ============================================================
@@ -206,6 +202,5 @@ def test_send_bulk_attribute_error_no_longer_swallowed(super_user):
     with patch.object(
         NotificationService, 'send_notification',
         side_effect=AttributeError('mocked typo'),
-    ):
-        with pytest.raises(AttributeError, match='mocked typo'):
-            NotificationService.send_bulk([data])
+    ), pytest.raises(AttributeError, match='mocked typo'):
+        NotificationService.send_bulk([data])

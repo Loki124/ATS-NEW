@@ -7,7 +7,7 @@
 数据来源：内部招聘业务常用枚举，人工整理；项可由业务方在字典页自由扩展。
 """
 
-from apps.dictionary.models import DictionaryType, DictionaryItem
+from apps.dictionary.models import DictionaryItem, DictionaryType
 
 # (key, 名称, 英文名, 排序)
 EDUCATION_ITEMS = [

@@ -17,7 +17,6 @@ V2 权限系统 7 张新表 (spec §3.2):
 - 表名严格遵循 spec DDL,不重命名
 """
 from django.db import models
-
 from nanoid import generate as nanoid_generate
 
 

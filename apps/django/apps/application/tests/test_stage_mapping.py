@@ -109,7 +109,7 @@ class FakeApplication:
     对一个纯函数的单测来说是纯噪音。真链路的端到端验证在 T3 的 e2e 文件里。
     """
 
-    def __init__(self, current_link: Optional[ProcessStageLink]) -> None:
+    def __init__(self, current_link: ProcessStageLink | None) -> None:
         self.current_link = current_link
 
 

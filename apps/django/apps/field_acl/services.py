@@ -16,13 +16,13 @@ T30.175 (V2 cutover follow-up):
   apps/field_acl/mixins.py:FieldAclSerializerMixin 接到 Candidate 序列化器上。
 """
 from __future__ import annotations
-from django.db import DatabaseError
 
 import logging
 from typing import Any, Dict, List
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import DatabaseError
 
 from apps.common.masking import (
     mask_amount,
@@ -32,8 +32,7 @@ from apps.common.masking import (
     mask_phone,
 )
 from apps.core.models import User
-from apps.core.role_v2_query import user_role_codes, is_super_admin
-
+from apps.core.role_v2_query import is_super_admin, user_role_codes
 from apps.data_permission.enforcement import DataPermissionEnforcement
 
 from .models import FieldACL, FieldPermission

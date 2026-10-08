@@ -36,8 +36,8 @@ def encrypt_py(plaintext):
     """Python 版 Fernet encrypt, 同样避免循环 import"""
     if not plaintext:
         return plaintext
-    from django.conf import settings
     from cryptography.fernet import Fernet
+    from django.conf import settings
     key = (
         getattr(settings, 'ENCRYPTION_KEY', None)
         or getattr(settings, 'INTEGRATION_FERNET_KEY', None)

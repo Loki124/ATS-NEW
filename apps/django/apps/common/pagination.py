@@ -1,6 +1,5 @@
 """统一分页"""
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
 
 from apps.common.response import success_response
 

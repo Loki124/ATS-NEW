@@ -3,16 +3,16 @@
 T30.175 (V2 cutover follow-up): user.user_roles.filter(role__code=...) 替换为
 apps.core.role_v2_query.user_has_any_role (直接走 UserRoleV2).
 """
+from django.db import OperationalError
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
-from rest_framework.response import Response
+from rest_framework import viewsets
 
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
-from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
-from apps.core.role_v2_query import user_has_any_role, is_super_admin
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.role_v2_query import is_super_admin, user_has_any_role
 
 from .models import Interview, InterviewEvaluation
 from .serializers import (

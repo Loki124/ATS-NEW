@@ -43,8 +43,9 @@ def test_structured_org_scope_per_node_include_children():
 @pytest.mark.v2_permission
 def test_compile_data_range_q_dept_dimension():
     """data_range 部门维度 -> 等于/不等于 Q; 未支持维度 no-op."""
-    from apps.core.scope_resolver import compile_data_range_q
     from django.db.models import Q
+
+    from apps.core.scope_resolver import compile_data_range_q
 
     eq_q = compile_data_range_q({
         'op': 'or',

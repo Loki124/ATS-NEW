@@ -10,23 +10,42 @@
   - API 端点（dimensions/indicators/rules+ratio/validate/batch/with-targets/persons；
     plan 端点已真删 → 404 断言）
 """
-import pytest
 from decimal import Decimal
 
-from ..sample_data import SAMPLE_PERSONS, build_rules
+import pytest
+
 from ..calc import (
-    count, rule_matches, persons_for_rule, count_rule, denom_rule,
-    ratio_of, ratio_status, count_status,
-    compute_ratio, simulate, check_dimension_sums, _largest_remainder_allocate, _scope_key,
+    _largest_remainder_allocate,
+    _scope_key,
+    check_dimension_sums,
+    compute_ratio,
     compute_rollover_target,
+    count,
+    count_rule,
+    count_status,
+    denom_rule,
+    persons_for_rule,
+    ratio_of,
+    ratio_status,
+    rule_matches,
+    simulate,
 )
 from ..constants import (
-    RATIO_NORMAL, RATIO_ABOVE, COUNT_MET, COUNT_GAP,
-    VERDICT_BLOCK, VERDICT_WARN, VERDICT_PASS,
+    COUNT_GAP,
+    COUNT_MET,
+    RATIO_ABOVE,
+    RATIO_NORMAL,
+    VERDICT_BLOCK,
+    VERDICT_PASS,
+    VERDICT_WARN,
 )
 from ..models import (
-    ControlDimension, ControlIndicator, ControlRule, Person,
+    ControlDimension,
+    ControlIndicator,
+    ControlRule,
+    Person,
 )
+from ..sample_data import SAMPLE_PERSONS, build_rules
 from ..serializers import ControlRuleSerializer
 
 

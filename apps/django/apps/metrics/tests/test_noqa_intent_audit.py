@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-
 METRICS_DIR = Path('apps/metrics')
 
 

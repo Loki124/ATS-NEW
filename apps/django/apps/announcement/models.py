@@ -1,6 +1,6 @@
 """制度公告模型 — 招聘专家查看招聘相关制度与公告内容。"""
-from django.db import models
 from django.core.exceptions import SuspiciousOperation
+from django.db import models
 from django.utils import timezone
 
 from apps.common.models import FullAuditModel

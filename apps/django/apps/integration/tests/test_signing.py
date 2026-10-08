@@ -15,8 +15,8 @@ from unittest.mock import patch
 
 from apps.integration.suppliers.base import (
     BaseBackgroundCheckSupplier,
-    verify_callback_signature,
     replay_allowed,
+    verify_callback_signature,
 )
 from apps.integration.suppliers.hmac_adapter import HmacBackgroundCheckSupplier
 

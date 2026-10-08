@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from typing import List
 
-from django.db.models import Q
 from django.utils import timezone
 
 from apps.core.models import User
@@ -19,7 +18,7 @@ class AuditService:
 
     @staticmethod
     def record(
-        user: Optional[User],
+        user: User | None,
         action: str,
         entity: str,
         entity_id: str = '',
@@ -47,10 +46,10 @@ class AuditService:
 
     @staticmethod
     def query(
-        user_id: Optional[str] = None,
-        action: Optional[str] = None,
-        entity: Optional[str] = None,
-        entity_id: Optional[str] = None,
+        user_id: str | None = None,
+        action: str | None = None,
+        entity: str | None = None,
+        entity_id: str | None = None,
         from_date=None,
         to_date=None,
         limit: int = 100,

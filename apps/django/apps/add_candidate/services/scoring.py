@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass, field
-from typing import List, Optional
+from typing import List
 
 from django.conf import settings
 
@@ -129,7 +129,7 @@ class ScoringService:
         return max(0, 100 - diff * 10)
 
     @classmethod
-    def _score_education_match(cls, resume_degree: Optional[str], required_degree: str) -> int:
+    def _score_education_match(cls, resume_degree: str | None, required_degree: str) -> int:
         """学历匹配：达标 → 100，不达标 → 50"""
         resume_level = DEGREE_LEVEL.get(resume_degree, 0) if resume_degree else 0
         required_level = DEGREE_LEVEL.get(required_degree, 0)

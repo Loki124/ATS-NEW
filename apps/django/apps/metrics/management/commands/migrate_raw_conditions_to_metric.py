@@ -140,7 +140,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError, transaction
@@ -158,7 +158,6 @@ from apps.metrics.models import (
 )
 from apps.process.models import StageRule
 from apps.rule_engine.models import UnifiedOperator
-
 
 # 裸路径条件类型（STAGE_STATUS 不迁移 —— 它的语义是阶段名称 + 状态，非字段路径）
 SOURCE_TYPES: List[str] = ['CANDIDATE', 'DEMAND', 'POSITION']
@@ -255,7 +254,7 @@ def _normalize_legacy_path(field: Any) -> Any:
     return field.replace('_', '.', 1).lower()
 
 
-def _resolve_atomic_metric(field: Any) -> Tuple[Optional[AtomicMetric], Any]:
+def _resolve_atomic_metric(field: Any) -> Tuple[AtomicMetric | None, Any]:
     """按 field 解析出「已启用」的 AtomicMetric —— 精确匹配优先，legacy 规范化仅作兜底。
 
     Args:
@@ -388,7 +387,7 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------
     def _find_compatible_template(
         self, am: AtomicMetric, operator: Any,
-    ) -> Optional[MetricTemplate]:
+    ) -> MetricTemplate | None:
         """在指向 am 的启用模板中找「operator 在其白名单内」的模板。
 
         MetricEngine 求值强制校验 operator ∈ template.operators（metric_engine.py:126-130 /
@@ -413,7 +412,7 @@ class Command(BaseCommand):
                 return template
         return None
 
-    def _find_merge_candidate(self, am: AtomicMetric) -> Optional[MetricTemplate]:
+    def _find_merge_candidate(self, am: AtomicMetric) -> MetricTemplate | None:
         """无兼容模板时，找出可「并入缺失算子」的既有启用模板（确定性：按 name 排序首个）。
 
         最小侵入原则：优先复用既有模板并只并入缺失的那 1 个 operator，
@@ -426,7 +425,7 @@ class Command(BaseCommand):
 
     def _merge_operator_into_template(
         self, template: MetricTemplate, operator: Any,
-    ) -> Optional[MetricTemplate]:
+    ) -> MetricTemplate | None:
         """把 operator **追加**进既有模板的 operators（append-only，绝不删改既有项）。
 
         operators 只是「启用算子白名单」，追加只会放宽、不会破坏既有引用该模板的条件：
@@ -470,7 +469,7 @@ class Command(BaseCommand):
 
     def _create_minimal_template(
         self, am: AtomicMetric, operator: Any,
-    ) -> Optional[MetricTemplate]:
+    ) -> MetricTemplate | None:
         """新建**只含实际需要算子**的模板（operators = [operator]，绝不是全集）。
 
         name 唯一冲突时按候选名序列重试；每次 create 包在 transaction.atomic() 内，
@@ -606,7 +605,7 @@ class Command(BaseCommand):
 
     def _resolve_template(
         self, am: AtomicMetric, operator: Any, allow_create: bool = True,
-    ) -> Optional[MetricTemplate]:
+    ) -> MetricTemplate | None:
         """解析本条条件的目标模板：**兼容优先 → 最小侵入并入 → 最小算子新建**。
 
         硬约束：绝不返回「operator 不在 operators 内」的模板（那会产出恒 False 的坏条件）；

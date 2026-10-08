@@ -19,11 +19,15 @@ import pytest
 from django.db import IntegrityError
 
 from apps.reason_library.models import (
-    PRESET_DEFAULT_RULE_NAME, RECRUIT_TYPES, SCENE_OPTIONS,
-    RuleSceneAssignment, SceneRule,
+    PRESET_DEFAULT_RULE_NAME,
+    RECRUIT_TYPES,
+    SCENE_OPTIONS,
+    RuleSceneAssignment,
+    SceneRule,
 )
 from apps.reason_library.services.active_query_service import (
-    get_active_rule, invalidate_active_cache,
+    get_active_rule,
+    invalidate_active_cache,
 )
 
 pytestmark = pytest.mark.django_db

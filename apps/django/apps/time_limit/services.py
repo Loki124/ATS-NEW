@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import List, Optional
 
 from django.utils import timezone
 
@@ -19,14 +18,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TimeLimitCalcResult:
     """限时计算结果"""
-    rule_id: Optional[str]
+    rule_id: str | None
     rule_name: str
     base_lock_days: int
     extension_days: int
     extra_interviewer_days: int
     total_lock_days: int
     effective_scope: str  # ALL / NEW_ONLY
-    locked_until: Optional[str] = None  # ISO 8601
+    locked_until: str | None = None  # ISO 8601
     matched: bool = False
 
 

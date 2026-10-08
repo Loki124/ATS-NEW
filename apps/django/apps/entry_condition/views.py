@@ -10,15 +10,16 @@ API:
 from __future__ import annotations
 
 import logging
+
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
+from drf_spectacular.utils import extend_schema
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema
 
 from apps.candidate.models import Candidate
-from apps.common.exceptions import NotFound, PermissionDenied, ValidationError
+from apps.common.exceptions import NotFound
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import HasProcessPermission
 from apps.process.models import ProcessStageLink
@@ -31,7 +32,7 @@ from .serializers import (
     EntryConditionRuleReorderSerializer,
     EntryConditionRuleSerializer,
 )
-from .services import EntryConditionEvaluator, evaluate_stage_entry
+from .services import evaluate_stage_entry
 
 logger = logging.getLogger(__name__)
 

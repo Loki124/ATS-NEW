@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from apps.rule_engine.models import UnifiedOperator
 
@@ -232,7 +232,8 @@ class MetricEngine:
 
         类型守卫：左右指标 data_type 必须一致，否则无法比较 → 降级。
         """
-        from apps.metrics.models import MetricDataType, MetricTemplate as MT
+        from apps.metrics.models import MetricDataType
+        from apps.metrics.models import MetricTemplate as MT
 
         try:
             rt = MT.objects.filter(pk=right_template_id).select_related(
@@ -568,7 +569,7 @@ class MetricEngine:
             }
 
     @staticmethod
-    def _op_label(operator: Optional[str]) -> str:
+    def _op_label(operator: str | None) -> str:
         try:
             return UnifiedOperator(operator).label
         except Exception:  # noqa: BLE001 — 未知运算符返原值 (容错, label 仅用于展示, 不阻断比较逻辑)

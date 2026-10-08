@@ -1,7 +1,7 @@
 from django.db import IntegrityError, OperationalError, models
 from nanoid import generate as nanoid_generate
 
-from apps.common.models import TimestampedModel, SoftDeleteModel
+from apps.common.models import SoftDeleteModel, TimestampedModel
 
 
 class DynamicField(TimestampedModel, SoftDeleteModel):

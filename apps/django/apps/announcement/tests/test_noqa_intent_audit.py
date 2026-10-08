@@ -16,7 +16,6 @@ from unittest.mock import MagicMock, PropertyMock
 
 import pytest
 
-
 ANN_DIR = Path('apps/announcement')
 
 
@@ -81,6 +80,7 @@ def test_announcement_file_url_returns_empty_on_storage_failure():
     这是 announcement noqa 的核心契约: 模型 property 不能因为 storage 不可用让序列化/视图 500.
     """
     from unittest.mock import PropertyMock, patch
+
     from apps.announcement.models import AnnouncementAttachment
 
     # 构造 Attachment 实例 (无真实文件), 让 file.url 抛异常

@@ -23,9 +23,7 @@
 """
 from typing import Any, Dict, List
 
-from apps.entry_condition.models import ConditionItem, EntryConditionRule
 from apps.metrics.models import MetricRule, MetricTemplate
-from apps.process.models import StageRule
 
 
 def _link_owner(link: Any) -> Dict[str, str]:
@@ -65,6 +63,11 @@ def get_template_affected_rules(template_id: str) -> Dict[str, Any]:
     Raises:
         MetricTemplate.DoesNotExist: 模板不存在时由 .get() 抛出，交由视图层返回 404。
     """
+    # 2026-10-09 (#21): 惰性导入, 切断 metrics → process / entry_condition 模块级循环依赖
+    #   (process.services.rule_item_evaluator 模块级引用 apps.metrics.*, 二者需脱钩)。
+    from apps.entry_condition.models import ConditionItem
+    from apps.process.models import StageRule
+
     tid = str(template_id)
 
     # 取模板元信息：不存在则抛出 MetricTemplate.DoesNotExist（视图层捕获 → 404）。

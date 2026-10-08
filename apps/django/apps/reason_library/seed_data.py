@@ -19,15 +19,11 @@ from nanoid import generate as nanoid_generate
 
 from .models import (
     MAX_CATEGORY_LEVEL,
-    CategoryAssignment,
+    SCENE_OPTIONS,
     ReasonTag,
     RuleCategory,
-    RuleSceneAssignment,
-    SCENE_OPTIONS,
-    SceneRule,
     TagType,
 )
-
 
 # ---------------------------------------------------------------------------
 # 53 条系统标签 (原型 L596-654)
@@ -254,8 +250,11 @@ def seed_initial_data(verbose: bool = False, apps=None) -> Dict[str, int]:
     else:
         # management cmd / conftest: 保持实时模型, save() 自动补号, 行为不变.
         from apps.reason_library.models import (
-            SceneRule, ReasonTag, RuleCategory,
-            CategoryAssignment, RuleSceneAssignment,
+            CategoryAssignment,
+            ReasonTag,
+            RuleCategory,
+            RuleSceneAssignment,
+            SceneRule,
         )
 
     # 1) Tags

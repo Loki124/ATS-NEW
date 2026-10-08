@@ -8,7 +8,7 @@ URL 前缀：/api/v1/
 - /process-templates/  流程模板
 - /expressions/        表达式校验
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
@@ -96,7 +96,6 @@ expression_urlpatterns = [
 # ============================================================
 # 兼容旧 url_* 引用 - 重新暴露具体 urlpatterns
 # ============================================================
-from django.urls import re_path
 
 # 旧引用: urls_stage, urls_process, urls_link
 urlpatterns = stage_urlpatterns

@@ -4,8 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
 
-from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
-
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 
 User = get_user_model()
 

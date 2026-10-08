@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.db import transaction
 from django.db.models import F, Q
@@ -36,10 +36,10 @@ class PoolEntryData:
     entry_source: str = 'MANUAL'
     entry_reason: str = ''
     target_pool_code: str = 'PUBLIC'
-    tags: Optional[List[str]] = None
+    tags: List[str] | None = None
     notes: str = ''
-    operator_id: Optional[str] = None
-    meta: Optional[Dict[str, Any]] = None
+    operator_id: str | None = None
+    meta: Dict[str, Any] | None = None
 
 
 @dataclass
@@ -63,8 +63,8 @@ class TalentPoolService:
         entry_source: str = 'MANUAL',
         entry_reason: str = '',
         target_pool_code: str = 'PUBLIC',
-        actor: Optional[User] = None,
-        tags: Optional[List[str]] = None,
+        actor: User | None = None,
+        tags: List[str] | None = None,
         notes: str = '',
     ) -> MoveToPoolResult:
         """候选人入库
@@ -125,11 +125,11 @@ class TalentPoolService:
     @staticmethod
     def search_pool(
         pool_code: str = 'PUBLIC',
-        keyword: Optional[str] = None,
-        entry_source: Optional[str] = None,
-        tag: Optional[str] = None,
-        entry_from: Optional[Any] = None,
-        entry_to: Optional[Any] = None,
+        keyword: str | None = None,
+        entry_source: str | None = None,
+        tag: str | None = None,
+        entry_from: Any | None = None,
+        entry_to: Any | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> List[TalentPoolEntry]:
@@ -160,7 +160,7 @@ class TalentPoolService:
     @transaction.atomic
     def reactivate_from_pool(
         entry_id: str,
-        actor: Optional[User] = None,
+        actor: User | None = None,
         notes: str = '',
     ) -> TalentPoolEntry:
         """从人才库重新激活
@@ -233,7 +233,7 @@ class TalentPoolService:
 # ============================================================
 def move_candidate_to_pool(
     candidate_id: str, entry_source: str = 'MANUAL',
-    entry_reason: str = '', actor: Optional[User] = None,
+    entry_reason: str = '', actor: User | None = None,
     target_pool_code: str = 'PUBLIC',
 ) -> MoveToPoolResult:
     """便捷函数"""

@@ -4,8 +4,8 @@
 不依赖 shell is_valid 假绿 —— APIClient 走完整 DRF parser/renderer 链路.
 """
 import pytest
-from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
 
 
 @pytest.mark.django_db

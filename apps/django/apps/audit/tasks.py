@@ -10,14 +10,13 @@
 - 每批 BATCH_SIZE 行,用 IN 子句 + 事务包裹,降低行锁持续时间
 - 任务幂等: 多次执行结果一致
 """
-from django.db import DatabaseError
 import logging
 from datetime import timedelta
 from typing import Dict
 
 from celery import shared_task
 from django.conf import settings
-from django.db import OperationalError, InterfaceError, transaction
+from django.db import DatabaseError, InterfaceError, OperationalError, transaction
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -111,7 +110,6 @@ def audit_cleanup_healthcheck(self) -> Dict:
     - audit_log 总行数超过 1,000,000 (容量告警)
     - 老于 1 年的行数占比超过 80% (清理未跑)
     """
-    from django.db import connection
     from .models import AuditLog
 
     total = AuditLog.objects.count()
@@ -135,8 +133,8 @@ def audit_cleanup_healthcheck(self) -> Dict:
 
     if alerts:
         try:
-            from apps.notification.services import NotificationService
             from apps.core.models import User
+            from apps.notification.services import NotificationService
 
             admins = User.objects.filter(is_superuser=True, is_active=True)[:5]
             for admin in admins:

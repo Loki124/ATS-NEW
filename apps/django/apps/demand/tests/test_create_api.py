@@ -16,8 +16,9 @@
 """
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from rest_framework.test import APIClient
 
 from apps.demand.models import Demand

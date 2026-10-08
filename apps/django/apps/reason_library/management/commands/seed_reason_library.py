@@ -6,8 +6,8 @@
 from django.core.management.base import BaseCommand
 
 from apps.reason_library.models import (
-    CategoryAssignment, ReasonTag, RuleCategory,
-    RuleSceneAssignment, SceneRule,
+    ReasonTag,
+    SceneRule,
 )
 from apps.reason_library.seed_data import seed_initial_data
 

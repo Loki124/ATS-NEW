@@ -19,29 +19,36 @@ _accounting_month / count_rule，禁止另写一套计数逻辑，避免与 rati
 为规避 campus_control.views ↔ campus_control.services 循环 import，
 views 的 _person_to_dict / _build_person_dim_map / _rule_to_dict 在本模块内惰性 import。
 """
-from django.db import DatabaseError
 import base64
 import logging
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from io import BytesIO
 
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, transaction
 
 from apps.audit.models import AuditLog
 
 logger = logging.getLogger(__name__)
 
 from .calc import (
-    _COUNTED_STATUSES, rule_matches, _indicator_filter, _accounting_month, count_rule,
-    _largest_remainder_allocate, compute_rollover_target,
+    _COUNTED_STATUSES,
+    _accounting_month,
+    _indicator_filter,
+    _largest_remainder_allocate,
+    compute_rollover_target,
+    count_rule,
+    rule_matches,
 )
 from .constants import STRENGTH
 from .io_indicator import (
-    build_indicator_error_report_workbook, parse_indicator_file, _parse_bool,
+    _parse_bool,
+    build_indicator_error_report_workbook,
+    parse_indicator_file,
 )
 from .io_xlsx import (
-    parse_import_workbook, build_error_report_workbook,
+    build_error_report_workbook,
+    parse_import_workbook,
 )
 from .models import ControlDimension, ControlIndicator, ControlRule, Person
 from .serializers import _to_decimal
@@ -98,7 +105,7 @@ def _scope_text(rule) -> str:
 
 def _views_helpers():
     """惰性导入 views 的辅助函数，规避循环 import。"""
-    from .views import _person_to_dict, _build_person_dim_map, _rule_to_dict
+    from .views import _build_person_dim_map, _person_to_dict, _rule_to_dict
     return _person_to_dict, _build_person_dim_map, _rule_to_dict
 
 

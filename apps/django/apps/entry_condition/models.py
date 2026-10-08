@@ -9,9 +9,10 @@
 - 自定义提示内容
 """
 from django.db import models
+from nanoid import generate as nanoid_generate
+
 from apps.common.models import SoftDeleteModel, TimestampedModel
 from apps.process.models import ProcessStageLink
-from nanoid import generate as nanoid_generate
 
 
 def gen_id():

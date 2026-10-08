@@ -193,6 +193,20 @@ def _log_paths(key):
     ]
 
 
+def _tail_lines(path, n):
+    """只读取文件末尾约 n 行（按字节回退），避免整文件（可达数百 MB）载入内存。"""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            chunk = min(size, max(n * 400, 64 * 1024))
+            f.seek(max(0, size - chunk))
+            data = f.read().decode("utf-8", "replace")
+        return data.splitlines()[-n:]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _scan_logs(key, window=None, count_re=None):
     """扫描服务日志。window=None 时无时间过滤；count_re 命中则计数。
     返回 (错误行数, 命中 count_re 的行数)。"""
@@ -203,8 +217,7 @@ def _scan_logs(key, window=None, count_re=None):
         if not os.path.exists(p):
             continue
         try:
-            with open(p, "r", errors="replace") as f:
-                lines = f.read().splitlines()[-3000:]
+            lines = _tail_lines(p, 3000)
         except Exception:  # noqa: BLE001
             continue
         for ln in lines:
@@ -318,11 +331,7 @@ def tail_log(key, n=40):
     lines = []
     for p in _log_paths(key):
         if os.path.exists(p):
-            try:
-                with open(p, "r", errors="replace") as f:
-                    lines.extend(f.read().splitlines()[-n:])
-            except Exception:  # noqa: BLE001
-                pass
+            lines.extend(_tail_lines(p, n))
     return lines[-n:] if lines else ["（暂无日志）"]
 
 
@@ -386,55 +395,86 @@ def build_system(push=True):
     return m
 
 
+def _svc_actually_up(svc):
+    """判断服务是否真正可用：进程在 + 探活通过。用于“启动”的幂等判定，
+    避免把“进程在但探活失败（假活 / 底座未就绪）”误判为已运行。"""
+    loaded = launchctl_list()
+    if svc["label"] not in loaded or not loaded[svc["label"]]:
+        return False
+    if svc.get("health_url"):
+        return http_health(svc["health_url"]) == "200"
+    if svc.get("tcp"):
+        host, port = svc["tcp"]
+        return tcp_port_open(host, port)
+    return True  # celery 无端口，仅看进程
+
+
 def do_action(key, action):
-    """对单个服务执行 start/stop/restart。start 幂等：运行中不重复拉起。"""
+    """对单个服务执行 start/stop/restart。
+    start 幂等：仅当“进程在且探活通过”才不重复拉起，否则一律走重启（拉起/重建）。
+    返回 (msg, ok) —— ok 反映 launchctl 真实执行结果，不再永远成功。"""
     svc = SERVICES[key]
     label = svc["label"]
     plist = os.path.join(LAUNCH_DIR, svc["plist"])
+    log_ctx = f"{action} {svc['name']}"
 
     def _bootstrap():
         if not os.path.exists(plist):
-            # plist 缺失则回退到安装脚本重建全部
-            _run(["bash", os.path.join(SCRIPT_DIR, "install_dev_launchd.sh")])
-            return f"plist 缺失，已重跑安装脚本重建 {svc['name']}"
-        _run(["launchctl", "bootout", f"gui/{UID}/{label}"])
-        _run(["launchctl", "bootstrap", f"gui/{UID}", plist])
-        return f"已请求{'重启' if action == 'restart' else '启动'} {svc['name']}"
+            r = _run(["bash", os.path.join(SCRIPT_DIR, "install_dev_launchd.sh")])
+            _write_op_log(log_ctx + "（plist 缺失，重跑安装脚本）",
+                          (r.stdout or "") + (r.stderr or ""))
+            return (f"plist 缺失，已重跑安装脚本重建 {svc['name']}" +
+                    ("" if r.returncode == 0 else "（安装脚本失败，见运维日志）")), r.returncode == 0
+        rb = _run(["launchctl", "bootout", f"gui/{UID}/{label}"])
+        r = _run(["launchctl", "bootstrap", f"gui/{UID}", plist])
+        detail = ""
+        if r.returncode != 0:
+            detail = f"（bootstrap 失败：{r.stderr.strip()[:200]}）"
+        _write_op_log(log_ctx,
+                      f"bootout rc={rb.returncode}\nbootstrap rc={r.returncode}\n{r.stderr or ''}")
+        return (f"已请求{'重启' if action == 'restart' else '启动'} {svc['name']}" + detail), r.returncode == 0
 
     if action == "stop":
-        _run(["launchctl", "bootout", f"gui/{UID}/{label}"])
-        return f"已请求停止 {svc['name']}"
+        r = _run(["launchctl", "bootout", f"gui/{UID}/{label}"])
+        _write_op_log(log_ctx, f"bootout rc={r.returncode}\n{r.stderr or ''}")
+        return f"已请求停止 {svc['name']}", r.returncode == 0
     if action == "start":
         loaded = launchctl_list()
+        if label in loaded and loaded[label] and _svc_actually_up(svc):
+            return f"{svc['name']} 已在正常运行（PID {loaded[label]}），无需启动", True
         if label in loaded and loaded[label]:
-            return f"{svc['name']} 已在运行（PID {loaded[label]}），无需启动"
-        if label in loaded:
-            # 已加载但进程不在 → kickstart 直接拉起
-            _run(["launchctl", "kickstart", "-k", f"gui/{UID}/{label}"])
-            return f"已请求启动 {svc['name']}"
+            # 进程在但探活未通过（假活 / 底座未就绪）→ kickstart 重建
+            r = _run(["launchctl", "kickstart", "-k", f"gui/{UID}/{label}"])
+            _write_op_log(log_ctx + "（kickstart，因探活未通过）",
+                          f"kickstart rc={r.returncode}\n{r.stderr or ''}")
+            return f"已请求重启（原进程未通过探活）{svc['name']}", r.returncode == 0
         return _bootstrap()
-    # restart：先卸后装（幂等），RunAtLoad 会自动拉起
+    # restart：先卸后装（幂等）
     return _bootstrap()
 
 
 def do_all(action):
+    msgs = []
     if action == "start":
         missing = [k for k in SERVICES
                    if not os.path.exists(os.path.join(LAUNCH_DIR, SERVICES[k]["plist"]))]
         if missing:
-            _run(["bash", os.path.join(SCRIPT_DIR, "install_dev_launchd.sh")])
-            return "检测到 plist 缺失，已重跑安装脚本启动全部服务"
+            r = _run(["bash", os.path.join(SCRIPT_DIR, "install_dev_launchd.sh")])
+            msgs.append(f"检测到 plist 缺失，已重跑安装脚本启动全部服务（rc={r.returncode}）")
         for k in SERVICES:
-            do_action(k, "start")
-        return "已请求启动全部服务"
+            m, _ = do_action(k, "start")
+            msgs.append(m)
+        return "；".join(msgs)
     if action == "stop":
         for k in SERVICES:
-            do_action(k, "stop")
-        return "已请求停止全部服务"
+            m, _ = do_action(k, "stop")
+            msgs.append(m)
+        return "；".join(msgs)
     if action == "restart":
         for k in SERVICES:
-            do_action(k, "restart")
-        return "已请求重启全部服务"
+            m, _ = do_action(k, "restart")
+            msgs.append(m)
+        return "；".join(msgs)
     return "未知操作"
 
 
@@ -533,7 +573,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if key == "all":
                 msg = do_all(action)
             elif key in SERVICES and action in ("start", "stop", "restart"):
-                msg = do_action(key, action)
+                msg, ok = do_action(key, action)
             elif action in ("migrate", "pull_restart"):
                 msg = do_migrate() if action == "migrate" else do_pull_restart()
             else:

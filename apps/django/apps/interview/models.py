@@ -1,8 +1,9 @@
 """Interview Models (PRD v4 §14.5 面试)"""
 from django.db import models
+from nanoid import generate as nanoid_generate
+
 from apps.common.models import FullAuditModel
 from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
-from nanoid import generate as nanoid_generate
 
 
 def gen_id():

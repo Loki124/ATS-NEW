@@ -7,7 +7,8 @@
 - apps.position.models.Position
 """
 from django.db import models
-from apps.common.models import SoftDeleteModel, SoftDeleteManager
+
+from apps.common.models import SoftDeleteManager, SoftDeleteModel
 
 
 class ParseJob(SoftDeleteModel):

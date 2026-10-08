@@ -21,7 +21,6 @@ from decimal import Decimal, InvalidOperation
 
 from apps.rule_engine.models import UnifiedOperator
 
-
 # ---------------------------------------------------------------------------
 # TODO（指标级校验，本批次不做，留待指标级校验跟进）
 #   V13 MetricTemplate.calc_params 符合引用派生指标的 param_schema（required/类型/select∈options）

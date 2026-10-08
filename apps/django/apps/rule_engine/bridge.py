@@ -14,8 +14,9 @@
 from __future__ import annotations
 
 import logging
+from typing import Any, Dict
+
 from django.db import IntegrityError, OperationalError
-from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +179,7 @@ def sync_automation_rule_to_unified(rule: Any) -> Rule:
     return unified
 
 
-def sync_automation_log_to_unified(log: Any) -> Optional[RuleExecutionLog]:
+def sync_automation_log_to_unified(log: Any) -> RuleExecutionLog | None:
     """best-effort 把一条 AutomationLog 镜像成统一 RuleExecutionLog。
 
     仅做单向追加镜像（日志不幂等去重，避免与 automation 侧日志耦合）；统一侧
@@ -188,7 +189,7 @@ def sync_automation_log_to_unified(log: Any) -> Optional[RuleExecutionLog]:
         创建的 RuleExecutionLog 实例；异常由调用方吞掉，本函数不抛。
     """
     # 反查对应的统一 Rule（可能不存在，此时 rule 记 None，分类仍按 TCA）
-    unified_rule: Optional[Rule] = Rule.objects.filter(
+    unified_rule: Rule | None = Rule.objects.filter(
         source_app=AUTOMATION_SOURCE_APP,
         legacy_id=log.rule_id,
     ).first()
@@ -314,13 +315,13 @@ def sync_entry_condition_rule_to_unified(rule: Any) -> Rule:
     return unified
 
 
-def sync_entry_condition_log_to_unified(log: Any) -> Optional[RuleExecutionLog]:
+def sync_entry_condition_log_to_unified(log: Any) -> RuleExecutionLog | None:
     """best-effort 把一条 EntryConditionLog 镜像成统一 RuleExecutionLog。
 
     单向追加镜像（日志不幂等去重）；evaluate_result 映射：passed→ALLOWED，
     否则→REJECTED（统一枚举见 EvaluateResult）。统一侧 rule 字段允许为 None。
     """
-    unified_rule: Optional[Rule] = Rule.objects.filter(
+    unified_rule: Rule | None = Rule.objects.filter(
         source_app=ENTRY_CONDITION_SOURCE_APP,
         legacy_id=log.rule_id,
     ).first()
@@ -594,9 +595,9 @@ def sync_mou_rule_to_unified(rule: Any) -> Rule:
 
 
 def mirror_campus_offer_validation(
-    candidate_id: Optional[str],
-    blocks: Optional[list] = None,
-    warnings: Optional[list] = None,
+    candidate_id: str | None,
+    blocks: list | None = None,
+    warnings: list | None = None,
 ) -> int:
     """best-effort 把一次 campus Offer 校验事件镜像进统一 RuleExecutionLog。
 

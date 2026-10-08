@@ -5,10 +5,10 @@ from rest_framework import serializers
 
 from .crypto import SENSITIVE_KEYS, encrypt_secret_dict
 from .models import (
-    IntegrationConfig,
-    IntegrationSyncLog,
     BackgroundCheckOrder,
     BackgroundCheckOrderEvent,
+    IntegrationConfig,
+    IntegrationSyncLog,
 )
 
 
@@ -116,19 +116,15 @@ class BackgroundCheckOrderSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_status_display(self, obj):
-        from .models import BGOrderStatus
         return obj.status_label
 
     def get_risk_level_display(self, obj):
-        from .models import BGRiskLevel
         return obj.risk_label
 
     def get_channel_display(self, obj):
-        from .models import BGChannel
         return obj.channel_label
 
     def get_bg_result_display(self, obj):
-        from .models import BGResult
         return obj.get_bg_result_display()
 
 

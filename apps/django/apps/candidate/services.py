@@ -17,7 +17,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.db import IntegrityError, OperationalError, transaction
 from django.db.models import Q
@@ -26,9 +26,9 @@ from django_fsm import TransitionNotAllowed
 
 
 def _record_state_change(
-    candidate: 'Candidate',
+    candidate: Candidate,
     old_state: str,
-    actor: Optional['User'],
+    actor: User | None,
 ) -> None:
     """显式记录一次 FSM 状态变更审计, 由 service 层在 save() 前调用。
 
@@ -48,8 +48,8 @@ def _record_state_change(
     )
     candidate._state_change_recorded = True
 
+from apps.common.encryption import hash_candidates_for_search
 from apps.common.exceptions import NotFound, StateTransitionError
-from apps.common.encryption import hash_candidates_for_search, hash_for_search
 from apps.core.models import User
 from apps.reason_library.models import RecruitType
 
@@ -66,26 +66,26 @@ class CandidateCreateData:
     """创建候选人入参"""
     name: str
     phone: str
-    email: Optional[str] = None
-    gender: Optional[str] = None
-    age: Optional[int] = None
-    birth_date: Optional[Any] = None  # date
-    highest_education: Optional[str] = None
-    work_years: Optional[float] = None
-    current_city: Optional[str] = None
-    expected_city: Optional[str] = None
-    current_company: Optional[str] = None
-    current_position: Optional[str] = None
-    expected_salary: Optional[float] = None
-    resume_file_url: Optional[str] = None
-    resume_text: Optional[str] = None
-    id_card_no: Optional[str] = None
-    source_channel_id: Optional[str] = None
-    referrer_id: Optional[str] = None
-    referral_type: Optional[str] = None
-    tags: Optional[List[str]] = None
-    moka_candidate_id: Optional[str] = None
-    extra: Optional[Dict[str, Any]] = None
+    email: str | None = None
+    gender: str | None = None
+    age: int | None = None
+    birth_date: Any | None = None  # date
+    highest_education: str | None = None
+    work_years: float | None = None
+    current_city: str | None = None
+    expected_city: str | None = None
+    current_company: str | None = None
+    current_position: str | None = None
+    expected_salary: float | None = None
+    resume_file_url: str | None = None
+    resume_text: str | None = None
+    id_card_no: str | None = None
+    source_channel_id: str | None = None
+    referrer_id: str | None = None
+    referral_type: str | None = None
+    tags: List[str] | None = None
+    moka_candidate_id: str | None = None
+    extra: Dict[str, Any] | None = None
 
 
 @dataclass
@@ -164,7 +164,7 @@ class CandidateService:
     @transaction.atomic
     def create_candidate(
         data: CandidateCreateData,
-        actor: Optional[User] = None,
+        actor: User | None = None,
         recruit_type: str = RecruitType.SOCIAL.value,
     ) -> Candidate:
         """创建候选人（含幂等查重）
@@ -232,8 +232,8 @@ class CandidateService:
         return candidate
 
     @staticmethod
-    def _find_duplicate(phone: str, email: Optional[str], id_card: Optional[str],
-                        moka_id: Optional[str]) -> Optional[Candidate]:
+    def _find_duplicate(phone: str, email: str | None, id_card: str | None,
+                        moka_id: str | None) -> Candidate | None:
         """查找重复候选人
 
         2026-07-02: 改成单次 Q 查询 (Q | Q | Q), 之前 4 次 .first() 串行查询
@@ -265,8 +265,8 @@ class CandidateService:
     # ----------------------------------------------------------
     @staticmethod
     @transaction.atomic
-    def enter_process(candidate: Candidate, actor: Optional[User] = None,
-                      application_id: Optional[str] = None) -> Candidate:
+    def enter_process(candidate: Candidate, actor: User | None = None,
+                      application_id: str | None = None) -> Candidate:
         """APPLIED → IN_PROCESS
 
         触发条件：候选人首次创建申请
@@ -293,7 +293,7 @@ class CandidateService:
 
     @staticmethod
     @transaction.atomic
-    def send_offer(candidate: Candidate, offer_id: str, actor: Optional[User] = None) -> Candidate:
+    def send_offer(candidate: Candidate, offer_id: str, actor: User | None = None) -> Candidate:
         """IN_PROCESS → OFFER_SENT
 
         触发：发出 Offer
@@ -320,8 +320,8 @@ class CandidateService:
 
     @staticmethod
     @transaction.atomic
-    def mark_onboarded(candidate: Candidate, actor: Optional[User] = None,
-                        onboarding_id: Optional[str] = None) -> Candidate:
+    def mark_onboarded(candidate: Candidate, actor: User | None = None,
+                        onboarding_id: str | None = None) -> Candidate:
         """OFFER_SENT / PENDING_ONBOARDING → ONBOARDED
 
         触发：完成入职流程。source 合法性由模型 @transition 统一校验。
@@ -346,7 +346,7 @@ class CandidateService:
 
     @staticmethod
     @transaction.atomic
-    def withdraw(candidate: Candidate, reason: str, actor: Optional[User] = None) -> Candidate:
+    def withdraw(candidate: Candidate, reason: str, actor: User | None = None) -> Candidate:
         """候选人在任意非终态主动撤回 → WITHDRAWN。
 
         允许 source = {APPLIED, IN_PROCESS, OFFER_SENT, PENDING_ONBOARDING,
@@ -375,7 +375,7 @@ class CandidateService:
     @staticmethod
     @transaction.atomic
     def move_to_talent_pool(candidate: Candidate, entry_source: str, reason: str,
-                            actor: Optional[User] = None) -> Candidate:
+                            actor: User | None = None) -> Candidate:
         """候选人在任意非终态入公共人才库 → TALENT_POOL。
 
         调用方确保已经创建对应的 TalentPool 记录（talent_pool.services）。
@@ -402,7 +402,7 @@ class CandidateService:
     @staticmethod
     @transaction.atomic
     def mark_process_failed(candidate: Candidate, reason: str,
-                            actor: Optional[User] = None) -> Candidate:
+                            actor: User | None = None) -> Candidate:
         """候选人在任意活跃/暂停态流程未通过 → PROCESS_FAILED(终态)。
 
         允许 source = {APPLIED, IN_PROCESS, OFFER_SENT, PROCESS_PAUSED}
@@ -430,7 +430,7 @@ class CandidateService:
     @staticmethod
     @transaction.atomic
     def pause_process(candidate: Candidate, reason: str,
-                      actor: Optional[User] = None) -> Candidate:
+                      actor: User | None = None) -> Candidate:
         """IN_PROCESS → PROCESS_PAUSED(仅 IN_PROCESS 可暂停)。
 
         source 合法性由模型 @transition(source=IN_PROCESS) 统一校验。
@@ -455,7 +455,7 @@ class CandidateService:
 
     @staticmethod
     @transaction.atomic
-    def resume_process(candidate: Candidate, actor: Optional[User] = None) -> Candidate:
+    def resume_process(candidate: Candidate, actor: User | None = None) -> Candidate:
         """PROCESS_PAUSED → IN_PROCESS。
 
         模型 @transition(source=PROCESS_PAUSED) 是单一来源, 故恢复回 IN_PROCESS
@@ -483,17 +483,28 @@ class CandidateService:
     # 候选人查询
     # ----------------------------------------------------------
     @staticmethod
-    def search_candidates(keyword: Optional[str] = None,
-                          state: Optional[str] = None,
-                          source_channel_id: Optional[str] = None,
-                          referrer_id: Optional[str] = None,
-                          tag: Optional[str] = None,
-                          created_from: Optional[datetime] = None,
-                          created_to: Optional[datetime] = None,
+    def search_candidates(keyword: str | None = None,
+                          state: str | None = None,
+                          source_channel_id: str | None = None,
+                          referrer_id: str | None = None,
+                          tag: str | None = None,
+                          created_from: datetime | None = None,
+                          created_to: datetime | None = None,
                           limit: int = 50,
-                          offset: int = 0) -> List[Candidate]:
-        """候选人搜索"""
-        qs = Candidate.objects.filter(deleted_at__isnull=True)
+                          offset: int = 0,
+                          base_qs=None,
+                          max_limit: int = 200) -> List[Candidate]:
+        """候选人搜索
+
+        base_qs: 调用方传入的**已按数据范围过滤**的 queryset。不传则不做范围过滤
+                 (仅供 Celery / 管理命令等无 request 的内部调用使用)。
+        max_limit: 硬性上限。此前 limit 完全由客户端控制, 可绕过 DRF 分页
+                 (max_page_size=200) 一次拉取全表。
+        """
+        limit = max(1, min(int(limit), max_limit))
+        offset = max(0, int(offset))
+        qs = base_qs if base_qs is not None else Candidate.objects.all()
+        qs = qs.filter(deleted_at__isnull=True)
         if keyword:
             qs = qs.filter(
                 Q(name__icontains=keyword) |
@@ -517,8 +528,8 @@ class CandidateService:
 
     @staticmethod
     @transaction.atomic
-    def get_or_create_by_phone(phone: str, defaults: Optional[Dict[str, Any]] = None,
-                               actor: Optional[User] = None) -> Candidate:
+    def get_or_create_by_phone(phone: str, defaults: Dict[str, Any] | None = None,
+                               actor: User | None = None) -> Candidate:
         """按手机号获取或创建（用于快速导入）
 
         2026-07-02: 改用 get_or_create + 加 select_for_update, 防并发导入时双创建.
@@ -555,7 +566,7 @@ class CandidateService:
     @staticmethod
     @transaction.atomic
     def merge_candidates(primary_id: str, duplicate_ids: List[str],
-                         actor: Optional[User] = None) -> CandidateMergeResult:
+                         actor: User | None = None) -> CandidateMergeResult:
         """合并重复候选人
 
         - 主候选保留
@@ -615,7 +626,7 @@ class CandidateService:
     # ----------------------------------------------------------
     @staticmethod
     @transaction.atomic
-    def sync_from_moka(moka_data: Dict[str, Any], actor: Optional[User] = None) -> Candidate:
+    def sync_from_moka(moka_data: Dict[str, Any], actor: User | None = None) -> Candidate:
         """从摩卡同步候选人数据（PRD v4 §14.13 集成）"""
         moka_id = moka_data.get('id')
         if not moka_id:
@@ -672,16 +683,16 @@ class CandidateService:
 # ============================================================
 # Celery 任务入口
 # ============================================================
-def create_candidate(data: CandidateCreateData, actor: Optional[User] = None) -> Candidate:
+def create_candidate(data: CandidateCreateData, actor: User | None = None) -> Candidate:
     """便捷函数"""
     return CandidateService.create_candidate(data, actor=actor)
 
 
-def enter_process(candidate: Candidate, application_id: Optional[str] = None,
-                  actor: Optional[User] = None) -> Candidate:
+def enter_process(candidate: Candidate, application_id: str | None = None,
+                  actor: User | None = None) -> Candidate:
     return CandidateService.enter_process(candidate, actor, application_id)
 
 
 def withdraw_candidate(candidate: Candidate, reason: str,
-                       actor: Optional[User] = None) -> Candidate:
+                       actor: User | None = None) -> Candidate:
     return CandidateService.withdraw(candidate, reason, actor)

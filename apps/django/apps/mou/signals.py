@@ -9,11 +9,10 @@
 双写链路严格可选：仅当 RULE_ENGINE_DOUBLE_WRITE 为真时执行；任何异常都被吞掉并仅记
 日志。mou 无独立软删（硬删 + is_active），故「软删传播」由本信号的 post_delete 处理。
 """
-from django.db import DatabaseError
-
 import logging
 
 from django.conf import settings
+from django.db import DatabaseError
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 

@@ -2,14 +2,13 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.exceptions import ValidationError
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions_v2 import V2Permission, ScopeQuerysetMixin
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 
 from .models import Invitation
 from .serializers import (

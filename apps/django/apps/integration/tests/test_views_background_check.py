@@ -8,15 +8,12 @@
 """
 import pytest
 from django.contrib.auth import get_user_model
-
 from rest_framework.test import APIClient
 
 from apps.core.models_permission_v2 import RoleV2, UserRoleV2
-from apps.integration import services
-from apps.integration import views
+from apps.integration import services, views
 from apps.integration.models import BackgroundCheckOrder
 from apps.integration.tests.test_adapter import MockSupplier
-
 
 BASE = '/api/v1/background-check/orders'
 

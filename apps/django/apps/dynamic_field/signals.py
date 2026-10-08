@@ -11,11 +11,12 @@
     - 已存在相同 source_path 的原子指标则跳过（幂等，不重复创建）
     - 自动映射失败时静默跳过，绝不阻断字段保存（降级，绝不 500）
 """
+import logging
+
+from django.db import IntegrityError, OperationalError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.db import IntegrityError, OperationalError
 
-import logging
 logger = logging.getLogger(__name__)
 
 # 不自动映射为指标的字段类型（PII / 结构型，进入规则条件无业务意义）
