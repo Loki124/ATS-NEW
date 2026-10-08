@@ -377,7 +377,7 @@
         <section class="tpl-sec">
           <div class="tpl-sec-head"><span class="tpl-sec-title">{{ t('metrics.tpl.baseTitle') }}</span></div>
           <div class="tpl-fields">
-            <n-form-item :label="t('metrics.form.name')" required class="tpl-grow2">
+            <n-form-item :label="t('metrics.form.name')" required>
               <n-input v-model:value="tplForm.name" :placeholder="t('metrics.form.name')" />
             </n-form-item>
             <n-form-item :label="t('metrics.form.metricDefinition')" required>
@@ -445,7 +445,7 @@
               <label class="tpl-range-item tpl-range-all">
                 <n-checkbox v-model:checked="tplForm.paramConfig.allOption" />
                 <span class="tpl-all-text">{{ t('metrics.tpl.allOption') }}</span>
-                <n-input v-if="tplForm.paramConfig.allOption" v-model:value="tplForm.paramConfig.allText" placeholder="全部工作经历" class="tpl-mini" />
+                <n-input v-if="tplForm.paramConfig.allOption" v-model:value="tplForm.paramConfig.allText" placeholder="全部工作经历" class="tpl-alltext" />
               </label>
             </div>
             <div v-if="rangePreviewVisible" class="tpl-preview">
@@ -1703,7 +1703,10 @@ const previewParamOptions = computed<any[]>(() => {
   if (Number.isFinite(mn) && Number.isFinite(mx) && st > 0) {
     for (let v = mn; v <= mx + 1e-9 && opts.length < 25; v += st) {
       const vv = fmtNum(v)
-      opts.push({ label: `${c.prefix || ''}${vv}${c.suffix || ''}${unit}`, value: vv })
+      const suffix = (c.suffix || '').trim()
+      const suffixHasUnit = suffix && unit && suffix.endsWith(unit)
+      const label = `${c.prefix || ''}${vv}${suffix}${suffixHasUnit ? '' : unit}`
+      opts.push({ label, value: vv })
     }
   }
   if (!opts.length) opts.push({ label: '— 请先配置参数 —', value: '', disabled: true })
@@ -2547,8 +2550,8 @@ onUnmounted(() => {
 
 /* 表单主体 + 编号计数器 */
 .tpl-form { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-6); counter-reset: tplsec; }
-.tpl-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--space-4); }
-.tpl-fields .tpl-grow2 { grid-column: 1 / -1; }
+.tpl-fields { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0 var(--space-4); }
+.tpl-alltext { width: 120px; min-width: 0; }
 
 /* 分区（品牌编号方块） */
 .tpl-sec { counter-increment: tplsec; }
