@@ -33,6 +33,8 @@ from .services import (
     query_background_check_order,
     fetch_background_check_report,
     request_background_check,
+    upload_background_check_report,
+    aggregate_bg_suggestions,
     get_supplier,
 )
 
@@ -207,7 +209,7 @@ class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
     permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['config', 'status']
+    filterset_fields = ['config', 'status', 'candidate_id']
     ordering_fields = ['created_at', 'status', 'completion_time']
     ordering = ['-created_at']
 
@@ -222,15 +224,48 @@ class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='suppliers')
     def suppliers(self, request):
-        """列出可选背调供应商配置（仅暴露 id/name/provider，不含密钥）。"""
-        cfgs = IntegrationConfig.objects.filter(
+        """列出可选背调供应商配置（仅暴露 id/name/provider，不含密钥）。
+
+        mode=self_order  → 自主下单：SELF_CHECK 伪选项（自主背调）+ 所有启用供应商
+        mode=system_order → 系统下单：仅系统已对接供应商(is_system_integrated=True)
+        不传 mode → 返回所有启用供应商（向后兼容）。
+        """
+        mode = (request.query_params.get('mode') or '').strip()
+        qs = IntegrationConfig.objects.filter(
             type=IntegrationType.BACKGROUND_CHECK, is_active=True,
-        ).values('id', 'name', 'provider')
-        return Response({'success': True, 'data': list(cfgs)})
+        )
+        if mode == 'system_order':
+            qs = qs.filter(is_system_integrated=True)
+        cfgs = list(qs.values(
+            'id', 'name', 'provider', 'is_system_integrated', 'bg_metadata',
+        ))
+        if mode == 'self_order':
+            # 自主背调：无真实供应商，前端以伪选项呈现（无 metadata → 排名/标签全 null）
+            cfgs = [
+                {
+                    'id': '__SELF__', 'name': '自主背调', 'provider': 'SELF',
+                    'is_system_integrated': False, 'bg_metadata': None,
+                },
+            ] + cfgs
+        # 展开 bg_metadata 中的排名/标签；缺失则对应字段为 null（前端优雅降级不渲染）
+        for c in cfgs:
+            meta = c.get('bg_metadata') or {}
+            c['deliveryRank'] = meta.get('delivery_rank')
+            c['deliveryTag'] = meta.get('delivery_tag')
+            c['usageRank'] = meta.get('usage_rank')
+            c['usageTag'] = meta.get('usage_tag')
+            c.pop('bg_metadata', None)
+        return Response({'success': True, 'data': cfgs})
 
     @action(detail=False, methods=['get'], url_path='products')
     def products(self, request):
-        """拉取指定供应商的套餐/检查项（委托 supplier.query_products）。"""
+        """拉取指定供应商的套餐/检查项。
+
+        决策（后端）：
+        1. 配置优先：``config.bg_metadata.packages`` 非空 → 直接返回标准化套餐（离线可用，不调供应商）。
+        2. 否则回退：``supplier.query_products()``；成功则 ``source='supplier'`` 并规范化；
+           失败/空 → ``success=false`` 或 ``packages=[]``，前端走手动填检查项兜底。
+        """
         config_id = request.query_params.get('config_id')
         if not config_id:
             return Response(
@@ -245,6 +280,27 @@ class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 {'success': False, 'message': '供应商配置不存在或未启用'},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        # 1. 配置优先
+        metadata = config.bg_metadata or {}
+        packages_cfg = metadata.get('packages') or []
+        if packages_cfg:
+            normalized = []
+            for p in packages_cfg:
+                if not isinstance(p, dict):
+                    continue
+                name = p.get('name') or p.get('slug') or ''
+                normalized.append({
+                    'token': p.get('token') or name,
+                    'name': name,
+                    'workdays': p.get('workdays'),
+                    'features': p.get('features') or [],
+                })
+            return Response({
+                'success': True,
+                'message': '',
+                'data': {'source': 'config', 'packages': normalized},
+            })
+        # 2. 回退：调供应商接口
         try:
             supplier = get_supplier(config)
             res = supplier.query_products()
@@ -256,15 +312,50 @@ class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 {'success': False, 'message': f'套餐拉取失败: {e}'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+        if not res.success:
+            return Response({
+                'success': False,
+                'message': res.message or '套餐拉取失败',
+            }, status=status.HTTP_502_BAD_GATEWAY)
+        raw = res.data or {}
+        raw_list = (
+            raw.get('products') or raw.get('list') or raw.get('data') or []
+        )
+        if not isinstance(raw_list, list):
+            raw_list = []
+        normalized = []
+        for p in raw_list:
+            if not isinstance(p, dict):
+                continue
+            normalized.append({
+                'token': p.get('token') or p.get('productToken') or p.get('id')
+                or p.get('code') or '',
+                'name': p.get('name') or p.get('productName') or p.get('title') or '',
+                'workdays': p.get('workdays'),
+                'features': p.get('features') or [],
+            })
         return Response({
-            'success': res.success,
-            'message': res.message,
-            'data': res.data or {},
+            'success': True,
+            'message': res.message or '',
+            'data': {'source': 'supplier', 'packages': normalized},
         })
 
     @action(detail=False, methods=['post'], url_path='create-order')
     def create_order(self, request):
-        """发起背调：创建订单（委托 request_background_check）。"""
+        """发起背调：创建订单（委托 request_background_check）。
+
+        步骤式弹窗扩展入参：
+          channel(str)          下单渠道 SELF/SELF_ORDER/SYSTEM_ORDER（前端统一置 SYSTEM_ORDER/SELF_ORDER）
+          remark(str)           订单备注（无报告下单时承载背调建议）
+          parent_order_id(str)  补充背调时关联父订单
+          bg_suggestions(list)  背调建议快照
+          has_existing_report(bool) 是否已持有报告（占位，供前端语义一致）
+          package_name(str)    冗余存选中套餐名
+          bg_result(str)       背调结果（下单分支一般空）
+          contactable(bool)    是否可以联系候选人
+          subject_snapshot(dict) 背调人信息快照
+          expected_onboarding_date(str) 预计入职日期（透传供应商 expect_entry_time）
+        """
         candidate_id = (request.data.get('candidate_id') or '').strip()
         if not candidate_id:
             return Response(
@@ -280,6 +371,22 @@ class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         operator_name = (request.data.get('operator_name')
                          or getattr(request.user, 'name', '') or '').strip()
         operator_phone = (request.data.get('operator_phone') or '').strip()
+        channel = (request.data.get('channel') or 'SYSTEM_ORDER').strip()
+        remark = (request.data.get('remark') or '').strip()
+        parent_order_id = (request.data.get('parent_order_id') or '').strip()
+        bg_suggestions = request.data.get('bg_suggestions') or []
+        if not isinstance(bg_suggestions, list):
+            bg_suggestions = []
+        # 步骤式弹窗扩展字段
+        package_name = (request.data.get('package_name') or '').strip()
+        bg_result = (request.data.get('bg_result') or '').strip()
+        contactable = request.data.get('contactable')
+        if contactable is not None:
+            contactable = bool(contactable)
+        subject_snapshot = request.data.get('subject_snapshot') or {}
+        if not isinstance(subject_snapshot, dict):
+            subject_snapshot = {}
+        expected_onboarding_date = (request.data.get('expected_onboarding_date') or '').strip()
         result = request_background_check(
             candidate_id=candidate_id,
             items=items,
@@ -288,6 +395,16 @@ class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
             phone=phone,
             operator_name=operator_name,
             operator_phone=operator_phone,
+            channel=channel,
+            remark=remark,
+            parent_order_id=parent_order_id,
+            bg_suggestions=bg_suggestions,
+            has_existing_report=bool(request.data.get('has_existing_report')),
+            package_name=package_name,
+            bg_result=bg_result,
+            contactable=contactable,
+            subject_snapshot=subject_snapshot,
+            expected_onboarding_date=expected_onboarding_date,
         )
         if not result.get('success'):
             return Response({
@@ -295,6 +412,101 @@ class BackgroundCheckOrderViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
                 'message': result.get('error') or result.get('message') or '发起背调失败',
             }, status=status.HTTP_400_BAD_REQUEST)
         return Response({'success': True, 'data': result.get('data')})
+
+    @action(detail=False, methods=['post'], url_path='upload-report')
+    def upload_report(self, request):
+        """已有报告上传 / 自主背调（步骤式弹窗「已有报告」分支）。
+
+        入参：
+          candidate_id(str)       候选人 ID（必填）
+          candidate_name(str)     候选人姓名
+          phone(str)              手机号
+          report_url(str)         报告地址（或文件 URL）
+          remark(str)             备注
+          answers(list)           背调建议回答 [{interviewer, answer}]
+          bg_suggestions(list)    背调建议快照（来自 bg-suggestions 接口）
+          parent_order_id(str)    补充背调时关联父订单
+          package_name(str)       图2 套餐名称
+          bg_provider(str)        图2 背调供应商
+          bg_time(str)            图2 背调时间（ISO）
+          bg_result(str)          图2 背调结果（BGResult）
+          subject_snapshot(dict)  背调人信息快照
+        """
+        candidate_id = (request.data.get('candidate_id') or '').strip()
+        if not candidate_id:
+            return Response(
+                {'success': False, 'message': '缺少 candidate_id'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        report_url = (request.data.get('report_url') or '').strip()
+        if not report_url:
+            return Response(
+                {'success': False, 'message': '请填写报告地址或上传报告'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        candidate_name = (request.data.get('candidate_name') or '').strip()
+        phone = (request.data.get('phone') or '').strip()
+        operator_name = (request.data.get('operator_name')
+                         or getattr(request.user, 'name', '') or '').strip()
+        remark = (request.data.get('remark') or '').strip()
+        answers = request.data.get('answers') or []
+        if not isinstance(answers, list):
+            answers = []
+        bg_suggestions = request.data.get('bg_suggestions') or []
+        if not isinstance(bg_suggestions, list):
+            bg_suggestions = []
+        parent_order_id = (request.data.get('parent_order_id') or '').strip()
+        package_name = (request.data.get('package_name') or '').strip()
+        bg_provider = (request.data.get('bg_provider') or '').strip()
+        bg_time = (request.data.get('bg_time') or '').strip()
+        bg_result = (request.data.get('bg_result') or '').strip()
+        subject_snapshot = request.data.get('subject_snapshot') or {}
+        if not isinstance(subject_snapshot, dict):
+            subject_snapshot = {}
+        result = upload_background_check_report(
+            candidate_id=candidate_id,
+            candidate_name=candidate_name,
+            phone=phone,
+            report_url=report_url,
+            remark=remark,
+            answers=answers,
+            bg_suggestions=bg_suggestions,
+            parent_order_id=parent_order_id,
+            operator_name=operator_name,
+            package_name=package_name,
+            bg_provider=bg_provider,
+            bg_time=bg_time,
+            bg_result=bg_result,
+            subject_snapshot=subject_snapshot,
+        )
+        if not result.get('success'):
+            return Response({
+                'success': False,
+                'message': result.get('error') or '上传背调报告失败',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'data': result.get('data')})
+
+    @action(detail=False, methods=['get'], url_path='bg-suggestions')
+    def bg_suggestions(self, request):
+        """聚合某候选人来自各面试官的背调建议（按面试官去重，取最新一条）。
+
+        查询参数 candidate_id（必填）。
+        """
+        candidate_id = (request.query_params.get('candidate_id') or '').strip()
+        if not candidate_id:
+            return Response(
+                {'success': False, 'message': '缺少 candidate_id'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            data = aggregate_bg_suggestions(candidate_id)
+        except (OperationalError, ValueError) as e:
+            logger.exception('aggregate_bg_suggestions failed candidate=%s', candidate_id)
+            return Response(
+                {'success': False, 'message': f'聚合背调建议失败: {e}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return Response({'success': True, 'data': data})
 
     @action(detail=True, methods=['post'], url_path='cancel')
     def cancel(self, request, pk=None):

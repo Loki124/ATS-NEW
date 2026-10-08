@@ -97,15 +97,21 @@ class BackgroundCheckOrderSerializer(serializers.ModelSerializer):
     config_provider = serializers.CharField(source='config.provider', read_only=True, default='')
     status_display = serializers.SerializerMethodField()
     risk_level_display = serializers.SerializerMethodField()
+    channel_display = serializers.SerializerMethodField()
+    bg_result_display = serializers.SerializerMethodField()
 
     class Meta:
         model = BackgroundCheckOrder
         fields = [
             'id', 'config', 'config_name', 'config_provider',
             'order_number', 'candidate_id', 'candidate_name',
+            'channel', 'channel_display', 'remark', 'is_supplementary',
+            'parent_order_id', 'bg_suggestions',
             'status', 'status_display', 'status_name',
             'risk_level', 'risk_level_display', 'report_url', 'completion_time',
             'latest_payload', 'created_at', 'updated_at',
+            'package_name', 'bg_provider', 'bg_time', 'bg_result', 'bg_result_display',
+            'contactable', 'subject_snapshot',
         ]
         read_only_fields = fields
 
@@ -116,6 +122,14 @@ class BackgroundCheckOrderSerializer(serializers.ModelSerializer):
     def get_risk_level_display(self, obj):
         from .models import BGRiskLevel
         return obj.risk_label
+
+    def get_channel_display(self, obj):
+        from .models import BGChannel
+        return obj.channel_label
+
+    def get_bg_result_display(self, obj):
+        from .models import BGResult
+        return obj.get_bg_result_display()
 
 
 class BackgroundCheckOrderDetailSerializer(BackgroundCheckOrderSerializer):

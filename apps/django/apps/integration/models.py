@@ -32,6 +32,13 @@ class IntegrationConfig(TimestampedModel, SoftDeleteModel):
     field_mapping = models.JSONField(default=dict, verbose_name='字段映射')
 
     is_active = models.BooleanField(default=True, db_index=True, verbose_name='启用')
+    # 是否系统已对接（决定「系统下单」可选范围；自主下单额外包含自主背调与所有供应商）
+    is_system_integrated = models.BooleanField(default=True, db_index=True, verbose_name='系统已对接')
+    # 背调展示元数据：交付效率/使用率排名与标签、套餐目录；前端未配置时优雅降级
+    bg_metadata = models.JSONField(
+        default=dict, blank=True, verbose_name='背调展示元数据',
+        help_text='交付效率/使用率排名与标签、套餐目录；前端未配置时优雅降级',
+    )
     last_sync_at = models.DateTimeField(null=True, blank=True, verbose_name='最后同步时间')
 
     class Meta:
@@ -105,6 +112,20 @@ class BGOrderStatus(models.IntegerChoices):
             return ''
 
 
+class BGChannel(models.TextChoices):
+    """背调下单渠道（步骤式弹窗：自主背调 / 自主下单 / 系统下单）"""
+    SELF = 'SELF', '自主背调'
+    SELF_ORDER = 'SELF_ORDER', '自主下单'
+    SYSTEM_ORDER = 'SYSTEM_ORDER', '系统下单'
+
+    @classmethod
+    def label_of(cls, value):
+        try:
+            return cls(value).label
+        except ValueError:
+            return ''
+
+
 class BGRiskLevel(models.IntegerChoices):
     """背调风险等级（统一规范 §2.3）"""
     LOW = 1, '低风险'
@@ -112,6 +133,25 @@ class BGRiskLevel(models.IntegerChoices):
     HIGH = 3, '高风险'
     NONE = 4, '无风险'
     UNRATED = 9, '未评级'
+
+    @classmethod
+    def label_of(cls, value):
+        try:
+            return cls(value).label
+        except ValueError:
+            return ''
+
+
+class BGResult(models.TextChoices):
+    """背调结果（上传分支 HR 人工结论，独立于供应商 risk_level）。
+
+    默认空串 '' 表示「未填」，以区别于 PENDING（待定）。
+    """
+
+    PASS = 'PASS', '通过'
+    DOUBT = 'DOUBT', '存疑'
+    FAIL = 'FAIL', '不通过'
+    PENDING = 'PENDING', '待定'
 
     @classmethod
     def label_of(cls, value):
@@ -144,8 +184,21 @@ class BackgroundCheckOrder(TimestampedModel, SoftDeleteModel):
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     config = models.ForeignKey(
         IntegrationConfig, on_delete=models.CASCADE,
-        related_name='bg_orders', verbose_name='供应商配置',
+        related_name='bg_orders', verbose_name='供应商配置', null=True, blank=True,
     )
+    # 下单渠道（步骤式弹窗）：SELF(自主背调) / SELF_ORDER(自主下单) / SYSTEM_ORDER(系统下单)
+    channel = models.CharField(
+        max_length=16, choices=BGChannel.choices, default=BGChannel.SYSTEM_ORDER,
+        db_index=True, verbose_name='下单渠道',
+    )
+    # 订单备注 / 背调建议承载（无报告下单时填充背调建议；上传时承载回答）
+    remark = models.TextField(blank=True, verbose_name='订单备注/背调建议')
+    # 是否补充背调（待入职/补充场景）
+    is_supplementary = models.BooleanField(default=False, db_index=True, verbose_name='是否补充背调')
+    # 父订单（补充背调关联）
+    parent_order_id = models.CharField(max_length=32, blank=True, default='', db_index=True, verbose_name='父订单ID')
+    # 背调建议快照（按面试官）：[{interviewer, interviewer_name, suggestion, answer}]
+    bg_suggestions = models.JSONField(default=list, blank=True, verbose_name='背调建议快照')
     order_number = models.CharField(max_length=64, verbose_name='订单号(number)', help_text='平台生成，全链路主键')
     candidate_id = models.CharField(max_length=64, blank=True, default='', db_index=True, verbose_name='候选人ID')
     candidate_name = models.CharField(max_length=64, blank=True, default='', verbose_name='候选人姓名')
@@ -157,6 +210,17 @@ class BackgroundCheckOrder(TimestampedModel, SoftDeleteModel):
     report_url = models.CharField(max_length=512, blank=True, default='', verbose_name='报告地址')
     completion_time = models.DateTimeField(null=True, blank=True, verbose_name='完成时间')
     latest_payload = models.JSONField(null=True, blank=True, verbose_name='最近一次回调/响应原始体')
+    # 上传分支：套餐名称（冗余可读）/ 自主背调供应商（自由文本，无 FK）/ 背调时间 / 背调结果（人工结论）
+    package_name = models.CharField(max_length=100, blank=True, default='', verbose_name='套餐名称')
+    bg_provider = models.CharField(max_length=100, blank=True, default='', verbose_name='背调供应商')
+    bg_time = models.DateTimeField(null=True, blank=True, verbose_name='背调时间')
+    bg_result = models.CharField(
+        max_length=16, blank=True, default='', choices=BGResult.choices, verbose_name='背调结果',
+    )
+    # 下单分支：是否可以联系候选人（null=未选）
+    contactable = models.BooleanField(null=True, blank=True, verbose_name='是否可以联系候选人')
+    # 背调人信息快照（不建 Candidate 新列，避免迁移扩散）
+    subject_snapshot = models.JSONField(default=dict, blank=True, verbose_name='背调人信息快照')
 
     class Meta:
         db_table = 'background_check_orders'
@@ -171,6 +235,10 @@ class BackgroundCheckOrder(TimestampedModel, SoftDeleteModel):
     @property
     def status_label(self):
         return BGOrderStatus.label_of(self.status)
+
+    @property
+    def channel_label(self):
+        return BGChannel.label_of(self.channel)
 
     @property
     def risk_label(self):

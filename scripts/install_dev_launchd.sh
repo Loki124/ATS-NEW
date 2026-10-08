@@ -30,13 +30,14 @@ mkdir -p "$LAUNCH_DIR" "$LOG_DIR"
 FE="$LAUNCH_DIR/com.ats.dev.fe.plist"
 BE="$LAUNCH_DIR/com.ats.dev.be.plist"
 CELERY="$LAUNCH_DIR/com.ats.dev.celery.plist"
+DASH="$LAUNCH_DIR/com.ats.ops.dashboard.plist"
 
 uninstall() {
-  for label in com.ats.dev.fe com.ats.dev.be com.ats.dev.celery; do
+  for label in com.ats.dev.fe com.ats.dev.be com.ats.dev.celery com.ats.ops.dashboard; do
     launchctl bootout "gui/$UID_NUM/$label" 2>/dev/null || true
   done
-  rm -f "$FE" "$BE"
-  echo "[uninstall] 已卸载两个 plist 并 bootout"
+  rm -f "$FE" "$BE" "$CELERY" "$DASH"
+  echo "[uninstall] 已卸载 plist 并 bootout"
   exit 0
 }
 
@@ -175,22 +176,57 @@ NODE_BIN="$(ls -d "$HOME/.workbuddy/binaries/node/versions"/*/bin 2>/dev/null | 
 # 注意：macOS BSD sed 的 -i 必须带扩展名（-i.bak 形式最稳）；toybox/GNU sed 也兼容。
 # 之前 "-i''" 紧贴写法在部分 macOS sed 上会把 plist 路径误判为脚本命令而报
 # "extra characters at the end of l command"，故改用 -i.bak 并随后清理 .bak。
-sed -i.bak "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$FE" "$BE" "$CELERY"
+sed -i.bak "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$FE" "$BE" "$CELERY" "$DASH"
 sed -i.bak "s|NODE_BIN_PLACEHOLDER|$NODE_BIN|g" "$FE"
-rm -f "$FE.bak" "$BE.bak"
+rm -f "$FE.bak" "$BE.bak" "$CELERY.bak" "$DASH.bak"
 
-plutil -lint "$FE" "$BE"
+plutil -lint "$FE" "$BE" "$DASH"
 
 # 自愈包装器需可执行
 chmod +x "$SCRIPT_DIR/dev_service_wrapper.sh"
 
-for f in "$FE" "$BE" "$CELERY"; do
+# 运维看板 plist（看板作为真实进程运行，故能调 launchctl 控制 dev 服务）
+cat > "$DASH" <<'PLIST_EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ats.ops.dashboard</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>PROJECT_DIR_PLACEHOLDER/scripts/ops_dashboard.py</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>PROJECT_DIR_PLACEHOLDER</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>5</integer>
+  <key>StandardOutPath</key>
+  <string>PROJECT_DIR_PLACEHOLDER/.run-logs/ops-dashboard-stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>PROJECT_DIR_PLACEHOLDER/.run-logs/ops-dashboard-stderr.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>
+PLIST_EOF
+
+for f in "$FE" "$BE" "$CELERY" "$DASH"; do
   launchctl bootout "gui/$UID_NUM/$(basename "$f" .plist)" 2>/dev/null || true
 done
 
 launchctl bootstrap "gui/$UID_NUM" "$FE" || { echo "[fail] bootstrap $FE"; exit 1; }
 launchctl bootstrap "gui/$UID_NUM" "$BE" || { echo "[fail] bootstrap $BE"; exit 1; }
 launchctl bootstrap "gui/$UID_NUM" "$CELERY" || { echo "[fail] bootstrap $CELERY"; exit 1; }
+launchctl bootstrap "gui/$UID_NUM" "$DASH" || { echo "[fail] bootstrap $DASH"; exit 1; }
 
 sleep 4
 
@@ -209,6 +245,6 @@ curl --noproxy '*' -s -o /dev/null -w "frontend :5212 → %{http_code}\n" http:/
 curl --noproxy '*' -s -o /dev/null -w "backend  :8000 → %{http_code}\n" http://127.0.0.1:8000/health/
 
 echo ""
-echo "[ok] 已安装 launchd agent。下次登录/重启 Mac 自动拉起 dev 服务。"
+echo "[ok] 已安装 launchd agent（含运维看板）。下次登录/重启 Mac 自动拉起 dev 服务与看板。"
 echo "卸载：bash $SCRIPT_DIR/install_dev_launchd.sh --uninstall"
 echo "日志：tail -f $LOG_DIR/vite-stdout.log 或 $LOG_DIR/django-stdout.log"
