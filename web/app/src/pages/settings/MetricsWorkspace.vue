@@ -355,7 +355,7 @@
       v-model:show="showTemplateModal"
       preset="card"
       :closable="true"
-      style="width: 720px; max-width: 94vw; max-height: 90vh;"
+      style="width: 880px; max-width: 94vw; max-height: 90vh;"
       :mask-closable="false"
     >
       <template #header>
@@ -470,17 +470,17 @@
           <div class="tpl-range-row">
             <div class="tpl-range-item">
               <span class="tpl-range-lbl">{{ t('metrics.tpl.range') }}</span>
-              <n-input-number v-model:value="tplForm.paramConfig.min" :precision="paramPrecision" :show-button="false" class="tpl-range-num">
+              <n-input-number v-model:value="tplForm.paramConfig.min" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num">
                 <template #suffix>{{ currentParamUnit }}</template>
               </n-input-number>
               <span class="tpl-range-sep">~</span>
-              <n-input-number v-model:value="tplForm.paramConfig.max" :precision="paramPrecision" :show-button="false" class="tpl-range-num">
+              <n-input-number v-model:value="tplForm.paramConfig.max" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num">
                 <template #suffix>{{ currentParamUnit }}</template>
               </n-input-number>
             </div>
             <div class="tpl-range-item">
               <span class="tpl-range-lbl">{{ t('metrics.tpl.step') }}</span>
-              <n-input-number v-model:value="tplForm.paramConfig.step" :min="0" :precision="paramPrecision" :show-button="false" class="tpl-range-num">
+              <n-input-number v-model:value="tplForm.paramConfig.step" :min="0" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num">
                 <template #suffix>{{ currentParamUnit }}</template>
               </n-input-number>
             </div>
@@ -585,7 +585,7 @@
               {{ t('metrics.tpl.previewHint') }}
             </n-tooltip>
           </div>
-          <div class="tpl-preview-row">
+          <div class="tpl-preview-row" :class="{ 'no-param': !showTemplateParamConfig }">
             <n-select
               :value="previewMetricItemValue"
               :options="previewMetricItemOptions"
@@ -1602,6 +1602,17 @@ const showTemplateParamConfig = computed<boolean>(() => {
 })
 
 const paramPrecision = computed<number>(() => {
+  const d = selectedTemplateDefinition.value
+  return d?.paramType === 'continuous' ? 2 : 0
+})
+
+// 参数配置精度的实际数据类型：取值范围约束的是「入参」（如 recent_n 段数），
+// 不应继承出参的 paramType（continuous→2 位）而把段数显示成 1.00。
+// 计数类单位（段/天/次/人…）→ 整数；其余回退到出参 paramType 精度。
+const PARAM_INTEGER_UNITS = new Set(['段', '天', '次', '人', '个', '条', '名', '位', '项', '笔', '单', '篇', '场'])
+const paramConfigPrecision = computed<number>(() => {
+  const u = currentParamUnit.value
+  if (PARAM_INTEGER_UNITS.has(u)) return 0
   const d = selectedTemplateDefinition.value
   return d?.paramType === 'continuous' ? 2 : 0
 })
@@ -2722,17 +2733,24 @@ onUnmounted(() => {
 .tpl-preview-field { margin-bottom: var(--space-2); }
 .tpl-preview-field:last-child { margin-bottom: 0; }
 .tpl-section-body { display: flex; flex-direction: column; gap: var(--space-2); }
-.tpl-range-sep { color: var(--ink-faint); padding-bottom: 8px; }
+.tpl-range-sep { color: var(--ink-faint); align-self: center; }
 
-/* 参数配置紧凑单行（对齐原型 param-row） */
-.tpl-range-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4); }
-.tpl-range-item { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; }
+/* 参数配置紧凑单行（对齐原型 param-row）：单行不换行，窄屏由媒体查询放开 */
+.tpl-range-row { display: flex; flex-wrap: nowrap; align-items: stretch; gap: var(--space-3); min-width: 0; }
+.tpl-range-item {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap;
+  padding: var(--space-2) var(--space-3);
+  background: var(--g1);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
 .tpl-range-lbl { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; }
-.tpl-range-num { width: 96px; }
+.tpl-range-num { width: 80px; }
 .tpl-range-static { color: var(--ink-soft); font-size: var(--fs-12); }
 .tpl-range-all { gap: var(--space-2); }
 .tpl-all-text { color: var(--ink-soft); font-size: var(--fs-12); white-space: nowrap; }
-.tpl-mini { width: 84px; }
+.tpl-mini { width: 64px; min-width: 0; }
 
 /* 值域分段卡片（对齐原型 seg-row / seg-list） */
 .tpl-seg-card {
@@ -2777,11 +2795,17 @@ onUnmounted(() => {
 .ds-tag { font-weight: 600; white-space: nowrap; }
 .ds-vals { color: var(--ink-soft); line-height: 1.6; }
 
-/* 配置预览单行四联下拉（对齐原型 pv-row） */
-.tpl-preview-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
-.pv-select { min-width: 132px; flex: 0 1 auto; }
-.pv-arrow { color: var(--ink-faint); flex-shrink: 0; }
-.pv-then { color: var(--ink-faint); font-size: var(--fs-12); margin-left: var(--space-1); }
+/* 配置预览：一行四列网格（指标项 → 参数 → 运算符 → 校验值），窄屏降级 2×2 */
+.tpl-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+}
+.tpl-preview-row.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
+.pv-select { min-width: 0; width: 100%; }
+.pv-arrow { color: var(--ink-faint); flex-shrink: 0; justify-self: center; }
+.pv-then { grid-column: 1 / -1; justify-self: end; color: var(--ink-faint); font-size: var(--fs-12); }
 
 /* 出参 bar 辅助 */
 .tpl-out-sep { color: var(--ink-faint); }
@@ -2926,5 +2950,11 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .tpl-section-hint { margin-left: 0; width: 100%; }
   .tpl-output-hint { margin-left: 0; width: 100%; }
+  /* 窄屏：参数配置放开换行、预览降级 2×2，避免过度拥挤 */
+  .tpl-range-row { flex-wrap: wrap; }
+  .tpl-preview-row,
+  .tpl-preview-row.no-param { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .pv-arrow { display: none; }
+  .pv-then { grid-column: 1 / -1; }
 }
 </style>
