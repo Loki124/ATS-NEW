@@ -391,6 +391,68 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - 禁止页面再写 .rule-modal/.import-modal/.dim-modal 之类的居中/滚动 scoped 规则（CampusControl 原重复定义已删除）。
 - 仅「密集表单的紧凑间距微调」允许保留（如 CampusControl 的 .batch-modal 紧凑 padding），且不得改变玻璃/圆角/滚动语义。
 
+### 6.1 表单弹窗遮罩关闭守卫（useCloseGuard，2026-10-08 新增）
+
+**根因**：Naive UI `<n-modal>` 的 `mask-closable` 默认 `true`。含可编辑表单的弹窗（如 CampusControl 的指标/维度弹窗、权限角色编辑弹窗、公告编辑抽屉等）吃默认行为 → 用户点遮罩**静默关闭并丢弃未保存草稿**，无任何二次确认。同时各弹窗遮罩关闭行为不统一（有的点遮罩关、有的不关），属体验一致性缺陷。
+
+**统一约定（方案 B）**：抽公共 `web/app/src/composables/useCloseGuard.ts` —— `requestClose()` 做脏检查 + 「放弃未保存的修改？」二次确认（`useDialog().warning` + `useMessage().warning`），保存中（`isSaving`）拦截并提示。按弹窗 preset 分两类接线：
+
+**① card-preset 表单弹窗**（受控，避免程序化成功关闭误回显 `update:show`）：
+```html
+<n-modal
+  :show="show"
+  preset="card"
+  title="标题"
+  :bordered="false"
+  :mask-closable="false"
+  :on-mask-click="requestClose"
+  @update:show="(v: boolean) => !v && requestClose()"
+>
+  ... 表单 ...
+  <template #footer>
+    <n-button @click="requestClose">取消</n-button>
+    <n-button type="primary" :loading="saving" @click="submit">保存</n-button>
+  </template>
+</n-modal>
+```
+```ts
+const { requestClose } = useCloseGuard({
+  isSaving: () => saving,            // 保存中拦截
+  isDirty: () => formDirty,          // 返回 true 表示有未保存改动
+  onClose: () => { show = false },   // 仅确认放弃后由 onPositiveClick 调用
+  title: '放弃未保存的修改？',
+  content: '当前内容尚未保存，关闭后将丢失。确定要放弃吗？',
+})
+```
+- `v-model:show` → `:show` + `@update:show` 受控；footer「取消」由 `@click="show=false"` 改为 `@click="requestClose"`（经脏检查）。
+- 程序化成功关闭（`submit` 成功后 `show=false`）**不**经 `requestClose`，故不误弹确认。
+
+**② dialog-preset 表单弹窗**（保留 `v-model:show` 规避竞态 + `@positive-click`/`@negative-click` 钩子）：
+```html
+<n-modal
+  v-model:show="show"
+  preset="dialog"
+  title="标题"
+  :mask-closable="false"
+  :close-on-esc="false"
+  :on-mask-click="requestClose"
+  @negative-click="requestClose"
+>
+  ... 表单 ...
+</n-modal>
+```
+- `requestClose` **必须返回 `false`** 以阻止 Naive 在钩子里自动关闭（先于确认弹窗）。`isSaving` 时 `message.warning` 并返 `false`；`isDirty` 时弹 `dialog.warning` 二次确认，确认后 `onClose()`；都不满足也返 `false` 并直接 `onClose()`。
+- 保留 `v-model:show` 而非受控，规避「钩子里返回真值 → Naive 自动关 + emit update:show」与受控 `:show` 的竞态。
+
+**③ 只读 / 简单弹窗（Group 2，无编辑态）**：仅加 `:mask-closable="false"` 锁遮罩（如 InterviewEvaluationModal / ScrapedResumeList 抓取弹窗 / ProcessStageEditor 限流/重命名弹窗），**不**接 `useCloseGuard` 守卫逻辑。
+
+**强制项**：
+- 含可编辑表单的弹窗**不得** `mask-closable` 默认 `true`（丢草稿）；必须按 ① / ② 接 `useCloseGuard` 守卫。
+- `requestClose` 在 dialog-preset 下返回值恒为 `false`（含 `onClose` 直接关闭分支），禁止返回真值。
+- 守卫依赖全局 `NDialogProvider` / `NMessageProvider`（已挂载），页面直接 `useDialog()` / `useMessage()`。
+
+**落地范围（commit a9e85bb6，2026-10-08）**：21 个文件、+300/−40 —— `useCloseGuard.ts` 新增 + 20 个 `.vue`（30 个含可编辑表单弹窗按方案 B 全量接入：21 接守卫 + 7 仅锁遮罩 + 2 只读豁免）。eslint exit 0 + `vite build --mode nocheck` 通过。
+
 ## 7. 自检清单（新增/修改设置页必过）
 
 - [ ] 根元素是 `<div class="page-container">`（非私有 .cc-page/.xxx-page）
@@ -405,6 +467,7 @@ scoped 仅需保留三条布局链（视觉全走全局）：
 - [ ] 表格包在 `<div class="table-wrap">` 内，scoped 无 .table-wrap 重复定义
 - [ ] **数据列表页「仅表体内部滚动」**：多 tab + 每 tab 一表的页，`.page-body` 为 `overflow:hidden` 的 flex 列（非整页滚）；`:deep(.n-tabs-nav)`/`.filter-row` 加 `flex-shrink:0` 固定；`n-data-table` 带 `flex-height`、外层 `.table-wrap`（flex:1;min-height:0）。滚动时 `.page-header`/tab 导航/筛选栏 `top` 恒定（§2.2）
 - [ ] 弹窗用 n-modal preset="card" + :bordered="false"，scoped 无居中/滚动重复定义
+- [ ] **表单弹窗遮罩关闭守卫**：含可编辑表单的 n-modal 不得 `mask-closable` 默认 `true`；card-preset 走 `:show`+`:mask-closable="false"`+`:on-mask-click`+`@update:show="(v)=>!v&&requestClose()"`+footer 取消走 `requestClose`；dialog-preset 保留 `v-model:show`+`:mask-closable="false"`+`:close-on-esc="false"`+`@negative-click="requestClose"` 且 `requestClose` 恒返 `false`；只读弹窗仅加 `:mask-closable="false"`（§6.1）
 - [ ] KPI 用 .kpi-row > .kpi-card；强调卡用 .kpi-card--accent（CSS 变量）；**不得私有重定义 .kpi-* 或硬编码 hex**
 - [ ] 主按钮用 gradient-btn 或 type="primary"，未私有重定义渐变
 - [ ] **卡选择决策树（§4.y）**：页面根内容容器用 `.glass-panel` / `.glass-panel--card` 变体；模板 `<n-card>` 只允许出现在 `<n-modal>` 内 + 子卡命名空间（`.tab-card` / `.lib-card` / `.config-card` / `.ra-card` / `.settings-section` / `.cs-card` / `.ca-card` / `.policy-table-card` / `.stage-card` 等）。带标题的卡用 `<div class="glass-panel glass-panel--card">` + `<div class="glass-panel__title">` + `<div class="glass-panel__body">`，右侧操作放 `.glass-panel__title-extra`。
@@ -507,6 +570,17 @@ scoped 仅需保留三条布局链（视觉全走全局）：
   · 累计 23 张多卡全部迁移，n-card 全部清零；Playwright 真机：`nCardCount=0` / `cardCount=23` / `backdrop=blur(28px)` / `borderRadius=20px`（DemandConfig 8px）/ `consoleErrCount=0`；截图视觉确认玻璃面板呈现正确。
 - **§4.y 新增**：卡选择决策树 + `.glass-panel--card` 变体 API + `n-card` → `.glass-panel--card` 迁移模板（含 `:title` / `<template #header>` / `<template #header-extra>` 三种场景）+ 强制项（禁私设等价样式 / 禁带 class 的 `<n-card>` / 删 `:deep(.n-card-*)` 死代码 / 删 `NCard` import / 暗色自动跟随）+ 自检（模板 `n-card` 仅出现在 `<n-modal>` 内或子卡命名空间 + 表格包在 `glass-panel__body` 内 + 暗色 `var(--ink)` 反色）。
 - **影响**：未来新增带标题卡**零成本**复用 `.glass-panel--card`（无需每次重写）；存量债（18 个含 n-card 页面）的 4 个多卡页已迁移，14 个子卡（含 `<n-modal>` 内 n-card 与功能性子卡）按命名空间保留——**甄别规则见 §4.y 决策树**，避免误迁。
+
+## 8.10 规范修订记录（2026-10-08，表单弹窗遮罩关闭守卫 useCloseGuard）
+
+- **背景**：兵哥发现「有的弹窗点遮罩区域会关闭弹窗，有的不会」，要求统一。诊断根因——含可编辑表单的弹窗吃 Naive UI `mask-closable` 默认 `true`，点遮罩**静默丢草稿**；且各弹窗遮罩行为不一致。
+- **方案 B（抽公共 composable）**：新增 `web/app/src/composables/useCloseGuard.ts`，`requestClose()` 做脏检查 + 「放弃未保存的修改？」二次确认（`useDialog().warning` + `useMessage().warning`），`isSaving` 拦截并提示。按 preset 分两变体接线：① card-preset 受控（`:show`+`:mask-closable="false"`+`:on-mask-click`+`@update:show="(v)=>!v&&requestClose()"`+footer 取消走 `requestClose`）；② dialog-preset 保留 `v-model:show`+`:mask-closable="false"`+`:close-on-esc="false"`+`@negative-click="requestClose"`，`requestClose` **恒返 `false`** 阻止 Naive 钩子自动关闭（规避竞态）；③ 只读/简单弹窗仅加 `:mask-closable="false"`（Group 2）。
+- **代码（21 文件 +300/−40，commit a9e85bb6）**：`useCloseGuard.ts` 新增 + 20 个 `.vue` 全量接入——CampusControl（3 表单弹窗 + 2 导入抽屉锁遮罩）/ ResourcesTab（资源弹窗）/ RoleEditModal / RolesTab（克隆弹窗）/ AnnouncementSettings（编辑抽屉 + 推送 dialog 锁遮罩）/ InterviewEvaluationModal / ScrapedResumeList / ProcessStageEditor（Group 2 锁遮罩）。30 个含可编辑表单弹窗分类：21 接守卫 + 7 仅锁遮罩 + 2 只读豁免。
+- **验证**：eslint（9 关键文件）exit 0；`vite build --mode nocheck` built in 17.80s，无 error/warning。提交纪律——逐路径 add 21 文件，**刻意排除** 4 个无关预存改动（SystemSwitcher.vue / Layout.vue / zh-CN.ts / en-US.ts，属菜单重构任务）。
+- **§6 新增**：§6.1「表单弹窗遮罩关闭守卫（useCloseGuard）」——根因 + 两变体接线模板 + 强制项（含可编辑表单弹窗禁 `mask-closable` 默认 `true` / dialog-preset `requestClose` 恒返 `false` / 守卫依赖全局 Provider）+ 落地范围。
+- **§7 修订**：自检清单新增「表单弹窗遮罩关闭守卫」勾项（card/dialog 两变体 + 只读弹窗仅锁遮罩）。
+- **§8 修订**：本节 8.10 修订记录。
+- **影响**：30 个含可编辑表单弹窗全部点遮罩统一走脏检查二次确认（或仅锁遮罩），不再静默丢草稿；遮罩关闭行为全系统一致。纯前端，零后端改动。
 
 ---
 

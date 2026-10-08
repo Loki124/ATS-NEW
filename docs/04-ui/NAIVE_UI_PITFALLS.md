@@ -1,5 +1,5 @@
 # Naive UI 2.44.1 实战坑与 Vue 库联动反模式
-> 最后更新：2026-09-20（依据 git 最后提交）
+> 最后更新：2026-10-08（依据 git 最后提交）
 
 > 适用：ATS-NEW 前端 Vue 3 + Naive UI 2.44.1 + @vicons/ionicons5 + vue-draggable-plus 0.6.x。
 > 收录范围：实战中翻车过的组件/API 错用、文档未明示但实际行为不符直觉的坑。
@@ -161,9 +161,28 @@ body > .v-binder-follower-container
 
 ---
 
-## 6. 关联文档
+## 6. n-modal 遮罩关闭与 dialog-preset 自动关闭竞态（2026-10-08）
+
+### 6.1 `mask-closable` 默认 true 静默丢草稿
+
+- `<n-modal>` 的 `mask-closable` 默认 `true`。含可编辑表单的弹窗若不动它，**点遮罩直接关闭且丢弃未保存草稿**，无任何二次确认。
+- 修法（方案 B，见 `SETTINGS_PAGE_STRUCTURE.md` §6.1）：抽 `web/app/src/composables/useCloseGuard.ts`，`requestClose()` 脏检查 + 二次确认；card-preset 受控、dialog-preset 保留 `v-model:show`。
+
+### 6.2 dialog-preset `@positive-click`/`@negative-click` 是钩子，返回真值会触发自动关闭（竞态坑）
+
+- `preset="dialog"` 的 `@positive-click` / `@negative-click` 是**钩子函数**而非纯事件——处理函数返回真值（包括 `async` 函数返回 Promise，Promise 恒为真）时，Naive UI 会**自动关闭弹窗并 emit `update:show(false)`**。
+- 受控写法 `:show="x"` + `@update:show` 下，若钩子返回真值，Naive 自动关 + emit，与你的 `:show` 受控值产生竞态（成功关闭反而误触 `requestClose` 二次确认，或关闭状态不一致）。
+- **正确接法**：dialog-preset 表单弹窗**保留 `v-model:show`**（规避竞态），并让 `requestClose` **恒返 `false`**——`isSaving` 时 `message.warning` 返 `false`；`isDirty` 时弹 `dialog.warning` 二次确认（确认后 `onClose()`），返 `false`；都不满足也返 `false` 并直接 `onClose()`。返回 `false` 阻止 Naive 自动关闭，把关闭权完全交给守卫逻辑。
+- ❌ 反例：`requestClose` 在「无脏数据」分支返回 `true` 或 `void`（async 隐式 Promise 真）→ Naive 自动关 + emit，与受控 `:show` 打架。
+- ✅ 正例：`useCloseGuard.ts` 的 `requestClose` 所有分支 `return false`（见源码）。
+- 验证：`vite build --mode nocheck` 通过；21 文件 +300/−40（commit a9e85bb6，已推送 origin/main）。
+
+---
+
+## 7. 关联文档
 
 - 设置页滚动契约（`.page-body` 滚动链） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md`
+- 表单弹窗遮罩关闭守卫（useCloseGuard 接法） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md` §6.1
 - 标准简历三层结构 + 拖拽 → `docs/04-ui/STANDARD_RESUME_SETTINGS.md`
 - 分页统一组件 → `docs/04-ui/USE_TABLE_PAGINATION.md`
 - 工程铁律（CSV BOM/PATCH 500/序列化器） → `docs/06-runbook/ENGINEERING_RULES.md`
