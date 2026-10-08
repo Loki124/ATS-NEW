@@ -1,158 +1,27 @@
-import axios, { AxiosError, AxiosResponse } from 'axios';
-import { useUserStore } from '../stores/user';
-import { useSystemStore } from '../stores/system';
+/**
+ * 认证 API 模块 (auth.ts)
+ *
+ * P2 收敛说明:
+ *  本模块此前自建 axios 实例并重复实现 isRefreshing/refreshSubscribers 刷新队列，
+ *  与 utils/request 的双飞机器并存，并发 401 可能触发两次 /auth/refresh/。
+ *  现复用 utils/request 导出的共享 `api` 单例（其内置 Authorization /
+ *  X-Recruit-Type 注入、以及 401→/auth/refresh/ 单飞刷新重试）。
+ *  本模块仅保留 GET 去重 (getDefaultDedup) 与全部命名导出，公开 API 不变。
+ *  `export default api` 直接复用共享单例，使 `import api from '../api/auth'` 的
+ *  调用方透明切换到统一客户端，无需改动任何调用点。
+ *
+ * 行为微调（可接受，见提交说明）: 收敛后独立的 /auth/refresh/ 401 不再强制登出
+ * （遵循 request.ts 语义）；刷新 POST 失败仍会经由 request.ts 的重试路径触发登出。
+ * 本模块不做任何特殊兜底。
+ */
 import config from '../config';
 // Plan O Task 7: GET 请求去重 (同 URL 共享 pending Promise)
 import { getDefaultDedup } from '../utils/request-dedup';
+// P2 收敛: 复用 utils/request 的共享 axios 单例 (内置 401 刷新重试与拦截器)
+import { api } from '../utils/request';
 
 const API_BASE_URL = config.api.baseUrl;
 const dedup = getDefaultDedup();
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// 是否正在刷新 token
-let isRefreshing = false;
-// 刷新 token 时等待的请求队列
-let refreshSubscribers: ((token: string) => void)[] = [];
-
-const subscribeTokenRefresh = (callback: (token: string) => void) => {
-  refreshSubscribers.push(callback);
-};
-
-const onTokenRefreshed = (token: string) => {
-  refreshSubscribers.forEach(callback => callback(token));
-  refreshSubscribers = [];
-};
-
-const clearSubscribers = () => {
-  refreshSubscribers = [];
-};
-
-// 请求拦截器
-api.interceptors.request.use(
-  (config) => {
-    const userStore = useUserStore();
-    const token = userStore.accessToken || localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    // 双系统 X-Recruit-Type 注入（此前由 main.ts 全局 axios.create 包装统一注入；
-    // 现由本实例自行注入，使 main.ts 的全局包装可安全移除——P1-2 收尾）。
-    const sys = useSystemStore();
-    if (sys && sys.current) {
-      config.headers['X-Recruit-Type'] = sys.current;
-    }
-    return config;
-  },
-  (error) => {
-    console.error('[API Request Error]', error);
-    return Promise.reject(error);
-  }
-);
-
-// 响应拦截器
-api.interceptors.response.use(
-  (response: AxiosResponse) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as any;
-    const status = error.response?.status;
-
-    // 处理 401 错误
-    if (status === 401) {
-      // Fix 5: 严格匹配 (去 query string + endsWith), 避免 /auth/login-history 等路径误识别
-      const reqPath = (originalRequest?.url || '').split('?')[0]
-      const isLoginRequest = reqPath.endsWith('/auth/login/')
-      if (isLoginRequest) {
-        return Promise.reject(error);
-      }
-
-      // 排除 /auth/refresh 自身的 401（避免循环）
-      const isRefreshRequest = reqPath.endsWith('/auth/refresh/')
-      if (isRefreshRequest) {
-        handleAuthFailure('会话已过期，请重新登录');
-        return Promise.reject(error);
-      }
-
-      // 尝试刷新 token
-      const userStore = useUserStore();
-      const refreshToken = userStore.refreshToken || localStorage.getItem('refreshToken');
-      if (refreshToken && !originalRequest._retry) {
-        originalRequest._retry = true;
-        if (!isRefreshing) {
-          isRefreshing = true;
-          try {
-            const { data } = await axios.post(
-              `${API_BASE_URL}/auth/refresh/`,
-              { refresh: refreshToken },
-              { headers: { 'Content-Type': 'application/json' } },
-            );
-            const newAccess = data.data?.access || data.access;
-            userStore.setAccessToken(newAccess);
-            onTokenRefreshed(newAccess);
-            isRefreshing = false;
-            // 重试原请求
-            originalRequest.headers.Authorization = `Bearer ${newAccess}`;
-            return api(originalRequest);
-          } catch (refreshErr) {
-            clearSubscribers();
-            isRefreshing = false;
-            handleAuthFailure('登录状态已失效，请重新登录');
-            return Promise.reject(refreshErr);
-          }
-        } else {
-          // 等待刷新完成
-          return new Promise((resolve) => {
-            subscribeTokenRefresh((newToken) => {
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-              resolve(api(originalRequest));
-            });
-          });
-        }
-      }
-
-      // 无 refresh token 或已尝试过：直接登出
-      handleAuthFailure('登录状态已失效，请重新登录');
-      return Promise.reject(error);
-    }
-
-    // 处理其他错误
-    const errorMessage = (error.response?.data as any)?.message || error.message || '请求失败';
-    if (status !== undefined) {
-      console.error('[API Response Error]', {
-        status,
-        message: errorMessage,
-        url: originalRequest?.url,
-      });
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// 统一处理认证失败
-function handleAuthFailure(message: string) {
-  if (isRefreshing) return; // 防止重复触发
-  isRefreshing = true;
-
-  clearSubscribers();
-  const userStore = useUserStore();
-  userStore.logout();
-
-  // 避免在登录页时重复跳转
-  if (window.location.pathname !== '/login') {
-    // 简易提示：直接 console.warn 即可（n-message 在 App.vue 已配，无需动态导入）
-    console.warn('[auth]', message);
-    window.location.href = '/login';
-  }
-
-  isRefreshing = false;
-}
 
 // 认证相关API - Django 后端
 // 后端返回结构: { success, data: { access, refresh, user } }
