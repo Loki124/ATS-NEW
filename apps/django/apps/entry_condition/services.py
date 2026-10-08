@@ -63,6 +63,22 @@ _LEGACY_CANDIDATE_FALLBACK = {
 }
 
 
+def _resolve_metric_template(field: Any):
+    """若 field 命中一个启用且未软删的指标模板，返回该模板；否则 None。
+
+    用于区分「新模板驱动（field=模板 id）」与「存量 source_path / legacy 键」：命中模板即走
+    MetricEngine，否则回退旧解析路径。模板 id 为 21 位 nanoid（UUIDModel），不做脆弱的字符串
+    形态猜测，直接按主键查询。
+    """
+    if not isinstance(field, str) or not field:
+        return None
+    from apps.metrics.models import MetricTemplate
+    try:
+        return MetricTemplate.objects.filter(pk=field, deleted_at__isnull=True).first()
+    except Exception:  # noqa: BLE001 — 任意异常均视为未命中，回退旧解析
+        return None
+
+
 def _calc_age_from_birth_date(candidate: Candidate) -> int | None:
     """按身份证 / 生日计算年龄（legacy _calc_age 等价语义）。"""
     if not getattr(candidate, 'birth_date', None):
@@ -328,6 +344,11 @@ class EntryConditionEvaluator:
 
     def _get_actual_value(self, item: ConditionItem) -> Any:
         """获取字段实际值"""
+        # 全量迁移（2026-10-09）：field 命中指标模板 → 统一走 MetricEngine（与 METRIC 源
+        # 同一条取值路径）；否则（存量 source_path / legacy 键）回退旧解析。
+        if _resolve_metric_template(item.field) is not None:
+            return self._get_template_actual(item)
+
         if item.condition_type == ConditionFieldType.STAGE_STATUS:
             # 阶段条件 - 来自前序阶段记录
             stage_name = item.stage_name
@@ -380,6 +401,32 @@ class EntryConditionEvaluator:
             return result.get('actual')
 
         return None
+
+    def _get_template_actual(self, item: ConditionItem) -> Any:
+        """模板 id 驱动的取值（CANDIDATE / DEMAND / POSITION / METRIC 统一入口）。
+
+        委托统一指标条件求值器取回 actual；其已按模板→指标→source_path→快照完成取值，
+        与 METRIC 源行为完全一致。
+        """
+        from apps.metrics.services.metric_engine import MetricEngine
+
+        ctx: Dict[str, Any] = {'candidate_id': self.candidate.id}
+        demand = self.context.get('demand')
+        position = self.context.get('position')
+        if demand is not None:
+            ctx['demand_id'] = getattr(demand, 'id', None)
+        if position is not None:
+            ctx['position_id'] = getattr(position, 'id', None)
+
+        result = MetricEngine.evaluate_metric_condition(
+            item.field, ctx, item.operator, item.value,
+        )
+        if result.get('error') or result.get('degraded'):
+            logger.warning(
+                'entry_condition 模板求值降级 item=%s template=%s err=%s',
+                item.id, item.field, result.get('error'),
+            )
+        return result.get('actual')
 
     def _get_prior_stage_status(self, stage_name: str) -> str | None:
         """获取前序阶段的状态"""

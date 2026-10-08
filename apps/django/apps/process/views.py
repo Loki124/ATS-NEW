@@ -818,15 +818,15 @@ class EntryConditionFieldCatalogView(APIView):
                     {'key': 'DEPARTMENT', 'field': 'DEPARTMENT', 'label': '部门',
                      'operators': ['EQ', 'NEQ', 'IN', 'NOT_IN'],
                      'value_source': 'DICT:department'},
-                ] + self._build_metric_catalog_fields('demand.'),
+                ] + self._build_metric_template_catalog('demand.'),
             },
             {
                 'source': 'POSITION', 'key': 'POSITION', 'label': '职位中', 'condition_type': 'POSITION',
-                'fields': self._build_metric_catalog_fields('position.'),
+                'fields': self._build_metric_template_catalog('position.'),
             },
             {
                 'source': 'CANDIDATE', 'key': 'CANDIDATE', 'label': '候选人中', 'condition_type': 'CANDIDATE',
-                'fields': self._build_metric_catalog_fields('candidate.'),
+                'fields': self._build_metric_template_catalog('candidate.'),
             },
             {
                 'source': 'METRIC', 'key': 'METRIC', 'label': '指标', 'condition_type': 'METRIC',
@@ -853,94 +853,15 @@ class EntryConditionFieldCatalogView(APIView):
         })
 
     @staticmethod
-    def _build_metric_catalog_fields(prefix: str) -> list:
-        """指标驱动字段定义：完全由指标库（apps.metrics.AtomicMetric）驱动。
+    def _build_metric_template_catalog(entity_prefix: str | None = None) -> list:
+        """指标驱动字段定义（统一 CANDIDATE / DEMAND / POSITION / METRIC 四类源）。
 
-        每个 source_path 以 `prefix` 开头、status=enabled、未软删的 AtomicMetric
-        都会成为一条可配置字段（「进入条件应用指标管理内容」的真正落点）：
+        - entity_prefix 为 None：返回全部 status=enabled、未软删的 MetricTemplate（METRIC 源）。
+        - entity_prefix 给定（如 'candidate.'）：只返回底层指标路径（原子=source_path /
+          派生=base_path）以该前缀开头的模板，用于 CANDIDATE/DEMAND/POSITION 分组，使
+          「引用指标」全面收口为「引用指标模板」。
 
-            - field / key = source_path（如 candidate.age）：与 ConditionItem.field、
-              快照点路径、指标层定义三者统一，不再维护一份 legacy 键映射表。
-            - label      = AtomicMetric.name（中文展示，运营在指标管理里维护）。
-            - operators / value_type 由 data_type 推导：
-                number  → 数值比较运算符 + value_type='number'
-                boolean → EQ/NEQ/IN/NOT_IN + 是/否下拉（value_type='boolean'）
-                date    → 日期比较/区间/空值 + value_type='date'
-                string  → 相等类 + value_type='string'
-            - 枚举字段（is_enum + enum_values）：用 enum_values 生成 options 下拉，
-              value_type='enum'，前端渲染下拉而非自由文本。
-
-        这样运营在「指标管理」里新增 / 改名 / 启用禁用一个对象路径指标，进入条件的
-        下拉会同步增删改，**无需改代码**。
-
-        已落库的 legacy 键（AGE / GENDER / ...）由 services._get_candidate_value 反向
-        映射到 source_path 兼容；存量 ConditionItem.field 已由数据迁移改写为 source_path。
-        """
-        try:
-            from apps.metrics.models import AtomicMetric, MetricDataType
-
-            rows = AtomicMetric.objects.filter(
-                source_path__startswith=prefix,
-                status='enabled',
-                deleted_at__isnull=True,
-            ).values('source_path', 'name', 'data_type', 'is_enum', 'enum_values')
-
-            fields: list = []
-            for row in rows:
-                path = row['source_path']
-                dtype = row['data_type']
-                if dtype == MetricDataType.NUMBER:
-                    operators = ['GT', 'GTE', 'LT', 'LTE', 'BETWEEN', 'EQ']
-                    value_type = 'number'
-                    options = None
-                elif dtype == MetricDataType.BOOLEAN:
-                    operators = ['EQ', 'NEQ', 'IN', 'NOT_IN']
-                    value_type = 'boolean'
-                    options = [
-                        {'label': '是', 'value': 'true'},
-                        {'label': '否', 'value': 'false'},
-                    ]
-                elif dtype == MetricDataType.DATE:
-                    operators = ['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE',
-                                 'BETWEEN', 'IS_EMPTY', 'IS_NOT_EMPTY']
-                    value_type = 'date'
-                    options = None
-                else:  # STRING / 其它 → 文本 + 相等类运算符
-                    operators = ['EQ', 'NEQ', 'IN', 'NOT_IN']
-                    value_type = 'string'
-                    options = None
-
-                # 枚举字段：用 enum_values 覆盖 options（优先于布尔内置选项），前端渲染下拉
-                if row['is_enum'] and row['enum_values']:
-                    try:
-                        enum_vals = row['enum_values']
-                        if isinstance(enum_vals, (list, tuple)) and enum_vals:
-                            options = [{'label': str(v), 'value': str(v)} for v in enum_vals]
-                            value_type = 'enum'
-                    except (TypeError, ValueError):  # 枚举解析失败退化为文本, 不阻断目录
-                        options = None
-
-                field = {
-                    'field': path,
-                    'key': path,
-                    'label': row['name'],
-                    'operators': operators,
-                    'value_type': value_type,
-                }
-                if options:
-                    field['options'] = options
-                fields.append(field)
-
-            fields.sort(key=lambda f: f['field'])
-            return fields
-        except (DatabaseError, KeyError, TypeError, ValueError, AttributeError):  # 指标表未初始化/迁移未跑等异常 → 返回空列表, 绝不 500
-            return []
-
-    @staticmethod
-    def _build_metric_template_catalog() -> list:
-        """指标驱动字段定义（METRIC 源）：完全由指标模板库（apps.metrics.MetricTemplate）驱动。
-
-        每个 status=enabled、未软删的 MetricTemplate 都会成为一条可配置字段：
+        每个模板成为一条可配置字段：
 
             - field / key = str(template.id)（ConditionItem.field 直接存模板 id，与 MetricEngine 取值入口一致）
             - label      = 模板名 + 〔原子〕/〔派生〕 后缀（区分引用指标类型）
@@ -950,7 +871,7 @@ class EntryConditionFieldCatalogView(APIView):
             - options    = 枚举型指标的 param_enums 渲染下拉（label/value 同值）
             - min/max/step = param_config 含对应键时带上（仅当存在，不影响既有字段结构）
 
-        运营在「指标管理」新增 / 启用一个模板，进入条件的 METRIC 源下拉同步变化，**无需改代码**。
+        运营在「指标管理」新增 / 启用一个模板，各相关源的目录下拉同步变化，**无需改代码**。
         """
         try:
             from apps.metrics.models import MetricDataType, MetricTemplate
@@ -969,6 +890,11 @@ class EntryConditionFieldCatalogView(APIView):
 
             fields: list = []
             for tpl in rows:
+                # 实体前缀过滤：取底层指标路径（原子=source_path，派生=base_path）
+                if entity_prefix:
+                    metric_path = tpl.metric_path or ''
+                    if not metric_path.startswith(entity_prefix):
+                        continue
                 label = (
                     f'{tpl.name}〔原子〕' if tpl.metric_kind == 'atomic'
                     else f'{tpl.name}〔派生〕'

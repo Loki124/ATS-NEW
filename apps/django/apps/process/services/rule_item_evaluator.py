@@ -29,6 +29,22 @@ from typing import Any, Dict
 #   模块级循环依赖 (metrics.services.template_impact 仍模块级引用 process.models.StageRule)。
 logger = logging.getLogger(__name__)
 
+
+def _resolve_metric_template(field: Any):
+    """若 field 命中一个启用且未软删的指标模板，返回该模板；否则 None。
+
+    用于区分「新模板驱动（field=模板 id）」与「存量 source_path」：命中模板即走 MetricEngine，
+    否则回退三类快照 + 点路径解析。模板 id 为 21 位 nanoid（UUIDModel），直接按主键查询，
+    不做脆弱的字符串形态猜测。
+    """
+    if not isinstance(field, str) or not field:
+        return None
+    from apps.metrics.models import MetricTemplate
+    try:
+        return MetricTemplate.objects.filter(pk=field, deleted_at__isnull=True).first()
+    except Exception:  # noqa: BLE001 — 任意异常均视为未命中，回退旧解析
+        return None
+
 # skip/archive 支持的 legacy 条件类型
 _LEGACY_TYPES = ('CANDIDATE', 'DEMAND', 'POSITION')
 
@@ -154,6 +170,14 @@ class RuleItemEvaluator:
             type_cast,
         )
         from apps.metrics.services.metric_engine import MetricEngine
+
+        # 全量迁移（2026-10-09）：field 命中指标模板时直接委托统一求值器，与 METRIC 源同
+        # 路径；否则（存量 source_path）沿用三类快照 + 点路径解析。
+        if _resolve_metric_template(item.get('field')) is not None:
+            return MetricEngine.evaluate_metric_condition(
+                item['field'], context, item.get('operator'),
+                item.get('value'), item.get('meta') or {},
+            )
 
         operator = item.get('operator')
         field = item.get('field')

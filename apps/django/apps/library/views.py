@@ -167,7 +167,7 @@ class SchoolViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         })
 
     @staticmethod
-    def _distinct(field: str) -> list[str]:
+    def _distinct(field: str) -> 'list[str]':
         return [v for v in School.objects.values_list(field, flat=True).distinct() if v]
 
     def perform_create(self, serializer):

@@ -94,11 +94,15 @@ def attribute_fields_for(entity: str) -> list[dict]:
     结构：[{sourcePath, name(中文), dataType('number'|'enum'|'boolean'),
             enumValues:[{value,label}], operators:[{value,label}]}, ...]
     """
-    from apps.metrics.models import AtomicMetric
+    # 2026-10-09 全量迁移：字段注册表仍以原子指标（AtomicMetric）为源，保证「按模型字段路径
+    # 过滤数据库行」的属性条件不丢选项；同时为每个字段附上引用它的指标模板 id（templateId /
+    # metricKind），使属性条件与指标模板体系打通。属性条件存储/求值仍用 sourcePath（与指标快照
+    # 求值是两套机制），故不改为存模板 id。
+    from apps.metrics.models import AtomicMetric, MetricTemplate
 
     metrics = list(
         AtomicMetric.objects.filter(
-            source_path__startswith=f'{entity}.', status='enabled'
+            source_path__startswith=f'{entity}.', status='enabled', deleted_at__isnull=True,
         )
     )
     model = _resolve_model(entity)
@@ -157,12 +161,19 @@ def attribute_fields_for(entity: str) -> list[dict]:
             else:
                 continue
 
+        # 附上引用该原子指标的启用模板（若存在），打通指标模板体系
+        tpl = MetricTemplate.objects.filter(
+            atomic_metric=m, status='enabled', deleted_at__isnull=True,
+        ).first()
+
         out.append({
             'sourcePath': path,
             'name': m.name,
             'dataType': category,
             'enumValues': enum_values,
             'operators': operator_options(category),
+            'templateId': str(tpl.id) if tpl else None,
+            'metricKind': tpl.metric_kind if tpl else None,
         })
 
     return out
