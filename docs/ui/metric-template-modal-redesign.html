@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>指标模板弹窗 · 重设计原型 — ATS-NEW Liquid Glass v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   ATS-NEW Liquid Glass v2 — token 对齐
+   来源: web/app/src/styles/tokens.css / brand-tokens.css (2026-10)
+   原型为 light 主题；dark 映射结构与 tokens.css §dark 一致，后续可平移
+   ============================================================ */
+:root {
+  /* §2 墨色 */
+  --ink:        #0F172A;
+  --ink-soft:   #475569;
+  --ink-faint:  #64748B;
+
+  /* §3 玻璃表面 */
+  --glass-bg-panel:    rgba(255, 255, 255, .55);
+  --glass-bg-card:     rgba(255, 255, 255, .62);
+  --glass-bg-elevated: rgba(255, 255, 255, .96);
+  --glass-bg-input:    rgba(255, 255, 255, .45);
+
+  /* §2 发丝边框 */
+  --border-hairline: rgba(15, 23, 42, .08);
+
+  /* 品牌（brand-tokens.css 生成值，禁手改） */
+  --brand-50:  #e2efff;
+  --brand-100: #d0dfff;
+  --brand-200: #b9c7ff;
+  --brand-300: #9ba7ff;
+  --brand-400: #7d85ff;
+  --brand-500: #676bf6;
+  --brand-600: #5050d1;
+  --brand-700: #3b38a8;
+  --brand-900: #18115a;
+  --brand-button: var(--brand-600);
+  --on-brand: #ffffff;
+  --brand-text: var(--brand-900);
+
+  /* 语义色（AGENTS.md R-001） */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error:   #ef4444;
+  --color-info:    #3b82f6;
+  --success-deep:  #15803d;
+  --success-bg:    #f0fdf4;
+  --success-line:  #bbf7d0;
+  --error-bg:      #fef2f2;
+  --error-line:    #fecaca;
+  --error-deep:    #b91c1c;
+  --warn-bg:       #fffbeb;
+  --warn-line:     #fde68a;
+  --warn-deep:     #92400e;
+
+  /* 圆角 / 动效 */
+  --radius-sm: 6px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
+  --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 320ms;
+
+  /* 阴影 */
+  --shadow-card:     0 8px 32px rgba(15, 23, 42, .08), inset 0 1px 0 rgba(255, 255, 255, .6);
+  --shadow-panel:    0 12px 40px rgba(15, 23, 42, .10), inset 0 1px 0 rgba(255, 255, 255, .6);
+  --shadow-elevated: 0 16px 48px rgba(15, 23, 42, .12), inset 0 1px 0 rgba(255, 255, 255, .7);
+  --shadow-pop:      0 12px 32px rgba(15, 23, 42, .16), 0 2px 8px rgba(15, 23, 42, .08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: "Manrope", -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: var(--ink);
+  background: #eef1f8;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea { font: inherit; color: inherit; }
+
+/* ============ 背景氛围：品牌色渐变雾面 + 颗粒 ============ */
+.backdrop-mesh {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(52vw 40vh at 12% -6%,  rgba(103, 107, 246, .14), transparent 60%),
+    radial-gradient(44vw 36vh at 96% 12%,  rgba(125, 133, 255, .11), transparent 62%),
+    radial-gradient(60vw 46vh at 50% 118%, rgba(226, 239, 255, .85), transparent 64%),
+    linear-gradient(180deg, #f2f4fb 0%, #e9edf7 100%);
+}
+.backdrop-mesh::after {
+  content: ""; position: absolute; inset: 0; opacity: .5; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ============ 背景模拟：指标库工作台（弱化 + 虚化） ============ */
+.faux {
+  position: fixed; inset: 24px 8% 24px 8%; z-index: 1;
+  background: var(--glass-bg-panel); backdrop-filter: blur(6px);
+  border: 1px solid var(--border-hairline); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden; filter: blur(2.5px) saturate(.9); opacity: .8;
+  transition: filter var(--duration-slow) var(--ease-out), opacity var(--duration-slow) var(--ease-out);
+}
+body.modal-open .faux { filter: blur(5px) saturate(.85); opacity: .55; pointer-events: none; }
+.faux-bar { display: flex; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--border-hairline); }
+.faux-title { font-size: 16px; font-weight: 800; letter-spacing: .01em; }
+.faux-tab { font-size: 12.5px; font-weight: 600; color: var(--ink-faint); padding: 5px 12px; border-radius: var(--radius-pill); }
+.faux-tab.on { color: var(--brand-700); background: var(--brand-50); }
+.faux-sp { flex: 1; }
+.faux-btn { font-size: 12.5px; font-weight: 700; color: #fff; background: var(--brand-button); padding: 7px 14px; border-radius: 8px; }
+.faux-head, .faux-row { display: grid; grid-template-columns: 2.2fr 1.6fr 1fr 1fr .8fr; gap: 12px; align-items: center; padding: 11px 22px; }
+.faux-head { font-size: 11.5px; font-weight: 700; color: var(--ink-faint); border-bottom: 1px solid var(--border-hairline); letter-spacing: .04em; }
+.faux-row { border-bottom: 1px solid var(--border-hairline); font-size: 13px; }
+.faux-row b { font-weight: 700; }
+.faux-row .dim { color: var(--ink-faint); font-size: 12px; }
+.faux-tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: var(--radius-pill); }
+.faux-tag.g { color: var(--success-deep); background: var(--success-bg); border: 1px solid var(--success-line); }
+.faux-tag.p { color: var(--brand-700); background: var(--brand-50); border: 1px solid var(--brand-100); }
+
+/* ============ 遮罩 ============ */
+.overlay {
+  position: fixed; inset: 0; z-index: 10;
+  background: rgba(15, 23, 42, .38);
+  backdrop-filter: blur(3px);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+body.modal-open .overlay { opacity: 1; pointer-events: auto; }
+
+/* ============================================================
+   弹窗本体 —— 核心修复：flex 三段结构，头部/底部固定，
+   仅 body 滚动，内容永不落入 footer 底下（旧版遮挡 bug 根治）
+   ============================================================ */
+.modal {
+  position: fixed; z-index: 20; left: 50%; top: 50%;
+  width: min(700px, 94vw);
+  max-height: min(780px, 92vh);
+  transform: translate(-50%, -50%) scale(.97) translateY(10px);
+  opacity: 0; pointer-events: none;
+  display: flex; flex-direction: column;
+  background: var(--glass-bg-elevated);
+  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated), 0 32px 90px rgba(15, 23, 42, .22);
+  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+}
+body.modal-open .modal {
+  opacity: 1; pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1) translateY(0);
+}
+
+/* ---------- 头部：模式徽标 + 标题 + 上下文元信息 ---------- */
+.m-head {
+  flex: none; display: flex; align-items: flex-start; gap: 14px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.m-head-icon {
+  width: 40px; height: 40px; flex: none; border-radius: 12px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  color: #fff; box-shadow: 0 4px 14px rgba(80, 80, 209, .35);
+}
+.m-head-main { flex: 1; min-width: 0; }
+.m-title-row { display: flex; align-items: center; gap: 10px; }
+.m-title { font-size: 17px; font-weight: 800; letter-spacing: .01em; }
+.m-mode {
+  font-size: 11px; font-weight: 800; letter-spacing: .06em;
+  padding: 2.5px 10px; border-radius: var(--radius-pill);
+}
+.m-mode.create { color: var(--success-deep); background: var(--success-bg); border: 1px solid var(--success-line); }
+.m-mode.edit   { color: var(--brand-700); background: var(--brand-50); border: 1px solid var(--brand-100); }
+.m-meta { margin-top: 4px; font-size: 12px; color: var(--ink-faint); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.m-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-faint); opacity: .6; }
+.m-meta .path { font-family: "Manrope", monospace; font-size: 11.5px; color: var(--ink-soft); background: rgba(15,23,42,.045); padding: 1px 7px; border-radius: 5px; }
+.m-close {
+  flex: none; width: 32px; height: 32px; border-radius: 9px;
+  display: grid; place-items: center; color: var(--ink-faint);
+  transition: background var(--duration-fast), color var(--duration-fast);
+  position: relative;
+}
+.m-close::after { content: ""; position: absolute; inset: -6px; } /* 命中区扩至 44px (R-102) */
+.m-close:hover { background: rgba(15, 23, 42, .06); color: var(--ink); }
+.m-close:focus-visible, .m-close:focus-within { outline: 2px solid var(--brand-500); outline-offset: 2px; border-radius: 9px; }
+
+/* ---------- 主体滚动区 ---------- */
+.m-body {
+  flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+  padding: 18px 24px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  scrollbar-width: thin; scrollbar-color: rgba(15,23,42,.18) transparent;
+}
+.m-body::-webkit-scrollbar { width: 6px; }
+.m-body::-webkit-scrollbar-thumb { background: rgba(15,23,42,.16); border-radius: 3px; }
+.m-body::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- 分区卡片 ---------- */
+.sec {
+  background: var(--glass-bg-card);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+  animation: sec-in var(--duration-base) var(--ease-out) both;
+}
+.sec:nth-child(1) { animation-delay: .03s; } .sec:nth-child(2) { animation-delay: .07s; }
+.sec:nth-child(3) { animation-delay: .11s; } .sec:nth-child(4) { animation-delay: .15s; }
+.sec:nth-child(5) { animation-delay: .19s; }
+@keyframes sec-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sec-ico {
+  width: 28px; height: 28px; flex: none; border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--brand-50); color: var(--brand-700);
+  border: 1px solid var(--brand-100);
+}
+.sec-title { font-size: 13.5px; font-weight: 800; letter-spacing: .01em; }
+.sec-hint { margin-left: auto; font-size: 11.5px; color: var(--ink-faint); text-align: right; }
+
+/* ---------- 字段 ---------- */
+.f { margin-bottom: 14px; }
+.f:last-child { margin-bottom: 0; }
+.f-label { display: flex; align-items: baseline; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); margin-bottom: 6px; }
+.f-req { color: var(--color-error); font-weight: 800; }
+.f-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.f-count.over { color: var(--color-error); }
+
+.inp, .ta {
+  width: 100%; background: var(--glass-bg-input);
+  border: 1px solid rgba(15, 23, 42, .14);
+  border-radius: 9px; padding: 9px 12px; font-size: 13.5px;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast), background var(--duration-fast);
+  outline: none;
+}
+.inp::placeholder, .ta::placeholder { color: var(--ink-faint); opacity: .75; }
+.inp:hover, .ta:hover { border-color: rgba(15, 23, 42, .24); }
+.inp:focus, .ta:focus { border-color: var(--brand-500); background: #fff; box-shadow: 0 0 0 3px rgba(103, 107, 246, .16); }
+.inp.invalid, .ta.invalid { border-color: var(--color-error); background: #fff; }
+.inp.invalid:focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, .14); }
+.ta { resize: none; line-height: 1.65; }
+
+.f-help { margin-top: 5px; font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; }
+.f-err { display: none; margin-top: 5px; font-size: 11.5px; font-weight: 600; color: var(--error-deep); align-items: center; gap: 5px; }
+.f.has-err .f-err { display: flex; }
+.f.has-err .f-help { display: none; }
+
+/* 带后缀单位的输入 */
+.inp-u { position: relative; }
+.inp-u .inp { padding-right: 52px; font-variant-numeric: tabular-nums; }
+.inp-u .u { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--ink-faint); pointer-events: none; }
+
+/* ---------- 引用指标定义：自定义下拉 ---------- */
+.sel { position: relative; }
+/* 下拉展开时提升整个分区，避免被后续分区盖住 */
+.sec:has(.sel.open) { position: relative; z-index: 70; }
+.sel-btn {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
+  background: var(--glass-bg-input); border: 1px solid rgba(15, 23, 42, .14);
+  border-radius: 9px; padding: 9px 12px; font-size: 13.5px;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.sel-btn:hover { border-color: rgba(15, 23, 42, .24); }
+.sel-btn:focus-visible { outline: none; border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(103, 107, 246, .16); }
+.sel-btn.invalid { border-color: var(--color-error); }
+.sel-btn .ph { color: var(--ink-faint); }
+.sel-btn .val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-btn .val small { color: var(--ink-faint); font-weight: 500; margin-left: 7px; font-size: 11.5px; }
+.sel-btn .chev { flex: none; color: var(--ink-faint); transition: transform var(--duration-fast) var(--ease-out); }
+.sel.open .chev { transform: rotate(180deg); }
+.sel-pop {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30;
+  background: var(--glass-bg-elevated); backdrop-filter: blur(24px);
+  border: 1px solid var(--border-hairline); border-radius: 12px;
+  box-shadow: var(--shadow-pop); padding: 5px;
+  opacity: 0; transform: translateY(-4px) scale(.99); pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+.sel.open .sel-pop { opacity: 1; transform: none; pointer-events: auto; }
+.sel-opt {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 9px 11px; border-radius: 8px; text-align: left;
+  transition: background var(--duration-fast);
+}
+.sel-opt:hover { background: rgba(15, 23, 42, .05); }
+.sel-opt .o-name { font-size: 13px; font-weight: 700; }
+.sel-opt .o-path { font-size: 11px; color: var(--ink-faint); font-family: "Manrope", monospace; }
+.sel-opt .o-main { flex: 1; min-width: 0; }
+.sel-opt .o-tag { flex: none; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-pill); }
+.o-tag.cont { color: var(--brand-700); background: var(--brand-50); border: 1px solid var(--brand-100); }
+.o-tag.disc { color: var(--warn-deep); background: var(--warn-bg); border: 1px solid var(--warn-line); }
+.o-tag.direct { color: var(--ink-soft); background: rgba(15,23,42,.05); border: 1px solid var(--border-hairline); }
+.sel-opt .o-check { flex: none; color: var(--brand-600); opacity: 0; }
+.sel-opt.on .o-check { opacity: 1; }
+.sel-opt.on { background: var(--brand-50); }
+
+/* ---------- 继承摘要条（出参信息融合进定义选择，替代旧版孤岛横条） ---------- */
+.inherit {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 8px; padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(226, 239, 255, .5), rgba(226, 239, 255, .18));
+  border: 1px solid var(--brand-100); border-radius: 10px;
+  animation: sec-in var(--duration-base) var(--ease-out) both;
+}
+.inherit .cell { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); }
+.inherit .cell b { font-weight: 700; color: var(--ink); }
+.type-chip { font-size: 11px; font-weight: 800; color: var(--brand-700); background: #fff; border: 1px solid var(--brand-200); padding: 1.5px 9px; border-radius: var(--radius-pill); }
+.inherit .lock { margin-left: auto; display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-faint); }
+
+/* 出参内联单位选择（整合输出单位） */
+.ih-unit { display: inline-flex; align-items: center; gap: 6px; margin-left: 2px; }
+.ih-unit .radio-pill { padding: 3px 12px; font-size: 11px; border-radius: var(--radius-pill); }
+.ih-req { margin-left: 1px; }
+
+/* 值域分段汇总描述 */
+.domain-summary {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px; padding: 8px 13px;
+  background: linear-gradient(90deg, rgba(226, 239, 255, .55), rgba(226, 239, 255, .25));
+  border: 1px solid var(--brand-100); border-radius: 9px;
+  font-size: 12.5px; color: var(--ink-soft); line-height: 1.6;
+}
+.domain-summary .ds-tag { font-weight: 800; color: var(--brand-700); }
+.domain-summary .ds-vals { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--brand-600); }
+
+/* ---------- 参数配置单位（标题右侧，与标题同行） ---------- */
+.punit-cell { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.pu-lbl { font-size: 11.5px; font-weight: 700; color: var(--ink-faint); }
+.pu-static { font-weight: 800; color: var(--brand-700); font-size: 12.5px; }
+.punit-cell .radio-pill { padding: 3px 12px; font-size: 11px; border-radius: var(--radius-pill); }
+/* ---------- 值域配置：手动多段、每段独立步长 ---------- */
+.seg-list { display: flex; flex-direction: column; gap: 8px; }
+.seg-row {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  background: var(--glass-bg-subtle); border: 1px solid rgba(15, 23, 42, .08); border-radius: 10px;
+}
+.seg-tag {
+  flex: none; padding: 4px 9px; font-size: 11.5px; font-weight: 700; color: var(--ink-soft);
+  background: #fff; border: 1px solid rgba(15, 23, 42, .12); border-radius: 7px;
+}
+.inp-seg { width: 64px; padding: 6px 8px; font-size: 12.5px; background: #fff; }
+.inp-step { width: 56px; }
+.seg-tilde { color: var(--ink-faint); font-weight: 700; }
+.seg-u { font-size: 12px; color: var(--ink-faint); font-weight: 700; }
+.seg-step-lbl { font-size: 12px; color: var(--ink-faint); font-weight: 600; margin-left: 4px; }
+.seg-del {
+  margin-left: auto; width: 26px; height: 26px; display: grid; place-items: center; flex: none;
+  border: none; border-radius: 7px; background: transparent;
+  color: var(--ink-faint); cursor: pointer; transition: all var(--duration-fast);
+}
+.seg-del:hover { color: var(--color-error); background: rgba(239, 68, 68, .08); }
+.btn-add-seg {
+  margin-top: 10px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 13px; font-size: 12.5px; font-weight: 700; color: var(--brand-700);
+  background: var(--brand-50); border: 1px dashed var(--brand-300); border-radius: 8px; cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.btn-add-seg:hover { background: var(--brand-100); border-color: var(--brand-400); }
+
+/* 配置预览：单行下拉 */
+.pv-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pv-select {
+  appearance: none; -webkit-appearance: none;
+  background: var(--glass-bg-input) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid rgba(15, 23, 42, .14); border-radius: 8px;
+  padding: 8px 30px 8px 11px; font-size: 12.5px; font-weight: 700; color: var(--ink);
+  max-width: 240px; cursor: pointer; outline: none;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.pv-select:hover { border-color: rgba(15, 23, 42, .24); }
+.pv-select:focus-visible { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(103, 107, 246, .16); }
+.pv-select.op { color: var(--brand-700); border-color: var(--brand-200); background-color: #fff; }
+.pv-select.val { color: var(--brand-700); background-color: var(--brand-50); border-color: var(--brand-200); }
+.pv-tpl { font-weight: 700; color: var(--brand-700); background: var(--brand-50); border: 1px solid var(--brand-200); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; white-space: nowrap; }
+.pv-arrow { color: var(--ink-faint); flex: 0 0 auto; }
+.pv-then { font-size: 12px; color: var(--ink-faint); font-weight: 600; }
+/* 预览下拉：指标项 / 参数 / 运算符 / 校验值 */
+.pv-select.tpl { color: var(--ink); border-color: rgba(15, 23, 42, .18); background-color: var(--glass-bg-input); }
+.pv-select.param { color: var(--brand-700); border-color: var(--brand-200); background-color: var(--brand-50); }
+.pv-select.val { color: var(--brand-700); background-color: var(--brand-50); border-color: var(--brand-200); }
+
+/* ---------- 说明文字：icon + hover 提示 ---------- */
+.info-tip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; flex: none;
+  color: var(--brand-600); background: var(--brand-50); border: 1px solid var(--brand-200);
+  cursor: help; font-size: 11px; font-style: normal; font-weight: 800;
+}
+.info-tip svg { width: 11px; height: 11px; }
+.info-tip:hover::after {
+  content: attr(data-tip);
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: 240px; white-space: normal; text-align: left;
+  background: #1f2937; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.55;
+  padding: 8px 11px; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .22); z-index: 90;
+}
+.info-tip:hover::before {
+  content: ''; position: absolute; top: calc(100% + 2px); left: 50%; transform: translateX(-50%);
+  border: 6px solid transparent; border-bottom-color: #1f2937; z-index: 90;
+}
+/* ---------- 参数配置：紧凑单行 ---------- */
+#sec-param .param-row { flex-wrap: nowrap; gap: 10px; align-items: flex-end; }
+#sec-param .pr-lbl { flex: none; }
+#sec-param .pr-range { gap: 4px; }
+#sec-param .pr-tilde { font-size: 12px; }
+#sec-param .pr-cell .inp-u .inp { width: 56px; padding: 6px 22px 6px 8px; font-size: 12.5px; }
+#sec-param .inp-mini { width: 50px; padding: 6px 8px; font-size: 12px; }
+#sec-param .pr-all .inp-mini { width: 92px; }
+#sec-param .pr-item .f-err { margin-top: 2px; }
+#sec-param .pr-cell .f-err { margin-top: 2px; }
+
+/* ---------- 两列 / 三列网格 ---------- */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 12px; align-items: start; }
+.range-wrap { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+.range-sep { color: var(--ink-faint); font-weight: 700; padding-top: 24px; }
+
+/* ---------- 数字步进器（计算参数） ---------- */
+.stepper {
+  display: inline-flex; align-items: center; border: 1px solid rgba(15, 23, 42, .14);
+  border-radius: 9px; background: var(--glass-bg-input); overflow: hidden;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.stepper:focus-within { border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(103, 107, 246, .16); background: #fff; }
+.stepper.invalid { border-color: var(--color-error); }
+.stepper button {
+  width: 32px; height: 34px; display: grid; place-items: center;
+  color: var(--ink-soft); font-size: 15px; font-weight: 700;
+  transition: background var(--duration-fast);
+}
+.stepper button:hover { background: rgba(15, 23, 42, .06); color: var(--ink); }
+.stepper input {
+  width: 64px; text-align: center; border: none; background: transparent; outline: none;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+.stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ---------- 开关 ---------- */
+.switch { position: relative; width: 40px; height: 22px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 1; width: 100%; height: 100%; }
+.switch .tr {
+  position: absolute; inset: 0; border-radius: var(--radius-pill);
+  background: rgba(15, 23, 42, .18); transition: background var(--duration-fast);
+}
+.switch .th {
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(15, 23, 42, .25);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.switch input:checked ~ .tr { background: var(--brand-500); }
+.switch input:checked ~ .th { transform: translateX(18px); }
+.switch input:focus-visible ~ .tr { box-shadow: 0 0 0 3px rgba(103, 107, 246, .3); }
+.status-row { display: flex; align-items: center; gap: 12px; padding-top: 2px; }
+.status-txt { font-size: 12.5px; font-weight: 700; }
+.status-sub { font-size: 11.5px; color: var(--ink-faint); font-weight: 500; margin-top: 1px; }
+
+/* ---------- 运算符 chips ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 700;
+  background: var(--glass-bg-input); border: 1px solid rgba(15, 23, 42, .14);
+  color: var(--ink-soft); user-select: none;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.chip .sym { font-family: "Manrope", monospace; font-weight: 800; font-size: 13px; }
+.chip:hover { border-color: var(--brand-300); color: var(--brand-700); }
+.chip:active { transform: scale(.95); }
+.chip.on { background: var(--brand-50); border-color: var(--brand-400); color: var(--brand-700); box-shadow: inset 0 0 0 1px var(--brand-400); }
+.chip .tick { display: none; }
+.chip.on .tick { display: inline-flex; }
+.chip .tick svg { display: block; }
+
+/* ---------- 单位横向 radio（定义支持多单位时） ---------- */
+.unit-radios { display: flex; gap: 8px; flex-wrap: wrap; }
+.radio-pill {
+  padding: 7px 18px; border-radius: 9px; font-size: 12.5px; font-weight: 700;
+  background: var(--glass-bg-input); border: 1px solid rgba(15, 23, 42, .14);
+  color: var(--ink-soft); user-select: none;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.radio-pill:hover { border-color: var(--brand-300); color: var(--brand-700); }
+.radio-pill:active { transform: scale(.95); }
+.radio-pill.on {
+  background: var(--brand-50); border-color: var(--brand-400); color: var(--brand-700);
+  box-shadow: inset 0 0 0 1px var(--brand-400);
+}
+
+/* ---------- 取值范围：紧凑单行（对照截图样式） ---------- */
+.param-row { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.pr-item { display: flex; align-items: center; gap: 8px; }
+.pr-lbl { flex: none; font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.pr-range { display: flex; align-items: center; gap: 6px; }
+.pr-cell { display: flex; flex-direction: column; gap: 3px; }
+.pr-cell .inp-u .inp { width: 88px; padding: 7px 26px 7px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.pr-cell .inp-u .u { right: 9px; font-size: 11px; }
+.pr-tilde { color: var(--ink-faint); font-weight: 700; }
+.pr-step .inp { width: 76px !important; }
+.pr-disp { display: flex; align-items: center; gap: 6px; }
+.inp-mini { width: 64px; padding: 7px 10px; font-size: 12.5px; text-align: center; }
+.pr-static { font-size: 12px; font-weight: 600; color: var(--ink-faint); }
+.pr-all { gap: 8px; }
+.pr-all-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
+.pr-all-toggle input { width: 15px; height: 15px; accent-color: var(--brand-500); cursor: pointer; }
+.pr-all .inp-mini { width: 118px; text-align: left; }
+.pr-item .f-err { margin-top: 0; }
+
+/* ---------- 范围取值预览条（蓝色，对照截图） ---------- */
+.tpl-preview {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px; padding: 8px 13px;
+  background: linear-gradient(90deg, rgba(226, 239, 255, .55), rgba(226, 239, 255, .25));
+  border: 1px solid var(--brand-100); border-radius: 9px;
+  font-size: 12.5px; color: var(--ink-soft); line-height: 1.6;
+}
+.tpl-preview .pv-tag { font-weight: 800; color: var(--brand-700); }
+.tpl-preview .pv-meta { color: var(--ink-soft); }
+.tpl-preview .pv-vals { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+
+/* ---------- 配置预览分区 ---------- */
+.pv-cap { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--ink-faint); margin: 12px 0 7px; }
+.pv-cap:first-child { margin-top: 0; }
+.pv-cond { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pv-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border-radius: 8px; font-size: 12.5px; font-weight: 700;
+  background: var(--glass-bg-input); border: 1px solid rgba(15, 23, 42, .14); color: var(--ink);
+}
+.pv-chip .chev { color: var(--ink-faint); }
+.pv-chip.op { color: var(--brand-700); border-color: var(--brand-200); background: #fff; }
+.pv-chip.val { color: var(--brand-700); background: var(--brand-50); border-color: var(--brand-200); font-variant-numeric: tabular-nums; }
+.pv-then { font-size: 12px; color: var(--ink-faint); }
+.segbar { display: flex; gap: 3px; margin-top: 2px; }
+.segbar .blk {
+  border-radius: 7px; min-width: 72px; height: 30px; padding: 0 8px;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+  background: var(--brand-50); border: 1px solid var(--brand-100); color: var(--brand-700);
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden;
+}
+.segbar .blk:nth-child(2n) { background: rgba(103, 107, 246, .14); border-color: var(--brand-200); }
+.segbar .blk:nth-child(3n) { background: var(--brand-100); border-color: var(--brand-200); }
+.pv-sum { display: flex; flex-wrap: wrap; gap: 6px; }
+.pv-kv {
+  font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+  background: rgba(15, 23, 42, .04); border: 1px solid var(--border-hairline);
+  padding: 3px 11px; border-radius: var(--radius-pill);
+  font-variant-numeric: tabular-nums;
+}
+.pv-kv b { color: var(--ink); font-weight: 700; }
+
+/* ---------- 值域分段 ---------- */
+.seg {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 11px 12px; border: 1px solid var(--border-hairline);
+  border-radius: 10px; background: rgba(255, 255, 255, .5);
+  margin-bottom: 10px;
+  animation: sec-in var(--duration-base) var(--ease-out) both;
+}
+.seg-idx {
+  flex: none; width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+  background: var(--brand-50); color: var(--brand-700); border: 1px solid var(--brand-100);
+  font-variant-numeric: tabular-nums;
+}
+.seg .seg-num { width: 88px; }
+.seg .seg-num .inp { padding: 7px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.seg .seg-step { display: flex; align-items: center; gap: 6px; }
+.seg .seg-step .lbl { font-size: 11.5px; color: var(--ink-faint); font-weight: 600; flex: none; }
+.seg .seg-step .inp { width: 76px; padding: 7px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.seg .unit { font-size: 11.5px; color: var(--ink-faint); flex: none; }
+.seg-del {
+  flex: none; width: 28px; height: 28px; border-radius: 8px; margin-left: auto;
+  display: grid; place-items: center; color: var(--ink-faint);
+  transition: all var(--duration-fast); position: relative;
+}
+.seg-del::after { content: ""; position: absolute; inset: -8px; }
+.seg-del:hover { background: var(--error-bg); color: var(--color-error); }
+.seg-preview { font-size: 11.5px; color: var(--ink-soft); padding: 0 2px 0 34px; margin-top: -4px; margin-bottom: 10px; line-height: 1.6; }
+.seg-preview b { color: var(--brand-700); font-weight: 700; }
+.seg-overlap { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--warn-deep); margin: 2px 0 10px; }
+.add-seg {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 16px; border-radius: 9px; font-size: 12.5px; font-weight: 700;
+  color: var(--brand-700); border: 1.5px dashed var(--brand-300);
+  transition: all var(--duration-fast);
+}
+.add-seg:hover { background: var(--brand-50); border-color: var(--brand-400); }
+.add-seg:active { transform: scale(.97); }
+
+/* ---------- 预览行 ---------- */
+.preview {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px; padding: 9px 12px;
+  background: rgba(15, 23, 42, .035); border-radius: 9px;
+  font-size: 12px; color: var(--ink-soft); line-height: 1.6;
+}
+.preview .pv-tag {
+  flex: none; font-size: 10.5px; font-weight: 800; letter-spacing: .05em;
+  color: var(--brand-700); background: #fff; border: 1px solid var(--brand-100);
+  padding: 2px 8px; border-radius: var(--radius-pill);
+}
+.preview .pv-vals { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink-soft); }
+.preview .pv-vals em { font-style: normal; color: var(--ink-faint); margin: 0 2px; }
+
+/* ---------- 空态提示 ---------- */
+.empty-inline {
+  display: flex; align-items: center; gap: 8px;
+  padding: 13px 14px; border-radius: 10px;
+  background: rgba(15, 23, 42, .03); border: 1px dashed rgba(15, 23, 42, .14);
+  font-size: 12.5px; color: var(--ink-faint);
+}
+
+/* ============================================================
+   底部：左侧校验摘要（可点击跳转） + 右侧操作
+   ============================================================ */
+.m-foot {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  padding: 14px 24px; border-top: 1px solid var(--border-hairline);
+  background: rgba(255, 255, 255, .72); backdrop-filter: blur(20px);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.sum { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.sum-err { display: inline-flex; align-items: center; gap: 6px; color: var(--error-deep); font-weight: 700; }
+.sum-item {
+  font-size: 11.5px; font-weight: 700; color: var(--error-deep);
+  background: var(--error-bg); border: 1px solid var(--error-line);
+  padding: 3px 11px; border-radius: var(--radius-pill);
+  transition: all var(--duration-fast);
+}
+.sum-item:hover { background: #fee2e2; transform: translateY(-1px); }
+.sum-dirty { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-faint); font-weight: 600; }
+.sum-dirty::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--color-warning); }
+.sum-ok { display: inline-flex; align-items: center; gap: 6px; color: var(--success-deep); font-weight: 600; }
+.foot-btns { flex: none; display: flex; align-items: center; gap: 10px; }
+.btn {
+  padding: 9px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 7px;
+  transition: all var(--duration-fast) var(--ease-out); position: relative;
+}
+.btn:active { transform: scale(.97); }
+.btn-ghost { color: var(--ink-soft); border: 1px solid rgba(15, 23, 42, .16); background: transparent; }
+.btn-ghost:hover { background: rgba(15, 23, 42, .05); color: var(--ink); }
+.btn-primary {
+  color: var(--on-brand); background: var(--brand-button);
+  box-shadow: 0 4px 14px rgba(80, 80, 209, .35);
+}
+.btn-primary:hover { background: var(--brand-500); box-shadow: 0 6px 18px rgba(80, 80, 209, .42); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+.btn-primary .spin { display: none; }
+.btn-primary.loading .spin { display: inline-block; animation: rot .8s linear infinite; }
+.btn-primary.loading .txt-save { display: none; }
+@keyframes rot { to { transform: rotate(360deg); } }
+
+/* ---------- 未保存确认小弹窗 ---------- */
+.confirm-mask { position: fixed; inset: 0; z-index: 40; background: rgba(15, 23, 42, .3); display: none; place-items: center; }
+.confirm-mask.show { display: grid; animation: fadein var(--duration-fast) var(--ease-out); }
+@keyframes fadein { from { opacity: 0; } }
+.confirm {
+  width: min(380px, 90vw); background: var(--glass-bg-elevated); backdrop-filter: blur(28px);
+  border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated); padding: 22px;
+  animation: pop var(--duration-base) var(--ease-out);
+}
+@keyframes pop { from { opacity: 0; transform: scale(.95) translateY(6px); } }
+.confirm h4 { font-size: 14.5px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.confirm p { margin-top: 8px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.7; }
+.confirm-btns { margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ---------- Toast ---------- */
+.toasts { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
+.toast {
+  pointer-events: auto; display: flex; align-items: center; gap: 10px;
+  background: var(--glass-bg-elevated); backdrop-filter: blur(24px);
+  border: 1px solid var(--border-hairline); border-radius: 12px;
+  box-shadow: var(--shadow-pop); padding: 11px 16px;
+  font-size: 13px; font-weight: 600;
+  animation: toast-in var(--duration-base) var(--ease-out);
+}
+.toast.out { animation: toast-out var(--duration-base) var(--ease-out) forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(8px) scale(.97); } }
+.toast .t-ico { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; }
+.toast.ok .t-ico { background: var(--success-bg); color: var(--success-deep); border: 1px solid var(--success-line); }
+.toast.warn .t-ico { background: var(--warn-bg); color: var(--warn-deep); border: 1px solid var(--warn-line); }
+.toast .undo { margin-left: 6px; font-size: 12.5px; font-weight: 800; color: var(--brand-600); padding: 3px 10px; border-radius: 7px; }
+.toast .undo:hover { background: var(--brand-50); }
+
+/* ---------- 关闭后中央重开按钮 ---------- */
+.reopen { position: fixed; inset: 0; z-index: 5; display: none; place-items: center; }
+body:not(.modal-open) .reopen { display: grid; }
+.reopen-card { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.reopen-card .big {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 13px 26px; border-radius: 13px; font-size: 14.5px; font-weight: 800;
+  color: #fff; background: var(--brand-button);
+  box-shadow: 0 10px 30px rgba(80, 80, 209, .4);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.reopen-card .big:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(80, 80, 209, .48); }
+.reopen-sub { font-size: 12.5px; color: var(--ink-soft); display: flex; gap: 16px; }
+.reopen-sub button { color: var(--brand-600); font-weight: 700; font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- 设计说明抽屉 ---------- */
+.notes-btn {
+  position: fixed; right: 22px; bottom: 22px; z-index: 50;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: var(--radius-pill);
+  font-size: 12.5px; font-weight: 800; color: var(--brand-700);
+  background: var(--glass-bg-elevated); backdrop-filter: blur(20px);
+  border: 1px solid var(--brand-200); box-shadow: var(--shadow-pop);
+  transition: all var(--duration-fast);
+}
+.notes-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(15, 23, 42, .18); }
+.notes-mask { position: fixed; inset: 0; z-index: 55; background: rgba(15, 23, 42, .28); display: none; }
+.notes-mask.show { display: block; animation: fadein var(--duration-fast) var(--ease-out); }
+.notes {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 56;
+  width: min(430px, 92vw); background: var(--glass-bg-elevated); backdrop-filter: blur(30px);
+  border-left: 1px solid var(--border-hairline); box-shadow: -16px 0 60px rgba(15, 23, 42, .18);
+  transform: translateX(100%); transition: transform var(--duration-slow) var(--ease-out);
+  display: flex; flex-direction: column;
+}
+.notes.show { transform: none; }
+.notes-head { flex: none; padding: 20px 22px 14px; border-bottom: 1px solid var(--border-hairline); display: flex; align-items: center; gap: 10px; }
+.notes-head h3 { font-size: 15px; font-weight: 800; }
+.notes-head .x { margin-left: auto; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-faint); }
+.notes-head .x:hover { background: rgba(15, 23, 42, .06); color: var(--ink); }
+.notes-body { flex: 1; overflow-y: auto; padding: 16px 22px 28px; }
+.note-item { padding: 13px 0; border-bottom: 1px solid var(--border-hairline); }
+.note-item:last-child { border-bottom: none; }
+.note-q { display: flex; gap: 8px; font-size: 12.5px; font-weight: 800; color: var(--error-deep); }
+.note-q .tag { flex: none; font-size: 10px; font-weight: 800; background: var(--error-bg); border: 1px solid var(--error-line); padding: 1px 7px; border-radius: 5px; margin-top: 1px; }
+.note-a { margin-top: 6px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.75; padding-left: 2px; }
+.note-a b { color: var(--ink); }
+
+/* 响应式 */
+@media (max-width: 640px) {
+  .modal { width: 100vw; max-height: 100vh; height: 100%; left: 0; top: 0; transform: none; border-radius: 0; border: none; }
+  body.modal-open .modal { transform: none; }
+  .m-body { padding: 14px 16px; }
+  .m-head, .m-foot { padding-left: 16px; padding-right: 16px; }
+  .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  .range-wrap { grid-template-columns: 1fr auto 1fr; }
+  .seg .seg-num { width: 74px; }
+  .faux { inset: 12px 4%; }
+  .notes-btn { display: none; } /* 移动端隐藏评审入口，避免遮挡 footer 操作 */
+}
+/* 错误抖动 */
+.shake { animation: shake .32s var(--ease-in-out); }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+/* 跳转目标高亮 */
+.flash { animation: flash 1.1s var(--ease-out); }
+@keyframes flash { 0% { box-shadow: 0 0 0 3px rgba(103,107,246,.35); } 100% { box-shadow: 0 0 0 3px rgba(103,107,246,0); } }
+</style>
+</head>
+<body class="modal-open">
+
+<div class="backdrop-mesh"></div>
+
+<!-- 背景模拟：指标库工作台 -->
+<div class="faux" aria-hidden="true">
+  <div class="faux-bar">
+    <span class="faux-title">指标库</span>
+    <span class="faux-tab">指标定义</span>
+    <span class="faux-tab on">指标模板</span>
+    <span class="faux-sp"></span>
+    <span class="faux-btn">＋ 新建指标模板</span>
+  </div>
+  <div class="faux-head"><span>模板名称</span><span>引用定义</span><span>取值方式</span><span>运算符</span><span>状态</span></div>
+  <div class="faux-row"><b>平均工作时长</b><span class="dim">candidate.workExperience</span><span class="faux-tag p">参数化 · 连续</span><span class="dim">6 种</span><span class="faux-tag g">启用</span></div>
+  <div class="faux-row"><b>30天内投递次数</b><span class="dim">candidate.applicationCount</span><span class="faux-tag p">参数化 · 离散</span><span class="dim">4 种</span><span class="faux-tag g">启用</span></div>
+  <div class="faux-row"><b>最高学历</b><span class="dim">candidate.education</span><span class="faux-tag direct">直取字段</span><span class="dim">3 种</span><span class="faux-tag g">启用</span></div>
+  <div class="faux-row"><b>期望薪资下限</b><span class="dim">candidate.expectedSalary</span><span class="faux-tag direct">直取字段</span><span class="dim">5 种</span><span class="faux-tag g" style="color:#64748B;background:rgba(15,23,42,.05);border-color:rgba(15,23,42,.1)">停用</span></div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
+<!-- 关闭后重开 -->
+<div class="reopen">
+  <div class="reopen-card">
+    <button class="big" onclick="openModal('edit')">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      打开「编辑指标模板」
+    </button>
+    <div class="reopen-sub">
+      <button onclick="openModal('create')">以「新建」模式打开</button>
+      <button onclick="toggleNotes(true)">查看设计说明</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     弹窗
+     ================================================================ -->
+<section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <!-- 头部 -->
+  <header class="m-head">
+    <div class="m-head-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 3 5-8"/></svg>
+    </div>
+    <div class="m-head-main">
+      <div class="m-title-row">
+        <h2 class="m-title" id="mTitle">编辑指标模板</h2>
+        <span class="m-mode edit" id="mMode">编辑</span>
+      </div>
+      <div class="m-meta" id="mMeta">
+        <span class="path">candidate.workExperience</span><span class="dot"></span><span>v3</span><span class="dot"></span><span>最近保存 2026-10-07 11:20</span>
+      </div>
+    </div>
+    <button class="m-close" id="btnX" aria-label="关闭弹窗">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </header>
+
+  <!-- 主体（唯一滚动区） -->
+  <div class="m-body" id="mBody">
+
+    <!-- ===== 分区 A：基础信息 ===== -->
+    <div class="sec" id="sec-base">
+      <div class="sec-head">
+        <span class="sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.3 9.3a2 2 0 0 0 2.8 0l7.2-7.2a2 2 0 0 0 0-2.8Z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span>
+        <span class="sec-title">基础信息</span>
+        <span class="info-tip" data-tip="模板在规则中的展示名称与数据来源"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+      </div>
+
+      <div class="f" id="f-name">
+        <label class="f-label" for="inpName">模板名称 <span class="f-req">*</span><span class="f-count" id="nameCount"></span></label>
+        <input class="inp" id="inpName" maxlength="60" placeholder="如：近 3 段平均工作时长">
+        <div class="f-err" id="err-name"></div>
+      </div>
+
+      <div class="f" id="f-def">
+        <label class="f-label" id="defLabel">引用指标定义 <span class="f-req">*</span></label>
+        <div class="sel" id="selDef">
+          <button class="sel-btn" id="selBtn" aria-haspopup="listbox" aria-labelledby="defLabel">
+            <span class="val" id="selVal"><span class="ph">选择要绑定的指标定义…</span></span>
+            <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="sel-pop" role="listbox" id="selPop"></div>
+        </div>
+        <div class="f-err" id="err-def"></div>
+        <div class="inherit" id="inheritBar" style="display:none">
+          <span class="cell">出参
+            <b class="type-chip" id="ihType">数值</b>
+            <span class="ih-unit" id="ihUnitCell"><b id="ihUnit">年</b></span>
+            <span class="f-req ih-req" id="ihUnitReq" style="display:none">*</span>
+          </span>
+          <span class="cell">取值方式 <b id="ihMode">参数化 · 连续</b></span>
+          <span class="lock">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="info-tip" data-tip="类型与取值方式继承自定义，不可修改；单位可在此选择"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 分区 B：参数配置（条件渲染） ===== -->
+    <div class="sec" id="sec-param" style="display:none">
+      <div class="sec-head">
+        <span class="sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg></span>
+        <span class="sec-title" id="paramTitle">参数配置</span>
+        <span class="info-tip" id="paramHint" data-tip="范围自由设定，步长为任意正数"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+        <span class="punit-cell" id="punitCell"></span>
+      </div>
+      <!-- 取值范围：紧凑单行（对照 2026-10-08 截图样式） -->
+      <div class="param-row" id="rangeRow">
+        <div class="pr-item" id="f-min">
+          <span class="pr-lbl">范围</span>
+          <div class="pr-range">
+            <div class="pr-cell">
+              <div class="inp-u"><input class="inp" id="inpMin" inputmode="decimal" placeholder="0"><span class="u" id="minU"></span></div>
+              <div class="f-err" id="err-min"></div>
+            </div>
+            <span class="pr-tilde">~</span>
+            <div class="pr-cell">
+              <div class="inp-u"><input class="inp" id="inpMax" inputmode="decimal" placeholder="10"><span class="u" id="maxU"></span></div>
+              <div class="f-err" id="err-max"></div>
+            </div>
+          </div>
+        </div>
+        <div class="pr-item" id="f-step">
+          <span class="pr-lbl">步长</span>
+          <div class="pr-cell">
+            <div class="inp-u pr-step"><input class="inp" id="inpStep" inputmode="decimal" placeholder="1"><span class="u" id="stepU"></span></div>
+            <div class="f-err" id="err-step"></div>
+          </div>
+        </div>
+        <div class="pr-item">
+          <span class="pr-lbl">显示</span>
+          <div class="pr-disp">
+            <input class="inp inp-mini" id="inpPrefix" placeholder="前缀">
+            <span class="pr-static">值</span>
+            <input class="inp inp-mini" id="inpSuffix" placeholder="后缀">
+          </div>
+        </div>
+        <div class="pr-item pr-all">
+          <label class="pr-all-toggle">
+            <input type="checkbox" id="cbAll">
+            <span>「全部」</span>
+          </label>
+          <input class="inp inp-mini" id="inpAllText" placeholder="全部工作经历">
+        </div>
+      </div>
+      <div class="f-err" id="err-range" style="margin-top:8px"></div>
+      <div class="tpl-preview" id="rangePreview" style="display:none"></div>
+    </div>
+
+    <!-- 非参数化定义的空态 -->
+    <div class="empty-inline" id="noParamEmpty" style="display:none">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <span id="noParamText">该定义为直取字段，无需计算参数，选中即可在规则中直接比较。</span>
+    </div>
+
+    <!-- ===== 分区 C：可用运算符 ===== -->
+    <div class="sec" id="sec-ops">
+      <div class="sec-head">
+        <span class="sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" x2="19" y1="9" y2="9"/><line x1="5" x2="19" y1="15" y2="15"/></svg></span>
+        <span class="sec-title">可用运算符</span>
+        <span class="info-tip" id="opsHint" data-tip="规则中可对该模板使用的比较方式"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+      </div>
+      <div class="chips" id="opsChips"></div>
+      <div class="empty-inline" id="opsEmpty" style="display:none">请先选择「引用指标定义」，运算符将按出参类型自动推荐。</div>
+    </div>
+
+    <!-- ===== 分区 D：值域分段（汇总式） ===== -->
+    <div class="sec" id="sec-domain">
+      <div class="sec-head">
+        <span class="sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.8 2.7 8.5 8.5a2 2 0 0 1 0 2.8l-7.3 7.3a2 2 0 0 1-2.8 0L2.7 12.8a2 2 0 0 1-.6-1.4L2 4a2 2 0 0 1 2-2l7.4.1a2 2 0 0 1 1.4.6Z"/><path d="M7 7h.01"/></svg></span>
+        <span class="sec-title">值域配置</span>
+        <span class="sec-hint">支持分段，每段独立步长</span>
+      </div>
+      <div class="seg-list" id="segList"></div>
+      <button type="button" class="btn-add-seg" id="btnAddSeg">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        添加段
+      </button>
+      <div class="domain-summary" id="domainSummary"></div>
+      <div class="f-err" id="err-domain" style="margin-top:8px"></div>
+    </div>
+
+    <!-- ===== 分区 E：配置预览 ===== -->
+    <div class="sec" id="sec-preview">
+      <div class="sec-head">
+        <span class="sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+        <span class="sec-title">配置预览</span>
+        <span class="info-tip" data-tip="规则配置者实际看到的效果 · 随上方配置实时更新"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+      </div>
+      <div id="previewBody"></div>
+    </div>
+
+    <!-- ===== 分区 F：备注与状态 ===== -->
+    <div class="sec" id="sec-misc">
+      <div class="sec-head">
+        <span class="sec-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg></span>
+        <span class="sec-title">备注与状态</span>
+      </div>
+      <div class="f">
+        <label class="f-label" for="inpDesc">备注</label>
+        <textarea class="ta" id="inpDesc" rows="2" placeholder="说明模板用途、口径约定，便于规则配置者理解（选填）"></textarea>
+      </div>
+      <div class="status-row">
+        <label class="switch">
+          <input type="checkbox" id="swStatus" checked>
+          <span class="tr"></span><span class="th"></span>
+        </label>
+        <div>
+          <div class="status-txt" id="statusTxt">启用模板</div>
+          <div class="status-sub">停用后不可被新规则引用，已引用的规则将收到降级提示</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部：校验摘要 + 操作 -->
+  <footer class="m-foot">
+    <div class="sum" id="sum" aria-live="polite"></div>
+    <div class="foot-btns">
+      <button class="btn btn-ghost" id="btnCancel">取消</button>
+      <button class="btn btn-primary" id="btnSave">
+        <svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>
+        <span class="txt-save">保存模板</span>
+      </button>
+    </div>
+  </footer>
+</section>
+
+<!-- 未保存确认 -->
+<div class="confirm-mask" id="confirmMask">
+  <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle">
+    <h4 id="cfTitle">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18.3-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-2.7Z"/><path d="M12 9v4M12 17h.01"/></svg>
+      放弃未保存的修改？
+    </h4>
+    <p>你对「<b id="cfName">平均工作时长</b>」的修改尚未保存，关闭后将丢失这些更改。</p>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" id="cfStay">继续编辑</button>
+      <button class="btn btn-primary" id="cfLeave">放弃修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast 容器 -->
+<div class="toasts" id="toasts"></div>
+
+<!-- 设计说明入口 -->
+<button class="notes-btn" onclick="toggleNotes(true)">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+  设计说明
+</button>
+<div class="notes-mask" id="notesMask" onclick="toggleNotes(false)"></div>
+<aside class="notes" id="notes" aria-label="设计说明">
+  <div class="notes-head">
+    <h3>重设计说明 · 问题 → 改法</h3>
+    <button class="x" onclick="toggleNotes(false)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="notes-body">
+    <div class="note-item">
+      <div class="note-q"><span class="tag">P0</span>footer 悬浮遮挡内容（截图中「范围下限/上限/步长」被按钮盖住）</div>
+      <div class="note-a"><b>flex 三段结构</b>：header / footer 固定不参与滚动，仅 body 滚动（<code>overflow-y:auto; overscroll-behavior:contain</code>），内容永不落入按钮底下。落地时对应 n-modal 内层容器改造。</div>
+    </div>
+    <div class="note-item">
+      <div class="note-q"><span class="tag">P0</span>「输出单位」出现两处（表单顶部 + 参数区各一次）</div>
+      <div class="note-a"><b>合并为一处</b>，固定放「基础信息」区；placeholder 直接提示继承值（留空则继承「年」），帮助文案说明"仅影响展示、不参与计算"。</div>
+    </div>
+    <div class="note-item">
+      <div class="note-q"><span class="tag">P1</span>分区硬编码 1/2/3，「参数配置」条件缺席时序号断裂</div>
+      <div class="note-a"><b>序号改图标</b>：五个语义分区（基础信息 / 计算参数与范围 / 可用运算符 / 值域分段 / 备注与状态），条件分区整体隐藏，无序号错位问题。</div>
+    </div>
+    <div class="note-item">
+      <div class="note-q"><span class="tag">P1</span>出参继承信息是孤立蓝条，与「输出单位」关系费解</div>
+      <div class="note-a"><b>融合为继承摘要条</b>：紧跟定义下拉，展示出参类型 / 继承单位 / 取值方式 + 锁形"不可修改"；单位字段的占位符与它呼应。</div>
+    </div>
+    <div class="note-item">
+      <div class="note-q"><span class="tag">P1</span>无校验反馈，点保存才知道缺什么</div>
+      <div class="note-a"><b>footer 校验摘要</b>：待完善项以可点击胶囊列出，点击滚动定位并聚焦字段；出错字段就地红框 + 具体原因；保存成功有 toast 反馈，<b>未保存更改在底部有黄点提示</b>。</div>
+    </div>
+    <div class="note-item">
+      <div class="note-q"><span class="tag">P1</span>误关弹窗丢失已填内容</div>
+      <div class="note-a"><b>脏状态守卫</b>：有未保存修改时，取消 / 关闭 / Esc 均先出「放弃修改？」确认（文案说明后果），干净状态直接关闭不打扰。</div>
+    </div>
+    <div class="note-item">
+      <div class="note-q"><span class="tag">P2</span>值域分段删除无退路、范围/分段生成结果不可见</div>
+      <div class="note-a"><b>删除支持 Toast 撤销</b>（5 秒内可恢复）；范围与每段分段的<b>生成档位实时预览</b>，配置者不用心算步长序列。</div>
+    </div>
+    <div class="note-item">
+      <div class="note-q"><span class="tag">P2</span>头部无上下文，编辑态不知道自己在改哪个版本</div>
+      <div class="note-a"><b>头部元信息行</b>：编辑态显示数据源路径 + 版本号 + 最近保存时间；新建态显示引导语。</div>
+    </div>
+    <div class="note-item">
+      <div class="note-q"><span class="tag">适配</span>屏幕适配</div>
+      <div class="note-a">桌面 700px 弹窗、max-height 92vh；<b>≤640px 转全屏层</b>，三列网格折叠为单列。切到 1/3/5 试试参数化三种定义，条件分区自动显隐。</div>
+    </div>
+  </div>
+</aside>
+
+<script>
+/* ================================================================
+   数据（对齐后端契约：MetricTemplate.calc_params / param_config /
+   value_domain.segments / operators —— metrics.ts 类型定义）
+   ================================================================ */
+const OPS = {
+  eq:{sym:'=',label:'等于'}, neq:{sym:'≠',label:'不等于'},
+  gt:{sym:'>',label:'大于'}, gte:{sym:'≥',label:'大于等于'},
+  lt:{sym:'<',label:'小于'}, lte:{sym:'≤',label:'小于等于'},
+  between:{sym:'∈',label:'区间'}, in:{sym:'∈',label:'属于'},
+};
+const DEFINITIONS = [
+  { id:'def-work', name:'平均工作时长', path:'candidate.workExperience', returnType:'数值', units:['年','月'],
+    valueMode:'parametric_handler', paramType:'continuous',
+    paramUnits:['年','段'], paramSchema:[],
+    ops:['eq','neq','gt','gte','lt','lte','between'] },
+  { id:'def-count', name:'30天内投递次数', path:'candidate.applicationCount', returnType:'数值', units:['次'],
+    valueMode:'parametric_handler', paramType:'discrete',
+    paramUnits:['天'], paramSchema:[{key:'days', label:'统计窗口', type:'int', min:1}],
+    ops:['eq','neq','gt','gte','lt','lte'] },
+  { id:'def-salary', name:'期望薪资下限', path:'candidate.expectedSalary', returnType:'数值', units:['万','千'],
+    valueMode:'object_path', paramType:null, paramUnits:[], paramSchema:[],
+    ops:['eq','neq','gt','gte','lt','lte'] },
+  { id:'def-edu', name:'最高学历', path:'candidate.education', returnType:'枚举', units:[],
+    valueMode:'object_path', paramType:null, paramUnits:[], paramSchema:[],
+    ops:['eq','neq','in'] },
+];
+function defUnit(d){ return d?.units?.[0] || ''; }
+const INITIAL = {
+  edit: {
+    name:'平均工作时长', defId:'def-work', unit:'年', punit:'年',
+    param:{min:'0', max:'10', step:'0.5', prefix:'近', suffix:'', allOption:true, allText:'全部工作经历'},
+    ops:['eq','neq','gt','gte','lt','lte'],
+    segments:[{uid:1,min:'0',max:'3',step:'0.5'},{uid:2,min:'5',max:'10',step:'1'}],
+    desc:'', status:true,
+    meta:'candidate.workExperience · v3 · 最近保存 2026-10-07 11:20',
+  },
+  create: {
+    name:'', defId:'', unit:'', punit:'', param:{min:'',max:'',step:'',prefix:'',suffix:'',allOption:false,allText:''},
+    ops:[], segments:[], desc:'', status:true, meta:'',
+  },
+};
+
+/* ================================================================
+   状态
+   ================================================================ */
+let mode = 'edit';
+let F = {};            // 表单
+let saved = null;      // 已保存快照（脏检测）
+let errors = {};       // field -> msg（始终计算）
+let renderErrors = false;      // 保存尝试后才整体就地标错
+let touchedSet = new Set();    // 用户碰过的字段可就地标错
+let openPop = false;
+
+const $ = id => document.getElementById(id);
+const body = document.body;
+
+function defOf(id){ return DEFINITIONS.find(d => d.id === id) || null; }
+function isParametric(){ const d = defOf(F.defId); return !!d && d.valueMode === 'parametric_handler'; }
+
+/* ================================================================
+   打开 / 关闭
+   ================================================================ */
+function openModal(m){
+  mode = m;
+  F = JSON.parse(JSON.stringify(INITIAL[m]));
+  saved = JSON.stringify(snapshot());
+  errors = {};
+  renderErrors = false;
+  touchedSet = new Set();
+  $('cfName').textContent = F.name || '指标模板';
+  renderAll();
+  body.classList.add('modal-open');
+  setTimeout(() => $('inpName').focus(), 260);
+}
+function snapshot(){ return { ...F }; }
+function isDirty(){ return JSON.stringify(snapshot()) !== saved; }
+
+let pendingClose = false;
+function requestClose(){
+  if (!isDirty()) return doClose();
+  pendingClose = true;
+  $('confirmMask').classList.add('show');
+}
+function doClose(){
+  $('confirmMask').classList.remove('show');
+  body.classList.remove('modal-open');
+}
+$('cfStay').onclick = () => { pendingClose = false; $('confirmMask').classList.remove('show'); };
+$('cfLeave').onclick = () => { pendingClose = false; saved = JSON.stringify(snapshot()); doClose(); };
+$('btnX').onclick = requestClose;
+$('btnCancel').onclick = requestClose;
+$('overlay').onclick = requestClose;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){
+    if ($('notes').classList.contains('show')) return toggleNotes(false);
+    if ($('confirmMask').classList.contains('show')) return $('cfStay').click();
+    if (openPop) return closeSel();
+    if (body.classList.contains('modal-open')) requestClose();
+  }
+  // 简易焦点圈定
+  if (e.key === 'Tab' && body.classList.contains('modal-open')){
+    const f = [...$('modal').querySelectorAll('button,input,textarea,[tabindex]')].filter(el => el.offsetParent !== null);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length-1];
+    if (e.shiftKey && document.activeElement === first){ last.focus(); e.preventDefault(); }
+    else if (!e.shiftKey && document.activeElement === last){ first.focus(); e.preventDefault(); }
+  }
+});
+
+/* ================================================================
+   Toast
+   ================================================================ */
+function toast(type, html, opts = {}){
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  const ico = type === 'ok'
+    ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+    : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18.3-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-2.7Z"/><path d="M12 9v4M12 17h.01"/></svg>';
+  el.innerHTML = `<span class="t-ico">${ico}</span><span>${html}</span>`;
+  $('toasts').appendChild(el);
+  let gone = false;
+  const kill = () => { if (gone) return; gone = true; el.classList.add('out'); setTimeout(() => el.remove(), 260); };
+  if (opts.undo){
+    const u = document.createElement('button');
+    u.className = 'undo'; u.textContent = '撤销';
+    u.onclick = () => { opts.undo(); kill(); };
+    el.appendChild(u);
+  }
+  setTimeout(kill, opts.duration || 4200);
+}
+
+/* ================================================================
+   渲染
+   ================================================================ */
+function renderAll(){
+  renderHead(); renderBase(); renderParamSection(); renderOps(); renderDomain(); renderMisc(); validate();
+}
+
+function renderHead(){
+  $('mTitle').textContent = mode === 'edit' ? '编辑指标模板' : '新建指标模板';
+  const m = $('mMode');
+  m.textContent = mode === 'edit' ? '编辑' : '新建';
+  m.className = 'm-mode ' + (mode === 'edit' ? 'edit' : 'create');
+  $('mMeta').style.display = mode === 'edit' ? '' : 'none';
+}
+
+function renderBase(){
+  $('inpName').value = F.name;
+  $('inpDesc').value = F.desc;
+  $('swStatus').checked = F.status;
+  $('statusTxt').textContent = F.status ? '启用模板' : '停用模板';
+  // 定义选择器
+  const d = defOf(F.defId);
+  $('selVal').innerHTML = d
+    ? `${d.name}<small>${d.path}</small>`
+    : '<span class="ph">选择要绑定的指标定义…</span>';
+  $('inheritBar').style.display = d ? '' : 'none';
+  if (d){
+    $('ihType').textContent = d.returnType;
+    $('ihMode').textContent = d.valueMode === 'parametric_handler'
+      ? '参数化 · ' + (d.paramType === 'continuous' ? '连续' : '离散')
+      : '直取字段';
+    // 出参单位（整合原「输出单位」字段）：多单位 → 内联 radio；单单位 → 静态继承值；无单位 → 隐藏
+    const units = d.units || [];
+    const cell = $('ihUnitCell');
+    if (units.length > 1){
+      $('ihUnitReq').style.display = '';
+      cell.innerHTML = units.map(u =>
+        `<button type="button" class="radio-pill ${u === F.unit ? 'on' : ''}" data-u="${u}" aria-pressed="${u === F.unit}">${u}</button>`
+      ).join('');
+      cell.querySelectorAll('.radio-pill').forEach(b => b.onclick = () => {
+        F.unit = b.dataset.u;
+        renderBase(); renderParamSection(); renderDomain(); renderPreview();
+      });
+    } else if (units.length === 1){
+      $('ihUnitReq').style.display = 'none';
+      cell.innerHTML = `<b id="ihUnit">${F.unit || units[0]}</b>`;
+    } else {
+      $('ihUnitReq').style.display = 'none';
+      cell.innerHTML = `<b id="ihUnit">（无单位）</b>`;
+    }
+  }
+}
+
+/* ---- 计算参数（paramSchema 驱动） ---- */
+function renderParamSection(){
+  const d = defOf(F.defId);
+  const show = isParametric();
+  $('sec-param').style.display = show ? '' : 'none';
+  $('noParamEmpty').style.display = (!show && d) ? '' : 'none';
+  if (!show){ $('punitCell').innerHTML = ''; return; }
+  $('paramTitle').textContent = '参数配置';
+  $('paramHint').setAttribute('data-tip', d.paramType === 'continuous' ? '取值范围自由设定 · 步长为任意正数；单位仅约束取值范围，不影响值域' : '取值范围自由设定 · 步长只能整数；单位仅约束取值范围，不影响值域');
+  ['min','max','step'].forEach(k => { $('inp' + k[0].toUpperCase() + k.slice(1)).value = F.param[k]; });
+  $('inpPrefix').value = F.param.prefix || '';
+  $('inpSuffix').value = F.param.suffix || '';
+  $('cbAll').checked = !!F.param.allOption;
+  $('inpAllText').value = F.param.allText || '';
+  // 参数配置单位（与标题同行右对齐），仅约束「取值范围」
+  const cell = $('punitCell');
+  const pus = d.paramUnits || [];
+  if (pus.length > 1){
+    cell.innerHTML = '<span class="pu-lbl">单位</span>' + pus.map(u =>
+      `<button type="button" class="radio-pill ${u === F.punit ? 'on' : ''}" data-pu="${u}" aria-pressed="${u === F.punit}">${u}</button>`
+    ).join('');
+    cell.querySelectorAll('.radio-pill').forEach(b => b.onclick = () => {
+      F.punit = b.dataset.pu;
+      renderParamSection(); renderDomain(); renderPreview();
+    });
+  } else if (pus.length === 1){
+    cell.innerHTML = '<span class="pu-lbl">单位</span><b class="pu-static">' + pus[0] + '</b>';
+  } else {
+    cell.innerHTML = '';
+  }
+  const u = paramUnit();
+  $('minU').textContent = u; $('maxU').textContent = u; $('stepU').textContent = u;
+}
+
+/* ---- 运算符 ---- */
+function renderOps(){
+  const d = defOf(F.defId);
+  const chips = $('opsChips');
+  chips.innerHTML = '';
+  $('opsEmpty').style.display = d ? 'none' : '';
+  $('opsHint').setAttribute('data-tip', d ? `已启用 ${F.ops.length} / ${d.ops.length} 种` : '规则中可对该模板使用的比较方式');
+  if (!d) return;
+  d.ops.forEach(k => {
+    const on = F.ops.includes(k);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (on ? ' on' : '');
+    b.setAttribute('aria-pressed', on);
+    b.innerHTML = `<span class="tick">${on ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</span><span class="sym">${OPS[k].sym}</span>${OPS[k].label}`;
+    b.onclick = () => {
+      const i = F.ops.indexOf(k);
+      if (i >= 0) F.ops.splice(i, 1); else F.ops.push(k);
+      renderOps(); validate();
+    };
+    chips.appendChild(b);
+  });
+}
+
+/* ---- 值域分段（手动多段：用于规则「校验值」下拉） ---- */
+function currentUnit(){ return F.unit || defUnit(defOf(F.defId)); }
+function paramUnit(){ return F.punit || defOf(F.defId)?.paramUnits?.[0] || ''; }
+function isDiscreteCtx(){ return defOf(F.defId)?.paramType === 'discrete'; }
+function fmtNum(v){ return Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100); }
+function nextSegUid(){ return (F.segments || []).reduce((m, s) => Math.max(m, s.uid || 0), 0) + 1; }
+function renderDomain(){
+  const u = currentUnit();           // 出参单位作用于值域
+  const list = $('segList');
+  const segs = F.segments || [];
+  list.innerHTML = segs.map((s, i) => `
+    <div class="seg-row" data-uid="${s.uid}">
+      <span class="seg-tag">段${i + 1}</span>
+      <input class="inp inp-seg" data-f="min" inputmode="decimal" placeholder="0" value="${s.min ?? ''}">
+      <span class="seg-tilde">~</span>
+      <input class="inp inp-seg" data-f="max" inputmode="decimal" placeholder="上限" value="${s.max ?? ''}">
+      <span class="seg-u">${u}</span>
+      <span class="seg-step-lbl">步长</span>
+      <input class="inp inp-seg inp-step" data-f="step" inputmode="decimal" placeholder="1" value="${s.step ?? ''}">
+      <button type="button" class="seg-del" data-del="${s.uid}" aria-label="删除分段" title="删除分段">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>`).join('');
+  list.querySelectorAll('.seg-row').forEach(row => {
+    row.querySelectorAll('.inp-seg').forEach(inp => inp.addEventListener('input', e => {
+      const uid = +row.dataset.uid, f = e.target.dataset.f;
+      const seg = (F.segments || []).find(x => x.uid === uid);
+      if (seg){ seg[f] = e.target.value; validate(); }
+    }));
+    row.querySelector('.seg-del').addEventListener('click', () => {
+      F.segments = (F.segments || []).filter(x => x.uid !== +row.dataset.uid);
+      renderDomain(); validate();
+    });
+  });
+  // 汇总描述（一行）：逐段按步长枚举取值
+  const vals = domainValues();
+  const sum = $('domainSummary');
+  if (!vals.length){ sum.style.display = 'none'; return; }
+  sum.style.display = '';
+  const shown = vals.slice(0, 30).join(', ');
+  const more = vals.length > 30 ? ', …' : '';
+  sum.innerHTML = `<span class="ds-tag">共 ${vals.length} 个值</span><span class="ds-vals">${shown}${more}</span>`;
+}
+function domainValueItems(){
+  const u = currentUnit();
+  const out = [];
+  (F.segments || []).forEach(s => {
+    const mn = parseFloat(s.min);
+    const mxRaw = (s.max === '' || s.max == null) ? null : parseFloat(s.max);
+    const st = parseFloat(s.step) || (isDiscreteCtx() ? 1 : 0.5);
+    if (!Number.isFinite(mn) || !(st > 0)) return;
+    if (mxRaw === null || !Number.isFinite(mxRaw)){
+      if (out.length < 40) out.push({ text: `${fmtNum(mn)}${u}以上`, value: `${fmtNum(mn)}+` });
+      return;
+    }
+    if (mxRaw <= mn) return;
+    for (let v = mn; v <= mxRaw + 1e-9 && out.length < 40; v += st) out.push({ text: `${fmtNum(v)}${u}`, value: fmtNum(v) });
+  });
+  return out;
+}
+function domainValues(){ return domainValueItems().map(x => x.text); }
+
+function refreshRangePreview(){
+  const pv = $('rangePreview');
+  const d = defOf(F.defId);
+  if (!isParametric()) { pv.style.display = 'none'; return; }
+  const min = parseFloat(F.param.min), max = parseFloat(F.param.max);
+  const st = parseFloat(F.param.step) || (isDiscreteCtx() ? 1 : 0.5);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) { pv.style.display = 'none'; return; }
+  const all = F.param.allOption;
+  const tag = all ? (F.param.allText || '全部') : (F.param.prefix + 'N' + F.param.suffix);
+  const vals = [];
+  for (let v = min; v <= max + 1e-9 && vals.length < 7; v += st) vals.push(fmtNum(v));
+  const more = (max - min) / st > 7;
+  const unit = paramUnit();
+  pv.style.display = '';
+  pv.innerHTML = `<span class="pv-tag">[${tag}]</span><span class="pv-meta">· 共 ${Math.round((max - min) / st) + 1} 个值：</span><span class="pv-vals">${vals.join(', ')}${more ? ', …' : ''}</span>${unit ? `<span class="pv-meta">（${unit}）</span>` : ''}`;
+}
+
+function renderMisc(){ /* 由 renderBase 覆盖 */ }
+
+/* ================================================================
+   校验（就地错误 + footer 摘要）
+   ================================================================ */
+function setErr(field, msg){
+  errors[field] = msg || null;
+  // 就地标错：保存尝试过，或用户碰过该字段才显示（避免开屏报错的攻击感）
+  const active = renderErrors || touchedSet.has(field);
+  const f = $('f-' + field);
+  if (f){
+    f.classList.toggle('has-err', !!msg && active);
+    const e = $('err-' + field);
+    if (e) e.textContent = (msg && active) ? msg : '';
+  }
+  const inp = $('inp-' + ({name:'Name', unit:'Unit', min:'Min', max:'Max', step:'Step'}[field] || ''));
+  if (inp) inp.classList.toggle('invalid', !!msg && active);
+}
+function validate(){
+  errors = {};
+  if (!F.name.trim()) errors.name = '请填写模板名称，将展示在规则配置中';
+  else if (F.name.trim().length > 50) errors.name = `名称不超过 50 字（当前 ${F.name.trim().length} 字）`;
+  if (!F.defId) errors.def = '请选择引用的指标定义';
+  const d = defOf(F.defId);
+  if (isParametric()){
+    const min = parseFloat(F.param.min), max = parseFloat(F.param.max), st = parseFloat(F.param.step);
+    if (F.param.min !== '' && !Number.isFinite(min)) errors.min = '下限须为数字';
+    if (F.param.max !== '' && !Number.isFinite(max)) errors.max = '上限须为数字';
+    if (Number.isFinite(min) && Number.isFinite(max) && max <= min) errors.range = '范围上限须大于下限';
+    if (F.param.step === '') errors.step = d.paramType === 'continuous' ? '请填写步长（任意正数）' : '请填写步长（整数）';
+    else if (!Number.isFinite(st) || st <= 0) errors.step = '步长须为正数';
+    else if (isDiscreteCtx() && !Number.isInteger(st)) errors.step = '离散指标步长须为整数';
+  }
+  // 值域配置（手动多段、每段独立步长）校验
+  {
+    const segs = F.segments || [];
+    if (segs.length === 0){
+      errors.domain = '请至少添加一段值域区间';
+    } else {
+      let bad = false;
+      segs.forEach(s => {
+        const mn = s.min === '' ? null : parseFloat(s.min);
+        const mx = s.max === '' ? null : parseFloat(s.max);
+        if ((mn === null || !Number.isFinite(mn)) && (mx === null || !Number.isFinite(mx))) bad = true;
+        else if (mn !== null && mx !== null && Number.isFinite(mn) && Number.isFinite(mx) && mx <= mn) errors.domain = '每段区间上限须大于下限';
+        const st = parseFloat(s.step);
+        if (!errors.domain){
+          if (s.step === '' || s.step == null) errors.domain = '每段需填写步长';
+          else if (!Number.isFinite(st) || st <= 0) errors.domain = '步长须为正数';
+          else if (isDiscreteCtx() && !Number.isInteger(st)) errors.domain = '离散指标步长须为整数';
+        }
+      });
+      if (!errors.domain && bad) errors.domain = '每段区间需至少填写下限或上限';
+    }
+  }
+  // 应用到 DOM
+  ['name','def','min','max','step','range','domain'].forEach(k => setErr(k, errors[k] || null));
+  const de = $('err-domain');
+  if (de){ const a = renderErrors || touchedSet.has('domain'); de.textContent = (errors.domain && a) ? errors.domain : ''; de.style.display = (errors.domain && a) ? 'block' : 'none'; }
+  refreshRangePreview();
+  renderDomain();
+  renderPreview();
+  renderSummary();
+}
+const FIELD_LABEL = { name:'模板名称', def:'引用定义', min:'范围下限', max:'范围上限', step:'步长', range:'范围', domain:'值域分段' };
+function renderSummary(){
+  const s = $('sum');
+  const items = Object.keys(errors).filter(k => errors[k]);
+  if (items.length && renderErrors){
+    s.innerHTML = `<span class="sum-err"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>还有 ${items.length} 项待完善</span>` +
+      items.map(k => `<button class="sum-item" data-f="${k}">${FIELD_LABEL[k] || k}</button>`).join('');
+    s.querySelectorAll('.sum-item').forEach(b => b.onclick = () => jumpTo(b.dataset.f));
+  } else if (isDirty()){
+    s.innerHTML = '<span class="sum-dirty">有未保存的更改</span>';
+  } else if (items.length){
+    s.innerHTML = '<span class="sum-dirty">有未保存的更改 · 存在待完善项</span>';
+  } else {
+    s.innerHTML = '<span class="sum-ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>与已保存版本一致</span>';
+  }
+}
+function jumpTo(field){
+  const map = { name:'f-name', def:'f-def', min:'f-min', max:'f-max', step:'f-step', range:'f-max', domain:'sec-domain' };
+  let el = $(map[field]);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  const inp = el.querySelector('input, textarea');
+  if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 320);
+}
+
+/* ================================================================
+   保存
+   ================================================================ */
+$('btnSave').onclick = () => {
+  renderErrors = true;
+  validate();
+  const items = Object.keys(errors).filter(k => errors[k]);
+  if (items.length){
+    $('sum').classList.remove('shake'); void $('sum').offsetWidth; $('sum').classList.add('shake');
+    jumpTo(items[0]);
+    return;
+  }
+  const btn = $('btnSave');
+  btn.classList.add('loading'); btn.disabled = true;
+  setTimeout(() => {
+    btn.classList.remove('loading'); btn.disabled = false;
+    saved = JSON.stringify(snapshot());
+    doClose();
+    toast('ok', `已保存「${F.name}」${mode === 'edit' ? '，版本号已递增至 v4' : '，可在规则配置中引用'}`);
+  }, 900);
+};
+
+/* ================================================================
+   输入绑定
+   ================================================================ */
+$('inpName').addEventListener('input', e => {
+  F.name = e.target.value;
+  const n = F.name.length;
+  const c = $('nameCount');
+  c.textContent = n > 40 ? `${n}/50` : '';
+  c.classList.toggle('over', n > 50);
+  validate();
+});
+$('inpDesc').addEventListener('input', e => F.desc = e.target.value);
+$('swStatus').addEventListener('change', e => { F.status = e.target.checked; $('statusTxt').textContent = F.status ? '启用模板' : '停用模板'; });
+['Min','Max','Step'].forEach(k => $('inp' + k).addEventListener('input', e => {
+  F.param[k.toLowerCase()] = e.target.value; validate();
+}));
+$('inpPrefix').addEventListener('input', e => { F.param.prefix = e.target.value; validate(); });
+$('inpSuffix').addEventListener('input', e => { F.param.suffix = e.target.value; validate(); });
+$('inpAllText').addEventListener('input', e => { F.param.allText = e.target.value; validate(); });
+$('cbAll').addEventListener('change', e => { F.param.allOption = e.target.checked; validate(); });
+/* 值域分段：添加新段（下限续接上一段上限） */
+$('btnAddSeg').onclick = () => {
+  if (!F.segments) F.segments = [];
+  const segs = F.segments;
+  const last = segs[segs.length - 1];
+  const nmin = (last && last.max !== '' && last.max != null && Number.isFinite(parseFloat(last.max))) ? last.max : '';
+  segs.push({ uid: nextSegUid(), min: nmin, max: '', step: '' });
+  renderDomain(); validate();
+};
+
+/* ---- 定义下拉 ---- */
+function closeSel(){ openPop = false; $('selDef').classList.remove('open'); }
+$('selBtn').onclick = e => {
+  e.stopPropagation();
+  if (openPop) return closeSel();
+  const pop = $('selPop');
+  pop.innerHTML = DEFINITIONS.map(d => `
+    <button class="sel-opt ${d.id === F.defId ? 'on' : ''}" data-id="${d.id}" role="option">
+      <span class="o-main"><span class="o-name">${d.name}</span><br><span class="o-path">${d.path}</span></span>
+      <span class="o-tag ${d.paramType === 'continuous' ? 'cont' : d.paramType === 'discrete' ? 'disc' : 'direct'}">${d.valueMode === 'parametric_handler' ? '参数化 · ' + (d.paramType === 'continuous' ? '连续' : '离散') : '直取字段'}</span>
+      <span class="o-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+    </button>`).join('');
+  pop.querySelectorAll('.sel-opt').forEach(b => b.onclick = () => {
+    F.defId = b.dataset.id;
+    // 切换定义 → 重置下游（运算符按出参类型重置、参数范围清空）
+    const d = defOf(F.defId);
+    F.ops = d ? [...d.ops] : [];
+    F.param = { min:'', max:'', step:'', prefix:'', suffix:'', allOption:false, allText:'' };
+    // 参数配置单位 + 值域分段随定义重置
+    F.punit = d && d.paramUnits && d.paramUnits.length ? d.paramUnits[0] : '';
+    F.segments = (d && d.paramUnits && d.paramUnits.length) ? [{ uid: 1, min: '0', max: '3', step: '0.5' }] : [];
+    // 单位：定义支持多单位时落到其首项，否则沿用已填（留空继承）
+    if (d && d.units && d.units.length && (!F.unit || !d.units.includes(F.unit))) F.unit = d.units[0];
+    closeSel(); renderAll();
+  });
+  openPop = true; $('selDef').classList.add('open');
+};
+document.addEventListener('click', e => { if (openPop && !$('selDef').contains(e.target)) closeSel(); });
+
+/* ---- 参数配置的可选项（用于预览「参数」下拉） ---- */
+function paramOptions(){
+  const unit = paramUnit() || '';
+  const opts = [];
+  if (F.param.allOption) opts.push({ v:'__all__', t: F.param.allText || '全部' });
+  const mn = parseFloat(F.param.min), mx = parseFloat(F.param.max);
+  const st = parseFloat(F.param.step) || (isDiscreteCtx() ? 1 : 0.5);
+  if (Number.isFinite(mn) && Number.isFinite(mx) && st > 0){
+    for (let v = mn; v <= mx + 1e-9 && opts.length < 25; v += st){
+      const vv = fmtNum(v);
+      opts.push({ v: vv, t: `${F.param.prefix || ''}${vv}${F.param.suffix || ''}${unit}` });
+    }
+  }
+  return opts;
+}
+
+/* ---- 配置预览分区（规则配置者实际看到的条件下拉，单行） ---- */
+function renderPreview(){
+  const body = $('previewBody');
+  const d = defOf(F.defId);
+  if (!d){
+    body.innerHTML = '<div class="empty-inline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>选择「引用指标定义」后，这里展示规则配置者实际看到的条件下拉。</span></div>';
+    return;
+  }
+  const unit = currentUnit() || '';
+  const arrow = `<svg class="pv-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>`;
+  // ① 指标项（模板名称）：仅展示当前模板名称（不带单位）
+  const tplOpts = `<option value="${F.defId}">${d.name}</option>`;
+  let html = `<div class="pv-row">` +
+    `<select class="pv-select tpl" aria-label="指标项">${tplOpts}</select>`;
+  // ② 参数（仅参数化指标）：取值于「参数配置」
+  if (isParametric()){
+    const popts = paramOptions();
+    const pval = popts.length
+      ? popts.map(o => `<option value="${o.v}">${o.t}</option>`).join('')
+      : '<option value="">— 请先配置参数 —</option>';
+    html += arrow + `<select class="pv-select param" aria-label="参数">${pval}</select>`;
+  }
+  // ③ 运算符：取已启用运算符
+  const opKeys = F.ops.length ? F.ops : d.ops;
+  const opOpts = opKeys.map(k => {
+    const o = OPS[k] || OPS.eq;
+    return `<option value="${k}">${o.sym} ${o.label}</option>`;
+  }).join('');
+  html += arrow + `<select class="pv-select op" aria-label="运算符">${opOpts}</select>`;
+  // ④ 校验值：取值域枚举出的每个具体值 + 单位（不含「全部工作经历」）
+  const items = domainValueItems();
+  let valOpts = '';
+  if (items.length){
+    items.forEach(it => { valOpts += `<option value="${it.value}">${it.text}</option>`; });
+  } else {
+    valOpts = '<option value="">— 请先添加值域分段 —</option>';
+  }
+  html += arrow + `<select class="pv-select val" aria-label="校验值">${valOpts}</select>` +
+    `<span class="pv-then">规则条件示例</span></div>`;
+  body.innerHTML = html;
+  // 预览下拉仅作演示，变更不影响表单
+  body.querySelectorAll('.pv-select').forEach(s => s.addEventListener('change', () => {}));
+}
+
+/* ---- 设计说明 ---- */
+function toggleNotes(show){
+  $('notes').classList.toggle('show', show);
+  $('notesMask').classList.toggle('show', show);
+}
+
+/* 启动：编辑模式（对应截图场景） */
+openModal('edit');
+/* 调试锚点：#bottom 让弹窗 body 滚到底（评审下方分区用） */
+if (location.hash.includes('bottom')) setTimeout(() => { $('mBody').scrollTop = 99999; }, 350);
+if (location.hash.includes('mid')) setTimeout(() => { $('mBody').scrollTop = 430; }, 350);
+</script>
+</body>
+</html>
