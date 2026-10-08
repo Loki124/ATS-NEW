@@ -417,36 +417,44 @@
           <div class="tpl-sec-head">
             <span class="tpl-sec-title">{{ t('metrics.tpl.paramConfigTitle') }}</span>
             <n-tag size="tiny" :type="selectedTemplateDefinition?.paramType === 'continuous' ? 'success' : 'warning'" round>{{ paramTypeLabel(selectedTemplateDefinition?.paramType) }}</n-tag>
+            <n-tag v-if="currentParamUnit" size="tiny" type="info" round class="tpl-sec-unit">{{ currentParamUnit }}</n-tag>
             <span v-if="paramUnitOptions.length > 1" class="tpl-sec-units">
               <button v-for="u in paramUnitOptions" :key="u" type="button" class="tpl-pill" :class="{ 'is-on': tplForm.paramUnit === u }" @click="setPunit(u)">
                 {{ u }}
               </button>
             </span>
-            <span v-else-if="paramUnitOptions.length === 1" class="tpl-sec-static">{{ paramUnitOptions[0] }}</span>
           </div>
           <div class="tpl-param-block">
-            <div class="tpl-range-row">
-              <div class="tpl-range-item">
-                <span class="tpl-range-lbl">{{ t('metrics.tpl.range') }}</span>
-                <n-input-number v-model:value="tplForm.paramConfig.min" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num"><template #suffix>{{ currentParamUnit }}</template></n-input-number>
-                <span class="tpl-range-sep">~</span>
-                <n-input-number v-model:value="tplForm.paramConfig.max" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num"><template #suffix>{{ currentParamUnit }}</template></n-input-number>
+            <div class="tpl-param-grid">
+              <div class="tpl-param-field">
+                <span class="tpl-param-lbl">{{ t('metrics.tpl.range') }}</span>
+                <div class="tpl-param-ctl">
+                  <n-input-number v-model:value="tplForm.paramConfig.min" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num" />
+                  <span class="tpl-range-sep">~</span>
+                  <n-input-number v-model:value="tplForm.paramConfig.max" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num" />
+                </div>
               </div>
-              <div class="tpl-range-item">
-                <span class="tpl-range-lbl">{{ t('metrics.tpl.step') }}</span>
-                <n-input-number v-model:value="tplForm.paramConfig.step" :min="0" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num"><template #suffix>{{ currentParamUnit }}</template></n-input-number>
+              <div class="tpl-param-field">
+                <span class="tpl-param-lbl">{{ t('metrics.tpl.step') }}</span>
+                <div class="tpl-param-ctl">
+                  <n-input-number v-model:value="tplForm.paramConfig.step" :min="0" :precision="paramConfigPrecision" :show-button="false" class="tpl-range-num" />
+                </div>
               </div>
-              <div class="tpl-range-item">
-                <span class="tpl-range-lbl">{{ t('metrics.tpl.display') }}</span>
-                <n-input v-model:value="tplForm.paramConfig.prefix" placeholder="前缀" class="tpl-mini" />
-                <span class="tpl-range-static">值</span>
-                <n-input v-model:value="tplForm.paramConfig.suffix" placeholder="后缀" class="tpl-mini" />
+              <div class="tpl-param-field">
+                <span class="tpl-param-lbl">{{ t('metrics.tpl.display') }}</span>
+                <div class="tpl-param-ctl">
+                  <n-input v-model:value="tplForm.paramConfig.prefix" placeholder="前缀" class="tpl-mini" />
+                  <span class="tpl-range-static">值</span>
+                  <n-input v-model:value="tplForm.paramConfig.suffix" placeholder="后缀" class="tpl-mini" />
+                </div>
               </div>
-              <label class="tpl-range-item tpl-range-all">
-                <n-checkbox v-model:checked="tplForm.paramConfig.allOption" />
-                <span class="tpl-all-text">{{ t('metrics.tpl.allOption') }}</span>
-                <n-input v-if="tplForm.paramConfig.allOption" v-model:value="tplForm.paramConfig.allText" placeholder="全部工作经历" class="tpl-alltext" />
-              </label>
+              <div class="tpl-param-field">
+                <span class="tpl-param-lbl">{{ t('metrics.tpl.allOption') }}</span>
+                <label class="tpl-param-ctl">
+                  <n-checkbox v-model:checked="tplForm.paramConfig.allOption" />
+                  <n-input v-if="tplForm.paramConfig.allOption" v-model:value="tplForm.paramConfig.allText" placeholder="全部工作经历" class="tpl-alltext" />
+                </label>
+              </div>
             </div>
             <div v-if="rangePreviewVisible" class="tpl-preview">
               <span class="tpl-preview-tag">[{{ rangePreviewTag }}]</span>
@@ -518,13 +526,13 @@
         <section class="tpl-readout">
           <div class="tpl-readout-eyebrow">{{ t('metrics.tpl.previewTitle') }} · 规则配置者所见</div>
           <div class="tpl-readout-row" :class="{ 'no-param': !showTemplateParamConfig }">
-            <n-select :value="previewMetricItemValue" :options="previewMetricItemOptions" class="pv-select" />
+            <n-select v-model:value="previewMetricSelected" :options="previewMetricItemOptions" class="pv-select" />
             <span v-if="showTemplateParamConfig" class="pv-arrow">→</span>
-            <n-select v-if="showTemplateParamConfig" :value="previewParamValue" :options="previewParamOptions" class="pv-select" />
+            <n-select v-if="showTemplateParamConfig" v-model:value="previewParamSelected" :options="previewParamOptions" class="pv-select" />
             <span class="pv-arrow">→</span>
-            <n-select :value="previewOpValue" :options="previewOpOptions" class="pv-select" />
+            <n-select v-model:value="previewOpSelected" :options="previewOpOptions" class="pv-select" />
             <span class="pv-arrow">→</span>
-            <n-select :value="previewCheckValue" :options="previewCheckValueOptions" placeholder="校验值" class="pv-select" />
+            <n-select v-model:value="previewValueSelected" :options="previewCheckValueOptions" placeholder="校验值" class="pv-select" />
           </div>
         </section>
 
@@ -1652,11 +1660,11 @@ function buildDomainItems(): { text: string; value: string }[] {
     if (!st || st <= 0) st = isDiscrete ? 1 : 0.5
     if (!Number.isFinite(mn) || !(st > 0)) continue
     if (mxRaw === null || !Number.isFinite(mxRaw)) {
-      if (out.length < 40) out.push({ text: `${fmtNum(mn)}${u}以上`, value: `${fmtNum(mn)}+` })
+      out.push({ text: `${fmtNum(mn)}${u}以上`, value: `${fmtNum(mn)}+` })
       continue
     }
     if (mxRaw <= mn) continue
-    for (let v = mn; v <= mxRaw + 1e-9 && out.length < 40; v += st) {
+    for (let v = mn; v <= mxRaw + 1e-9; v += st) {
       out.push({ text: `${fmtNum(v)}${u}`, value: fmtNum(v) })
     }
   }
@@ -1682,13 +1690,24 @@ function opSymbol(value: string): string {
   return OP_SYMBOLS[value] || ''
 }
 
-// ---- 配置预览（对齐原型 renderPreview 单行四联下拉） ----
+// ---- 配置预览（交互式：选择后立即显示所选内容） ----
+const previewMetricSelected = ref('current')
+const previewParamSelected = ref('')
+const previewOpSelected = ref('')
+const previewValueSelected = ref('')
+
+function firstEnabledValue(opts: any[]): string {
+  const o = opts.find((x) => !x.disabled)
+  return o ? (o.value as string) : ''
+}
+
 // ① 指标项：仅当前模板名称（不带单位）
-const previewMetricItemValue = computed<string>(() => 'current')
 const previewMetricItemOptions = computed<any[]>(() => [
   { label: tplForm.value.name || t('metrics.tpl.unnamed'), value: 'current' },
 ])
-// ② 参数：来自「参数配置」取值范围枚举（带参数单位）
+watch(previewMetricItemOptions, (opts) => { previewMetricSelected.value = firstEnabledValue(opts) }, { immediate: true })
+
+// ② 参数：来自「参数配置」取值范围枚举（完整显示所有预览值，带参数单位）
 const previewParamOptions = computed<any[]>(() => {
   if (!showTemplateParamConfig.value) return []
   const unit = currentParamUnit.value
@@ -1701,7 +1720,7 @@ const previewParamOptions = computed<any[]>(() => {
   const isDiscrete = selectedTemplateDefinition.value?.paramType === 'discrete'
   if (!st || st <= 0) st = isDiscrete ? 1 : 0.5
   if (Number.isFinite(mn) && Number.isFinite(mx) && st > 0) {
-    for (let v = mn; v <= mx + 1e-9 && opts.length < 25; v += st) {
+    for (let v = mn; v <= mx + 1e-9; v += st) {
       const vv = fmtNum(v)
       const suffix = (c.suffix || '').trim()
       const suffixHasUnit = suffix && unit && suffix.endsWith(unit)
@@ -1712,10 +1731,8 @@ const previewParamOptions = computed<any[]>(() => {
   if (!opts.length) opts.push({ label: '— 请先配置参数 —', value: '', disabled: true })
   return opts
 })
-const previewParamValue = computed<string>(() => {
-  const opts = previewParamOptions.value
-  return opts.length ? (opts[0].value as string) : ''
-})
+watch(previewParamOptions, (opts) => { previewParamSelected.value = firstEnabledValue(opts) }, { immediate: true })
+
 // ③ 运算符：已启用优先，否则定义支持的全部（标签前带运算符符号，对齐原型 OPS）
 const previewOpOptions = computed<any[]>(() => {
   const d = selectedTemplateDefinition.value
@@ -1726,17 +1743,15 @@ const previewOpOptions = computed<any[]>(() => {
     return { label: `${opSymbol(k)} ${o.label}`, value: k }
   })
 })
-const previewOpValue = computed<string>(() => {
-  const opts = previewOpOptions.value
-  return opts.length ? (opts[0].value as string) : ''
-})
-// ④ 校验值：值域枚举（带出参单位，无「全部」）
+watch(previewOpOptions, (opts) => { previewOpSelected.value = firstEnabledValue(opts) }, { immediate: true })
+
+// ④ 校验值：值域枚举（完整显示所有预览值，带出参单位，无「全部」）
 const previewCheckValueOptions = computed<any[]>(() => {
   const items = domainItems.value
   if (!items.length) return [{ label: '— 请先添加值域分段 —', value: '', disabled: true }]
   return items.map((i) => ({ label: i.text, value: i.value }))
 })
-const previewCheckValue = computed<string>(() => '')
+watch(previewCheckValueOptions, (opts) => { previewValueSelected.value = firstEnabledValue(opts) }, { immediate: true })
 
 function onTemplateMetricChange() {
   const d = selectedTemplateDefinition.value
@@ -2549,13 +2564,18 @@ onUnmounted(() => {
 .tpl-head-meta { font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--ink-faint); letter-spacing: .01em; }
 
 /* 表单主体 + 编号计数器 */
-.tpl-form { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-6); counter-reset: tplsec; }
+.tpl-form { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-5); counter-reset: tplsec; }
 .tpl-fields { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0 var(--space-4); }
 .tpl-alltext { width: 120px; min-width: 0; }
 
+/* 全局收紧表单项底部间距 */
+.tpl-form :deep(.n-form-item) { margin-bottom: 0; }
+.tpl-form :deep(.n-form-item-label) { padding-bottom: var(--space-1); font-size: var(--fs-12); }
+
 /* 分区（品牌编号方块） */
 .tpl-sec { counter-increment: tplsec; }
-.tpl-sec-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
+.tpl-sec-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3); }
+.tpl-sec-unit { font-family: var(--tpl-mono); }
 .tpl-sec-head::before {
   content: counter(tplsec, decimal-leading-zero);
   font-family: var(--tpl-mono);
@@ -2575,8 +2595,8 @@ onUnmounted(() => {
 /* 继承信息（品牌浅底块） */
 .tpl-inherit {
   display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
-  margin-top: var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background: var(--brand-tint);
   border: 1px solid var(--brand-a12);
   border-radius: var(--radius-md);
@@ -2599,45 +2619,46 @@ onUnmounted(() => {
 .tpl-pill.is-on { background: var(--brand-600); border-color: var(--brand-600); color: var(--on-brand); font-weight: 600; }
 
 /* 参数配置区域块 */
-.tpl-param-block { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); background: var(--brand-tint); border: 1px solid var(--brand-a12); border-radius: var(--radius-md); }
-.tpl-range-row { display: flex; flex-wrap: nowrap; align-items: stretch; gap: var(--space-4); min-width: 0; }
-.tpl-range-item { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); min-width: 0; }
-.tpl-range-lbl { color: var(--ink-faint); font-size: var(--fs-12); font-family: var(--tpl-mono); white-space: nowrap; }
-.tpl-range-num { width: 74px; }
-.tpl-range-static { color: var(--ink-soft); font-size: var(--fs-12); }
-.tpl-range-all { gap: var(--space-2); }
-.tpl-all-text { color: var(--ink-soft); font-size: var(--fs-12); white-space: nowrap; }
+.tpl-param-block { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); background: var(--brand-tint); border: 1px solid var(--brand-a12); border-radius: var(--radius-md); }
+.tpl-param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-4); }
+.tpl-param-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.tpl-param-lbl { color: var(--ink-soft); font-size: var(--fs-12); font-family: var(--tpl-mono); line-height: 1.4; }
+.tpl-param-ctl { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; min-width: 0; }
+.tpl-param-ctl .n-input-number { flex-shrink: 0; }
+.tpl-range-num { width: 84px; }
+.tpl-range-static { color: var(--ink-soft); font-size: var(--fs-12); white-space: nowrap; }
 .tpl-mini { width: 58px; min-width: 0; }
-.tpl-range-sep { color: var(--ink-faint); align-self: center; }
+.tpl-alltext { width: 120px; min-width: 0; }
+.tpl-range-sep { color: var(--ink-faint); }
 
 .tpl-preview { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--brand-a12); border-radius: var(--radius-md); font-size: var(--fs-12); line-height: 1.6; }
 .tpl-preview-tag { font-weight: 600; color: var(--brand-text); white-space: nowrap; font-family: var(--tpl-mono); }
 .tpl-preview-meta { color: var(--brand-text); opacity: .8; font-family: var(--tpl-mono); }
 .tpl-preview-vals { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
-/* 运算符键盘区域块 */
-.tpl-ops-block { padding: var(--space-4); background: var(--g1); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
-.tpl-ops { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--space-3); }
+/* 运算符区域块（紧凑标签） */
+.tpl-ops-block { padding: var(--space-3); background: var(--g1); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+.tpl-ops { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .tpl-op {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  padding: var(--space-3) var(--space-2);
-  border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
+  position: relative;
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 4px 10px;
+  border: 1px solid var(--border-hairline); border-radius: var(--radius-pill);
   background: var(--surface); color: var(--ink-soft);
   cursor: pointer; user-select: none;
-  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 .tpl-op:hover { border-color: var(--brand-600); }
-.tpl-op:active { transform: translateY(1px); }
-.tpl-op.is-on { background: var(--brand-600); border-color: var(--brand-600); color: var(--on-brand); box-shadow: 0 4px 12px var(--brand-a32); }
-.tpl-op-sym { font-family: var(--tpl-mono); font-size: var(--fs-18); font-weight: 700; line-height: 1; }
-.tpl-op-lbl { font-size: 11px; line-height: 1.2; text-align: center; }
+.tpl-op.is-on { background: var(--brand-600); border-color: var(--brand-600); color: var(--on-brand); font-weight: 600; }
+.tpl-op-sym { font-family: var(--tpl-mono); font-size: var(--fs-12); font-weight: 700; line-height: 1; }
+.tpl-op-lbl { font-size: var(--fs-12); line-height: 1.2; white-space: nowrap; }
 .tpl-op input { position: absolute; opacity: 0; width: 0; height: 0; }
 .tpl-info-text { color: var(--ink-faint); font-size: var(--fs-13); padding: var(--space-2) 0; }
 
 /* 值域配置区域块 */
-.tpl-domain-block { padding: var(--space-4); background: var(--g1); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
-.tpl-segments { display: flex; flex-direction: column; gap: var(--space-3); }
-.tpl-seg-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+.tpl-domain-block { padding: var(--space-3); background: var(--g1); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+.tpl-segments { display: flex; flex-direction: column; gap: var(--space-2); }
+.tpl-seg-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
 .tpl-seg-tag { font-family: var(--tpl-mono); font-size: var(--fs-12); font-weight: 700; color: var(--brand-text); background: var(--brand-soft); border-radius: var(--radius-sm); padding: 2px 8px; white-space: nowrap; }
 .tpl-seg-num { width: 88px; }
 .tpl-unit-text { color: var(--ink-faint); font-size: var(--fs-12); font-family: var(--tpl-mono); }
@@ -2651,19 +2672,19 @@ onUnmounted(() => {
 
 /* 配置预览（仪表读数条） */
 .tpl-readout {
-  padding: var(--space-4);
+  padding: var(--space-3);
   background: var(--brand-tint);
   border: 1px solid var(--brand-a12);
   border-radius: var(--radius-md);
 }
-.tpl-readout-eyebrow { font-family: var(--tpl-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--brand-text); opacity: .85; margin-bottom: var(--space-3); }
-.tpl-readout-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.tpl-readout-eyebrow { font-family: var(--tpl-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--brand-text); opacity: .85; margin-bottom: var(--space-2); }
+.tpl-readout-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-2); }
 .tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
 .pv-select { min-width: 0; width: 100%; }
 .pv-arrow { color: var(--brand-600); flex-shrink: 0; justify-self: center; font-weight: 700; }
 
 /* 底部：描述 + 状态 */
-.tpl-foot-fields { display: grid; grid-template-columns: 1fr auto; gap: var(--space-4); align-items: start; }
+.tpl-foot-fields { display: grid; grid-template-columns: 1fr auto; gap: var(--space-3); align-items: start; }
 .tpl-status { margin-bottom: 0; }
 .tpl-status :deep(.n-form-item-label) { height: auto; }
 .tpl-footer { width: 100%; }
@@ -2672,7 +2693,7 @@ onUnmounted(() => {
 @media (max-width: 640px) {
   .tpl-fields { grid-template-columns: 1fr; }
   .tpl-foot-fields { grid-template-columns: 1fr; }
-  .tpl-range-row { flex-wrap: wrap; }
+  .tpl-param-grid { grid-template-columns: 1fr; }
   .tpl-readout-row, .tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .pv-arrow { display: none; }
 }
