@@ -183,7 +183,7 @@ class SceneRule(models.Model):
         # 规则编号自动补号: 未设 code 时, 事务内锁定末行取最大序号 +1,
         # 写入 S+4 位编号 (如 S0001)。覆盖写端点 (create / wizard save / snapshot / import
         # 四处 create 均不传 code) 也自动拿到唯一 code, 避免撞 unique=True 约束导致 500。
-        if not self.code and self._code_column_exists():
+        if not self.code:
             with transaction.atomic():
                 last = (
                     SceneRule.objects.select_for_update()
