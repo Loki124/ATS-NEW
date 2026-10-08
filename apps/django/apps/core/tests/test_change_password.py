@@ -10,7 +10,7 @@
 
 覆盖：
   - 缺参 / 空参 → 400 missing_password
-  - 新密码 <6 位 → 400 password_too_short
+  - 新密码弱（短/常见/纯数字）→ 400 password_too_weak
   - 原密码错误 → 400 invalid_old_password
   - 未认证 → 401
   - 正常修改 → 200 success + 旧密码失效 + 新密码生效
@@ -60,14 +60,36 @@ class TestChangePassword:
         assert resp.status_code == 400
         assert resp.json().get('code') == 'missing_password'
 
-    def test_new_password_too_short_returns_400(self, authed_user):
+    def test_new_password_weak_returns_400(self, authed_user):
+        # P0 修复回归: 弱密码(常见密码)必须被 Django 校验器拦截, 返 400 + code=password_too_weak
         resp = authed_user['client'].post(URL, {
             'oldPassword': authed_user['old_password'],
-            'newPassword': 'a1',  # < 6 位
+            'newPassword': 'password',  # 常见密码 → CommonPasswordValidator
         }, format='json')
         assert resp.status_code == 400
         body = resp.json()
-        assert body.get('code') == 'password_too_short'
+        assert body.get('code') == 'password_too_weak'
+
+    def test_new_password_numeric_returns_400(self, authed_user):
+        # P0 修复回归(补充): 纯数字密码必须被 NumericPasswordValidator 拦截
+        resp = authed_user['client'].post(URL, {
+            'oldPassword': authed_user['old_password'],
+            'newPassword': '12345678',  # 纯数字 → NumericPasswordValidator
+        }, format='json')
+        assert resp.status_code == 400
+        assert resp.json().get('code') == 'password_too_weak'
+
+    def test_change_password_strong_succeeds(self, authed_user):
+        """P0 修复回归: 合规强密码应通过校验并成功改密 (200)."""
+        new_pw = 'ChgNew!Str0ng#99'
+        resp = authed_user['client'].post(URL, {
+            'oldPassword': authed_user['old_password'],
+            'newPassword': new_pw,
+        }, format='json')
+        assert resp.status_code == 200, resp.content
+        assert resp.json().get('success') is True
+        authed_user['user'].refresh_from_db()
+        assert authed_user['user'].check_password(new_pw) is True
 
     def test_wrong_old_password_returns_400(self, authed_user):
         resp = authed_user['client'].post(URL, {

@@ -1,5 +1,7 @@
 """注册审核相关序列化器."""
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .models import RegistrationApplication
@@ -22,11 +24,11 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def validate_password(self, value: str):
-        # 简单强度校验: 至少 8 位, 含字母与数字 (与后台改密策略对齐)
-        if len(value) < 8:
-            raise serializers.ValidationError('密码至少 8 位')
-        if not any(c.isalpha() for c in value) or not any(c.isdigit() for c in value):
-            raise serializers.ValidationError('密码需同时包含字母和数字')
+        # 复用 Django AUTH_PASSWORD_VALIDATORS (prod: 最少12位 + 复杂度), 与后台改密策略一致
+        try:
+            validate_password(value)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
         return value
 
 

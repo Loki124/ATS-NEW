@@ -9,6 +9,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 # T01.2 (2026-08-04 寇豆码): 显式声明 IsAuthenticated, 覆盖全局 deny-by-default.
@@ -143,9 +145,12 @@ def change_password_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if len(new_password) < 6:
+    # 强度校验: 复用 Django AUTH_PASSWORD_VALIDATORS (prod: 最少12位 + 复杂度), 不再用弱校验
+    try:
+        validate_password(new_password, user)
+    except ValidationError as e:  # noqa: BLE001 — 显式 fail-fast: 密码不合规直接 400, 不静默放行
         return Response(
-            {'success': False, 'code': 'password_too_short', 'message': '新密码长度不能少于 6 位'},
+            {'success': False, 'code': 'password_too_weak', 'message': '; '.join(e.messages)},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

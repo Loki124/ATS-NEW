@@ -164,8 +164,15 @@ class BackgroundCheckCallbackView(APIView):
         try:
             order, _event, action = apply_callback_to_order(payload, config, sync_log=log)
             logger.info('background_check callback applied: order=%s action=%s', order.order_number, action)
-        except Exception:  # noqa: BLE001 — 第三方回调应用失败返成功 (下游商户不应因我们处理失败重发, 仅日志)
+        except Exception as e:  # noqa: BLE001 — fail-fast: 应用失败回写 FAILED 审计并返 5xx, 让供应商重试, 绝不伪装成功
+            log.status = 'FAILED'
+            log.error_message = f'apply_callback_to_order failed: {e}'
+            log.save(update_fields=['status', 'error_message'])
             logger.exception('apply_callback_to_order failed (number=%s)', number)
+            return Response(
+                bg_callback_envelope(50002, 'apply failed', data={'number': number, 'status': status_val}),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         return Response(
             bg_callback_envelope(0, 'success', data={'number': number, 'status': status_val}),
             status=status.HTTP_200_OK,
