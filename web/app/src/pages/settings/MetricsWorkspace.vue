@@ -503,42 +503,7 @@
             <span class="tpl-preview-vals">{{ rangePreviewValues.join(', ') }}{{ rangePreviewMore ? ', …' : '' }}</span>
             <span v-if="currentParamUnit" class="tpl-preview-meta">（{{ currentParamUnit }}）</span>
           </div>
-
-          <!-- 计算参数（实际取值，真实功能保留） -->
-          <div class="tpl-subblock">
-            <div class="tpl-subblock-title">{{ t('metrics.tpl.calcParamsTitle') }}</div>
-            <p class="tpl-subblock-hint">{{ t('metrics.tpl.calcParamsHint') }}</p>
-            <div v-if="calcParamRows.length" class="tpl-calc-params">
-              <div v-for="p in calcParamRows" :key="p.key" class="tpl-calc-row">
-                <span class="param-label">
-                  {{ p.label }}<template v-if="p.required"> *</template>
-                </span>
-                <n-input-number
-                  v-if="p.type === 'number'"
-                  v-model:value="tplForm.calcParams[p.key]"
-                  :min="p.min ?? 0"
-                  class="param-input"
-                />
-                <n-select
-                  v-else-if="p.type === 'select'"
-                  v-model:value="tplForm.calcParams[p.key]"
-                  :options="(p.options || []).map((o: any) => ({ label: o.label, value: o.value }))"
-                  class="param-input"
-                />
-                <n-switch v-else-if="p.type === 'boolean'" v-model:value="tplForm.calcParams[p.key]" />
-                <n-input v-else v-model:value="tplForm.calcParams[p.key]" class="param-input" />
-                <span v-if="p.key === 'recent_n'" class="param-hint">{{ t('metrics.detail.recentNHint') }}</span>
-              </div>
-            </div>
-            <div v-else class="tpl-info-text">{{ t('metrics.tpl.handlerNoParamsNeeded') }}</div>
-          </div>
         </section>
-        <div v-else-if="selectedTemplateDefinition && selectedTemplateDefinition.valueMode === 'object_path'" class="tpl-info-text">
-          {{ t('metrics.tpl.noParamsNeeded') }}
-        </div>
-        <div v-else-if="selectedTemplateDefinition" class="tpl-info-text">
-          {{ t('metrics.tpl.handlerNoParamsNeeded') }}
-        </div>
 
         <!-- 启用算子 -->
         <section class="tpl-section-card">
@@ -1678,12 +1643,6 @@ function setUnit(u: string) {
     tplForm.value.calcParams.unit = UNIT_TO_CALC[u]
   }
 }
-// 计算参数渲染行：多单位 pill 已接管「输出单位」选择时，隐藏 paramSchema 里的 unit 行（避免重复）
-const calcParamRows = computed<any[]>(() => {
-  const schema = selectedTemplateDefinition.value?.paramSchema || []
-  if (outputUnitOptions.value.length > 1) return schema.filter((p: any) => p.key !== 'unit')
-  return schema
-})
 // 取值方式展示文案：参数化 Handler 组合「连续/离散」；对象路径直接展示。
 const valueModeLabel = computed<string>(() => {
   const d = selectedTemplateDefinition.value
@@ -1869,7 +1828,7 @@ function onTemplateMetricChange() {
     tplForm.value.paramConfig = { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false }
     tplForm.value.calcParams = {}
   } else if (selectedTemplateDefinition.value?.paramSchema?.length) {
-    // 预填 paramSchema default，便于业务人员改
+    // 预填 paramSchema default（引擎按 default 兜底；模板弹窗不设参数编辑入口，取值域由「参数配置」约束展示）
     for (const p of selectedTemplateDefinition.value.paramSchema) {
       if (tplForm.value.calcParams[p.key] === undefined && p.default !== undefined) {
         tplForm.value.calcParams[p.key] = p.default
@@ -2634,12 +2593,6 @@ onUnmounted(() => {
 .param-meta { color: var(--ink-soft); font-size: var(--fs-12); }
 .dm-hint { color: var(--ink-faint); font-size: var(--fs-12); margin-top: var(--space-2); }
 
-/* 模板弹窗：计算参数子块（实际取值） */
-.tpl-subblock { border-top: 1px dashed var(--border-hairline); margin-top: var(--space-3); padding-top: var(--space-3); }
-.tpl-subblock-title { font-weight: 600; color: var(--ink-strong); font-size: var(--text-small, 13px); margin-bottom: var(--space-1); }
-.tpl-subblock-hint { color: var(--ink-faint); font-size: var(--fs-12); margin: 0 0 var(--space-3); line-height: 1.5; }
-.tpl-calc-params { display: flex; flex-direction: column; gap: var(--space-2); }
-.tpl-calc-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .tpl-unit-field { margin-bottom: var(--space-4); }
 
 /* 模板弹窗分段 */
