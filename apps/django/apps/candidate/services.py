@@ -506,7 +506,7 @@ class CandidateService:
         qs = base_qs if base_qs is not None else Candidate.objects.all()
         qs = qs.filter(deleted_at__isnull=True)
         if keyword:
-            qs = qs.filter(keyword_q(keyword, 'name', 'phone', 'email', 'current_company'))
+            qs = qs.filter(keyword_q(keyword, 'name', 'phone', 'email', 'current_company', model=Candidate))
         if state:
             qs = qs.filter(current_state=state)
         if source_channel_id:

@@ -64,6 +64,7 @@ from .serializers import (
     CandidateUpdateSerializer,
 )
 from .services import CandidateService
+from .models import Candidate
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         # 关键词
         keyword = self.request.query_params.get('keyword')
         if keyword:
-            qs = qs.filter(keyword_q(keyword, 'name', 'phone', 'email', 'current_company'))
+            qs = qs.filter(keyword_q(keyword, 'name', 'phone', 'email', 'current_company', model=Candidate))
         # 2026-09-25: 候选人 ID 白名单（逗号分隔）—— 供指标库「按规则筛选」结果集回传。
         # 规则含派生指标（需计算，无法 SQL 化），故由 metrics 侧先算得 passedIds，
         # 再由本参数收敛结果集，保证分页与总数正确。
@@ -804,7 +805,7 @@ class CandidateBatchExportView(APIView):
                 qs = qs.filter(current_state=filter_['state'])
             kw = filter_.get('keyword')
             if kw:
-                qs = qs.filter(keyword_q(kw, 'name', 'phone'))
+                qs = qs.filter(keyword_q(kw, 'name', 'phone', model=Candidate))
         qs = qs.select_related('recruiter')[:2000]
 
         buf = io.StringIO()

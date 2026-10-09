@@ -121,7 +121,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
         # 关键词
         keyword = self.request.query_params.get('keyword')
         if keyword:
-            qs = qs.filter(keyword_q(keyword, 'code', 'candidate__name', 'position__title'))
+            qs = qs.filter(keyword_q(keyword, 'code', 'candidate__name', 'position__title', model=Application))
         # IDOR scope (Fix 1)
         qs = self.scope_queryset(qs)
         return qs.order_by('-created_at')

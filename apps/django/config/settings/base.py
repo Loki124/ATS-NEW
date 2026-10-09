@@ -342,6 +342,11 @@ RULE_ENGINE_DOUBLE_WRITE = env.bool('RULE_ENGINE_DOUBLE_WRITE', default=True)
 #   仅在双写稳定、executor 经测试验证后，按流程逐个 trigger 打开。
 RULE_ENGINE_DISPATCH = env.bool('RULE_ENGINE_DISPATCH', default=False)
 
+# 2026-10-09 (#38 方案 A): 搜索后端。
+#   'auto'（默认）= MySQL 走 FULLTEXT(MATCH...AGAINST)，其余数据库回退 LIKE；
+#   'like' / 'fulltext' 可显式强制，用于灰度开关与回滚。
+SEARCH_BACKEND = env('SEARCH_BACKEND', default='auto')
+
 # 字段级 ACL 全局强制脱敏（默认关）：开启后，所有实体的默认敏感字段对「非超管」用户
 # 一律 MASK（即便某角色规则放行 READ），作为纵深防御。超管/SUPER_ADMIN 角色不受影响。
 # 不设环境变量即保持原行为（按角色规则 + 默认敏感字段评估）。

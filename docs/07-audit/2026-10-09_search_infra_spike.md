@@ -82,9 +82,19 @@
 - 结论：**方案 A 无验证阻塞**。把 `keyword_q` 切到 `MATCH...AGAINST` 时，
   只需补一条针对 `keyword_match()` 召回/排序的用例，它会自然落在现有 MySQL CI job 上跑通。
 
-## 6. 决策待办
+## 6. 决策结论（2026-10-09）
 
-- [ ] DBA / infra 确认走 A 还是 B（或暂不迁移，维持 `LIKE`）；
-- [ ] 若 A：CI 已具备 MySQL 8 测试环境（`test-backend` job，`DB_ENGINE=mysql`），
-  直接在现有 job 上补 FULLTEXT 用例即可，无需新建验证设施；
-- [ ] 若 B：确认 ES 集群资源与同步方案（双写 vs CDC）。
+- **方案 A 已批准并落地**：用户确认走 MySQL ngram FULLTEXT（无需 ES）。
+- 实现：
+  - `apps/common/search.py`：`keyword_q` 新增 `backend` / `model` 参数；`fulltext` 路径用
+    `MATCH(\`table\`.\`col\`) AGAINST (%s) > 0`（ngram），关联字段 / 非安全标识符回退 `icontains`；
+  - `config/settings/base.py`：新增 `SEARCH_BACKEND`（默认 `auto` → MySQL 走 FULLTEXT、其余回退 LIKE）；
+  - `apps/candidate/migrations/0013_*`、`apps/application/migrations/0007_*`：MySQL-only 的 FULLTEXT 索引
+    （`WITH PARSER ngram`），SQLite/Postgres 自动跳过（RunPython 按 vendor 守卫）；
+  - `apps/common/tests/test_search.py`：MySQL 门控用例，验证中文 ngram 召回与关联字段回退。
+- 验证：本地 MySQL 9.6 与 CI `mysql:8.0` 同款语义，用例全部通过。
+
+## 7. 后续可选
+
+- [ ] 若未来搜索 QPS / 语义检索需求上升，再评估方案 B（ES）；
+- [ ] 灰度 / 回滚：设 `SEARCH_BACKEND=like` 即可一键回到 `LIKE`，无需改动代码或索引。
