@@ -7,11 +7,15 @@
  * - 默认语言 zh-CN（契合 R-222「用户可见文案优先中文」）
  * - en-US 作为兜底/可切换语言（reasonLibrary 命名空间已双语，其余缺失键回退 zh-CN）
  * - legacy:false → Composition API：`useI18n()` 取 t，模板可用 `$t`
+ *
+ * ## 2026-10-09 (#39) 按域异步加载
+ * 大字典（REASON_LIBRARY_* / DATA_PERM_* / APP_UI_*）已拆分到 `./domains/<locale>.<CONST>.ts`：
+ * - 启动只加载「当前语言」对应分片（默认 zh-CN），把原 ~260KB/语言的字典移出主包（异步 chunk）。
+ * - 切换到另一语言时再懒加载该语言分片（见底部 watch），绝大多数用户（默认中文）不会下载 en-US。
+ * - language.ts 极小，保持静态导入。
  */
 import { createI18n } from 'vue-i18n'
-import { ref, computed, watch } from 'vue'
-import { REASON_LIBRARY_ZH, DATA_PERM_ZH, APP_UI_ZH } from './zh-CN'
-import { REASON_LIBRARY_EN, DATA_PERM_EN, APP_UI_EN } from './en-US'
+import { computed, watch } from 'vue'
 import { LANGUAGE_ZH, LANGUAGE_EN } from './language'
 import { METRICS_ZH, METRICS_EN } from './metrics'
 import { RESUME_PARSER_ZH, RESUME_PARSER_EN } from './resumeParser'
@@ -31,11 +35,6 @@ function toNested(flat: Record<string, string>): Record<string, any> {
     node[parts[parts.length - 1]] = value
   }
   return root
-}
-
-const messages = {
-  'zh-CN': toNested({ ...REASON_LIBRARY_ZH, ...DATA_PERM_ZH, ...APP_UI_ZH, ...LANGUAGE_ZH, ...METRICS_ZH, ...RESUME_PARSER_ZH }),
-  'en-US': toNested({ ...REASON_LIBRARY_EN, ...DATA_PERM_EN, ...APP_UI_EN, ...LANGUAGE_EN, ...METRICS_EN, ...RESUME_PARSER_EN }),
 }
 
 export type AppLocale = 'zh-CN' | 'en-US'
@@ -63,7 +62,7 @@ export const i18n = createI18n({
   legacy: false,
   locale: readInitialLocale(),
   fallbackLocale: 'zh-CN',
-  messages,
+  messages: {}, // 初始为空，运行时异步加载（#39）：见 loadLocale / ensureLocaleLoaded
 })
 
 /**
@@ -82,11 +81,47 @@ export const currentLocale = computed<AppLocale>({
   },
 })
 
+const _loaded = new Set<AppLocale>()
+
+/**
+ * 异步加载某语言的字典分片并注册到 i18n（幂等）。
+ * 分片 = 3 个大数据域（reasonLibrary / dataPerm / appUi）+ 2 个小域（metrics / resumeParser，已静态可用）。
+ */
+export async function loadLocale(code: AppLocale): Promise<void> {
+  if (_loaded.has(code)) return
+  const [reason, dataPerm, appUi]: any[] = await Promise.all([
+    code === 'zh-CN'
+      ? import('./domains/zh-CN.REASON_LIBRARY_ZH')
+      : import('./domains/en-US.REASON_LIBRARY_EN'),
+    code === 'zh-CN'
+      ? import('./domains/zh-CN.DATA_PERM_ZH')
+      : import('./domains/en-US.DATA_PERM_EN'),
+    code === 'zh-CN'
+      ? import('./domains/zh-CN.APP_UI_ZH')
+      : import('./domains/en-US.APP_UI_EN'),
+  ])
+  const flat: Record<string, string> = {
+    ...(code === 'zh-CN' ? LANGUAGE_ZH : LANGUAGE_EN),
+    ...(code === 'zh-CN' ? METRICS_ZH : METRICS_EN),
+    ...(code === 'zh-CN' ? RESUME_PARSER_ZH : RESUME_PARSER_EN),
+    ...(code === 'zh-CN' ? reason.REASON_LIBRARY_ZH : reason.REASON_LIBRARY_EN),
+    ...(code === 'zh-CN' ? dataPerm.DATA_PERM_ZH : dataPerm.DATA_PERM_EN),
+    ...(code === 'zh-CN' ? appUi.APP_UI_ZH : appUi.APP_UI_EN),
+  }
+  i18n.global.setLocaleMessage(code, toNested(flat))
+  _loaded.add(code)
+}
+
+/** 启动期加载当前语言字典（main.ts 在 mount 前 await，避免首屏闪烁） */
+export async function ensureLocaleLoaded(): Promise<void> {
+  await loadLocale(currentLocale.value)
+}
+
 export default i18n
 
 /**
  * 同步 <html lang> 属性（P0-2）：保证无障碍 / 屏幕阅读器 / SEO 正确。
- * 启动即按已恢复的语言设置一次，之后随 currentLocale 变化持续同步。
+ * 切换语言时一并懒加载对应分片（首次切换到 en-US 才真正下载该语言字典）。
  */
 function syncHtmlLang(code: AppLocale) {
   if (typeof document !== 'undefined') {
@@ -94,4 +129,7 @@ function syncHtmlLang(code: AppLocale) {
   }
 }
 syncHtmlLang(readInitialLocale())
-watch(currentLocale, syncHtmlLang)
+watch(currentLocale, (code) => {
+  void loadLocale(code) // 懒加载分片（已加载则幂等跳过）
+  syncHtmlLang(code)
+})

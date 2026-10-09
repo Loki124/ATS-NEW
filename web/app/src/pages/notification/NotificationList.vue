@@ -4,7 +4,13 @@
       <h1 class="page-title">{{ t('pages.notification.NotificationList.s1') }}</h1>
     </div>
     <n-card :bordered="false" class="rounded-xl">
-      <n-data-table :columns="columns" :data="dataSource" :row-key="(row: any) => row.id" />
+      <n-data-table
+        :columns="columns"
+        :data="dataSource"
+        :row-key="(row: any) => row.id"
+        :max-height="520"
+        :virtual-scroll="true"
+      />
     </n-card>
   </div>
 </template>
@@ -26,10 +32,10 @@ interface DataItem {
 const dataSource = ref<DataItem[]>([])
 
 const columns = [
-  { title: '标题', key: 'title', render: (row: DataItem) => row.title },
-  { title: '类型', key: 'type', render: (row: DataItem) => row.type },
-  { title: '时间', key: 'time', render: (row: DataItem) => row.time },
-  { title: '状态', key: 'status', render: (row: DataItem) => h(NTag, { type: 'info' }, { default: () => row.status }) },
+  { title: '标题', key: 'title', width: 320, render: (row: DataItem) => row.title },
+  { title: '类型', key: 'type', width: 120, render: (row: DataItem) => row.type },
+  { title: '时间', key: 'time', width: 220, render: (row: DataItem) => row.time },
+  { title: '状态', key: 'status', width: 120, render: (row: DataItem) => h(NTag, { type: 'info' }, { default: () => row.status }) },
 ]
 </script>
 

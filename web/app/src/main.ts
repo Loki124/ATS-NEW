@@ -5,6 +5,7 @@ import router from './router'
 import { naivePlugin } from './plugins/naive'
 import { setupPermissionDirective } from './directives/permission'
 import i18n from './locales' // 2026-09-24: vue-i18n 接入（默认 zh-CN，en-US 兜底）
+import { ensureLocaleLoaded } from './locales' // #39: 按域异步加载字典
 import { startAppVersionWatcher } from './services/app-version'
 
 // Naive UI —— 见 plugins/naive.ts (统一注册, 测试可复用)
@@ -105,6 +106,9 @@ if (_userStore.accessToken) {
   // G43 品牌信息同步到管理后台：系统名称 / Logo / 浏览器 title + favicon
   await _brandStore.init()
 }
+
+// #39: 异步加载 i18n 字典（默认 zh-CN；en-US 在切换时懒加载），必须在 mount 前完成避免首屏闪烁
+await ensureLocaleLoaded()
 
 // 2026-06-14: 全局 error 兜底, 避免任意外部模块 TDZ / unhandled rejection 让整个 app 白屏
 app.config.errorHandler = (err, _instance, info) => {
