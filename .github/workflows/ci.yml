@@ -98,6 +98,15 @@ jobs:
           pytest --tb=short -v --maxfail=10 -m "not quarantine" --cov=apps \
             --cov-report=term-missing --cov-fail-under=${{ env.COV_MIN }}
 
+      - name: Report test count (single source of truth)
+        if: always()
+        working-directory: apps/django
+        run: |
+          . .venv/bin/activate
+          # 2026-10-09 (#41): pytest 收集基线作为测试数字单一事实源，由 CI 产出，避免文档口径互相矛盾。
+          COUNT=$(pytest --co -q 2>/dev/null | grep -c '::' || true)
+          echo "::notice title=pytest::collected ${COUNT} tests (single source of truth)"
+
   test-frontend:
     name: Frontend Build + Tests
     runs-on: ubuntu-latest

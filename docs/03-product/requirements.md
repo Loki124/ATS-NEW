@@ -11,7 +11,7 @@
 
 | 阶段 | 状态 | 关键交付 |
 |---|---|---|
-| **P0 核心 14 项** | ✅ **14/14 done** | 业务 + V2 共 70 张表 / 60+ 端点 / 7 业务状态机 / 1873 pytest + 132 vitest |
+| **P0 核心 14 项** | ✅ **14/14 done** | 业务 + V2 共 70 张表 / 60+ 端点 / 7 业务状态机 / 2256 pytest + 132 vitest |
 | **P1 重要模块** | ✅ **12/12 done** | 字段脱敏 / 倒序推荐 / 历史评价预填 / 手动背调 / 智能分配 / 6 子库 / Moka 同步 / 字段 ACL / 11 状态字段 |
 | **P2 外部集成** | 🟡 部分 | 企微 / 腾讯会议 / 摩卡 / 背调 / RPA / IM — 需企业 API 授权 |
 | **P3 数据治理** | ✅ **5/5 done** | 院校公司库 / 动态字段表 / OCR 查重（详见 CHANGELOG / PROJECT_PLAN） |
@@ -39,7 +39,7 @@
 - ✅ 政策制度 / 公告模块：返回按钮 / 模块间距 UI 调整 + 公告详情页 + 后端 CRUD 收口
 
 **统计指标**（持续更新，详见 CHANGELOG）:
-- 后端: 35 apps / 105 path() + 52 router.register / 49 ViewSet / pytest 全量持续全过（2026-10-02 基线 1873 passed / 0 failed / 1 skipped，详见 CHANGELOG）+ 132 vitest
+- 后端: 35 apps / 105 path() + 52 router.register / 49 ViewSet / pytest 全量持续全过（2026-10-09 收集基线 2256 用例，隔离区经 `-m "not quarantine"` 排除，详见 CHANGELOG）+ 132 vitest
 - 前端: 38 .vue 页面 / 27 API 客户端 / 5 核心 CRUD 接后端
 - DB: MySQL 8 / 70 张表（含 V2 权限 9 表 + V1 备份 4 表）
 - CI: `.github/workflows/ci.yml` (Trivy + 后端全量 + 前端类型 + lint 真阻断)

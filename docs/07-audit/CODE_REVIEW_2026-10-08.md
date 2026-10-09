@@ -296,7 +296,7 @@ dup.deleted_at = timezone.now(); dup.save(...)
 | 文件路径穿越 | **未发现**。保存路径用服务端生成 UUID/job_id，不拼原始文件名 |
 | 真实 `.env` / 云密钥入库 | **未发现**。仅存在 `.env.example`，全为占位符 |
 | 生产 CORS 通配 | **未发现**。`prod.py:151-165` 显式钉死并在启动时拒绝 `*`、`http://*`、`https://*` |
-| 密码策略绕过 | **已修复**。`accounts/serializers.py:26-31` 与 `core/views_auth.py:143-149` 均正确调用 `validate_password`（prod 为 12 位 + 3 类复杂度）。**注**：仓库内 `项目代码审查与学习分析报告.md:16` 仍将其列为 P0，该结论已过期 |
+| 密码策略绕过 | **已修复**。`accounts/serializers.py:26-31` 与 `core/views_auth.py:143-149` 均正确调用 `validate_password`（prod 为 12 位 + 3 类复杂度）。**注**：仓库内 `docs/07-audit/项目代码审查与学习分析报告.md:16` 仍将其列为 P0，该结论已过期 |
 | 加密算法 | **无缺陷**。`common/encryption.py` 用 Fernet（AES-CBC + HMAC-SHA256，自带随机 IV + 认证），支持 `MultiFernet` 轮换，生产 `STRICT_DECRYPT=True` fail-closed |
 
 **配置基线做得好的地方**（勿在重构中破坏）：`prod.py:16-82` 启动强校验（SECRET_KEY 长度/默认值、DEBUG、ALLOWED_HOSTS 通配符、CORS 白名单、数据库非 SQLite、PII_HASH_SALT 必填、ENCRYPTION_KEY 不得与集成密钥复用）；`prod.py:167-191` 生产 Redis 不可达直接抛错，拒绝 LocMemCache 静默降级。
@@ -391,7 +391,7 @@ dup.deleted_at = timezone.now(); dup.save(...)
 | 前端 vitest | 42 个（src 下） | api 8、common 组件 11、addCandidate 6、settings 4… |
 | 前端 Playwright | 17 个 spec（`e2e/`） | 登录/加候选人/列表/需求/职位/offer/校招/搜索等 |
 
-⚠️ **数字口径冲突（本身即问题）**：`pytest.ini:20` 注释写"全量 ~187 用例"（2026-08-03 过期值），而 `docs/01-wiki/08-测试体系.md:8` 与 `docs/06-runbook/RUNBOOK.md:82-83` 写 **1873**（2026-10-02）。仓库内 `项目代码审查与学习分析报告.md:11` 又写 **1344**。216 个文件下 187 显然不可能，**三个数字至少两个是错的**。且 `docs/07-audit/DOC_AUDIT_2026-10-03.md:27-31` 已自承文档数字互相矛盾（384/518/1873）。
+⚠️ **数字口径冲突（本身即问题）**：`pytest.ini:20` 注释写"全量 ~187 用例"（2026-08-03 过期值），而 `docs/01-wiki/08-测试体系.md:8` 与 `docs/06-runbook/RUNBOOK.md:82-83` 写 **1873**（2026-10-02）。仓库内 `docs/07-audit/项目代码审查与学习分析报告.md:11` 又写 **1344**。216 个文件下 187 显然不可能，**三个数字至少两个是错的**。且 `docs/07-audit/DOC_AUDIT_2026-10-03.md:27-31` 已自承文档数字互相矛盾（384/518/1873）。
 
 **仓库内无任何测试产物**（`.coverage` / `htmlcov/` / `junit.xml` / `.pytest_cache` 全 0 命中）→ **无法从产物判断当前是否真的通过，必须实跑确认。**
 
@@ -477,11 +477,11 @@ assert response.status_code in (200, 503)
 
 | # | 级别 | 问题 | 证据 |
 |---|---|---|---|
-| D-1 | 高 | **测试基线数字三个版本互斥**：187 / 1344 / 1873 | `pytest.ini:20` vs `项目代码审查与学习分析报告.md:11` vs `docs/01-wiki/08-测试体系.md:8` |
+| D-1 | 高 | **测试基线数字三个版本互斥**：187 / 1344 / 1873 | `pytest.ini:20` vs `docs/07-audit/项目代码审查与学习分析报告.md:11` vs `docs/01-wiki/08-测试体系.md:8` |
 | D-2 | 高 | **文档声称的门禁不存在**：`docs/01-wiki/08-测试体系.md:81` 写 "flake8 \| Python \| 后端 job" 门禁，但 CI 无此步骤 | 与 `ci.yml` 矛盾 |
 | D-3 | 中 | **README 阶段信息过期**：`README.md:84-87` 写 "Phase 2: 🟡 进行中 (T01-T07)"，而 `apps/core` 已完成 V2 物理建表且 `seed_v2_init.py` 已完整 | |
-| D-4 | 中 | **根目录两份审查/部署报告与 docs 内容重叠**：`项目代码审查与学习分析报告.md`、`AUDIT_P0_DEPLOY_RUNBOOK.md`、`SMARTRESUME_DEPLOY_REPORT.md` 散落根目录，未归入 `docs/07-audit/` | |
-| D-5 | 中 | **`项目代码审查与学习分析报告.md:16` 的 P0-1（密码策略绕过）已修复**但文档未更新 | 实际 `accounts/serializers.py:26-31` 已调用 `validate_password` |
+| D-4 | 中 | **根目录三份审查/部署报告与 docs 内容重叠**：`docs/07-audit/项目代码审查与学习分析报告.md`、`docs/07-audit/AUDIT_P0_DEPLOY_RUNBOOK.md`、`docs/07-audit/SMARTRESUME_DEPLOY_REPORT.md` 原散落根目录 | ✅ 2026-10-09 已 `git mv` 归入 `docs/07-audit/` |
+| D-5 | 中 | **`docs/07-audit/项目代码审查与学习分析报告.md:16` 的 P0-1（密码策略绕过）已修复**但文档未更新 | 实际 `accounts/serializers.py:26-31` 已调用 `validate_password` |
 | D-6 | 低 | `README.md:36` 要求 **Python 3.14+**（极激进，主流为 3.11-3.12），未见兼容性说明 | |
 | D-7 | 低 | `README.md:55` 指引 `cp .env.example .env`，但 `.env.example` 在 `apps/django/` 而非项目根；命令在 `apps/django` 目录下执行，实际可工作但易误解 | |
 
