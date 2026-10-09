@@ -70,17 +70,21 @@
 3. 迁移脚本 + 回滚 DDL；
 4. 回归 `apps/candidate`、`apps/demand` 等搜索用例，校验召回与排序。
 
-## 5. 测试约束（关键）
+## 5. 测试约束（已核实）
 
-- **当前 CI 测试库是 sqlite**，而 sqlite 的 `MATCH`/FULLTEXT 与 MySQL 语义不同，
-  无法在现有 CI 验证 FULLTEXT 行为。
-- 因此方案 A 必须：在 CI 增加一条 **MySQL 集成测试**（或本地用 MySQL fixture）
-  专门验证 `keyword_match()` 的召回/排序，否则代码无法被 CI 证明正确。
-- 这是"索引级迁移"不能盲目开工的核心原因之一——**没有 MySQL 验证环境前，
-  不应把 `keyword_q` 切到 FULLTEXT**。
+- **CI 的 `test-backend` 任务已起 `mysql:8.0` service，并通过 `DB_ENGINE=mysql`
+  让全量测试跑在 MySQL 上**（`config/settings/test.py:29` 支持该开关，
+  2026-10-08 #26 对齐生产 MySQL 8）。因此 FULLTEXT / ngram 行为**可在现有 CI 直接验证**，
+  无需新增验证环境。
+- 本地快速通道默认仍是 SQLite（`DB_ENGINE` 缺省 = `sqlite`），要本地验证 FULLTEXT 只需：
+  `DB_ENGINE=mysql DB_NAME=ats_test DB_USER=root DB_HOST=127.0.0.1 DB_PORT=3306 pytest ...`
+  （或设 `DATABASE_URL=mysql://...`），指向与 CI 同款的 MySQL 8。
+- 结论：**方案 A 无验证阻塞**。把 `keyword_q` 切到 `MATCH...AGAINST` 时，
+  只需补一条针对 `keyword_match()` 召回/排序的用例，它会自然落在现有 MySQL CI job 上跑通。
 
 ## 6. 决策待办
 
 - [ ] DBA / infra 确认走 A 还是 B（或暂不迁移，维持 `LIKE`）；
-- [ ] 若 A：确认是否提供 MySQL 测试环境 / CI 集成测试；
+- [ ] 若 A：CI 已具备 MySQL 8 测试环境（`test-backend` job，`DB_ENGINE=mysql`），
+  直接在现有 job 上补 FULLTEXT 用例即可，无需新建验证设施；
 - [ ] 若 B：确认 ES 集群资源与同步方案（双写 vs CDC）。
