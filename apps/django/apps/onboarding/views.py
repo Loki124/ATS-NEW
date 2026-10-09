@@ -1,14 +1,13 @@
+
 """Onboarding Views (DRF) - PRD v4 §6.7"""
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.exceptions import ValidationError
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.permissions_v2 import V2Permission
+from apps.core.viewsets import BaseModelViewSet
 
 from .models import Onboarding
 from .serializers import (
@@ -19,7 +18,7 @@ from .serializers import (
 )
 
 
-class OnboardingViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class OnboardingViewSet(BaseModelViewSet):
     """入职流程 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Onboarding.objects.all()
     permission_classes = [V2Permission]

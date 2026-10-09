@@ -1,3 +1,4 @@
+
 """Automation Views"""
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
@@ -5,10 +6,10 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
-from apps.common.views import EnvelopeReadOnlyMixin, EnvelopeWriteMixin
+from apps.common.views import EnvelopeReadOnlyMixin
+from apps.common.viewsets import EnvelopeAuditModelViewSet
 from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import V2Permission
 
@@ -21,7 +22,7 @@ from .serializers import (
 from .services import AutomationEngine, TriggerContext
 
 
-class AutomationRuleViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
+class AutomationRuleViewSet(EnvelopeAuditModelViewSet):
     """自动化规则 ViewSet"""
     queryset = AutomationRule.objects.all()
     serializer_class = AutomationRuleSerializer

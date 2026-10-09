@@ -25,8 +25,6 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import Q
-from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -40,6 +38,7 @@ from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
+from apps.common.search import keyword_q
 from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
@@ -114,12 +113,7 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         # 关键词
         keyword = self.request.query_params.get('keyword')
         if keyword:
-            qs = qs.filter(
-                Q(name__icontains=keyword) |
-                Q(phone__icontains=keyword) |
-                Q(email__icontains=keyword) |
-                Q(current_company__icontains=keyword),
-            )
+            qs = qs.filter(keyword_q(keyword, 'name', 'phone', 'email', 'current_company'))
         # 2026-09-25: 候选人 ID 白名单（逗号分隔）—— 供指标库「按规则筛选」结果集回传。
         # 规则含派生指标（需计算，无法 SQL 化），故由 metrics 侧先算得 passedIds，
         # 再由本参数收敛结果集，保证分页与总数正确。
@@ -796,7 +790,6 @@ class CandidateBatchExportView(APIView):
     def post(self, request):
         import io
 
-        from django.db.models import Q
 
         candidate_ids = request.data.get('candidate_ids') or []
         filter_ = request.data.get('filter') or {}
@@ -811,13 +804,14 @@ class CandidateBatchExportView(APIView):
                 qs = qs.filter(current_state=filter_['state'])
             kw = filter_.get('keyword')
             if kw:
-                qs = qs.filter(Q(name__icontains=kw) | Q(phone__icontains=kw))
+                qs = qs.filter(keyword_q(kw, 'name', 'phone'))
         qs = qs.select_related('recruiter')[:2000]
 
         buf = io.StringIO()
         # 2026-10-08: 用净化 writer —— 姓名/公司/职位是用户可控内容, 以 = + - @ 开头时
         #   会被 Excel 当公式执行 (数据外带)。
         from apps.common.csv_safe import SafeCsvWriter
+        from apps.common.mixins import ExportMixin
         writer = SafeCsvWriter(buf)
         writer.writerow([
             '姓名', '手机号', '邮箱', '性别', '最高学历', '当前公司', '当前职位',
@@ -833,7 +827,4 @@ class CandidateBatchExportView(APIView):
                 c.recruiter.real_name if c.recruiter else '',
                 c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '',
             ])
-        content = buf.getvalue().encode('utf-8-sig')
-        resp = HttpResponse(content, content_type='text/csv; charset=utf-8')
-        resp['Content-Disposition'] = 'attachment; filename="candidates_export.csv"'
-        return resp
+        return ExportMixin.csv_response(buf.getvalue(), 'candidates_export.csv')

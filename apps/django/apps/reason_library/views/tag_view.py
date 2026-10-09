@@ -16,7 +16,6 @@ import logging
 from typing import List
 
 from django.db import IntegrityError, transaction
-from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -161,13 +160,12 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
         buf = io.StringIO()
         # 2026-10-08: 防 CSV 公式注入 (标签名/提示语由管理员录入)
         from apps.common.csv_safe import SafeCsvWriter
+        from apps.common.mixins import ExportMixin
         writer = SafeCsvWriter(buf)
         writer.writerow(['code', 'name', 'en_name', 'tip', 'type', 'enabled'])
         for t in ReasonTag.objects.filter(deleted_at__isnull=True).order_by('type', 'name'):
             writer.writerow([t.code or '', t.name, t.en_name or '', t.tip or '', t.type, 'true' if t.enabled else 'false'])
-        resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
-        resp['Content-Disposition'] = 'attachment; filename="reason-tags-export.csv"'
-        return resp
+        return ExportMixin.csv_response(buf.getvalue(), 'reason-tags-export.csv')
 
     @action(detail=False, methods=['get'], url_path='import-template')
     @_api
@@ -177,19 +175,17 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
         默认 xlsx (Excel 友好: 品牌色表头 + 示例行 + 填写说明表); format=csv 返回历史 CSV
         模板 (utf-8-sig BOM, Excel 直接打开不乱码) —— 老用户的下钻链接仍可用。
         """
+        from apps.common.mixins import ExportMixin
+
         fmt = (request.query_params.get('format') or TEMPLATE_FORMAT_XLSX).strip().lower()
         if fmt == TEMPLATE_FORMAT_CSV:
             content = build_tag_template_csv()
-            resp = HttpResponse('\ufeff' + content, content_type='text/csv; charset=utf-8')
-            resp['Content-Disposition'] = 'attachment; filename="reason-tags-import-template.csv"'
-            return resp
+            return ExportMixin.csv_response(content, 'reason-tags-import-template.csv')
 
         buf = io.BytesIO()
         build_tag_template_workbook().save(buf)
         buf.seek(0)
-        resp = HttpResponse(buf.getvalue(), content_type=XLSX_CONTENT_TYPE)
-        resp['Content-Disposition'] = 'attachment; filename="reason-tags-import-template.xlsx"'
-        return resp
+        return ExportMixin.xlsx_response(buf, 'reason-tags-import-template.xlsx')
 
     # ----- CSV import -----
     @action(

@@ -1,14 +1,13 @@
+
 """Invitation Views (DRF) - PRD v4 §14.6"""
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.exceptions import ValidationError
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.permissions_v2 import V2Permission
+from apps.core.viewsets import BaseModelViewSet
 
 from .models import Invitation
 from .serializers import (
@@ -19,7 +18,7 @@ from .serializers import (
 )
 
 
-class InvitationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class InvitationViewSet(BaseModelViewSet):
     """邀约 ViewSet - 收紧到 HR+ 可见, 按 application 部门 scope (Fix 1)"""
     queryset = Invitation.objects.all()
     permission_classes = [V2Permission]

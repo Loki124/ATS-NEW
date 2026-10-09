@@ -102,7 +102,7 @@ def _empty_list():
 def _log_stub_hit(view_name: str, request):
     """记录 stub 被调用, 方便监控告警 + 后续补实现."""
     logger.warning(
-        'STUB endpoint called: view=%s method=%s path=%s user=%s ip=%s — 请到 apps/referral/urls_stubs.py 补真实现',
+        'ALIAS endpoint called: view=%s method=%s path=%s user=%s ip=%s — 请到 apps/referral/alias_endpoints.py 补真实现',
         view_name,
         request.method,
         request.path,

@@ -34,7 +34,6 @@ from __future__ import annotations
 import logging
 
 from django.db import transaction
-from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -43,6 +42,7 @@ from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
+from apps.common.search import keyword_q
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
@@ -121,11 +121,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
         # 关键词
         keyword = self.request.query_params.get('keyword')
         if keyword:
-            qs = qs.filter(
-                Q(code__icontains=keyword) |
-                Q(candidate__name__icontains=keyword) |
-                Q(position__title__icontains=keyword),
-            )
+            qs = qs.filter(keyword_q(keyword, 'code', 'candidate__name', 'position__title'))
         # IDOR scope (Fix 1)
         qs = self.scope_queryset(qs)
         return qs.order_by('-created_at')

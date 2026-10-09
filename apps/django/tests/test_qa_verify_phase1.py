@@ -185,7 +185,7 @@ class TestR5R6StubsOverRealHttpApi:
 
     @pytest.mark.skip(reason=(
         'change-password 端点已由真实实现接管（apps/core/views_auth.py:109 change_password_view），'
-        '原 stub（apps/referral/urls_stubs.py:169 auth_change_password）不再被路由到此 URL，'
+        '原 stub（apps/referral/alias_endpoints.py:169 auth_change_password）不再被路由到此 URL，'
         '本测试"验证 stub 不假成功"的前提已不成立。真实端点功能测试（200 + 旧密码失效 + 新密码生效）'
         '应作为后续任务单独立项补在 apps/core/tests/ 下，本归档测试文件仅保留 stub-安全语义。'
     ))

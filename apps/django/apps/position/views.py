@@ -1,15 +1,15 @@
+
 """Position Views (DRF) - PRD v4 §14.2"""
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.exceptions import ValidationError
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
-from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.permissions_v2 import V2Permission
+from apps.core.viewsets import BaseModelViewSet
 
 from .models import Position
 from .serializers import (
@@ -20,7 +20,7 @@ from .serializers import (
 )
 
 
-class PositionViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class PositionViewSet(BaseModelViewSet):
     """职位 ViewSet - 按部门 scope 过滤"""
     queryset = Position.objects.all()
     permission_classes = [V2Permission]

@@ -50,6 +50,7 @@ def _record_state_change(
 
 from apps.common.encryption import hash_candidates_for_search
 from apps.common.exceptions import NotFound, StateTransitionError
+from apps.common.search import keyword_q
 from apps.core.models import User
 from apps.reason_library.models import RecruitType
 
@@ -239,7 +240,6 @@ class CandidateService:
         2026-07-02: 改成单次 Q 查询 (Q | Q | Q), 之前 4 次 .first() 串行查询
         """
         qs = Candidate.objects.filter(deleted_at__isnull=True)
-        from django.db.models import Q
         conditions = Q()
         if moka_id:
             conditions |= Q(moka_candidate_id=moka_id)
@@ -506,12 +506,7 @@ class CandidateService:
         qs = base_qs if base_qs is not None else Candidate.objects.all()
         qs = qs.filter(deleted_at__isnull=True)
         if keyword:
-            qs = qs.filter(
-                Q(name__icontains=keyword) |
-                Q(phone__icontains=keyword) |
-                Q(email__icontains=keyword) |
-                Q(current_company__icontains=keyword),
-            )
+            qs = qs.filter(keyword_q(keyword, 'name', 'phone', 'email', 'current_company'))
         if state:
             qs = qs.filter(current_state=state)
         if source_channel_id:

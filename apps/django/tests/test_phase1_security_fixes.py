@@ -197,7 +197,7 @@ class TestR5R6StubEndpointsRefuse:
     def test_login_alias_has_same_throttle_as_real_login(self):
         """R6: /login 别名以前没限流, 换个 URL 就能绕开撞库保护."""
         from apps.core.views_auth import LoginRateThrottle
-        from apps.referral.urls_stubs import login_alias
+        from apps.referral.alias_endpoints import login_alias
 
         throttles = getattr(login_alias.cls, 'throttle_classes', [])
         assert LoginRateThrottle in throttles, throttles

@@ -2,8 +2,8 @@
 
 2026-09-27 全面技术审计报告 P0-3: 66 条 stub 端点未治理, API 契约漂移。
 
-问题: apps/referral/urls_stubs.py 的 stub 被真实挂进 URLconf
-(config/urls.py: `path('', include('apps.referral.urls_stubs'))`)。
+问题: apps/referral/alias_endpoints.py 的别名/兜底端点被真实挂进 URLconf
+(config/urls.py: `path('', include('apps.referral.alias_endpoints'))`)。
 实测 (test settings): 这些 stub 会进入 drf-spectacular 枚举结果 —— **77 条**
 (method × path 组合) 出现在 OpenAPI schema 中, 而它们大多返"假成功"
 (`success:true` + 假 id, 实际一行库都不写)。集成方照 swagger 对接就会以为
@@ -18,12 +18,12 @@
 因此本钩子是"防止文档漂移"的护栏: 无论哪个环境, 一旦 stub 被收录就剔除。
 """
 
-# stub view 所在模块标识 (命中即剔除)
-STUB_MODULE_MARKER = 'urls_stubs'
+# 别名/兜底端点 view 所在模块标识 (命中即剔除, 避免"假成功"契约进入文档)
+STUB_MODULE_MARKER = 'alias_endpoints'
 
 
 def exclude_stub_endpoints(endpoints, **kwargs):
-    """从 OpenAPI schema 中剔除 urls_stubs 定义的 stub 端点。
+    """从 OpenAPI schema 中剔除 alias_endpoints 定义的别名/兜底端点。
 
     drf-spectacular 的 PREPROCESSING_HOOKS 签名:
         hook(endpoints, **kwargs) -> endpoints

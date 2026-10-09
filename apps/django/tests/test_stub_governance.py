@@ -1,8 +1,8 @@
 """2026-09-27 全面技术审计报告 P0-3: stub 端点治理守护测试
 
 实测结论 (与报告表述有出入, 以实测为准):
-1. stub **确实**挂在 URLconf 上 (config/urls.py: `path('', include('apps.referral.urls_stubs'))`),
-   运行时可达 —— 实测 `resolve('/api/v1/login')` → apps.referral.urls_stubs。
+1. 别名端点 **确实**挂在 URLconf 上 (config/urls.py: `path('', include('apps.referral.alias_endpoints'))`),
+   运行时可达 —— 实测 `resolve('/api/v1/login')` → apps.referral.alias_endpoints。
    这是真实风险: stub 可能抢在真端点之前命中 (config/urls.py 注释已多次提到
    "必须排在 urls_stubs 之前以优先命中")。
 2. 但 stub **并未**进入 OpenAPI schema —— 实测加不加 PREPROCESSING_HOOKS 过滤
@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 
 STUBS_FILE = (
-    Path(__file__).resolve().parents[1] / 'apps' / 'referral' / 'urls_stubs.py'
+    Path(__file__).resolve().parents[1] / 'apps' / 'referral' / 'alias_endpoints.py'
 )
 
 # 2026-09-27 实测基线: 66 条 path()。2026-10-01 实测已降到 56 条 (多批 stub 迁出 +
@@ -28,7 +28,7 @@ STUBS_FILE = (
 # 治理规约 = 只许下降, 不许上升。把 stub 迁出后请同步下调本基线。
 STUB_PATH_BASELINE = 56
 
-STUB_MODULE_MARKER = 'urls_stubs'
+STUB_MODULE_MARKER = 'alias_endpoints'
 
 
 def _count_stub_paths() -> int:

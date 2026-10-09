@@ -1,3 +1,4 @@
+
 """Interview Views (DRF) - PRD v4 §14.5
 
 T30.175 (V2 cutover follow-up): user.user_roles.filter(role__code=...) 替换为
@@ -5,14 +6,13 @@ apps.core.role_v2_query.user_has_any_role (直接走 UserRoleV2).
 """
 from django.db import OperationalError
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
 
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.common.views import EnvelopeWriteMixin
+from apps.common.viewsets import EnvelopeAuditModelViewSet
 from apps.core.permissions import IsHROrAbove
-from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.permissions_v2 import V2Permission
 from apps.core.role_v2_query import is_super_admin, user_has_any_role
+from apps.core.viewsets import BaseModelViewSet
 
 from .models import Interview, InterviewEvaluation
 from .serializers import (
@@ -23,7 +23,7 @@ from .serializers import (
 )
 
 
-class InterviewViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class InterviewViewSet(BaseModelViewSet):
     """面试 ViewSet - 按 application.position.department scope 过滤"""
     queryset = Interview.objects.all()
     permission_classes = [V2Permission]
@@ -56,7 +56,7 @@ class InterviewViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, views
         instance.save(update_fields=['deleted_at', 'updated_at'])
 
 
-class InterviewEvaluationViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
+class InterviewEvaluationViewSet(EnvelopeAuditModelViewSet):
     """面试评价 ViewSet"""
     queryset = InterviewEvaluation.objects.all()
     serializer_class = InterviewEvaluationSerializer

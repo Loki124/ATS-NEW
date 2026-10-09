@@ -32,6 +32,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.common.mixins import ExportMixin
+
 
 def _field_key_aliases(field_key: str) -> set[str]:
     """返回某个 field_key 在入站 JSON body 里可能出现的全部拼写。
@@ -89,7 +91,7 @@ CSV_TRUNCATION_MARK = '…[已截断'
 MAX_FIELD_ROWS = 500
 
 
-class DynamicFieldViewSet(viewsets.ModelViewSet):
+class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
     """动态字段定义 CRUD — 按 resource 过滤, detail 端点按 id 寻址。"""
 
     serializer_class = DynamicFieldSerializer
@@ -214,7 +216,8 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """只暴露未软删的记录。"""
-        return DynamicField.objects.filter(deleted_at__isnull=True)
+        # #9 (2026-10-09): DynamicFieldSerializer 嵌套 module/group, 列表逐行查 -> N+1, 一次 join 消除。
+        return DynamicField.objects.filter(deleted_at__isnull=True).select_related('module', 'group')
 
     def get_resource(self) -> str:
         """从 URL kwargs 取当前 resource (Candidate / Position / ...)。"""
@@ -643,9 +646,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             writer.writerows(safe_records)
             # Excel 兼容：加 UTF-8 BOM（与 campus_control / analytics 导出的 utf-8-sig 策略对齐），
             # 否则 Excel 按本地编码解析无 BOM 的 UTF-8 → 中文乱码
-            resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
-            resp['Content-Disposition'] = 'attachment; filename="dynamic_fields.csv"'
-            return resp
+            return self.csv_response(buf.getvalue(), 'dynamic_fields.csv')
 
         resp = HttpResponse(
             json.dumps({'data': records}, ensure_ascii=False, indent=2),
@@ -811,9 +812,7 @@ class DynamicFieldViewSet(viewsets.ModelViewSet):
             writer.writeheader()
             writer.writerow(example)
             # 模板含中文表头, 同样需 BOM 才能在 Excel 下正确显示中文
-            resp = HttpResponse('\ufeff' + buf.getvalue(), content_type='text/csv; charset=utf-8')
-            resp['Content-Disposition'] = 'attachment; filename="dynamic_fields_template.csv"'
-            return resp
+            return self.csv_response(buf.getvalue(), 'dynamic_fields_template.csv')
 
         payload = {
             '导入说明': instructions,
@@ -1228,7 +1227,8 @@ class FieldGroupViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         resource = self.get_resource()
         module_id = self.request.query_params.get('module_id') or self.request.query_params.get('moduleId')
-        qs = FieldGroup.objects.filter(deleted_at__isnull=True, module__deleted_at__isnull=True)
+        # #9 (2026-10-09): FieldGroupSerializer 嵌套 module, 列表逐行查 -> N+1, 一次 join 消除。
+        qs = FieldGroup.objects.filter(deleted_at__isnull=True, module__deleted_at__isnull=True).select_related('module')
         if resource:
             qs = qs.filter(module__resource=resource)
         if module_id:
@@ -1248,7 +1248,8 @@ class FieldLinkageRuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         resource = self.get_resource()
         module_id = self.request.query_params.get('module_id') or self.request.query_params.get('moduleId')
-        qs = FieldLinkageRule.objects.filter(deleted_at__isnull=True, module__deleted_at__isnull=True)
+        # #9 (2026-10-09): FieldLinkageRuleSerializer 嵌套 module, 列表逐行查 -> N+1, 一次 join 消除。
+        qs = FieldLinkageRule.objects.filter(deleted_at__isnull=True, module__deleted_at__isnull=True).select_related('module')
         if resource:
             qs = qs.filter(module__resource=resource)
         if module_id:

@@ -18,6 +18,7 @@ FE 安全性 (零改动依据):
 
 core/tests 是真实 package (__init__.py 存在), 本文件名不会触发跨 app 同名 test_envelope 收集冲突.
 """
+from apps.common.tests.envelope_contract import assert_envelope
 import uuid
 
 import pytest
@@ -38,21 +39,13 @@ MGMT_UNITS_BASE = '/api/v1/management-units'
 USER_APP_DATA_SCOPES_BASE = '/api/v1/user-app-data-scopes'
 
 
-def _assert_envelope(body, *, code=0):
-    """统一信封契约: success=True / 含 data / code==0."""
-    assert isinstance(body, dict), f'响应非 dict: {body!r}'
-    assert body.get('success') is True, f"success 非 True: {body!r}"
-    assert 'data' in body, f'缺 data 键: {body!r}'
-    assert body.get('code') == code, f"code 非 {code}: {body!r}"
-
-
 @pytest.mark.django_db
 def test_user_list_envelope(auth_client):
     """list 经 StandardResultsSetPagination 包 {success,data,pagination}."""
     resp = auth_client.get(USERS_BASE + '/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
     assert 'pagination' in body
 
@@ -63,7 +56,7 @@ def test_user_retrieve_envelope(auth_client, super_user):
     resp = auth_client.get(f'{USERS_BASE}/{super_user.id}/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['id'] == super_user.id
     assert 'username' in body['data']
 
@@ -82,7 +75,7 @@ def test_user_create_envelope(auth_client):
     resp = auth_client.post(USERS_BASE + '/', data=payload, format='json')
     assert resp.status_code == 201, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     new_id = body['data']['id']
     assert new_id
     assert User.objects.filter(pk=new_id, username=username).exists()
@@ -98,7 +91,7 @@ def test_user_update_envelope(auth_client, super_user):
     )
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['firstName'] == 'EnvUpd'
 
 
@@ -108,7 +101,7 @@ def test_user_role_list_envelope(auth_client):
     resp = auth_client.get(USER_ROLES_BASE + '/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -123,7 +116,7 @@ def test_user_role_retrieve_envelope(auth_client, super_user):
     resp = auth_client.get(f'{USER_ROLES_BASE}/{ur.id}/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['id'] == ur.id
     assert body['data']['userId'] == super_user.id
 
@@ -140,7 +133,7 @@ def test_user_role_create_envelope(auth_client, super_user):
     resp = auth_client.post(USER_ROLES_BASE + '/', data=payload, format='json')
     assert resp.status_code == 201, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     new_id = body['data']['id']
     assert new_id
     assert body['data']['roleCode'] == role_code
@@ -162,7 +155,7 @@ def test_user_role_update_envelope(auth_client, super_user):
     )
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['managementUnitIds'] == [7]
 
 
@@ -190,7 +183,7 @@ def test_v2_permission_resource_list_envelope(auth_client):
     resp = auth_client.get(PERM_RESOURCES_BASE + '/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -200,7 +193,7 @@ def test_v2_permission_template_list_envelope(auth_client):
     resp = auth_client.get(PERM_TEMPLATES_BASE + '/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -210,7 +203,7 @@ def test_v2_role_list_envelope(auth_client):
     resp = auth_client.get(ROLES_BASE + '/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -226,7 +219,7 @@ def test_v2_role_create_envelope(auth_client):
     resp = auth_client.post(ROLES_BASE + '/', data=payload, format='json')
     assert resp.status_code == 201, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     new_id = body['data']['id']
     assert new_id
     assert body['data']['roleCode'] == role_code
@@ -244,7 +237,7 @@ def test_v2_role_retrieve_envelope(auth_client):
     resp = auth_client.get(f'{ROLES_BASE}/{role.id}/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['id'] == role.id
     assert body['data']['roleCode'] == role.role_code
 
@@ -255,7 +248,7 @@ def test_v2_management_unit_list_envelope(auth_client):
     resp = auth_client.get(MGMT_UNITS_BASE + '/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -265,7 +258,7 @@ def test_v2_user_app_data_scope_list_envelope(auth_client, super_user):
     resp = auth_client.get(USER_APP_DATA_SCOPES_BASE + '/')
     assert resp.status_code == 200, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -282,7 +275,7 @@ def test_v2_user_app_data_scope_create_envelope(auth_client, super_user):
     resp = auth_client.post(USER_APP_DATA_SCOPES_BASE + '/', data=payload, format='json')
     assert resp.status_code == 201, resp.content
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['appCode'] == 'recruit'
     assert body['data']['userId'] == super_user.id
     # destroy 走本地 EnvelopeWriteMixin.destroy -> 同样带 code
@@ -290,5 +283,5 @@ def test_v2_user_app_data_scope_create_envelope(auth_client, super_user):
     del_resp = auth_client.delete(f'{USER_APP_DATA_SCOPES_BASE}/{pk}/')
     assert del_resp.status_code == 200, del_resp.content
     del_body = del_resp.json()
-    _assert_envelope(del_body)
+    assert_envelope(del_body)
     assert del_body['data'] is None

@@ -1,3 +1,4 @@
+
 """指标库 API 视图。
 
 端点（挂在 /api/v1/metrics/ 下）：
@@ -16,15 +17,16 @@ from io import BytesIO
 from typing import List
 
 from django.core.cache import cache
-from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.mixins import ExportMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
+from apps.common.viewsets import EnvelopeModelViewSet
 from apps.rule_engine.models import UnifiedOperator
 
 from .io_template import (
@@ -109,18 +111,22 @@ class _RefCheckMixin:
 
 
 class AtomicMetricViewSet(EnvelopeWriteMixin, _RefCheckMixin, viewsets.ModelViewSet):
-    queryset = AtomicMetric.objects.all().order_by('name')
+    # #9 (2026-10-09): AtomicMetricSerializer.get_template_count 逐行 obj.templates.count() -> N+1,
+    # prefetch 一次取回, 计数走缓存不落库。
+    queryset = AtomicMetric.objects.all().order_by('name').prefetch_related('templates')
     serializer_class = AtomicMetricSerializer
     pagination_class = StandardResultsSetPagination
 
 
 class DerivedMetricViewSet(EnvelopeWriteMixin, _RefCheckMixin, viewsets.ModelViewSet):
-    queryset = DerivedMetric.objects.all().order_by('name')
+    # #9 (2026-10-09): DerivedMetricSerializer.get_template_count 逐行 obj.templates.count() -> N+1,
+    # prefetch 一次取回, 计数走缓存不落库。
+    queryset = DerivedMetric.objects.all().order_by('name').prefetch_related('templates')
     serializer_class = DerivedMetricSerializer
     pagination_class = StandardResultsSetPagination
 
 
-class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class MetricTemplateViewSet(ExportMixin, EnvelopeWriteMixin, viewsets.ModelViewSet):
     queryset = MetricTemplate.objects.all().select_related(
         'atomic_metric', 'derived_metric'
     ).order_by('name')
@@ -234,18 +240,13 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         rows = build_template_export_rows()
         if fmt == 'csv':
             content = build_template_export_csv(rows)
-            resp = HttpResponse(content, content_type='text/csv; charset=utf-8-sig')
-            resp['Content-Disposition'] = 'attachment; filename="metrics_templates_export.csv"'
+            resp = self.csv_response(content, 'metrics_templates_export.csv')
         else:
             wb = build_template_export_workbook(rows)
             buf = BytesIO()
             wb.save(buf)
             buf.seek(0)
-            resp = HttpResponse(
-                buf.getvalue(),
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            )
-            resp['Content-Disposition'] = 'attachment; filename="metrics_templates_export.xlsx"'
+            resp = self.xlsx_response(buf, 'metrics_templates_export.xlsx')
         _log_template_audit(
             request.user, 'EXPORT', f'导出指标模板 {len(rows)} 条（{fmt}）', request=request,
         )
@@ -257,18 +258,13 @@ class MetricTemplateViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         fmt = (request.query_params.get('file_format') or 'xlsx').lower()
         if fmt == 'csv':
             content = build_template_template_csv()
-            resp = HttpResponse(content, content_type='text/csv; charset=utf-8-sig')
-            resp['Content-Disposition'] = 'attachment; filename="metrics_templates_template.csv"'
+            resp = self.csv_response(content, 'metrics_templates_template.csv')
         else:
             wb = build_template_template_workbook()
             buf = BytesIO()
             wb.save(buf)
             buf.seek(0)
-            resp = HttpResponse(
-                buf.getvalue(),
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            )
-            resp['Content-Disposition'] = 'attachment; filename="metrics_templates_template.xlsx"'
+            resp = self.xlsx_response(buf, 'metrics_templates_template.xlsx')
         _log_template_audit(
             request.user, 'TEMPLATE', f'下载指标模板导入模板（{fmt}）', request=request,
         )
@@ -453,7 +449,7 @@ class FilterBySceneView(APIView):
         return success_response(result)
 
 
-class MetricRuleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class MetricRuleViewSet(EnvelopeModelViewSet):
     """指标规则 CRUD + 启停 + 按持久化规则执行。
 
     与一次性 execute 的区别：本 ViewSet 的规则**落库**，可被业务触发点按 scene

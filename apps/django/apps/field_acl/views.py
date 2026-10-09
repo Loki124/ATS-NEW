@@ -1,12 +1,11 @@
+
 """Field ACL Views (DRF) - PRD v4 §4.4"""
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.common.views import EnvelopeWriteMixin
+from apps.common.viewsets import EnvelopeAuditModelViewSet
 from apps.core.permissions import IsSuperAdmin
 
 from .models import FieldACL
@@ -17,7 +16,7 @@ from .serializers import (
 )
 
 
-class FieldACLViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
+class FieldACLViewSet(EnvelopeAuditModelViewSet):
     """字段级 ACL ViewSet - 仅超管可操作"""
     queryset = FieldACL.objects.all()
     serializer_class = FieldACLSerializer

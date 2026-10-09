@@ -1,13 +1,13 @@
+
 """数据权限规则 ViewSet (管理面)。
 
 仅超管可配置。enforcement 由 scope_resolver / FieldAclService 消费本表, 不在本视图内。
 """
-from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
-from apps.common.views import EnvelopeWriteMixin
+from apps.common.viewsets import EnvelopeModelViewSet
 from apps.core.permissions import IsSuperAdmin
 
 from .models import (
@@ -20,7 +20,7 @@ from .models import (
 from .serializers import DataPermissionRuleSerializer
 
 
-class DataPermissionRuleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class DataPermissionRuleViewSet(EnvelopeModelViewSet):
     queryset = DataPermissionRule.objects.all()
     serializer_class = DataPermissionRuleSerializer
     permission_classes = [IsSuperAdmin]

@@ -2,6 +2,11 @@
 
 挂在 /api/v1/campus-recruit/ 下（/api/v1/campus/ 已被 campus_control 占用）。
 
+命名澄清：本 app（campus）与 campus_control **仅名字相近、职责完全不同**，请勿合并——
+- `campus`（本 app）：校园大使 / 宣讲会 / 校招模块开关（业务功能）；
+- `campus_control`：校招**人员比例管控**系统（ControlRule/Indicator/Dimension + rule_engine 适配器）。
+两者是相互独立的两个业务域。
+
 端点：
   GET    /ambassadors/              校园大使列表（按 recruit_type=campus 隔离）
   POST   /ambassadors/

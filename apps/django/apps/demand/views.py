@@ -1,16 +1,16 @@
+
 """Demand Views (DRF) - PRD v4 §14.1"""
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.exceptions import NotFound, ValidationError
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.permissions_v2 import V2Permission
+from apps.core.viewsets import BaseModelViewSet
 from apps.process.models import RecruitmentProcess
 
 from .models import Demand, DemandApproval, DemandSetting
@@ -25,7 +25,7 @@ from .serializers import (
 from .services import DemandCreateData, DemandService
 
 
-class DemandViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class DemandViewSet(BaseModelViewSet):
     """招聘需求 ViewSet - 按部门 scope 过滤"""
     queryset = Demand.objects.all().order_by('-created_at')
     permission_classes = [V2Permission]

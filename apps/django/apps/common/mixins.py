@@ -2,6 +2,7 @@
 import logging
 
 from django.db import IntegrityError, transaction
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -121,3 +122,28 @@ class AuditMixin:
             (self.audit_updated_by_field,),
         )
         serializer.save(**audit_kwargs)
+
+
+XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+
+class ExportMixin:
+    """为视图提供统一的文件下载响应构造，消除重复的 HttpResponse + BOM + Content-Disposition 样板。
+
+    - csv_response(content, filename): 带 UTF-8 BOM 的 CSV 下载响应
+      (与各处 '\\ufeff' + content + charset=utf-8 等价；metrics 旧用 utf-8-sig 编码产生的字节同为
+      BOM + utf-8，Excel 解析一致，行为无变化)。
+    - xlsx_response(buf, filename): openpyxl BytesIO 工作簿下载响应。
+    """
+
+    @staticmethod
+    def csv_response(content: str, filename: str) -> HttpResponse:
+        resp = HttpResponse('\ufeff' + content, content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return resp
+
+    @staticmethod
+    def xlsx_response(buf, filename: str) -> HttpResponse:
+        resp = HttpResponse(buf.getvalue(), content_type=XLSX_CONTENT_TYPE)
+        resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return resp

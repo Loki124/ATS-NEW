@@ -1,3 +1,4 @@
+
 """Process App Views (DRF)
 
 包含：
@@ -28,10 +29,9 @@ from apps.common.exceptions import (
     StateTransitionError,
     ValidationError,
 )
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
-from apps.common.views import EnvelopeWriteMixin
+from apps.common.viewsets import EnvelopeAuditModelViewSet, EnvelopeModelViewSet
 from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import V2Permission
 
@@ -78,7 +78,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 阶段（RecruitmentStage）
 # ============================================================
-class RecruitmentStageViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class RecruitmentStageViewSet(EnvelopeModelViewSet):
     """阶段库 ViewSet
 
     list:      列表 (支持 type/status 过滤)
@@ -206,7 +206,7 @@ class RecruitmentStageViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
 # ============================================================
 # 流程（RecruitmentProcess）
 # ============================================================
-class RecruitmentProcessViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class RecruitmentProcessViewSet(EnvelopeModelViewSet):
     """招聘流程 ViewSet
 
     list:           列表
@@ -505,7 +505,7 @@ class RecruitmentProcessViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
 # ============================================================
 # 流程-阶段关联（ProcessStageLink）
 # ============================================================
-class ProcessStageLinkViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class ProcessStageLinkViewSet(EnvelopeModelViewSet):
     """流程-阶段关联 ViewSet"""
     queryset = ProcessStageLink.objects.all()
     serializer_class = ProcessStageLinkSerializer
@@ -657,7 +657,7 @@ class StageRuleViewSet(viewsets.ModelViewSet):
 # ============================================================
 # 面试轮次（InterviewRound）
 # ============================================================
-class InterviewRoundViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
+class InterviewRoundViewSet(EnvelopeAuditModelViewSet):
     """面试轮次库 ViewSet
 
     list:       列表（支持 keyword 搜索）

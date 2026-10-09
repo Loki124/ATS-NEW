@@ -12,6 +12,7 @@ Batch 11 协调批：
 - retrieve 返 envelope；
 - list 返 envelope（含 data 列表）。
 """
+from apps.common.tests.envelope_contract import assert_envelope
 import uuid
 
 import pytest
@@ -59,19 +60,12 @@ def _make_person(user):
 
 
 # —— 断言 helper ——
-def _assert_envelope(body: dict) -> None:
-    assert body.get('success') is True
-    assert body.get('code') == 0
-    assert 'data' in body
-
-
-# ===================== 维度 =====================
 def test_dimension_list_envelope(auth_client, super_user):
     _make_dimension(super_user)
     resp = auth_client.get(f'{BASE}/dimensions/', {'page_size': 200})
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -79,14 +73,14 @@ def test_dimension_create_and_retrieve_envelope(auth_client, super_user):
     resp = auth_client.post(f'{BASE}/dimensions/', {'name': f'维度_{_uid()}'})
     assert resp.status_code == 201
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], dict)
     assert 'id' in body['data']
     did = body['data']['id']
 
     r2 = auth_client.get(f'{BASE}/dimensions/{did}/')
     assert r2.status_code == 200
-    _assert_envelope(r2.json())
+    assert_envelope(r2.json())
     assert r2.json()['data']['id'] == did
 
 
@@ -95,7 +89,7 @@ def test_dimension_update_envelope(auth_client, super_user):
     resp = auth_client.patch(f'{BASE}/dimensions/{dim.id}/', {'name': f'维度_{_uid()}'})
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['id'] == str(dim.id)
 
 
@@ -106,7 +100,7 @@ def test_indicator_list_envelope(auth_client, super_user):
     resp = auth_client.get(f'{BASE}/indicators/', {'page_size': 200})
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -115,14 +109,14 @@ def test_indicator_create_and_retrieve_envelope(auth_client, super_user):
     resp = auth_client.post(f'{BASE}/indicators/', {'dimension': str(dim.id), 'name': f'指标_{_uid()}'})
     assert resp.status_code == 201
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], dict)
     assert 'id' in body['data']
     iid = body['data']['id']
 
     r2 = auth_client.get(f'{BASE}/indicators/{iid}/')
     assert r2.status_code == 200
-    _assert_envelope(r2.json())
+    assert_envelope(r2.json())
     assert r2.json()['data']['id'] == iid
 
 
@@ -132,7 +126,7 @@ def test_indicator_update_envelope(auth_client, super_user):
     resp = auth_client.patch(f'{BASE}/indicators/{ind.id}/', {'name': f'指标_{_uid()}'})
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['id'] == str(ind.id)
 
 
@@ -144,7 +138,7 @@ def test_rule_list_envelope(auth_client, super_user):
     resp = auth_client.get(f'{BASE}/rules/', {'page_size': 200})
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -163,14 +157,14 @@ def test_rule_create_and_retrieve_envelope(auth_client, super_user):
     resp = auth_client.post(f'{BASE}/rules/', payload)
     assert resp.status_code == 201
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], dict)
     assert 'id' in body['data']
     rid = body['data']['id']
 
     r2 = auth_client.get(f'{BASE}/rules/{rid}/')
     assert r2.status_code == 200
-    _assert_envelope(r2.json())
+    assert_envelope(r2.json())
     assert r2.json()['data']['id'] == rid
 
 
@@ -182,7 +176,7 @@ def test_rule_update_envelope(auth_client, super_user):
     resp = auth_client.patch(f'{BASE}/rules/{rule.id}/', {'strength': '硬约束', 'target': 1.0})
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['id'] == str(rule.id)
     assert body['data']['strength'] == '硬约束'
 
@@ -193,7 +187,7 @@ def test_person_list_envelope(auth_client, super_user):
     resp = auth_client.get(f'{BASE}/persons/', {'page_size': 200})
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -211,14 +205,14 @@ def test_person_create_and_retrieve_envelope(auth_client, super_user):
     resp = auth_client.post(f'{BASE}/persons/', payload)
     assert resp.status_code == 201
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], dict)
     assert 'id' in body['data']
     pid = body['data']['id']
 
     r2 = auth_client.get(f'{BASE}/persons/{pid}/')
     assert r2.status_code == 200
-    _assert_envelope(r2.json())
+    assert_envelope(r2.json())
     assert r2.json()['data']['id'] == pid
 
 
@@ -227,6 +221,6 @@ def test_person_update_envelope(auth_client, super_user):
     resp = auth_client.patch(f'{BASE}/persons/{person.id}/', {'name': '李四'})
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['id'] == str(person.id)
     assert body['data']['name'] == '李四'

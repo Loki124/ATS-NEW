@@ -8,6 +8,7 @@
 {success, message, data} 形状（失败分支需 success=False，success_response 无法表达），
 本批不改、亦不破坏前端 r.success / r.message 契约，故不在此重复锁定。
 """
+from apps.common.tests.envelope_contract import assert_envelope
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -15,12 +16,6 @@ from rest_framework.test import APIClient
 from apps.integration.services import create_background_check_order
 
 BASE = '/api/v1/background-check/orders'
-
-
-def _assert_envelope(body):
-    assert body.get('success') is True
-    assert 'data' in body
-    assert body.get('code') == 0
 
 
 @pytest.fixture
@@ -43,7 +38,7 @@ def test_list_envelope(super_client, order):
     resp = super_client.get(f'{BASE}/')
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
     assert any(o['id'] == order.id for o in body['data'])
 
@@ -52,7 +47,7 @@ def test_retrieve_envelope(super_client, order):
     resp = super_client.get(f'{BASE}/{order.id}/')
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], dict)
     assert body['data']['id'] == order.id
     # 详情序列化器含 events（BackgroundCheckOrderDetailSerializer）
@@ -81,7 +76,7 @@ def test_config_list_envelope(super_client, bg_config):
     resp = super_client.get(f'{CONFIG_BASE}/')
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], list)
 
 
@@ -89,7 +84,7 @@ def test_config_retrieve_envelope(super_client, bg_config):
     resp = super_client.get(f'{CONFIG_BASE}/{bg_config.id}/')
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['id'] == bg_config.id
 
 
@@ -101,7 +96,7 @@ def test_config_create_envelope(super_client):
     )
     assert resp.status_code == 201
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert isinstance(body['data'], dict)
     assert body['data']['id']
 
@@ -114,5 +109,5 @@ def test_config_update_envelope(super_client, bg_config):
     )
     assert resp.status_code == 200
     body = resp.json()
-    _assert_envelope(body)
+    assert_envelope(body)
     assert body['data']['name'] == 'Env Update'

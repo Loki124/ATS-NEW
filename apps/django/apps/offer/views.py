@@ -1,14 +1,13 @@
+
 """Offer Views (DRF) - PRD v4 §14.5"""
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.exceptions import ValidationError
-from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.permissions_v2 import V2Permission
+from apps.core.viewsets import BaseModelViewSet
 
 from .models import Offer
 from .serializers import (
@@ -19,7 +18,7 @@ from .serializers import (
 )
 
 
-class OfferViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class OfferViewSet(BaseModelViewSet):
     """Offer ViewSet - 含 8 个状态流转；按职位部门 scope 过滤"""
     queryset = Offer.objects.all()
     permission_classes = [V2Permission]

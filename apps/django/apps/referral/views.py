@@ -1,19 +1,18 @@
+
 """Referral Views (DRF) - PRD v4 §6.4"""
 import logging
 
 from django.db import DatabaseError
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.common.mixins import AuditMixin
-from apps.common.views import EnvelopeWriteMixin
+from apps.core.viewsets import BaseModelViewSet
 
 logger = logging.getLogger(__name__)
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import is_super_admin
-from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.permissions_v2 import V2Permission
 
 from .models import Referral
 from .serializers import (
@@ -23,7 +22,7 @@ from .serializers import (
 )
 
 
-class ReferralViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewSet):
+class ReferralViewSet(BaseModelViewSet):
     """内推记录 ViewSet - 按 referrer 部门 scope 过滤 (Fix 1)"""
     queryset = Referral.objects.all().order_by('-created_at')
     permission_classes = [V2Permission]

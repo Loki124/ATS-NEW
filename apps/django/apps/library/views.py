@@ -5,14 +5,14 @@ from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
-from apps.common.views import EnvelopeWriteMixin
+from apps.common.viewsets import EnvelopeModelViewSet
 from apps.core.permissions_v2 import V2Permission
 
 from .models import Company, Major, School
 from .serializers import CompanySerializer, MajorSerializer, SchoolSerializer
 
 
-class MajorViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class MajorViewSet(EnvelopeModelViewSet):
     """专业库 — 院校库「专业」Tab。
 
     支持 keyword（专业名/代码）、discipline（门类）、category（专业类）、
@@ -85,7 +85,7 @@ class MajorViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         return success_response({'id': obj.id})
 
 
-class SchoolViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class SchoolViewSet(EnvelopeModelViewSet):
     """院校库 — 以只读查询为主，同时支持人工维护（新建 / 编辑 / 软删）。
 
     过滤参数：keyword（名称/代码/地址/曾用名）、educationLevel、schoolType、

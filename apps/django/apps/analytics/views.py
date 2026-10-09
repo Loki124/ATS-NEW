@@ -1,3 +1,4 @@
+
 """Analytics Views (DRF) - PRD v4 §14.9"""
 from django.db import DatabaseError
 from django_filters.rest_framework import DjangoFilterBackend
@@ -8,7 +9,7 @@ from rest_framework.response import Response
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
-from apps.common.views import EnvelopeWriteMixin
+from apps.common.viewsets import EnvelopeAuditModelViewSet
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission
 
@@ -24,7 +25,8 @@ from .serializers import (
 
 class ReportSnapshotViewSet(AuditMixin, viewsets.ModelViewSet):
     """报表快照 ViewSet"""
-    queryset = ReportSnapshot.objects.all()
+    # #9 (2026-10-09): ReportSnapshotSerializer 嵌套 generated_by_name, 列表逐行查 -> N+1, 一次 join.
+    queryset = ReportSnapshot.objects.all().select_related('generated_by')
     serializer_class = ReportSnapshotSerializer
     permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
@@ -35,9 +37,10 @@ class ReportSnapshotViewSet(AuditMixin, viewsets.ModelViewSet):
     ordering = ['-generated_at']
 
 
-class ExportTaskViewSet(EnvelopeWriteMixin, AuditMixin, viewsets.ModelViewSet):
+class ExportTaskViewSet(EnvelopeAuditModelViewSet):
     """数据导出任务 ViewSet"""
-    queryset = ExportTask.objects.all()
+    # #9 (2026-10-09): ExportTaskSerializer 嵌套 requested_by_name, 列表逐行查 -> N+1, 一次 join.
+    queryset = ExportTask.objects.all().select_related('requested_by')
     permission_classes = [IsHROrAbove]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]

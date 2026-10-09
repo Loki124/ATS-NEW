@@ -1,3 +1,4 @@
+
 """用户/部门/角色/权限 视图
 
 T30.175 (V2 cutover follow-up):
@@ -11,7 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
-from apps.common.views import EnvelopeWriteMixin
+from apps.common.viewsets import EnvelopeModelViewSet
 from apps.core.models_permission_v2 import (
     PermissionResource,
     RolePermissionV2,
@@ -36,7 +37,7 @@ from .serializers_permission_v2 import (
 )
 
 
-class UserViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class UserViewSet(EnvelopeModelViewSet):
     """用户 CRUD - 收紧权限: 列表/搜索仅 HRBP+, 详情本人或 HRBP+, 写仅超管 (Fix 1)"""
     queryset = User.objects.filter(deleted_at__isnull=True).select_related('department', 'direct_manager')
     serializer_class = UserSerializer
@@ -98,8 +99,10 @@ class UserViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
 class DepartmentViewSet(viewsets.ModelViewSet):
     """部门 CRUD - HRBP+ 可写, 其它角色只读 (Fix 1)"""
     queryset = Department.objects.all().select_related(
-        'parent', 'leader', 'manager_2', 'manager_3', 'hrbp'
-    )
+        'parent', 'leader', 'manager_2', 'manager_3', 'hrbp',
+        # #9 (2026-10-09): DepartmentSerializer.get_children_count 逐行 obj.children.count()
+        # -> 列表 N 行 N 次查询。prefetch 一次取回, 计数走缓存不落库。
+    ).prefetch_related('children')
     serializer_class = DepartmentSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]

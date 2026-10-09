@@ -36,7 +36,7 @@ _FRONT_ORDERED = [
 # 2) 空前缀块 (顺序敏感, 禁止重排)
 _EMPTY_PREFIX = [
     ('', 'apps.process.urls_round'),
-    ('', 'apps.referral.urls_stubs'),
+    ('', 'apps.referral.alias_endpoints'),
     ('', 'apps.core.urls_permission_v2'),
     ('', 'apps.core.urls'),
     ('', 'apps.dictionary.urls'),

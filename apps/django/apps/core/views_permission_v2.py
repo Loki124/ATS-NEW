@@ -1,3 +1,4 @@
+
 """V2 权限系统 ViewSets + function views."""
 import base64
 import binascii
@@ -14,6 +15,7 @@ from rest_framework.response import Response
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.views import EnvelopeReadOnlyMixin
+from apps.common.viewsets import EnvelopeModelViewSet
 
 from .models_permission_v2 import (
     ManagementUnit,
@@ -295,7 +297,7 @@ class EnvelopeWriteMixin:
         return success_response(None)
 
 
-class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class ManagementUnitViewSet(EnvelopeModelViewSet):
     queryset = ManagementUnit.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:mgmt_unit:list'
@@ -451,7 +453,7 @@ class ManagementUnitViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
         return Response({'success': True, 'data': rows})
 
 
-class UserRoleViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class UserRoleViewSet(EnvelopeModelViewSet):
     queryset = UserRoleV2.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:user_role:list'
@@ -569,7 +571,7 @@ def _build_app_scope_rows(user_id=None, role_code=None, app_code=None):
     return UserAppDataScopeSerializer(rows, many=True).data
 
 
-class UserAppDataScopeViewSet(EnvelopeWriteMixin, viewsets.ModelViewSet):
+class UserAppDataScopeViewSet(EnvelopeModelViewSet):
     """用户-角色-应用 数据范围(管理单元)读写.
 
     路由 /api/v1/user-app-data-scopes/ 契约保持不变(对齐北森图12 按应用管理单元):
