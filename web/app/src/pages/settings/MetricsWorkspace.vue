@@ -358,7 +358,7 @@
       class="tpl-modal"
       :mask-closable="false"
       :close-on-esc="!savingTpl"
-      :style="{ width: 'min(920px, calc(100vw - 48px))', maxHeight: 'min(88vh, 900px)' }"
+      :style="{ width: 'min(920px, calc(100vw - 48px))', height: 'min(88vh, 860px)' }"
     >
       <template #header>
         <div class="tpl-head">
@@ -368,7 +368,6 @@
               {{ templateModalTitle }}
               <n-tag v-if="templateEditId" size="tiny" type="primary" round>{{ t('metrics.tpl.modeEdit') }}</n-tag>
             </div>
-            <div v-if="templateMetaLine" class="tpl-head-meta">{{ templateMetaLine }}</div>
           </div>
           <button
             type="button"
@@ -460,21 +459,18 @@
                   <span class="tpl-range-static">值</span>
                   <n-input v-model:value="tplForm.paramConfig.suffix" placeholder="后缀" class="tpl-mini" />
                 </div>
-                <span class="tpl-sample">{{ t('metrics.tpl.sample') }}：{{ displaySample }}</span>
               </div>
-              <div class="tpl-param-field">
-                <span class="tpl-param-lbl">{{ t('metrics.tpl.allOption') }}</span>
-                <label class="tpl-param-ctl">
+              <div class="tpl-param-field tpl-all-field">
+                <label class="tpl-param-head">
+                  <span class="tpl-param-lbl">{{ t('metrics.tpl.allOption') }}</span>
                   <n-checkbox v-model:checked="tplForm.paramConfig.allOption" />
-                  <n-input v-if="tplForm.paramConfig.allOption" v-model:value="tplForm.paramConfig.allText" placeholder="全部工作经历" class="tpl-alltext" />
                 </label>
+                <n-input v-model:value="tplForm.paramConfig.allText" :disabled="!tplForm.paramConfig.allOption" placeholder="全部工作经历" class="tpl-alltext" />
               </div>
             </div>
-            <div v-if="rangePreviewVisible" class="tpl-preview">
-              <span class="tpl-preview-tag">[{{ rangePreviewTag }}]</span>
-              <span class="tpl-preview-meta">· {{ t('metrics.tpl.valuePreview', { count: rangePreviewCount }) }}：</span>
-              <span class="tpl-preview-vals">{{ rangePreviewValues.join(', ') }}{{ rangePreviewMore ? ', …' : '' }}</span>
-              <span v-if="currentParamUnit" class="tpl-preview-meta">（{{ currentParamUnit }}）</span>
+            <div v-if="paramSampleItems.length" class="domain-summary">
+              <span class="ds-tag">共 {{ paramSampleItems.length }} 个值</span>
+              <span class="ds-vals">{{ paramSampleItems.join(', ') }}</span>
             </div>
           </div>
         </section>
@@ -512,11 +508,11 @@
           <div class="tpl-sec-head"><span class="tpl-sec-title">{{ t('metrics.tpl.domainTitle') }}</span></div>
           <div class="tpl-domain-block">
             <div class="tpl-segments">
-              <div v-for="(seg, idx) in tplForm.valueDomain.segments" :key="idx" class="tpl-seg-row">
+              <div v-for="(seg, idx) in tplForm.valueDomain.segments" :key="idx" class="tpl-seg-row" :class="{ 'is-invalid': !!domainSegmentIssues[idx] }">
                 <span class="tpl-seg-tag">段{{ idx + 1 }}</span>
-                <n-input-number v-model:value="seg.min" :precision="paramPrecision" :show-button="false" class="tpl-seg-num" placeholder="0" />
+                <n-input-number v-model:value="seg.min" :precision="0" :show-button="false" class="tpl-seg-num" placeholder="0" />
                 <span class="tpl-range-sep">~</span>
-                <n-input-number v-model:value="seg.max" :precision="paramPrecision" :show-button="false" class="tpl-seg-num" placeholder="上限" />
+                <n-input-number v-model:value="seg.max" :precision="0" :show-button="false" class="tpl-seg-num" placeholder="上限" />
                 <span class="tpl-unit-text">{{ tplForm.unit || selectedTemplateDefinition?.unit }}</span>
                 <span class="tpl-seg-steplbl">{{ t('metrics.tpl.step') }}</span>
                 <n-input-number v-model:value="seg.step" :min="0" :precision="paramPrecision" :show-button="false" class="tpl-seg-num tpl-seg-step" placeholder="1" />
@@ -528,7 +524,11 @@
                 <template #icon><n-icon :component="AddOutline" /></template>
                 {{ t('metrics.tpl.addSegment') }}
               </n-button>
-              <div v-if="domainValueCount" class="domain-summary">
+              <div v-if="domainErrorText" class="domain-error">
+                <n-icon :component="AlertCircleOutline" :size="14" aria-hidden="true" />
+                <span>{{ domainErrorText }}</span>
+              </div>
+              <div v-else-if="domainValueCount" class="domain-summary">
                 <span class="ds-tag">共 {{ domainValueCount }} 个值</span>
                 <span class="ds-vals">{{ domainSummaryText }}</span>
               </div>
@@ -838,7 +838,7 @@ import {
   useDialog,
   type DataTableColumns,
 } from 'naive-ui'
-import { AddOutline, CheckmarkOutline, CloseOutline, SearchOutline } from '@vicons/ionicons5'
+import { AddOutline, AlertCircleOutline, CheckmarkOutline, CloseOutline, SearchOutline } from '@vicons/ionicons5'
 import KindIcon from '@/components/metrics/KindIcon.vue'
 import OperatorBadge from '@/components/metrics/OperatorBadge.vue'
 import {
@@ -1471,7 +1471,7 @@ const emptyTplForm = () => ({
   unit: '',
   paramUnit: '',
   calcParams: {} as Record<string, any>,
-  paramConfig: { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false },
+  paramConfig: { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false, allText: '全部工作经历' },
   valueDomain: { segments: [] as any[] },
   paramEnums: [] as string[],
   paramAllowNull: false,
@@ -1483,15 +1483,6 @@ const tplForm = ref<any>(emptyTplForm())
 const templateModalTitle = computed(() =>
   templateEditId.value ? t('metrics.dialog.editTemplate') : t('metrics.dialog.createTemplate'),
 )
-
-// 弹窗头部元信息行（对齐原型 header meta）：展示引用指标定义的类型与数据源
-const templateMetaLine = computed<string>(() => {
-  const d = selectedTemplateDefinition.value
-  if (!d) return ''
-  const kindLabel =
-    d.kind === 'atomic' ? t('metrics.tab.atomic') : d.kind === 'derived' ? t('metrics.tab.derived') : ''
-  return [kindLabel, d.dataSource].filter(Boolean).join(' · ')
-})
 
 const metricDefinitionOptions = computed<any[]>(() => {
   const atomic = definitions.value.filter((d) => d.kind === 'atomic')
@@ -1558,19 +1549,6 @@ const paramConfigHint = computed(() => {
     : t('metrics.tpl.paramHintDiscrete')
 })
 
-function generateValues(min?: number | null, max?: number | null, step?: number | null): number[] {
-  if (min == null || max == null || step == null || step <= 0) return []
-  const vals: number[] = []
-  for (let v = min; v <= max + 1e-9; v += step) {
-    vals.push(Number(v.toFixed(6)))
-  }
-  return vals
-}
-
-function formatPreviewValue(n: number): string {
-  return Number(n.toFixed(6)).toString()
-}
-
 // 出参单位候选（严格对齐原型）：定义携 units 数组则用其；否则回退到单 unit。
 const outputUnitOptions = computed<string[]>(() => {
   const d = selectedTemplateDefinition.value
@@ -1611,43 +1589,6 @@ const currentParamUnit = computed<string>(() => {
   if (pu) return pu
   const pus = paramUnitOptions.value
   return pus.length ? pus[0] : ''
-})
-
-// 范围预览（对齐原型 refreshRangePreview）：[全部文案] · 共 N 个值： 前 7 个 + … （参数单位）
-const rangePreviewVisible = computed<boolean>(() => {
-  if (!showTemplateParamConfig.value) return false
-  const c = tplForm.value.paramConfig
-  const mn = Number(c.min)
-  const mx = Number(c.max)
-  return Number.isFinite(mn) && Number.isFinite(mx) && mx > mn
-})
-const rangePreviewTag = computed<string>(() => {
-  const c = tplForm.value.paramConfig
-  if (c.allOption) return c.allText || t('metrics.tpl.allLabel')
-  return `${c.prefix || ''}N${c.suffix || ''}`
-})
-const rangePreviewCount = computed<number>(() => {
-  const c = tplForm.value.paramConfig
-  const isDiscrete = selectedTemplateDefinition.value?.paramType === 'discrete'
-  const st = Number(c.step) || (isDiscrete ? 1 : 0.5)
-  if (!st || st <= 0) return 0
-  return Math.round((Number(c.max) - Number(c.min)) / st) + 1
-})
-const rangePreviewValues = computed<string[]>(() => {
-  const c = tplForm.value.paramConfig
-  return generateValues(c.min, c.max, c.step).map(formatPreviewValue)
-})
-const rangePreviewMore = computed<boolean>(() => false)
-
-// 「显示格式」实时样例：前缀 + 取值 + 单位 + 后缀（后缀已含单位则不重复补单位）
-const displaySample = computed<string>(() => {
-  const c = tplForm.value.paramConfig
-  const mn = Number(c.min)
-  const sampleNum = Number.isFinite(mn) ? fmtNum(mn) : '3'
-  const unit = currentParamUnit.value
-  let suffix = c.suffix || ''
-  if (unit && !suffix.endsWith(unit)) suffix = `${suffix}${unit}`
-  return `${c.prefix || ''}${sampleNum}${suffix}`
 })
 
 const supportedOperatorOptions = computed<OptionItem[]>(() => {
@@ -1695,6 +1636,45 @@ function buildDomainItems(): { text: string; value: string }[] {
 const domainItems = computed<{ text: string; value: string }[]>(() => buildDomainItems())
 const domainValueCount = computed<number>(() => domainItems.value.length)
 const domainSummaryText = computed<string>(() => domainItems.value.map((i) => i.text).join(', '))
+
+// 值域分段校验：区间（上限>下限）、步长合法性、相邻分段不重叠且不共用边界
+function segBound(v: any): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+const domainSegmentIssues = computed<(string | null)[]>(() => {
+  const segs = (tplForm.value.valueDomain?.segments || []) as any[]
+  const isDiscrete = selectedTemplateDefinition.value?.paramType === 'discrete'
+  const issues: (string | null)[] = segs.map(() => null)
+  segs.forEach((s: any, i: number) => {
+    const mn = segBound(s.min)
+    const mx = segBound(s.max)
+    if (mn !== null && mx !== null && mx <= mn) { issues[i] = '上限须大于下限'; return }
+    const raw = s.step
+    if (raw === null || raw === undefined || raw === '') { issues[i] = '请填写步长'; return }
+    const st = Number(raw)
+    if (!Number.isFinite(st) || st <= 0) { issues[i] = '步长须为正数'; return }
+    if (isDiscrete && !Number.isInteger(st)) issues[i] = '离散指标步长须为整数'
+  })
+  // 相邻分段不得重叠或共用边界（按下限升序，后段下限 <= 前段上限即无效，会产生重复枚举值）
+  const ranged = segs
+    .map((s: any, i: number) => ({ i, mn: segBound(s.min), mx: segBound(s.max) }))
+    .filter((b) => b.mn !== null && b.mx !== null)
+    .sort((a, b) => (a.mn as number) - (b.mn as number))
+  for (let k = 1; k < ranged.length; k++) {
+    if ((ranged[k].mn as number) <= (ranged[k - 1].mx as number) && !issues[ranged[k].i]) {
+      issues[ranged[k].i] = '与上一段重叠或共用边界，请错开区间'
+    }
+  }
+  return issues
+})
+const domainErrorText = computed<string>(() =>
+  domainSegmentIssues.value
+    .map((m, i) => (m ? `段${i + 1}：${m}` : ''))
+    .filter(Boolean)
+    .join('；'),
+)
 
 // 运算符展示符号（对齐原型 OPS：= ≠ > ≥ < ≤ ∈）
 const OP_SYMBOLS: Record<string, string> = {
@@ -1755,6 +1735,13 @@ const previewParamOptions = computed<any[]>(() => {
 })
 watch(previewParamOptions, (opts) => { previewParamSelected.value = firstEnabledValue(opts) }, { immediate: true })
 
+// 「配置样例」：完整展开参数自身取值域（仅借用值域配置的绿色汇总条样式，数据取参数配置）
+const paramSampleItems = computed<string[]>(() =>
+  previewParamOptions.value
+    .filter((o: any) => !o.disabled && o.value !== '__all__')
+    .map((o: any) => o.label as string),
+)
+
 // ③ 运算符：已启用优先，否则定义支持的全部（标签前带运算符符号，对齐原型 OPS）
 const previewOpOptions = computed<any[]>(() => {
   const d = selectedTemplateDefinition.value
@@ -1767,8 +1754,9 @@ const previewOpOptions = computed<any[]>(() => {
 })
 watch(previewOpOptions, (opts) => { previewOpSelected.value = firstEnabledValue(opts) }, { immediate: true })
 
-// ④ 校验值：值域枚举（完整显示所有预览值，带出参单位，无「全部」）
+// ④ 校验值：值域枚举（完整显示所有预览值，带出参单位，无「全部」）；值域无效时给出占位提示
 const previewCheckValueOptions = computed<any[]>(() => {
+  if (domainErrorText.value) return [{ label: '— 值域配置有误，请先修正 —', value: '', disabled: true }]
   const items = domainItems.value
   if (!items.length) return [{ label: '— 请先添加值域分段 —', value: '', disabled: true }]
   return items.map((i) => ({ label: i.text, value: i.value }))
@@ -1788,7 +1776,7 @@ function onTemplateMetricChange() {
   }
   // 对象路径指标无需参数，切回 handler 时清空旧参数避免误解
   if (!showTemplateParamConfig.value) {
-    tplForm.value.paramConfig = { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false }
+    tplForm.value.paramConfig = { min: null, max: null, step: null, prefix: '', suffix: '', allOption: false, allText: '全部工作经历' }
     tplForm.value.calcParams = {}
   } else if (selectedTemplateDefinition.value?.paramSchema?.length) {
     // 预填 paramSchema default（引擎按 default 兜底；模板弹窗不设参数编辑入口，取值域由「参数配置」约束展示）
@@ -1827,6 +1815,7 @@ function openTemplateEdit(row: MetricTemplate) {
       prefix: cfg.prefix ?? '',
       suffix: cfg.suffix ?? '',
       allOption: !!cfg.allOption,
+      allText: cfg.allText ?? '全部工作经历',
     },
     valueDomain: { segments: (domain.segments || []).map((s: any) => ({ ...s })) },
     paramEnums: row.paramEnums || [],
@@ -1860,6 +1849,10 @@ async function submitTemplate() {
   }
   if (!tplForm.value.operators?.length) {
     message.warning(t('metrics.msg.requiredOperators'))
+    return
+  }
+  if (domainErrorText.value) {
+    message.warning(domainErrorText.value)
     return
   }
   savingTpl.value = true
@@ -2572,7 +2565,7 @@ onUnmounted(() => {
 :global(.tpl-modal.n-card.n-modal) {
   display: flex;
   flex-direction: column;
-  max-height: min(88vh, 900px);
+  height: min(88vh, 860px);
   border-radius: var(--radius-lg);
 }
 :global(.n-modal.tpl-modal .n-card-header) {
@@ -2580,6 +2573,8 @@ onUnmounted(() => {
   padding: var(--space-3) var(--space-5);
   background: linear-gradient(120deg, var(--brand-soft), transparent 60%);
   border-bottom: 1px solid var(--border-hairline);
+  /* header 带背景 + 卡片 overflow:visible → 需自行补圆角，否则方角盖住卡片顶部圆角 */
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 :global(.n-modal.tpl-modal .n-card-content) {
   flex: 1 1 auto;
@@ -2593,6 +2588,8 @@ onUnmounted(() => {
   padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--border-hairline);
   background: var(--surface);
+  /* footer 带不透明背景 + 卡片 overflow:visible → 补底部圆角，修掉「顶部圆角、底部直角」 */
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 /* 头部 */
@@ -2686,22 +2683,17 @@ onUnmounted(() => {
 .tpl-param-block { display: flex; flex-direction: column; gap: var(--space-3); }
 .tpl-param-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-6); }
 .tpl-param-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.tpl-param-lbl { color: var(--ink-soft); font-size: var(--fs-12); font-weight: 500; line-height: 1.4; }
+.tpl-param-lbl { color: var(--ink-soft); font-size: var(--fs-12); font-weight: 500; line-height: 1.4; display: flex; align-items: center; min-height: 24px; }
 .tpl-param-ctl { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .tpl-param-ctl .n-input-number { flex-shrink: 0; }
 .tpl-range-num { width: 76px; }
 .tpl-range-static { color: var(--ink-faint); font-size: var(--fs-12); white-space: nowrap; }
 .tpl-range-sep { color: var(--ink-faint); }
-/* 显示格式实时样例：技术值保留等宽 + 品牌色强调 */
-.tpl-sample { font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--brand-text); font-weight: 600; white-space: nowrap; }
 .tpl-mini { width: 56px; min-width: 0; }
 .tpl-alltext { width: 120px; min-width: 0; }
-
-/* 取值预览：浅灰条，视觉权重低于主要字段 */
-.tpl-preview { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--g1); border-radius: var(--radius-sm); font-size: var(--fs-12); line-height: 1.6; }
-.tpl-preview-tag { font-weight: 600; color: var(--brand-text); white-space: nowrap; font-family: var(--tpl-mono); }
-.tpl-preview-meta { color: var(--ink-soft); }
-.tpl-preview-vals { color: var(--ink-soft); font-family: var(--tpl-mono); font-variant-numeric: tabular-nums; }
+/* 「启用全部」：复选框与标签同行（标题行），输入框另起一行；标签行统一高度保证各列对齐 */
+.tpl-param-head { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; cursor: pointer; }
+.tpl-all-field { min-width: 120px; }
 
 /* 运算符：chip 流式排布（面板即容器，不再另加边框块） */
 .tpl-ops-block { min-width: 0; }
@@ -2736,6 +2728,8 @@ onUnmounted(() => {
 .domain-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--c-success-soft); border-radius: var(--radius-sm); font-size: var(--fs-12); color: var(--c-success-deep); }
 .ds-tag { font-weight: 600; white-space: nowrap; font-family: var(--tpl-mono); }
 .ds-vals { color: var(--ink-soft); line-height: 1.6; }
+.tpl-seg-row.is-invalid { box-shadow: inset 0 0 0 1px var(--c-error); }
+.domain-error { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-3); background: var(--c-error-soft); color: var(--c-error-deep); border-radius: var(--radius-sm); font-size: var(--fs-12); line-height: 1.6; }
 
 /* 配置预览（结果读条）：左侧品牌色条标明「这是最终产出」 */
 .tpl-readout {

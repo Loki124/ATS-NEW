@@ -185,6 +185,20 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(f'值域分段#{i + 1}缺少 min/max')
                 if seg['min'] is not None and seg['max'] is not None and seg['min'] > seg['max']:
                     raise serializers.ValidationError(f'值域分段#{i + 1}最小值不能大于最大值')
+            # 分段不得重叠或共用边界（否则会枚举出重复的校验值）——按 min 升序检查相邻段
+            ranged = [
+                (i, seg['min'], seg['max'])
+                for i, seg in enumerate(segments)
+                if isinstance(seg, dict)
+                and isinstance(seg.get('min'), (int, float)) and not isinstance(seg.get('min'), bool)
+                and isinstance(seg.get('max'), (int, float)) and not isinstance(seg.get('max'), bool)
+            ]
+            ranged.sort(key=lambda x: x[1])
+            for k in range(1, len(ranged)):
+                if ranged[k][1] <= ranged[k - 1][2]:
+                    raise serializers.ValidationError(
+                        f'值域分段#{ranged[k][0] + 1}与第 {ranged[k - 1][0] + 1} 段重叠或共用边界'
+                    )
 
     def get_metric_name(self, obj):
         return obj.metric.name if obj.metric else ''
