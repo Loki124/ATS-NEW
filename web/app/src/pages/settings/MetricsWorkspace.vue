@@ -390,6 +390,9 @@
             <n-form-item :label="t('metrics.form.name')" required>
               <n-input v-model:value="tplForm.name" :placeholder="t('metrics.form.name')" />
             </n-form-item>
+            <n-form-item :label="t('metrics.tpl.templateDesc')">
+              <n-input v-model:value="tplForm.description" :placeholder="t('metrics.tpl.templateDesc')" />
+            </n-form-item>
             <n-form-item :label="t('metrics.form.metricDefinition')" required>
               <n-select
                 v-model:value="tplForm.metricDefinition"
@@ -398,6 +401,12 @@
                 :placeholder="t('metrics.form.metricDefinition')"
                 @update:value="onTemplateMetricChange"
               />
+            </n-form-item>
+            <n-form-item :label="t('metrics.form.status')" class="tpl-status">
+              <n-switch v-model:value="tplForm.status" checked-value="enabled" unchecked-value="disabled">
+                <template #checked>{{ t('metrics.status.enabled') }}</template>
+                <template #unchecked>{{ t('metrics.status.disabled') }}</template>
+              </n-switch>
             </n-form-item>
           </div>
           <div v-if="selectedTemplateDefinition" class="tpl-inherit">
@@ -546,23 +555,17 @@
             <span class="pv-arrow">→</span>
             <n-select v-model:value="previewOpSelected" :options="previewOpOptions" class="pv-select" />
             <span class="pv-arrow">→</span>
-            <n-select v-model:value="previewValueSelected" :options="previewCheckValueOptions" placeholder="校验值" class="pv-select" />
+            <!-- 区间是双值运算符：校验值拆成下限 / 上限两个框（包在同一栅格单元内，不打乱 7 列布局） -->
+            <span v-if="previewNeedsRangeValue" class="pv-range">
+              <n-select v-model:value="previewRangeLower" :options="previewCheckValueOptions" :placeholder="t('metrics.tpl.rangeLower')" class="pv-select" />
+              <span class="pv-arrow">~</span>
+              <n-select v-model:value="previewRangeUpper" :options="previewCheckValueOptions" :placeholder="t('metrics.tpl.rangeUpper')" class="pv-select" />
+            </span>
+            <n-select v-else v-model:value="previewValueSelected" :options="previewCheckValueOptions" placeholder="校验值" class="pv-select" />
           </div>
         </section>
 
-        <!-- 描述 + 状态 -->
-        <div class="tpl-foot-fields">
-          <n-form-item :label="t('metrics.form.description')">
-            <n-input v-model:value="tplForm.description" type="textarea" :rows="2" :placeholder="t('metrics.form.description')" />
-          </n-form-item>
-          <n-form-item :label="t('metrics.form.status')" class="tpl-status">
-            <n-switch v-model:value="tplForm.status" checked-value="enabled" unchecked-value="disabled">
-              <template #checked>{{ t('metrics.status.enabled') }}</template>
-              <template #unchecked>{{ t('metrics.status.disabled') }}</template>
-            </n-switch>
-          </n-form-item>
-        </div>
-      </n-form>
+        </n-form>
 
       <template #footer>
         <n-space justify="end" class="tpl-footer">
@@ -1709,10 +1712,10 @@ const previewMetricItemOptions = computed<any[]>(() => [
 ])
 watch(previewMetricItemOptions, (opts) => { previewMetricSelected.value = firstEnabledValue(opts) }, { immediate: true })
 
-// ② 参数：来自「参数配置」取值范围枚举（完整显示所有预览值，带参数单位）
+// ② 参数：来自「参数配置」取值范围枚举（严格按配置的前缀 + 后缀拼装，不自动追加参数单位——
+// 单位只用于约束取值范围，由分区头部的参数单位标签展示，避免覆盖用户自己配的后缀）
 const previewParamOptions = computed<any[]>(() => {
   if (!showTemplateParamConfig.value) return []
-  const unit = currentParamUnit.value
   const c = tplForm.value.paramConfig
   const opts: any[] = []
   if (c.allOption) opts.push({ label: c.allText || t('metrics.tpl.allOption'), value: '__all__' })
@@ -1724,9 +1727,7 @@ const previewParamOptions = computed<any[]>(() => {
   if (Number.isFinite(mn) && Number.isFinite(mx) && st > 0) {
     for (let v = mn; v <= mx + 1e-9; v += st) {
       const vv = fmtNum(v)
-      const suffix = (c.suffix || '').trim()
-      const suffixHasUnit = suffix && unit && suffix.endsWith(unit)
-      const label = `${c.prefix || ''}${vv}${suffix}${suffixHasUnit ? '' : unit}`
+      const label = `${c.prefix || ''}${vv}${(c.suffix || '').trim()}`
       opts.push({ label, value: vv })
     }
   }
@@ -1762,6 +1763,39 @@ const previewCheckValueOptions = computed<any[]>(() => {
   return items.map((i) => ({ label: i.text, value: i.value }))
 })
 watch(previewCheckValueOptions, (opts) => { previewValueSelected.value = firstEnabledValue(opts) }, { immediate: true })
+
+// ⑤ 区间（between）是双值运算符：校验值需下限 + 上限两个框
+const RANGE_OPERATOR = 'between'
+const previewNeedsRangeValue = computed<boolean>(() => previewOpSelected.value === RANGE_OPERATOR)
+const previewRangeLower = ref('')
+const previewRangeUpper = ref('')
+
+/** 校验值候选取可用值列表（区间默认值用首尾值兜底） */
+function enabledCheckValues(): string[] {
+  return previewCheckValueOptions.value.filter((o: any) => !o.disabled).map((o: any) => o.value as string)
+}
+
+// 运算符切到/切出「区间」时收敛旧值：进入区间给上下限合理默认，离开区间把下限带回单值框
+watch(previewNeedsRangeValue, (need) => {
+  if (need) {
+    const vals = enabledCheckValues()
+    if (!previewRangeLower.value) previewRangeLower.value = vals[0] ?? ''
+    if (!previewRangeUpper.value) previewRangeUpper.value = vals[vals.length - 1] ?? ''
+    if (previewRangeLower.value === previewRangeUpper.value && vals.length > 1) {
+      previewRangeUpper.value = vals[vals.length - 1]
+    }
+  } else if (previewRangeLower.value) {
+    previewValueSelected.value = previewRangeLower.value
+  }
+})
+
+// 值域枚举变化后，已选中的上下限若已失效则回落到首个可用值，避免残留空框
+watch(previewCheckValueOptions, () => {
+  if (!previewNeedsRangeValue.value) return
+  const vals = enabledCheckValues()
+  if (!vals.includes(previewRangeLower.value)) previewRangeLower.value = vals[0] ?? ''
+  if (!vals.includes(previewRangeUpper.value)) previewRangeUpper.value = vals[vals.length - 1] ?? ''
+})
 
 function onTemplateMetricChange() {
   const d = selectedTemplateDefinition.value
@@ -2744,17 +2778,18 @@ onUnmounted(() => {
 .tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
 .pv-select { min-width: 0; width: 100%; }
 .pv-arrow { color: var(--brand-600); flex-shrink: 0; justify-self: center; font-weight: 700; }
+/* 区间双值：下限 / 上限两个框并排，包在同一栅格单元内，避免撑破 7 列布局 */
+.pv-range { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.pv-range .pv-select { flex: 1 1 0; width: auto; }
 
-/* 底部：描述 + 状态 */
-.tpl-foot-fields { display: grid; grid-template-columns: 1fr auto; gap: var(--space-3); align-items: start; }
-.tpl-status { margin-bottom: 0; }
+/* 状态：已移入基础信息栅格，开关比输入框矮 → 顶对齐，避免下沉一格 */
+.tpl-status { align-self: start; margin-bottom: 0; }
 .tpl-status :deep(.n-form-item-label) { height: auto; }
 .tpl-footer { width: 100%; }
 .tpl-footer :deep(.n-button--primary) { box-shadow: 0 4px 14px var(--brand-a32); }
 
 @media (max-width: 640px) {
   .tpl-fields { grid-template-columns: 1fr; }
-  .tpl-foot-fields { grid-template-columns: 1fr; }
   .tpl-readout-row, .tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .pv-arrow { display: none; }
 }

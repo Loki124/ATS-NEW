@@ -81,6 +81,12 @@
                     :placeholder="t('metrics.rule.rightTemplate')"
                   />
                 </template>
+                <!-- 区间（BETWEEN）是双值运算符：下限 + 上限两个框，落库走 meta.min / meta.max（对齐引擎 _expected） -->
+                <span v-else-if="isRangeCondition(cond)" class="ra-range">
+                  <n-input v-model:value="cond.meta.min" class="ra-value" :placeholder="t('metrics.rule.rangeMin')" @blur="onRangeBlur(cond)" />
+                  <span class="ra-range-sep">~</span>
+                  <n-input v-model:value="cond.meta.max" class="ra-value" :placeholder="t('metrics.rule.rangeMax')" @blur="onRangeBlur(cond)" />
+                </span>
                 <template v-else>
                   <n-input v-model:value="cond.value" class="ra-value" :placeholder="t('metrics.rule.value')" />
                 </template>
@@ -235,7 +241,18 @@ const ruleId = ref('')
 const ruleName = ref('')
 const ruleScene = ref<MetricRuleScene>('MANUAL')
 const actionType = ref<'VETO' | 'DEDUCT' | 'BONUS'>('DEDUCT')
-const conditions = ref<any[]>([{ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null }])
+/** 空白条件：区间（BETWEEN）用 meta.min / meta.max 承载上下限（对齐引擎 _expected 读取路径） */
+function newCondition() {
+  return {
+    templateId: null as any,
+    operator: null as any,
+    value: '',
+    compareMode: 'value' as 'value' | 'metric',
+    rightTemplateId: null as any,
+    meta: { min: '', max: '' },
+  }
+}
+const conditions = ref<any[]>([newCondition()])
 
 /** 方案 B：指标 vs 指标时右操作数仅放行的关系运算符（单标量比较语义） */
 const METRIC_VS_METRIC_OPS = ['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE']
@@ -347,12 +364,48 @@ function unitOf(cond: any) {
   return templateList.value.find((x) => x.id === cond.templateId)?.unit || ''
 }
 
+/** 区间条件：仅「比较值」模式下 BETWEEN 才需要下限 / 上限双框（对比指标模式后端只放行单标量关系运算符） */
+function isRangeCondition(cond: any): boolean {
+  return cond.operator === 'BETWEEN' && cond.compareMode !== 'metric'
+}
+
+/** 区间上下限校验：必填 + 数字 + 下限≤上限（文案与后端 V09 保持一致） */
+function rangeIssue(cond: any): string {
+  if (!isRangeCondition(cond)) return ''
+  const rawMin = cond.meta?.min
+  const rawMax = cond.meta?.max
+  const blank = (v: any) => v === '' || v === null || v === undefined
+  if (blank(rawMin) || blank(rawMax)) return t('metrics.rule.rangeRequired')
+  const lo = Number(rawMin)
+  const hi = Number(rawMax)
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return t('metrics.rule.rangeNotNumber')
+  if (lo > hi) return t('metrics.rule.validate.betweenRange')
+  return ''
+}
+
+function onRangeBlur(cond: any) {
+  const issue = rangeIssue(cond)
+  if (issue) message.warning(issue)
+}
+
+/** 执行 / 保存前的统一校验：提前拦下区间下限大于上限，避免落到后端才报错 */
+function validateConditions(): boolean {
+  for (const c of conditions.value) {
+    const issue = rangeIssue(c)
+    if (issue) {
+      message.warning(issue)
+      return false
+    }
+  }
+  return true
+}
+
 function addCondition() {
-  conditions.value.push({ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null })
+  conditions.value.push(newCondition())
 }
 function removeCondition(index: number) {
   conditions.value.splice(index, 1)
-  if (!conditions.value.length) conditions.value.push({ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null })
+  if (!conditions.value.length) conditions.value.push(newCondition())
 }
 
 async function loadSnapshot() {
@@ -377,6 +430,7 @@ async function loadSnapshot() {
 }
 
 async function execute() {
+  if (!validateConditions()) return
   executing.value = true
   result.value = null
   try {
@@ -388,6 +442,9 @@ async function execute() {
           // 方案 B：对比指标模式携带 rightTemplateId，不携带常量值
           if (c.compareMode === 'metric') {
             item.rightTemplateId = c.rightTemplateId
+          } else if (c.operator === 'BETWEEN') {
+            // 区间：与落库一致，执行也走 meta.min / meta.max
+            item.meta = { min: c.meta?.min ?? '', max: c.meta?.max ?? '' }
           } else {
             item.value = c.value
           }
@@ -420,9 +477,11 @@ async function loadRuleIntoAuthor(id: string) {
         value: isMetric ? '' : (c.value ?? ''),
         compareMode: isMetric ? 'metric' : 'value',
         rightTemplateId: c.rightTemplateId || null,
+        // 区间条件的上下限从 meta 回填；缺 meta 的老数据兜底为空对象，避免渲染时 undefined
+        meta: { min: c.meta?.min ?? '', max: c.meta?.max ?? '' },
       }
     })
-    if (!conditions.value.length) conditions.value = [{ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null }]
+    if (!conditions.value.length) conditions.value = [newCondition()]
     demandId.value = rule.demandId || ''
     positionId.value = rule.positionId || ''
     result.value = null
@@ -437,6 +496,7 @@ async function saveRule() {
     message.warning(t('metrics.rule.ruleName'))
     return
   }
+  if (!validateConditions()) return
   saving.value = true
   try {
     const payload = {
@@ -473,6 +533,9 @@ function persistConditions(list: any[]): any[] {
       // 方案 B：对比指标模式只写 rightTemplateId，不写常量值（后端互斥校验）
       if (c.compareMode === 'metric') {
         cond.rightTemplateId = c.rightTemplateId
+      } else if (c.operator === 'BETWEEN') {
+        // 区间：上下限走 meta（引擎按 meta.min / meta.max 读取），不写单值 value
+        cond.meta = { min: c.meta?.min ?? '', max: c.meta?.max ?? '' }
       } else {
         cond.value = c.value
         if (c.operator === 'IN' || c.operator === 'NOT_IN') {
@@ -490,7 +553,7 @@ function newRule() {
   ruleName.value = ''
   ruleScene.value = 'MANUAL'
   actionType.value = 'DEDUCT'
-  conditions.value = [{ templateId: null, operator: null, value: '', compareMode: 'value', rightTemplateId: null }]
+  conditions.value = [newCondition()]
   demandId.value = ''
   positionId.value = ''
   result.value = null
@@ -658,6 +721,9 @@ onMounted(async () => {
 .ra-mode { flex: 0 0 auto; }
 .ra-operator { flex: 0 0 140px; }
 .ra-value { flex: 0 0 140px; }
+/* 区间双值：下限 / 上限两个框并排成组，避免行内元素错位 */
+.ra-range { display: flex; align-items: center; gap: 6px; }
+.ra-range-sep { color: var(--color-text-secondary, #6b7280); font-weight: 700; }
 .ra-cond-hint { margin: 0 0 4px; font-size: 12px; color: var(--color-text-secondary, #6b7280); line-height: 1.4; }
 .ra-unit { flex: 0 0 48px; font-size: 13px; color: var(--color-text-secondary, #6b7280); }
 .ra-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
