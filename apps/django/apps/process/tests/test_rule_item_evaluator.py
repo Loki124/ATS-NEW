@@ -177,6 +177,14 @@ def test_legacy_candidate_in_hit():
 
 # ============================================================
 # F4 回归：legacy data_type 降级推断（AtomicMetric 查询失败/缺失时按值推断）
+#
+# 注意 patch 目标：build_candidate_snapshot 要 patch 在**定义处**
+# （apps.metrics.services.candidate_snapshot），不能 patch 在使用处
+# （apps.process.services.rule_item_evaluator）。
+# 因为 rule_item_evaluator._evaluate_legacy_item 是**函数内惰性导入**快照函数
+# （见该文件 2026-10-09 #21 注释：为切断 process → metrics 模块级循环依赖），
+# 模块级并不存在 build_candidate_snapshot 属性，patch 使用处会直接抛
+# AttributeError: module ... does not have the attribute 'build_candidate_snapshot'。
 # ============================================================
 @pytest.mark.django_db
 def test_f4_legacy_numeric_when_atomic_metric_query_raises():
@@ -189,7 +197,7 @@ def test_f4_legacy_numeric_when_atomic_metric_query_raises():
     fake_metric_cls.objects.filter.return_value.first.side_effect = Exception('db down')
 
     with patch('apps.metrics.models.AtomicMetric', fake_metric_cls), \
-         patch('apps.process.services.rule_item_evaluator.build_candidate_snapshot',
+         patch('apps.metrics.services.candidate_snapshot.build_candidate_snapshot',
                return_value={'candidate': {'age': 40}}):
         res = RuleItemEvaluator.evaluate_item(
             {'condition_type': 'CANDIDATE', 'field': 'candidate.age',
@@ -215,7 +223,7 @@ def test_f4_legacy_numeric_when_atomic_metric_missing():
     fake_metric_cls.objects.filter.return_value.first.return_value = None
 
     with patch('apps.metrics.models.AtomicMetric', fake_metric_cls), \
-         patch('apps.process.services.rule_item_evaluator.build_candidate_snapshot',
+         patch('apps.metrics.services.candidate_snapshot.build_candidate_snapshot',
                return_value={'candidate': {'age': 40}}):
         res = RuleItemEvaluator.evaluate_item(
             {'condition_type': 'CANDIDATE', 'field': 'candidate.age',
@@ -239,7 +247,7 @@ def test_f4_legacy_between_numeric_list_when_metric_missing():
     fake_metric_cls.objects.filter.return_value.first.return_value = None
 
     with patch('apps.metrics.models.AtomicMetric', fake_metric_cls), \
-         patch('apps.process.services.rule_item_evaluator.build_candidate_snapshot',
+         patch('apps.metrics.services.candidate_snapshot.build_candidate_snapshot',
                return_value={'candidate': {'age': 40}}):
         res = RuleItemEvaluator.evaluate_item(
             {'condition_type': 'CANDIDATE', 'field': 'candidate.age',
