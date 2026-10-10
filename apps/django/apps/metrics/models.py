@@ -18,7 +18,7 @@ BETWEEN 的 min/max 借助 Condition.meta_json 承载（复用既有约定，不
 """
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 
 from apps.common.models import FullAuditModel, SoftDeleteManager, UUIDModel
 from apps.rule_engine.models import UnifiedOperator
@@ -40,12 +40,50 @@ class MetricStatus(models.TextChoices):
     DISABLED = 'disabled', '停用'
 
 
+# ===== 编号（系统自动生成、不可修改）=====
+# 前缀区分实体来源：AM=原子指标 / DM=派生指标 / MT=指标模板。
+# 沿用 campus_control.ControlRule 的补号范式：事务内锁定末行取最大序号 +1，
+# 既保证唯一（撞 unique 会 500），也保证并发创建时不重号。
+def _next_code(qs, prefix: str) -> str:
+    """生成「前缀 + 4 位序号」编号（如 AM0001）。必须在 transaction.atomic() 内调用。
+
+    必须**先按前缀过滤再取最大**：若对全表 order_by('-code')，末行很可能是别的前缀
+    （'D' > 'A'，DM 永远压过 AM），此时前缀不匹配会退回 seq=0 → 返回 AM0001 →
+    与存量 AM0001 撞 unique 约束。故按前缀锁定区间，只与同前缀的行比较。
+    """
+    last = qs.select_for_update().filter(code__startswith=prefix).order_by('-code').first()
+    seq = 0
+    if last and last.code:
+        try:
+            seq = int(last.code[len(prefix):])
+        except (ValueError, IndexError):
+            seq = 0
+    return f'{prefix}{seq + 1:04d}'
+
+
+def _lock_existing_code(qs, instance) -> None:
+    """编号「不可更改」：库里已有编号时以库中原值为准，忽略本次赋值。
+
+    库中原值为空时才放行 —— 否则历史数据回填迁移会被这条规则自己挡住。
+    """
+    if not instance.pk:
+        return
+    old = qs.filter(pk=instance.pk).values_list('code', flat=True).first()
+    if old:
+        instance.code = old
+
+
 class AtomicMetric(FullAuditModel, UUIDModel):
     """原子指标 —— 直接取值型（source_path 点路径，支持数组索引）。
 
     例：name=年龄, source_path=candidate.age, data_type=number, unit=岁
     例：name=最近公司, source_path=candidate.workExperience.0.company, data_type=string
     """
+    # editable=False：编号只由 save() 自动补，表单/序列化器写不进来
+    code = models.CharField(
+        max_length=16, unique=True, blank=True, default='', editable=False,
+        verbose_name='指标编号', help_text='系统自动生成（AM+4 位），不可修改',
+    )
     name = models.CharField(max_length=64, unique=True, verbose_name='指标名称')
     source_path = models.CharField(
         max_length=255, verbose_name='字段路径',
@@ -80,6 +118,16 @@ class AtomicMetric(FullAuditModel, UUIDModel):
         verbose_name_plural = '原子指标'
         ordering = ['name']
 
+    def save(self, *args, **kwargs):
+        """未设编号时自动补号（AM+4 位）：新建与任何未传 code 的写入路径都能拿到唯一编号。"""
+        if not self.code:
+            with transaction.atomic():
+                self.code = _next_code(AtomicMetric.objects, 'AM')
+                super().save(*args, **kwargs)
+        else:
+            _lock_existing_code(AtomicMetric.objects, self)
+            super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.name}({self.source_path})'
 
@@ -99,6 +147,11 @@ class DerivedMetric(FullAuditModel, UUIDModel):
     calc_func 不在模型层限定 choices —— 白名单由 services.derived_registry 动态提供，
     新增函数时不产生迁移、不改已有代码（开闭原则）。
     """
+    # editable=False：编号只由 save() 自动补，表单/序列化器写不进来
+    code = models.CharField(
+        max_length=16, unique=True, blank=True, default='', editable=False,
+        verbose_name='指标编号', help_text='系统自动生成（DM+4 位），不可修改',
+    )
     name = models.CharField(max_length=64, unique=True, verbose_name='指标名称')
     calc_func = models.CharField(
         max_length=64, verbose_name='计算函数',
@@ -129,6 +182,16 @@ class DerivedMetric(FullAuditModel, UUIDModel):
         verbose_name_plural = '派生指标'
         ordering = ['name']
 
+    def save(self, *args, **kwargs):
+        """未设编号时自动补号（DM+4 位）。"""
+        if not self.code:
+            with transaction.atomic():
+                self.code = _next_code(DerivedMetric.objects, 'DM')
+                super().save(*args, **kwargs)
+        else:
+            _lock_existing_code(DerivedMetric.objects, self)
+            super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.name}({self.calc_func})'
 
@@ -139,6 +202,11 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     二选一约束：atomic_metric 与 derived_metric 必须恰好一个非空（clean 校验）。
     operators 是 UnifiedOperator 的子集，规则配置时下拉按此过滤（PRD F-07）。
     """
+    # editable=False：编号只由 save() 自动补，表单/序列化器写不进来
+    code = models.CharField(
+        max_length=16, unique=True, blank=True, default='', editable=False,
+        verbose_name='模板编号', help_text='系统自动生成（MT+4 位），不可修改',
+    )
     name = models.CharField(max_length=64, unique=True, verbose_name='模板名称')
     atomic_metric = models.ForeignKey(
         AtomicMetric, on_delete=models.PROTECT, null=True, blank=True,
@@ -161,7 +229,10 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     )
     value_domain = models.JSONField(
         default=dict, blank=True, verbose_name='值域配置',
-        help_text='{segments:[{min, max, step, label}]}；分段值域，留空表示自由区间',
+        help_text='数值型：{segments:[{min, max, step, label}]}，留空表示自由区间；'
+                  '日期型：{segments:[{from, to, step, stepUnit, label}]}，'
+                  '边界为 {type:"absolute", date} 或 {type:"relative", n, unit}（T±N，unit∈年/月/日），'
+                  'step 为正整数，值域语义是「可选日期区间」而非数值刻度',
     )
     param_enums = models.JSONField(
         default=list, blank=True, verbose_name='参数枚举',
@@ -176,6 +247,8 @@ class MetricTemplate(FullAuditModel, UUIDModel):
         help_text='参数化派生指标的实际输入值（如 {"recent_n": 3}），使用指标时生效，模板层维护',
     )
     # 输出单位：模板可覆盖指标定义的口径单位，用于规则展示（如「月」）。
+    # 日期型出参例外：日期没有量纲，此时的「单位」是日期粒度（年/月/日），
+    # 决定值域边界精度、枚举步进单位与展示格式（YYYY / YYYY-MM / YYYY-MM-DD）。
     unit = models.CharField(max_length=16, blank=True, default='', verbose_name='输出单位')
     # 参数配置单位：约束「参数配置 / 取值范围」（param_config 的 min/max/step）的展示单位
     # （如「年 / 段 / 天」），与出参单位（unit）相互独立。原型 v5 双单位模型的「参数配置单位」。
@@ -203,6 +276,20 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     # all_objects 含已软删，供 restore 端点找回原行（同 id，引用不断）。
     objects = SoftDeleteManager()
     all_objects = models.Manager()
+
+    def save(self, *args, **kwargs):
+        """未设编号时自动补号（MT+4 位）。
+
+        取号范围含已软删（all_objects）：否则软删掉 MT0003 后再新建会复用该号，
+        restore 时撞 unique 约束。
+        """
+        if not self.code:
+            with transaction.atomic():
+                self.code = _next_code(MetricTemplate.all_objects, 'MT')
+                super().save(*args, **kwargs)
+        else:
+            _lock_existing_code(MetricTemplate.all_objects, self)
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

@@ -78,31 +78,34 @@ def test_signals_narrow_set_actually_works() -> None:
     )
 
 
-def test_signals_auto_create_metric_on_field_swallows_operational_error(db, monkeypatch):
-    """post_save 触发自动创建 AtomicMetric 抛 OperationalError 时不应阻断字段保存 (logger.warning).
+def test_signals_sync_metric_on_field_swallows_operational_error(db, monkeypatch):
+    """post_save 同步指标时若写库抛 OperationalError，不应阻断字段保存（仅记 warning）。
 
-    这是 signals.py:67 真窄化的运行时验证.
+    信号已从「只建 AtomicMetric」升级为「AtomicMetric + MetricTemplate 事务性同步」，
+    写入走 metric.save() 而非 objects.create()，故 mock 点随之调整。
     """
     from django.db import OperationalError
 
-    # mock apps.metrics.models.AtomicMetric.objects.create 抛 OperationalError
+    # mock AtomicMetric.save 抛 OperationalError —— 模拟落库失败
     from apps.metrics import models as metrics_models
-    original_create = metrics_models.AtomicMetric.objects.create
 
-    def buggy_create(*args, **kwargs):
+    def buggy_save(*args, **kwargs):
         raise OperationalError('mocked db write failed')
 
-    monkeypatch.setattr(metrics_models.AtomicMetric.objects, 'create', buggy_create)
+    monkeypatch.setattr(metrics_models.AtomicMetric, 'save', buggy_save)
 
     # 触发 post_save: 直接调用 receiver 函数
     from types import SimpleNamespace
 
-    from apps.dynamic_field.signals import auto_create_metric_on_field
+    from apps.dynamic_field.signals import sync_metric_on_field
     fake_instance = SimpleNamespace(
         resource='Candidate',
         field_type='TEXT',
         field_key='test_field',
+        label='测试字段',
         id='df-1',
+        module=None,
+        options=[],
     )
     # 不抛 + 通过 = 验证 except 块吞掉了 OperationalError
-    auto_create_metric_on_field(sender=metrics_models.AtomicMetric, instance=fake_instance, created=True)
+    sync_metric_on_field(sender=metrics_models.AtomicMetric, instance=fake_instance, created=True)

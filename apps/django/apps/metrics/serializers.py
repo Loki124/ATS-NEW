@@ -4,6 +4,9 @@
 输出 camelCase（sourcePath / dataType / atomicMetric ...）；请求体由 CamelCaseParser
 把 camelCase 转回 snake_case，故前端可两种拼写混发。
 """
+import calendar
+from datetime import date, timedelta
+
 from rest_framework import serializers
 
 from apps.rule_engine.models import UnifiedOperator
@@ -19,17 +22,68 @@ from .services.derived_registry import get as get_derived_func
 from .services.rule_validators import validate_metric_rule
 
 
+# ===== 日期型出参：单位即「粒度」，值域即「日期区间约束」 =====
+# 日期没有量纲（不像 岁/元/月），所以「单位」唯一有意义的语义是日期精度（年/月/日），
+# 它同时决定边界精度与枚举步长单位；值域因此不再是数值刻度，而是一段可选日期区间。
+DATE_GRANULARITIES = ('年', '月', '日')
+DATE_GRANULARITY_DEFAULT = '日'
+
+
+def _shift_months(d: date, n: int) -> date:
+    """按月偏移日期；日溢出时取该月最后一天（1月31日 +1月 → 2月28/29日）。"""
+    total = d.year * 12 + (d.month - 1) + n
+    y, m = divmod(total, 12)
+    m += 1
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
+
+
+def resolve_date_bound(bound, today: date):
+    """把日期边界解析成 date。
+
+    - 绝对：{type:'absolute', date:'1950-01-01'}（按粒度可截断为 YYYY / YYYY-MM）
+    - 相对：{type:'relative', n:-30, unit:'年'}，沿用平台 T±N 语义并扩到 年/月/日
+
+    返回 None 表示未设置或无法解析（无法解析的边界交由校验层报错）。
+    """
+    if not isinstance(bound, dict):
+        return None
+    if bound.get('type') == 'relative':
+        n = bound.get('n')
+        if not isinstance(n, int) or isinstance(n, bool):
+            return None
+        unit = bound.get('unit') or DATE_GRANULARITY_DEFAULT
+        if unit == '年':
+            return _shift_months(today, n * 12)
+        if unit == '月':
+            return _shift_months(today, n)
+        return today + timedelta(days=n)
+    text = str(bound.get('date') or '').strip()
+    if not text:
+        return None
+    # 补齐粒度：年 → YYYY-01-01；月 → YYYY-MM-01
+    if len(text) == 4 and text.isdigit():
+        text = f'{text}-01-01'
+    elif len(text) == 7 and text[:4].isdigit():
+        text = f'{text}-01'
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
+
+
 class AtomicMetricSerializer(serializers.ModelSerializer):
     template_count = serializers.SerializerMethodField(read_only=True)
+    # 编号由模型 save() 自动补号（editable=False），对外只读：前端展示，任何写端点改不动
+    code = serializers.CharField(read_only=True)
 
     class Meta:
         model = AtomicMetric
         fields = [
-            'id', 'name', 'source_path', 'data_type', 'unit', 'is_enum',
+            'id', 'code', 'name', 'source_path', 'data_type', 'unit', 'is_enum',
             'enum_values', 'description', 'status', 'auto_generated',
             'created_at', 'template_count',
         ]
-        read_only_fields = ['id', 'created_at', 'template_count', 'auto_generated']
+        read_only_fields = ['id', 'code', 'created_at', 'template_count', 'auto_generated']
 
     def validate_source_path(self, value):
         if '.' not in (value or ''):
@@ -42,14 +96,16 @@ class AtomicMetricSerializer(serializers.ModelSerializer):
 
 class DerivedMetricSerializer(serializers.ModelSerializer):
     template_count = serializers.SerializerMethodField(read_only=True)
+    # 编号由模型 save() 自动补号（editable=False），对外只读
+    code = serializers.CharField(read_only=True)
 
     class Meta:
         model = DerivedMetric
         fields = [
-            'id', 'name', 'calc_func', 'base_path', 'data_type',
+            'id', 'code', 'name', 'calc_func', 'base_path', 'data_type',
             'unit', 'description', 'status', 'created_at', 'template_count',
         ]
-        read_only_fields = ['id', 'created_at', 'template_count']
+        read_only_fields = ['id', 'code', 'created_at', 'template_count']
 
     def validate_calc_func(self, value):
         if get_derived_func(value) is None:
@@ -73,11 +129,13 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
     # LIFE-1：版本化只读字段
     version = serializers.IntegerField(read_only=True)
     version_count = serializers.IntegerField(read_only=True)
+    # 编号由模型 save() 自动补号（editable=False），对外只读
+    code = serializers.CharField(read_only=True)
 
     class Meta:
         model = MetricTemplate
         fields = [
-            'id', 'name', 'atomic_metric', 'derived_metric',
+            'id', 'code', 'name', 'atomic_metric', 'derived_metric',
             'metric_name', 'metric_path', 'metric_kind', 'data_type', 'unit',
             'param_unit',
             'operators', 'param_config', 'value_domain', 'param_enums',
@@ -85,7 +143,7 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
             'version', 'version_count',
         ]
         read_only_fields = [
-            'id', 'created_at', 'metric_name', 'metric_path',
+            'id', 'code', 'created_at', 'metric_name', 'metric_path',
             'metric_kind', 'data_type', 'version', 'version_count',
         ]
 
@@ -106,9 +164,42 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
             if invalid:
                 raise serializers.ValidationError(f'不支持的运算符: {invalid}')
 
+        # 出参类型由引用的指标决定：日期型走「粒度单位 + 日期区间值域」的独立口径
+        metric = atomic or derived
+        data_type = (metric.data_type if metric else '') or ''
+        # 枚举型（is_enum）在存储上也是 string，靠标志位区分「有限候选集」与「自由文本」
+        is_enum = bool(metric and getattr(metric, 'is_enum', False))
+        is_date_output = data_type == 'date'
+        is_free_text = data_type == 'string' and not is_enum
+        unit = attrs.get('unit')
+        if is_date_output and unit:
+            if unit not in DATE_GRANULARITIES:
+                raise serializers.ValidationError(
+                    f'日期型出参的单位是日期粒度，只能取 {" / ".join(DATE_GRANULARITIES)}'
+                )
+
+        # 自由文本（如「职位名称」）无法穷举全集，允许配集合运算必然漏匹配 —— 从源头拦住。
+        # 想要「命中一批值」应改用 包含 / 正则匹配（二者对无穷域语义成立）。
+        if is_free_text and operators is not None:
+            forbidden = [
+                op for op in operators
+                if op in (UnifiedOperator.IN, UnifiedOperator.NOT_IN)
+            ]
+            if forbidden:
+                raise serializers.ValidationError(
+                    '自由文本字段无法枚举全部取值，不能使用「属于集合 / 不属于集合」；'
+                    '如需匹配多个值请改用「包含」或「正则匹配」'
+                )
+
         # PRD BR-2/BR-3：离散型 step 必须为整数；自由区间（未设 min/max）允许留空
         self._validate_param_config(attrs.get('param_config'))
-        self._validate_value_domain(attrs.get('value_domain'))
+        self._validate_value_domain(attrs.get('value_domain'), data_type, is_enum)
+        # 枚举候选值是条件目录渲染校验值下拉的唯一来源，此前无校验
+        param_enums = attrs.get(
+            'param_enums',
+            instance.param_enums if instance else None,
+        )
+        self._validate_param_enums(param_enums, is_enum)
 
         # V13（指标级校验落地）：calc_params 必须符合引用派生指标的 param_schema 契约
         derived = attrs.get('derived_metric',
@@ -169,11 +260,122 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f'计算参数「{spec["key"]}」为必填项')
 
     @staticmethod
-    def _validate_value_domain(domain):
+    def _validate_date_value_domain(domain):
+        """日期型出参的值域校验：值是「可选日期区间」，不是数值刻度。
+
+        与数值分支的差异：
+          - 步进必须是正整数（日期按粒度步进，小数步长没有意义）
+          - 边界是绝对日期或相对今天的 T±N（年/月/日），必须能解析成真实日期
+          - 起始必须早于结束；相邻区间不重叠
+        """
         if domain is None:
             return
         if not isinstance(domain, dict):
             raise serializers.ValidationError('值域配置必须是对象')
+        segments = domain.get('segments')
+        if segments is None:
+            return
+        if not isinstance(segments, list):
+            raise serializers.ValidationError('值域分段必须是数组')
+        today = date.today()
+        for i, seg in enumerate(segments):
+            if not isinstance(seg, dict):
+                raise serializers.ValidationError(f'值域分段#{i + 1}格式不正确')
+            # 旧口径遗留：日期模板上存着数值 min/max，无法解释为日期，要求重配
+            if 'min' in seg or 'max' in seg:
+                raise serializers.ValidationError(
+                    f'值域分段#{i + 1}为数值格式，日期型出参的值域必须是日期区间（起始/结束）'
+                )
+            step = seg.get('step')
+            if step is None:
+                raise serializers.ValidationError(f'值域分段#{i + 1}缺少步长')
+            if not isinstance(step, int) or isinstance(step, bool) or step <= 0:
+                raise serializers.ValidationError(f'值域分段#{i + 1}步长必须是正整数')
+            step_unit = seg.get('stepUnit') or DATE_GRANULARITY_DEFAULT
+            if step_unit not in DATE_GRANULARITIES:
+                raise serializers.ValidationError(f'值域分段#{i + 1}步进粒度必须是 年/月/日')
+            lo = resolve_date_bound(seg.get('from'), today)
+            hi = resolve_date_bound(seg.get('to'), today)
+            if lo is None and hi is None:
+                raise serializers.ValidationError(f'值域分段#{i + 1}至少需要一个边界（起始或结束）')
+            if lo is not None and hi is not None and lo >= hi:
+                raise serializers.ValidationError(f'值域分段#{i + 1}起始日期必须早于结束日期')
+        # 相邻分段不得重叠或共用边界（会枚举出重复的可选日期）
+        ranged = []
+        for i, seg in enumerate(segments):
+            lo = resolve_date_bound(seg.get('from'), today)
+            hi = resolve_date_bound(seg.get('to'), today)
+            if lo is not None and hi is not None:
+                ranged.append((i, lo, hi))
+        ranged.sort(key=lambda x: x[1])
+        for k in range(1, len(ranged)):
+            if ranged[k][1] <= ranged[k - 1][2]:
+                raise serializers.ValidationError(
+                    f'值域分段#{ranged[k][0] + 1}与第 {ranged[k - 1][0] + 1} 段重叠或共用边界'
+                )
+
+    @staticmethod
+    def _validate_param_enums(param_enums, is_enum=False):
+        """枚举型模板的候选值清单校验（param_enums）。
+
+        该字段是「进入条件字段目录」时渲染校验值下拉的唯一数据源
+        （见 process.views._build_metric_template_catalog），此前无任何校验，
+        空清单会让规则配置者面对一个空下拉。枚举型必须至少 1 项。
+        """
+        if param_enums is None:
+            if is_enum:
+                raise serializers.ValidationError('枚举型模板必须配置候选值列表（param_enums）')
+            return
+        if not isinstance(param_enums, list):
+            raise serializers.ValidationError('候选值列表必须是数组')
+        cleaned = []
+        for i, v in enumerate(param_enums):
+            if not isinstance(v, str):
+                raise serializers.ValidationError(f'候选值#{i + 1}必须是文本')
+            v = v.strip()
+            if not v:
+                raise serializers.ValidationError(f'候选值#{i + 1}不能为空')
+            if v in cleaned:
+                raise serializers.ValidationError(f'候选值「{v}」重复，请合并后重填')
+            cleaned.append(v)
+        if is_enum and not cleaned:
+            raise serializers.ValidationError(
+                '枚举型模板必须至少配置 1 个候选值，否则规则配置时无可选值'
+            )
+
+    @staticmethod
+    def _validate_candidate_value_domain(domain, is_enum=False):
+        """字符串类出参（枚举 / 自由文本）的值域校验。
+
+        值域的含义是「有限候选集」—— 只有数值（可按区间枚举）、日期（可按粒度枚举）
+        两类成立。字符串不是可枚举刻度：
+          - 枚举型的取值集合由 param_enums 承载（并由条件目录直接消费），值域应为空
+          - 自由文本是无穷域，没有值域可言，值域同样应为空
+        历史脏数据里字符串型模板存着数值 segments（前端旧版把「非日期」一律当数值
+        分段渲染导致），这里显式拦截，而不是默默按数值解释成「0 以上」这种无意义的集合。
+        """
+        if domain is None:
+            return
+        if not isinstance(domain, dict):
+            raise serializers.ValidationError('值域配置必须是对象')
+        segments = domain.get('segments')
+        if segments:
+            raise serializers.ValidationError(
+                '字符串型出参不接受数值分段的值域配置：字符串不是可枚举刻度，请清空值域'
+            )
+
+    @staticmethod
+    def _validate_value_domain(domain, data_type='number', is_enum=False):
+        if domain is None:
+            return
+        if not isinstance(domain, dict):
+            raise serializers.ValidationError('值域配置必须是对象')
+        if data_type == 'date':
+            MetricTemplateSerializer._validate_date_value_domain(domain)
+            return
+        if data_type == 'string':
+            MetricTemplateSerializer._validate_candidate_value_domain(domain, is_enum)
+            return
         segments = domain.get('segments')
         if segments is not None:
             if not isinstance(segments, list):
