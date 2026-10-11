@@ -41,8 +41,19 @@ from apps.rule_engine.models import (
     UnifiedTriggerType,
 )
 
-# campus ControlRule.save() 内 select_for_update 自动补号，需事务隔离（同 test_rule_config）
-pytestmark = pytest.mark.django_db(transaction=True)
+# 2026-10-11 去掉 django_db(transaction=True)。
+#
+# 原注释说「ControlRule.save() 内 select_for_update 自动补号，需事务隔离」，
+# 但 pytest-django 的普通 django_db 已把整个测试包在一个原子事务里，
+# select_for_update 在其中可正常工作，本文件也确实不依赖 transaction.on_commit
+# （双写信号走 post_save，在事务内同样触发）。
+#
+# transaction=True 的代价是写入**真实提交且不回滚**：本文件在 campus_control /
+# mou / automation / rule_engine 表里留下的数据会残留到后续用例，曾导致
+# dynamic_field 的 32 个用例、process 的 3 个用例在与之合跑时集体失败
+# （表现为「字段列表多了未创建的记录」这类看不懂的断言错误）。
+# 改回普通事务后回滚自动生效，上述污染消失。
+pytestmark = pytest.mark.django_db
 
 
 def _uniq(prefix: str) -> str:
