@@ -29,7 +29,7 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission
 from apps.core.role_v2_query import is_super_admin
 
 from .models import ParseJob
@@ -50,7 +50,9 @@ class UploadAndParseView(APIView):
     上传 1-20 个简历文件（PDF/Word/TXT，单文件 ≤ 10MB），立即返回 202
     + job_id 列表。前端轮询 /parse-status/{job_id}/ 获取进度。
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:create'}
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -116,7 +118,8 @@ class ParseStatusView(APIView):
 
     前端每 1.5s 轮询获取解析状态。完成时返回 parsed + duplicate。
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
 
     def get(self, request, job_id):
         try:
@@ -150,7 +153,9 @@ class DuplicateCheckView(APIView):
 
     用户编辑字段后触发重新查重。返回 clean/unocc/occupied + duplicate info。
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:create'}
 
     def post(self, request):
         from .serializers import DuplicateCheckRequest
@@ -173,7 +178,9 @@ class ReplaceFileView(APIView):
     替换简历附件并重新解析。
     复用原 job_id/draft_id，原地更新 ParseJob，避免前端 dangling reference。
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:edit'}
     parser_classes = [MultiPartParser]
 
     def post(self, request, draft_id):
@@ -248,7 +255,9 @@ class ManualCreateView(APIView):
     前端据此直接渲染 Step1（无需轮询）。复用整条 V2 管线。
     """
 
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:create'}
 
     def post(self, request):
         from .serializers import ManualCreateRequest
@@ -319,7 +328,9 @@ class BulkCreateView(APIView):
     sync (wait) 模式：同步触发评分任务，立即返 task_id
     async 模式：仅入库，评分后台跑，通知中心推结果
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:create'}
 
     def post(self, request):
         from .serializers import BulkCreateRequest
@@ -423,7 +434,9 @@ class ScoringStartView(APIView):
 
     async 模式由前端显式调用启动评分（wait 模式由 bulk-create 触发）。
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:edit'}
 
     def post(self, request):
         from .serializers import ScoringStartRequest
@@ -452,6 +465,10 @@ class ScoringStartView(APIView):
 
 
 class ScoringStreamView(APIView):
+    # G2: 此前无 permission_classes, 落到全局 fail-closed 默认 (仅超管可读解析流)
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+
     """GET /candidates/scoring/stream/<task_id>/  (SSE)
 
     同步评分进度流。真实实现在 sse 模块 — 这里 re-export 保持向后兼容。
@@ -467,7 +484,9 @@ class ResumeParserConfigView(APIView):
     落库结构（StandardResumeConfig key='resume_parser' 的 config）：``{"backend": "career_core"}``
     GET 返回 ``data = {backend, available:{...}}``；``available`` 为运行时探测（是否注册 + 可执行就绪），不落库。
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    # 简历解析器配置属规则引擎设置域 (GET 读码 / POST 派生 :edit)
+    permission_required = 'recruit:settings:rule-engine:list'
 
     # 允许的引擎白名单（冗余校验，正式真相源是后台注册表）
     _ALLOWED = ("career_core", "smartresume")
