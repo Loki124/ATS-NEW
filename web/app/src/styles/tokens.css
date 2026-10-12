@@ -73,7 +73,7 @@
   --c-success-soft: rgba(22, 163, 74, .12);
   --c-warning:      #F59E0B;
   --c-warning-soft: rgba(245, 158, 11, .14);
-  --c-error:        #EF4444;
+  --c-error:        #C62828;  /* 2026-10-12 由 #EF4444 下调：#EF4444 作实底+白字仅 3.76:1 不达 AA；#C62828+白字 5.62:1。与 App.vue themeOverrides.errorColor 保持同步 */
   --c-error-soft:   rgba(239, 68, 68, .12);
   --c-info:         #3B82F6;
   --c-info-soft:    rgba(59, 130, 246, .12);

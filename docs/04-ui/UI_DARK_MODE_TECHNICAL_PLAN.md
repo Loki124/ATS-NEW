@@ -173,7 +173,7 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
     // === 语义色（与 tokens.css 的 --c-* 默认值同步）===
     successColor: '#16A34A',
     warningColor: '#F59E0B',
-    errorColor:   '#EF4444',
+    errorColor:   '#C62828',
     infoColor:    '#3B82F6',
     // === 圆角（DESIGN.md §11：主圆角 16px）===
     borderRadius: '16px',

@@ -103,7 +103,7 @@ BRAND_COLOR="#0052D9" npm run tokens
 |---|---|---|---|---|---|
 | Success | `#16A34A` | `--c-success-deep` | `#065F46` | `#6EE7B7` | `rgba(22,163,74,.12)` |
 | Warning | `#F59E0B` | `--c-warning-deep` | `#92400E` | `#FCD34D` | `rgba(245,158,11,.14)` |
-| Error | `#EF4444` | `--c-error-deep` | `#991B1B` | `#FCA5A5` | `rgba(239,68,68,.12)` |
+| Error | `#C62828` | `--c-error-deep` | `#991B1B` | `#FCA5A5` | `rgba(239,68,68,.12)` |
 | Info | `#3B82F6` | `--c-info-deep` | `#1E40AF` | `#93C5FD` | `rgba(59,130,246,.12)` |
 
 **实底之上的前景色**（`--c-*-deep` 作背景时配对使用，如圆点、实底 chip）：

@@ -57,9 +57,11 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
     primaryColorPressed: brandPressedHex.value,
     primaryColorSuppl:   brandFgHex.value,
     // === 语义色（与 tokens.css §4 语义色同步，改令牌需同步此处 hex 字面量：Naive parseColor 不解析 var()）===
+    // errorColor 用 #C62828 而非 #EF4444：#EF4444 作实底 + 白字仅 3.76:1 不达 WCAG AA（Badge 数字、
+    // 错误按钮等），#C62828 + 白字 5.62:1 达标。边角/图标等仅作装饰的亮红仍由各组件自行取 --c-error。
     successColor: '#16A34A',
     warningColor: '#F59E0B',
-    errorColor:   '#EF4444',
+    errorColor:   '#C62828',
     infoColor:    '#3B82F6',
     // === 圆角（DESIGN.md §11：主圆角 16px）===
     borderRadius: '16px',
@@ -83,7 +85,8 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
     closeColorHover:    isDark.value ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.09)',            // ★ v1.1 补充
     textColor1: isDark.value ? 'rgba(232, 236, 246, 1)' : 'rgba(15, 23, 42, 1)',         // 主要文字
     textColor2: isDark.value ? 'rgba(174, 184, 204, 1)' : 'rgba(71, 85, 105, 1)',         // 次要文字
-    textColor3: isDark.value ? 'rgba(124, 135, 155, 1)' : 'rgba(148, 163, 184, 1)',       // 占位符
+    textColor3: isDark.value ? 'rgba(147, 160, 181, 1)' : 'rgba(91, 107, 132, 1)',          // 占位符/三级文字（2026-10-12 与 --ink-faint 同源：#93A0B5 / #5B6B84，达 AA）
+    placeholderColor: isDark.value ? 'rgba(147, 160, 181, 1)' : 'rgba(91, 107, 132, 1)',     // 输入框占位符（独立键！原默认 #C2C2C2 仅 1.78:1，不与 textColor3 共享）
     dividerColor: isDark.value ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)',
     borderColor: isDark.value ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.12)',
   },

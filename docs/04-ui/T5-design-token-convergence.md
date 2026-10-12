@@ -65,7 +65,7 @@ brand-tokens.mjs (OKLCH #6366F1 → 50..900 色阶 + 自动选阶)
 
 | 级别 | 项 | 位置 | 根因 / 约束 | 推荐方案 |
 |---|---|---|---|---|
-| **P1 ✅ 已执行（方案 B）** | n-button 危险按钮 Ant 红 `#ff4d4f` → `#EF4444` | `ConditionTreeEditor.vue:80`、`AnnouncementSettings.vue:131/202/209`、`ProcessStageEditor.vue:54`、`DataDashboard.vue:236`、`ProcessDetailModal.vue:641`（共 7 处） | n-button `color` prop 走 Naive `parseColor`，**不能**直接 `var()` 化；故值对齐令牌 `#EF4444`（= `--c-error`），保留实心红 + 白字外观 | 真单源（`type="error"`）留作 T5.1 视觉评审项 |
+| **P1 ✅ 已执行（方案 B，2026-10-12 已再收敛为 `type="error"`）** | n-button 危险按钮 Ant 红 `#ff4d4f` → `#EF4444` | `ConditionTreeEditor.vue:80`、`AnnouncementSettings.vue:131/202/209`、`ProcessStageEditor.vue:54`、`DataDashboard.vue:236`、`ProcessDetailModal.vue:641`（共 7 处） | n-button `color` prop 走 Naive `parseColor`，**不能**直接 `var()` 化；故值对齐令牌 `#EF4444`（= 当时的 `--c-error`），保留实心红 + 白字外观 | ✅ 已完成真单源：7 处均改为 `type="error"`，继承 `themeOverrides.errorColor`（现 `#C62828`），不再硬编码 |
 | P2 | 渐变端点硬编码浅蓝 `#DBEAFE` | `addCandidate/Step1Single.vue:482`、`Step1Batch.vue:476` | 渐变 `linear-gradient(90deg, var(--bl) 0%, #DBEAFE 100%)` 第二端点非令牌 | 引入浅色品牌 tint 令牌（如 `--brand-50` 或新增 `--brand-tint`）替换；需确认视觉 |
 | P3 | 防御性 fallback 含硬编码 hex | `RuleConfigDrawer.vue:334-335/353` `var(--primary,#6366f1)`、`ExternalSettings.vue:1048` `var(--error,#d03050)` | `--primary` / `--error` 非当前定义令牌，靠字面量兜底 | 改为 `var(--brand)` / `var(--c-error)`（无 fallback 或 fallback 用令牌值） |
 | — 留 | Naive `#ffffff` 表面字面量 | `App.vue:63-66` cardColor/modalColor 等 | 属 Naive 第二视觉语言的 surface 覆盖，已文档化（暗色 `transparent` 联动 glass.css） | 维持现状，纳入架构注释 |
@@ -166,7 +166,7 @@ web/app/src/pages/settings/DataDashboard.vue
 |---|---|---|---|---|
 | 1 | **JS 内联样式的颜色字符串** —— `statusColor()` 返回 `var(--c-info)` 等主色，用作 22px/600 统计数字 | 2.15–3.98:1 | `OfferList.vue`、`InvitationCenter.vue` | ✅ **本轮已修**（改 `-deep` 阶） |
 | 2 | `background: var(--brand)` + 文字前景 —— 实底应用选阶后的 `--brand-button` | 4.47:1 → 6.16:1 | 10 文件 12 处 | ✅ **本轮已修**（批量改） |
-| 3 | **Naive UI Badge 数字** —— error 底 `#EF4444` + 白字 | **3.76:1**（12px 文字） | `App.vue` 的 `themeOverrides` | ⏸ **未修**：需改 Naive 全局主题配置，影响全站 Badge，须连同视觉回归一起做 |
+| 3 | **Naive UI Badge 数字** —— error 底 `#EF4444` + 白字 | 3.76:1 → **5.62:1** | `App.vue` 的 `themeOverrides` | ✅ **已修**（2026-10-12）：`errorColor` `#EF4444` → `#C62828`；详见 §5.6 |
 | 4 | Naive placeholder / `n-empty__description` | 1.78:1 | Naive 默认色 | ⏸ 未修：WCAG 对 placeholder 无强制要求，但建议改善 |
 | 5 | 侧边栏激活项 `itemTextColorActive: 'var(--brand)'` 等 15 处 | 源码待修（见下方注 1） | `Layout.vue:321-359` | ⏸ 未修：Naive menu `themeOverrides`，需与 #3 一并处理 |
 | 6 | 浅色 `--ink-faint` 压 `--g1` | 4.34:1（差 0.16） | `tokens.css` | ✅ **本轮已修**（见下方注 2） |
@@ -192,11 +192,21 @@ web/app/src/pages/settings/DataDashboard.vue
 
 在 `/candidates` 复测时另发现两项**不经过 CSS 令牌、直接来自 Naive 默认值**的文字色。它们与 #3（Badge）、#4（placeholder）同源：**`App.vue` 的 `themeOverrides` 未覆盖到位，Naive 退回自己的默认色**。
 
-| # | 元素 | 实测值 | 计算样式 | 根因 |
-|---|---|---|---|---|
-| 7 | `n-text` 副标题「管理所有候选人信息…」 | **2.56:1**（22px 常规字重，**不适用大文本豁免**） | `--n-text-color: rgba(148,163,184,1)` = `#94A3B8` | `themeOverrides.textColor3` 浅色值仍是 `#94A3B8`，未随本轮 `--ink-faint` 一起下调 |
-| 8 | 输入框占位符「在当前页面搜索关键词」 | **1.78:1** | `rgb(194,194,194)` = `#C2C2C2` | Naive placeholder 默认色，**独立于 `textColor3`**，需单独覆盖 |
+**#3 / #7 / #8 已于 2026-10-12 合并为一次 Naive 主题专项修复完毕**（三项同处 `App.vue` 的 `themeOverrides`，不可分三次改同一对象）：
 
-⏸ 两项均未修。修复方向已明确（`textColor3` 浅色改 `#5B6B84`、暗色改 `#93A0B5` 以与 `--ink-faint` 同源；placeholder 需覆盖 `Input.colorPlaceholder`），但因 `App.vue` 的 `themeOverrides` 同时被 #3 Badge 依赖，建议 #3 / #7 / #8 合并为一次 Naive 主题专项，并连同视觉回归一起做。
+| # | 元素 | 改前实测 | 计算样式（改前） | 根因 | 处置 | 改后实测 |
+|---|---|---|---|---|---|---|
+| 3 | Naive Badge 数字（红底白字，如侧栏通知「5」） | **3.76:1** | 背景 `rgb(239,68,68)` = `#EF4444` | `themeOverrides.errorColor` 用 `#EF4444`，白字不达 AA | `errorColor` → **`#C62828`** | **5.62:1** ✅ |
+| 7 | `n-text` 副标题「管理所有候选人信息…」 | **2.56:1**（22px 常规字重，**不适用大文本豁免**） | `--n-text-color: rgba(148,163,184,1)` = `#94A3B8` | `themeOverrides.textColor3` 浅色值仍是 `#94A3B8`，未随 `--ink-faint` 一起下调 | `textColor3` 浅 `#5B6B84` / 暗 `#93A0B5`（与 `--ink-faint` 同源） | **5.41:1** ✅ |
+| 8 | 输入框占位符「在当前页面搜索关键词」 | **1.78:1** | `rgb(194,194,194)` = `#C2C2C2` | Naive placeholder 默认色，**独立于 `textColor3`**，需单独覆盖 | 新增 `common.placeholderColor`（浅 `#5B6B84` / 暗 `#93A0B5`） | **5.41:1** ✅ |
+
+**连带同步**：`--c-error` 令牌由 `#EF4444` → `#C62828`（与 `errorColor` 保持同源，避免令牌/Naive 双源漂移）。7 处 n-button 危险按钮此前已收敛为 `type="error"`，自动继承新值；`--c-error` 的 3 处 CSS 用法（`StatusTag.td-error` / PDF 附件图标 / glass 错误面）均为白字压底，同向改善。
+
+**运行时复核**（`/candidates`，浅/暗双模式截图确认）：
+- 徽标计算样式 `background: rgb(198,40,40)` + 白字 → 5.62:1，`#EF4444` 残留 **0 处**
+- 三级文字色 `rgb(91,107,132)`（`#5B6B84`）命中 **46 处**（含副标题），`#94A3B8` 作为文字色残留 **0 处**
+- 占位符 `#C2C2C2` 残留 **0 处**；`vue-tsc` exit 0、`eslint` 0 error
+
+> ⚠️ **`App.vue` 顶部 `errorColor` 行 / `textColor3` 行 / `placeholderColor` 行三处必须同时改**：只改 `textColor3` 不管 `placeholderColor` 时，placeholder 仍走 Naive 默认 `#C2C2C2`（两者在 Naive 中**不是同一个键**，这是本轮最易踩的坑）。
 
 > ⚠️ **为什么 Naive 侧要单独列**：Naive 的 `themeOverrides` 解析 `var()` 的行为与 CSS 上下文不同（见 §5.5 注 1），所以**"令牌改了"不等于"Naive 组件跟着改了"**。凡是走 `themeOverrides` 传值的颜色，都必须单独实测，不能靠扫描 CSS 令牌推断。
