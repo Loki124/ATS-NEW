@@ -65,15 +65,36 @@ class UserViewSet(EnvelopeModelViewSet):
         """#9 (2026-10-09): UserMinimalSerializer.to_representation 此前逐行查
         UserRoleV2 (user_id 是整数字段、无 FK 反向关系, 无法 prefetch_related),
         N 个用户 -> N 次查询。这里按当前页用户批量取 role_code 映射一次注入 context,
-        序列化器优先读 role_map, 列表查询从 N+1 降为 1。"""
+        序列化器优先读 role_map, 列表查询从 N+1 降为 1。
+
+        2026-10-10: 用户管理列表新增「拥有身份」列, 需展示每个用户的全部身份名称。
+        同一份 rows 顺带派生 role_names_map (uid -> [身份名称...]), 仍只查 2 次
+        (user_roles + roles), 不随用户数增长。
+        """
         ctx = super().get_serializer_context()
         if self.action in ('list', 'active'):
-            from apps.core.models_permission_v2 import UserRoleV2
+            from apps.core.models_permission_v2 import RoleV2, UserRoleV2
             user_ids = list(self.get_queryset().values_list('id', flat=True))
-            rows = UserRoleV2.objects.filter(
+            rows = list(UserRoleV2.objects.filter(
                 user_id__in=user_ids, system_code='recruit',
-            ).values_list('user_id', 'role_code')
+            ).values_list('user_id', 'role_code'))
+            # roleType 保持原单值语义 (role_code), 其它页面依赖它; 多角色时取最后命中,
+            # 与既有行为一致, 不在此处改动。
             ctx['role_map'] = {uid: code for uid, code in rows}
+            # role_code -> role_name: roles 表按 (system_code, role_code) 唯一
+            name_by_code = dict(RoleV2.objects.filter(
+                system_code='recruit',
+                role_code__in={code for _, code in rows},
+            ).values_list('role_code', 'role_name'))
+            names_map = {}
+            for uid, code in rows:
+                name = name_by_code.get(code)
+                if not name:
+                    continue
+                bucket = names_map.setdefault(uid, [])
+                if name not in bucket:
+                    bucket.append(name)
+            ctx['role_names_map'] = names_map
         return ctx
 
     def list(self, request, *args, **kwargs):

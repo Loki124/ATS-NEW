@@ -32,6 +32,8 @@ const MOCK_USERS = Array.from({ length: 12 }, (_, i) => ({
   roleType: 'HR',
   userType: i % 2 === 0 ? 'INTERNAL' : 'EXTERNAL',
   createdAt: '2026-09-19T00:00:00Z',
+  // 拥有身份：首个用户 3 个（验证折叠为 +1），第二个 1 个（不折叠），其余无身份（走 '-' 占位）
+  roleNames: i === 0 ? ['超级管理员', '面试官', 'HRBP'] : i === 1 ? ['面试官'] : [],
 }))
 
 const MOCK_ROLES = [
@@ -159,6 +161,23 @@ describe('UserDirectory (整合后用户管理)', () => {
     expect(bodyText).toContain('外部')
   })
 
+  it('拥有身份 column caps at 2 names and folds the rest as +N', async () => {
+    wrapper = factory()
+    await flushPromises()
+    await nextTick()
+    const groups = document.querySelectorAll('.role-tags')
+    // 12 个用户里只有 2 个有身份（3 个 / 1 个），其余走 '-' 占位
+    expect(groups.length).toBe(2)
+    const [three, one] = Array.from(groups)
+    // 3 个身份：只渲染前 2 个 + 「+1」，第 3 个不进 DOM（完整列表仅在 tooltip 内）
+    expect(three.querySelectorAll('.n-tag').length).toBe(2)
+    expect(three.querySelector('.role-more')?.textContent).toBe('+1')
+    expect(three.textContent).not.toContain('HRBP')
+    // 1 个身份：不折叠，无 +N
+    expect(one.querySelectorAll('.n-tag').length).toBe(1)
+    expect(one.querySelector('.role-more')).toBeFalsy()
+  })
+
   it('search box filters the table client-side', async () => {
     wrapper = factory()
     await flushPromises()
@@ -177,9 +196,9 @@ describe('UserDirectory (整合后用户管理)', () => {
   })
 
   // 2026-09-19 整合重构后：独立的「角色」弹窗已合并进编辑弹窗
-  // （loadUserRoles 在点击「编辑」时调用，角色配置以编辑表单字段呈现，见 UserDirectory.vue:158/745-746）。
-  // 此处验证当前真实的角色配置路径，而非已删除的旧 UX。
-  it('edit modal opens and contains role config field (loadUserRoles path)', async () => {
+  // （loadUserRoles 在点击「编辑」时调用，身份配置以编辑表单字段呈现，见 UserDirectory.vue:158/745-746）。
+  // 此处验证当前真实的身份配置路径，而非已删除的旧 UX。
+  it('edit modal opens and contains identity config field (loadUserRoles path)', async () => {
     wrapper = factory()
     await flushPromises()
     await nextTick()
@@ -194,7 +213,7 @@ describe('UserDirectory (整合后用户管理)', () => {
     await flushPromises()
     const modal = document.querySelector('.n-modal')
     expect(modal).toBeTruthy()
-    // 角色配置作为编辑表单字段呈现（loadUserRoles 已填入当前用户角色）
-    expect(modal!.textContent || '').toContain('角色配置')
+    // 身份配置作为编辑表单字段呈现（loadUserRoles 已填入当前用户身份）
+    expect(modal!.textContent || '').toContain('身份配置')
   })
 })

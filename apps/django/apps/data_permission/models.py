@@ -8,15 +8,41 @@
 
  enforcement 不在本模块内: scope_resolver / FieldAclService 后续按需消费本表;
  本模块只负责「规则的可视化配置与存储」(管理面)。
+
+2026-10-11 新增 DataPermTemplate(权限模板):
+- 解决「同一条可见范围规则要在多个角色/模块反复重配」的问题;
+- 与 MetricTemplate(指标口径模板)的区别: MetricTemplate 描述「指标算成什么」,
+  本模型描述「能看到哪些数据」, 二者通过 MetricTemplate.scope_template_refs 弱关联;
+- 关键设计: 模板是**起草工具**而非运行时真相源 —— 引用时把模板体快照进
+  scope_payload, 因此管理员改模板不会让在用规则静默语义漂移。
+  详见 scope_templates.instantiate()。
 """
 from django.db import models
 from nanoid import generate as nanoid_generate
 
-from apps.common.models import TimestampedModel
+from apps.common.models import (
+    FullAuditModel,
+    SoftDeleteManager,
+    TimestampedModel,
+    UUIDModel,
+)
 
 
 def gen_id():
     return nanoid_generate(size=21)
+
+
+def _next_template_code() -> str:
+    """模板编号 DPT+4 位流水。取号含已软删(all_objects)，
+    否则软删 DPT0003 后新建会复用该号, restore 时撞 unique。"""
+    import re
+    rows = DataPermTemplate.all_objects.values_list('code', flat=True)
+    max_seq = 0
+    for code in rows:
+        m = re.fullmatch(r'DPT(\d{4})', code or '')
+        if m:
+            max_seq = max(max_seq, int(m.group(1)))
+    return f'DPT{max_seq + 1:04d}'
 
 
 class DimensionType(models.TextChoices):
@@ -109,3 +135,75 @@ class DataPermissionRule(TimestampedModel):
         if entity:
             from .enforcement import clear_column_cache
             clear_column_cache(entity)
+
+
+class TemplateStatus(models.TextChoices):
+    ENABLED = 'ENABLED', '启用'
+    DISABLED = 'DISABLED', '停用'
+
+
+class DataPermTemplate(FullAuditModel, UUIDModel):
+    """数据权限模板 —— 可复用的条件组预设，供数据权限规则实例化引用。
+
+    与 MetricTemplate 的边界:
+      - MetricTemplate 描述「指标口径」(算成什么)，本模型描述「可见数据范围」(能看到什么);
+      - 两者生命周期不同(复用度/版本/失效传播)，故独立建模，
+        由 MetricTemplate.scope_template_refs 做「指标模板预置权限模板」的弱关联。
+
+    groups 与 scope_payload.groups 同构: [{expr, conditions:[...]}]，
+    条件里可用 ${paramKey} 占位符，实例化时按 params 声明替换。
+
+    重要: 模板是**起草工具**，不是运行时真相源。引用方把模板体快照进自己的
+    scope_payload 并记templateRef 标记，因此：
+      - 管理员改模板 → 在用规则语义不变（无静默漂移风险）；
+      - 模板软删 → 引用方仍按快照正常执行（不失效、不报错）。
+    """
+
+    # editable=False: 编号只由 save() 自动补，表单/序列化器写不进来
+    code = models.CharField(
+        max_length=32, unique=True, blank=True, default='', editable=False,
+        verbose_name='模板编号', help_text='系统自动生成（DPT+4 位），不可修改',
+    )
+    name = models.CharField(max_length=64, verbose_name='模板名称')
+    module_key = models.CharField(
+        max_length=32, db_index=True, verbose_name='适用模块',
+        help_text='业务模块 key：demand/process/position/candidate/talent',
+    )
+    description = models.CharField(max_length=255, blank=True, default='', verbose_name='说明')
+
+    groups = models.JSONField(
+        default=list, blank=True, verbose_name='模板条件组',
+        help_text='与 scope_payload.groups 同构的 [{expr, conditions:[...]}]；'
+                  '条件中可用 ${paramKey} 占位符',
+    )
+    params = models.JSONField(
+        default=list, blank=True, verbose_name='参数声明',
+        help_text='[{key,label,valueType,required,default,enum?}]；'
+                  'valueType∈ dept/user/text/number',
+    )
+
+    status = models.CharField(
+        max_length=16, choices=TemplateStatus.choices,
+        default=TemplateStatus.ENABLED, db_index=True, verbose_name='状态',
+    )
+    version = models.PositiveIntegerField(
+        default=1, verbose_name='当前版本号',
+        help_text='模板语义变更后 +1；引用方记快照版本，不会自动升级',
+    )
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        db_table = 'data_perm_templates'
+        verbose_name = '数据权限模板'
+        verbose_name_plural = verbose_name
+        ordering = ['name']
+
+    def __str__(self):
+        return f'{self.code}({self.name})'
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = _next_template_code()
+        super().save(*args, **kwargs)

@@ -158,7 +158,9 @@ def role_entity_scope_q(user, entity: str):
             continue
         if r.scope_type == RowScopeType.CUSTOM and r.scope_payload:
             try:
-                compiled = compile_scope_q(r.scope_payload, entity)
+                # user= 用于 valueSource='dynamic' 的条件（如「需求所属部门 包含
+                # 我的负责部门」）在运行时注入当前用户上下文；静态条件不依赖它。
+                compiled = compile_scope_q(r.scope_payload, entity, user=user)
             except Exception as e:  # noqa: BLE001  (ExprError 等, fail-safe no-op)
                 logger.warning('角色自定义范围编译失败, 该规则 no-op: %s', e)
                 continue

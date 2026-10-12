@@ -40,11 +40,12 @@ const { t } = useI18n()
 .page-header {
   flex-shrink: 0;
 }
+/* 与 CampusControl 同款三段式：page-body 不整页滚动（overflow:hidden），
+   滚动下沉到 .table-wrap 内的表格区域，标题/筛选行/分页器保持固定（R-215） */
 .page-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);

@@ -253,6 +253,16 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     # 参数配置单位：约束「参数配置 / 取值范围」（param_config 的 min/max/step）的展示单位
     # （如「年 / 段 / 天」），与出参单位（unit）相互独立。原型 v5 双单位模型的「参数配置单位」。
     param_unit = models.CharField(max_length=16, blank=True, default='', verbose_name='参数配置单位')
+    # ===== PRD 权限模板预置（2026-10-11）=====
+    # 在指标模板上预置「可见数据范围」的权限模板，供数据权限配置该指标相关模块时一键引用。
+    # 与 MetricTemplate 自身的指标口径字段无关：这里描述的是「谁能看」，而非「算什么」。
+    # 引用是**快照语义** —— 引用方把模板体拷进自己的 scope_payload（见
+    # apps/data_permission/scope_templates.py），故此处改动不会让在用规则语义漂移。
+    scope_template_refs = models.JSONField(
+        default=list, blank=True, verbose_name='预置权限模板',
+        help_text='[{templateCode, bindings:{key: 默认绑定值}}]；'
+                  '数据权限配置该指标相关模块时提供一键引用入口',
+    )
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',

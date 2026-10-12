@@ -21,6 +21,7 @@ from .field_map import (
     supported_dimensions,
 )
 from .models import DataPermissionRule
+from .scope_templates import summarize_drift
 
 # 单模块选项上限（用户量可能大，前端用虚拟滚动；此处先截取得当数量）
 _USER_LIMIT = 1000
@@ -39,6 +40,45 @@ def _user_options() -> List[Dict]:
     from apps.core.models import User
     users = User.objects.all().order_by('id')[:_USER_LIMIT]
     return [{'id': u.id, 'label': u.full_name} for u in users]
+
+
+def _collect_template_drifts(modules: List[Dict]) -> Dict[str, List[Dict]]:
+    """汇总各模块的权限模板版本漂移 -> {moduleKey: [漂移标记]}。
+
+    为什么需要：模板引用是**快照语义**（改模板不影响在用规则），所以规则页
+    必须显式告诉管理员「你引用的模板出新版本了」，否则模板改了也没人知道，
+    快照就变成了没人维护的历史包袱。
+
+    漂移有两种：
+      - outdated: 模板已升版本，快照落后 -> 提示可升级（需人工确认，不自动改语义）
+      - missing : 模板被软删 -> 仅告知，引用仍按快照正常执行
+
+    只查一次模板表；无任何 templateRef 时直接返回空，不产生查询。
+    """
+    codes: set = set()
+    for m in modules:
+        if m.get('mode') != 'scope':
+            continue
+        for g in (m.get('groups') or []):
+            ref = (g or {}).get('templateRef') or {}
+            if isinstance(ref, dict) and ref.get('templateCode'):
+                codes.add(ref['templateCode'])
+    if not codes:
+        return {}
+
+    from .models import DataPermTemplate
+
+    # all_objects: 软删的模板也要能判定为 missing，而不是「查不到就当没有」
+    lookup = {t.code: t for t in DataPermTemplate.all_objects.filter(code__in=codes)}
+
+    out: Dict[str, List[Dict]] = {}
+    for m in modules:
+        if m.get('mode') != 'scope':
+            continue
+        drifts = summarize_drift(m.get('groups') or [], lookup)
+        if drifts:
+            out[m['moduleKey']] = drifts
+    return out
 
 
 def build_modules_response(role) -> Dict:
@@ -72,7 +112,13 @@ def build_modules_response(role) -> Dict:
             'expr': expr,
             'groups': groups,
             'featureGranted': True,  # 数据权限配置本身对超管开放；功能权限耦合后续可接 RolePermissionV2
+            'templateDrifts': [],   # 由下方统一填充（避免逐模块查模板表）
         })
+
+    drifts = _collect_template_drifts(modules)
+    for m in modules:
+        m['templateDrifts'] = drifts.get(m['moduleKey'], [])
+
     return {'roleId': role.id, 'roleCode': role.role_code, 'modules': modules}
 
 

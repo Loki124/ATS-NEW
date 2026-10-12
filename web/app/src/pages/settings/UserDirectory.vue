@@ -58,7 +58,7 @@
     <n-modal
       v-model:show="userModalVisible"
       preset="card"
-      :title="editingUser ? '编辑用户(' + formState.uuid + ')' : '新建用户'"
+      :title="editingUser ? '编辑用户' : '新建用户'"
       :style="{ width: '600px' }"
       :mask-closable="false"
     >
@@ -66,6 +66,19 @@
         <!-- 基础信息 -->
         <div class="form-section">
           <div class="form-section-title">{{ t('pages.settings.UserDirectory.s7') }}</div>
+          <!-- UUID：系统生成、全局唯一，只读展示，占满一整行（不再放在弹窗标题栏） -->
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item :span="2">
+              <n-form-item :label="t('pages.settings.UserDirectory.s30')">
+                <n-input
+                  class="uuid-input"
+                  :value="formState.uuid"
+                  readonly
+                  :placeholder="t('pages.settings.UserDirectory.s31')"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
           <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
               <n-form-item :label="t('pages.settings.UserDirectory.s8')" required>
@@ -186,9 +199,6 @@ import {
   AddOutline,
   CreateOutline,
   TrashOutline,
-  LinkOutline,
-  CloseOutline,
-  ChatbubblesOutline,
   SearchOutline,
 } from '@vicons/ionicons5';
 import {
@@ -241,9 +251,8 @@ interface User {
   positionTitle?: string;
   uuid?: string;
   userType?: string;
-  wechatWorkUserId?: string;
-  wechatWorkDeptId?: string;
-  wechatWorkName?: string;
+  /** 该用户拥有的身份名称列表（后端 roleNames，由 role_code → RoleV2.role_name 批量派生） */
+  roleNames?: string[];
   createdAt: string;
 }
 
@@ -302,9 +311,10 @@ const formState = reactive({
   department: null as string | null,
 });
 
-// 角色配置下拉选项（由 roles（RoleV2 列表）派生，value=RoleV2.id）
+// 身份配置下拉选项（由 roles（RoleV2 列表）派生，value=RoleV2.id）
+// label 只存身份名称：下拉选项与已选回显均不显示身份编码（filterable 搜索同样只按名称匹配）。
 const roleOptions = computed(() =>
-  roles.value.map((r) => ({ label: `${r.name}（${r.code}）`, value: r.id }))
+  roles.value.map((r) => ({ label: r.name, value: r.id }))
 );
 
 // token 统一走 useUserStore().accessToken
@@ -362,6 +372,24 @@ function buildDeptTree(list: any[]): any[] {
 // 树内节点只显示部门名称（层级深度由 n-tree-select 缩进体现），不重复完整路径
 function renderDeptLabel({ option }: { option: any }) {
   return h('span', option.name);
+}
+
+// 部门完整路径（根 → 当前），用于列表「任职部门」列 hover 提示。
+// 与 buildDeptTree 相同的回溯逻辑：沿 parentId 上溯拼接部门名，以「 / 」分隔；
+// 带 visited 集合防止脏数据（parentId 成环）导致死循环；部门不存在或无父级时退化为自身名称。
+function deptFullPath(deptId: string): string {
+  const list = deptStore.departments as any[];
+  const byId = new Map<string, any>();
+  list.forEach((d) => byId.set(String(d.id), d));
+  const names: string[] = [];
+  const visited = new Set<string>();
+  let cur: any = byId.get(String(deptId));
+  while (cur && !visited.has(String(cur.id))) {
+    visited.add(String(cur.id));
+    names.unshift(cur.name);
+    cur = cur.parentId ? byId.get(String(cur.parentId)) : null;
+  }
+  return names.join(' / ');
 }
 
 // API请求封装：统一返回 { ok, status, data }
@@ -457,7 +485,7 @@ const loadRoles = async () => {
   }
 };
 
-// 加载用户角色 → 填入编辑表单的角色配置多选（RoleV2.id 列表）
+// 加载用户身份 → 填入编辑表单的身份配置多选（RoleV2.id 列表）
 const loadUserRoles = async (userId: string) => {
   try {
     const res = await request(`/api/v1/permissions/users/${userId}/roles/`);
@@ -507,7 +535,7 @@ const closeUserModal = () => {
   });
 };
 
-// 创建用户（含工号；角色配置在创建成功后单独保存）
+// 创建用户（含工号；身份配置在创建成功后单独保存）
 const handleCreateUser = async () => {
   try {
     const res = await request('/api/v1/users/', {
@@ -530,7 +558,7 @@ const handleCreateUser = async () => {
   }
 };
 
-// 更新用户（放开用户名编辑 + 工号；角色配置在更新成功后单独保存）
+// 更新用户（放开花名编辑 + 工号；身份配置在更新成功后单独保存）
 const handleUpdateUser = async () => {
   try {
     const payload = {
@@ -560,7 +588,8 @@ const handleUpdateUser = async () => {
   }
 };
 
-// 保存用户角色配置（复用原「分配角色」端点：POST /api/v1/permissions/users/{id}/roles/）
+// 保存用户身份配置（复用原「分配角色」端点：POST /api/v1/permissions/users/{id}/roles/）
+// 界面文案统一为「身份配置」，后端端点与字段名仍为 role / roleIds，此处不做重命名。
 const saveUserRoles = async (userId: string, roleIds: string[]) => {
   try {
     const res = await request(`/api/v1/permissions/users/${userId}/roles/`, {
@@ -568,12 +597,12 @@ const saveUserRoles = async (userId: string, roleIds: string[]) => {
       body: JSON.stringify({ roleIds })
     });
     if (res.ok) {
-      message.success('角色配置已保存');
+      message.success('身份配置已保存');
     } else {
-      message.error(res.data?.message || '角色保存失败');
+      message.error(res.data?.message || '身份保存失败');
     }
   } catch (error) {
-    message.error('角色保存失败');
+    message.error('身份保存失败');
   }
 };
 
@@ -603,42 +632,6 @@ const handleDeleteUser = async (userId: string) => {
   }
 };
 
-// 绑定企微
-const handleBindWechatWork = async (userId: string, wechatWorkUserId: string) => {
-  try {
-    const res = await request(`/api/v1/users/${userId}/`, {
-      method: 'PUT',
-      body: JSON.stringify({ wechatWorkUserId })
-    });
-    if (res.ok) {
-      message.success('企微绑定成功');
-      loadUsers();
-    } else {
-      message.error(res.data?.message || '绑定失败');
-    }
-  } catch (error) {
-    message.error('绑定失败');
-  }
-};
-
-// 解绑企微
-const handleUnbindWechatWork = async (userId: string) => {
-  try {
-    const res = await request(`/api/v1/users/${userId}/`, {
-      method: 'PUT',
-      body: JSON.stringify({ wechatWorkUserId: null })
-    });
-    if (res.ok) {
-      message.success('企微解绑成功');
-      loadUsers();
-    } else {
-      message.error(res.data?.message || '解绑失败');
-    }
-  } catch (error) {
-    message.error('解绑失败');
-  }
-};
-
 // ===== 列定义 =====
 const statusColumn = {
   title: '状态',
@@ -662,40 +655,27 @@ const userTypeColumn = {
   }
 };
 
-const wechatColumn = {
-  title: '企微绑定',
-  key: 'wechatWork',
-  width: 150,
+// 拥有身份：默认展示前 2 个身份名称，超出部分折叠为「+N」。
+// 只要发生过折叠就挂 tooltip 展示完整列表（R-110：截断必须提供查看完整信息的途径）；
+// 未截断时不挂 tooltip，避免悬浮层与单元格内容重复。
+const OWNED_ROLE_VISIBLE = 2;
+const ownedRolesColumn = {
+  title: '拥有身份',
+  key: 'roleNames',
+  width: 180,
   render: (row: User) => {
-    if (row.wechatWorkUserId) {
-      return h(NSpace, { size: 'small', wrap: false }, {
-        default: () => [
-          h(NTooltip, null, {
-            trigger: () => h(NTag, { type: 'success', size: 'small' }, {
-              default: () => row.wechatWorkName || row.wechatWorkUserId!.slice(0, 8),
-              icon: () => h(NIcon, { component: ChatbubblesOutline }),
-            }),
-            default: () => `ID: ${row.wechatWorkUserId}`,
-          }),
-          h(NButton, {
-            text: true,
-            size: 'small',
-            onClick: () => handleUnbindWechatWork(row.id),
-          }, { default: () => h(NIcon, { component: CloseOutline }) }),
-        ],
-      });
-    }
-    return h(NButton, {
-      text: true,
-      type: 'primary',
-      size: 'small',
-      onClick: () => {
-        const input = prompt('请输入企微用户ID:');
-        if (input) handleBindWechatWork(row.id, input);
-      }
-    }, {
-      default: () => '绑定',
-      icon: () => h(NIcon, { component: LinkOutline }),
+    const names = (row.roleNames || []).filter(Boolean);
+    if (!names.length) return h('span', { class: 'cell-muted' }, '-');
+    const shown = names.slice(0, OWNED_ROLE_VISIBLE);
+    const rest = names.length - shown.length;
+    const body = h('span', { class: 'role-tags' }, [
+      ...shown.map((n) => h(NTag, { size: 'small', bordered: false, type: 'info' }, { default: () => n })),
+      rest > 0 ? h('span', { class: 'role-more' }, `+${rest}`) : null,
+    ]);
+    if (rest <= 0) return body;
+    return h(NTooltip, null, {
+      trigger: () => body,
+      default: () => h('span', { class: 'role-tip' }, names.join('、')),
     });
   }
 };
@@ -747,7 +727,7 @@ const actionsColumn = {
 
 // 统一列（整合后展示全部用户，用户类型字段区分内外）
 const columns = [
-  { title: '用户名', key: 'username', width: 160, ellipsis: true },
+  { title: '花名', key: 'username', width: 160, ellipsis: true },
   { title: '姓名', key: 'realName', width: 120, ellipsis: true },
   { title: '工号', key: 'employeeId', width: 110, ellipsis: true, render: (row: User) => row.employeeId || '-' },
   {
@@ -756,17 +736,22 @@ const columns = [
     width: 150,
     ellipsis: true,
     render: (row: User) => {
+      const deptId = row.department != null ? String(row.department) : '';
       const name =
         row.departmentName ||
-        (row.department ? deptStore.getById(String(row.department))?.name : '') ||
+        (deptId ? deptStore.getById(deptId)?.name : '') ||
         '-';
-      return name;
+      // 单元格只显示部门名（列窄，名称过长省略），hover 时 tooltip 展示根→当前完整路径
+      // （如「总公司 / 技术中心 / 前端组」）；顶层部门路径与名称一致时无需 tooltip。
+      const full = deptId ? deptFullPath(deptId) : '';
+      const text = h('span', { class: 'cell-ellipsis' }, name);
+      if (!full || full === name) return text;
+      return h(NTooltip, null, { trigger: () => text, default: () => full });
     }
   },
   userTypeColumn,
   statusColumn,
-  { title: '角色类型', key: 'roleType', width: 90, ellipsis: true },
-  wechatColumn,
+  ownedRolesColumn,
   actionsColumn,
 ];
 
@@ -825,7 +810,7 @@ onMounted(() => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--ink);
   margin-bottom: var(--space-3);
 }
 .form-section-title::before {
@@ -836,4 +821,43 @@ onMounted(() => {
   background: var(--brand-600);
 }
 
+/* UUID 只读输入框：等宽字体便于逐字符核对，不使用 disabled 变灰（仍需清晰可读） */
+.uuid-input :deep(.n-input__input-el) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-14);
+}
+
+/* 单元格文本：列宽不足时单行省略，完整内容由 hover tooltip 提供（R-110） */
+.cell-ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 拥有身份：单行排列，超出列宽的标签由容器裁掉（完整列表走 tooltip） */
+.role-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.role-more {
+  flex-shrink: 0;
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.role-tip {
+  display: block;
+  max-width: 260px;
+  line-height: 1.6;
+}
+.cell-muted {
+  color: var(--ink-faint);
+}
 </style>

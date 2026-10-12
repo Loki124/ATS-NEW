@@ -217,6 +217,13 @@ class UserMinimalSerializer(serializers.ModelSerializer):
                     user_id=instance.pk, system_code='recruit',
                 ).values_list('role_code', flat=True).first() or 'HR'
             )
+        # 2026-10-10: 用户管理列表「拥有身份」列 — 该用户拥有的全部身份名称。
+        # 只认批量注入的 role_names_map (由 UserViewSet.get_serializer_context 提供)。
+        # 刻意不做逐行 fallback: 只注入 role_map 的调用方 (如 process 列表) 若走 fallback,
+        # 会退化成每行 1 次 user_roles 查询, 即 #9 修掉的 N+1 又回来
+        # (回归测试 apps/core/tests/test_user_list_nplus1.py 会拦截)。
+        # 未注入时给空数组而非 None: 前端直接 .filter(Boolean) 渲染, 无需判空。
+        ret['roleNames'] = self.context.get('role_names_map', {}).get(instance.pk, [])
         # 2026-09-19: 用户类型字段接入列表 (前端「用户类型」列 + 客户端筛选依赖此字段)
         ret['userType'] = instance.user_type
         # 用户唯一标识（对外稳定 ID，新建自动生成、存量已回填）

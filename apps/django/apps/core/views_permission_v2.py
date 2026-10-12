@@ -38,6 +38,9 @@ class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     filterset_fields = ['module', 'resource_type']
     search_fields = ['resource_code', 'resource_name']
+    # 服务端分页必须配稳定排序：无 order_by 时 Django Paginator 会告警
+    # UnorderedObjectListWarning，且翻页间顺序不稳定 → 跨页可能重复/丢行
+    ordering = ['module', 'resource_code']
 
     def get_serializer_class(self):
         from .serializers_permission_v2 import PermissionResourceSerializer

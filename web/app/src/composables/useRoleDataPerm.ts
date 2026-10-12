@@ -18,12 +18,15 @@ import {
   type PermCondition,
   type PermConditionGroup,
   type RoleDataPermPayload,
+  type PermValue,
+  type AttributeField,
 } from '@/api/data-permission'
 
 // 重新导出 API 层类型，供依赖本 composable 的组件统一从此处 import
 export type {
   DataPermMode, ModulePerm, ModuleOption, PermCondition, PermConditionGroup,
-  RoleDataPermPayload, Operator, DimensionMeta, PermValue,
+  RoleDataPermPayload, Operator, DimensionMeta, PermValue, AttributeField,
+  DynamicRelation, DynamicSourceKey,
 } from '@/api/data-permission';
 
 export const MODULE_KEYS = ['demand', 'process', 'position', 'candidate', 'talent'] as const;
@@ -46,6 +49,31 @@ export const ATTRIBUTE_OP_LABELS: Record<string, string> = {
 export const ATTR_NOVALUE_OPS = new Set(['IS_EMPTY', 'IS_NOT_EMPTY']);
 /** 业务值为集合（多选）的运算符。 */
 export const ATTR_LIST_OPS = new Set(['IN', 'NOT_IN']);
+
+/** 动态取值来源 -> 中文（与后端 context_resolvers.DYNAMIC_SOURCE_KEYS 对齐）。 */
+export const DYNAMIC_SOURCE_LABELS: Record<string, string> = {
+  'currentUser.departments': '我的负责部门',
+  'currentUser.deptSubtree': '我的负责部门及其下级',
+};
+
+/** 包含关系 -> 中文（与后端 context_resolvers.DYNAMIC_RELATIONS 对齐）。 */
+export const DYNAMIC_RELATION_LABELS: Record<string, string> = {
+  exact: '属于',
+  in_subtree: '属于（含下级）',
+  contains: '包含',
+  overlap: '包含或属于',
+};
+
+/** 可选动态来源（UI 下拉用）。当前仅部门维度支持。 */
+export const DYNAMIC_SOURCE_OPTIONS = [
+  { label: DYNAMIC_SOURCE_LABELS['currentUser.departments'], value: 'currentUser.departments' },
+  { label: DYNAMIC_SOURCE_LABELS['currentUser.deptSubtree'], value: 'currentUser.deptSubtree' },
+];
+
+/** 可选包含关系（UI 下拉用）。 */
+export const DYNAMIC_RELATION_OPTIONS = (
+  Object.keys(DYNAMIC_RELATION_LABELS) as (keyof typeof DYNAMIC_RELATION_LABELS)[]
+).map((k) => ({ label: DYNAMIC_RELATION_LABELS[k], value: k }));
 
 // ===== 通用工具 =====
 
@@ -234,7 +262,15 @@ function renderCondition(c: PermCondition): string {
     }
     return `${fieldName} ${opLabel} [${v ?? ''}]`;
   }
-  const dimLabel = DIMENSION_LABELS[c.dimension] || c.dimension;
+  // c.dimension 可空，直接用它做索引会命中 TS2538（undefined 不能作为索引类型）
+  const dimKey = c.dimension ?? '';
+  const dimLabel = DIMENSION_LABELS[dimKey] || dimKey;
+  // 动态条件：值来自当前用户上下文，不是配置里选死的值
+  if (c.valueSource === 'dynamic') {
+    const rel = DYNAMIC_RELATION_LABELS[c.relation || 'exact'] || '属于';
+    const src = DYNAMIC_SOURCE_LABELS[c.dynamicKey || ''] || '我的负责部门';
+    return `${dimLabel} ${rel} ${src}`;
+  }
   const opLabel = c.operator === 'not_in' ? '不属于' : '属于';
   const vals = (c.values || []).map((v) => v.label).join('、');
   return `${dimLabel} ${opLabel} [${vals}]`;
@@ -283,6 +319,9 @@ function cloneModules(modules: ModulePerm[]): ModulePerm[] {
     mode: m.mode,
     expr: m.expr,
     featureGranted: m.featureGranted,
+    // 模板状态偏差由后端计算，随草稿一起带过去供 ModulePermCard 渲染标记。
+    // 不参与 serialize() 脏检查 —— 它是服务端派生的展示信息，不是用户编辑内容。
+    templateDrifts: (m.templateDrifts || []).map((d) => ({ ...d })),
     groups: m.groups.map((g) => ({
       id: g.id,
       expr: g.expr,
@@ -292,6 +331,9 @@ function cloneModules(modules: ModulePerm[]): ModulePerm[] {
         dimension: c.dimension,
         operator: c.operator,
         values: (c.values || []).map((v) => ({ id: v.id, label: v.label, stale: v.stale })),
+        valueSource: c.valueSource,
+        dynamicKey: c.dynamicKey,
+        relation: c.relation,
         field: c.field,
         fieldName: c.fieldName,
         value: c.value,
@@ -314,6 +356,9 @@ function serialize(modules: ModulePerm[]): string {
           dimension: c.dimension,
           operator: c.operator,
           values: (c.values || []).map((v) => ({ id: v.id, label: v.label })),
+          valueSource: c.valueSource,
+          dynamicKey: c.dynamicKey,
+          relation: c.relation,
           field: c.field,
           fieldName: c.fieldName,
           value: c.value,
@@ -449,7 +494,15 @@ export function useRoleDataPerm(roleId: Ref<string>) {
               }
             }
           } else {
-            if ((c.values || []).length === 0) {
+            // 动态条件：不校验业务值（运行时注入），只校验来源已选
+            if (c.valueSource === 'dynamic') {
+              if (!c.dynamicKey) {
+                errs[m.moduleKey] = '请为动态条件选择取值来源';
+                bad.push(m.moduleKey);
+                groupBad = true;
+                break;
+              }
+            } else if ((c.values || []).length === 0) {
               errs[m.moduleKey] = '请为每条条件选择业务值';
               bad.push(m.moduleKey);
               groupBad = true;

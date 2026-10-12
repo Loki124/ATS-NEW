@@ -74,13 +74,33 @@
               @update:value="(v: string) => onDimensionChange(c, v)"
             />
             <n-select
+              v-if="!isDynamic(c)"
               :value="c.operator"
               :options="operatorOptions"
               size="small"
               class="cond-op"
               @update:value="(v: Operator) => (c.operator = v)"
             />
+            <!-- 取值来源：仅部门维度支持动态取值（部门有树语义，能定义「包含 / 属于」） -->
             <n-select
+              v-if="isDeptDim(c)"
+              :value="c.valueSource || 'static'"
+              :options="valueSourceOptions"
+              size="small"
+              class="cond-src"
+              @update:value="(v: 'static' | 'dynamic') => onValueSourceChange(c, v)"
+            />
+            <!-- 包含关系：业务字段与「我的负责部门」的匹配方向 -->
+            <n-select
+              v-if="isDynamic(c)"
+              :value="c.relation || 'exact'"
+              :options="relationOptions"
+              size="small"
+              class="cond-rel"
+              @update:value="(v: DynamicRelation) => (c.relation = v)"
+            />
+            <n-select
+              v-if="!isDynamic(c)"
               :value="validValueIds(c)"
               :options="valueOptions(c)"
               size="small"
@@ -91,6 +111,9 @@
               :placeholder="t('dataperm.modal.valuesPlaceholder')"
               @update:value="(ids: Array<string | number>) => onValuesChange(c, ids)"
             />
+            <span v-if="isDynamic(c)" class="dynamic-hint">
+              {{ t('dataperm.modal.dynamicHint') }}
+            </span>
             <n-tag
               v-for="sv in staleValues(c)"
               :key="sv.id"
@@ -157,14 +180,14 @@
             </template>
             <template v-else-if="attrValueMode(c) === 'num-range'">
               <n-input-number
-                :value="c.meta?.min ?? null"
+                :value="toNumberOrNull(c.meta?.min)"
                 size="small"
                 class="attr-val-sm"
                 :placeholder="t('dataperm.modal.rangeMin')"
                 @update:value="(n: number | null) => onAttrRangeMin(c, n)"
               />
               <n-input-number
-                :value="c.meta?.max ?? null"
+                :value="toNumberOrNull(c.meta?.max)"
                 size="small"
                 class="attr-val-sm"
                 :placeholder="t('dataperm.modal.rangeMax')"
@@ -224,6 +247,40 @@
       </n-button>
     </div>
 
+    <!-- 从权限模板一键引用（2026-10-11） -->
+    <div v-if="scopeTemplates.length" class="tpl-box">
+      <span class="tpl-label">{{ t('dataperm.modal.tpl.title') }}</span>
+      <div class="tpl-row">
+        <n-select
+          v-model:value="selectedTemplateCode"
+          :options="templateOptions"
+          size="small"
+          filterable
+          class="tpl-pick"
+          :placeholder="t('dataperm.modal.tpl.pickPlaceholder')"
+        />
+        <n-select
+          v-if="activeTemplate"
+          :value="bindingOf(activeRelationParam)"
+          :options="relationBindingOptions"
+          size="small"
+          class="tpl-bind"
+          @update:value="(v: string) => setBinding(activeRelationParam, v)"
+        />
+        <n-button
+          size="small"
+          type="primary"
+          secondary
+          :loading="binding"
+          :disabled="!selectedTemplateCode"
+          @click="applyTemplate"
+        >
+          {{ t('dataperm.modal.tpl.apply') }}
+        </n-button>
+      </div>
+      <p class="tpl-tip">{{ t('dataperm.modal.tpl.tip') }}</p>
+    </div>
+
     <!-- 预览句 -->
     <div class="preview-box">
       <span class="preview-prefix">{{ t('dataperm.preview.prefix') }}</span>
@@ -263,14 +320,26 @@ import {
 import {
   newCondition, uid, validateExpr, previewOf,
   ATTR_NOVALUE_OPS, ATTR_LIST_OPS,
+  DYNAMIC_SOURCE_OPTIONS, DYNAMIC_RELATION_OPTIONS, DYNAMIC_RELATION_LABELS,
   type DimensionMeta, type Operator, type PermCondition, type PermConditionGroup, type AttributeField, type PermValue,
+  type DynamicRelation,
 } from '@/composables/useRoleDataPerm'
+import {
+  listScopeTemplates,
+  previewBindTemplate,
+  type DynamicSourceKey,
+  type ScopeTemplate,
+  type ScopeTemplateParam,
+  type TemplateRef,
+} from '@/api/data-permission'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
 const props = defineProps<{
   show: boolean
   moduleName: string
+  /** 业务模块 key（demand/process/...），用于筛选可引用的权限模板 */
+  moduleKey?: string
   dimensions: DimensionMeta[]
   attributeFields: AttributeField[]
   groups: PermConditionGroup[]
@@ -292,11 +361,15 @@ function cloneGroups(src: PermConditionGroup[]): PermConditionGroup[] {
   return (src || []).map((g) => ({
     id: g.id,
     expr: g.expr,
+    templateRef: g.templateRef,
     conditions: g.conditions.map((c) => ({
       id: c.id,
       kind: c.kind,
       dimension: c.dimension,
       operator: c.operator,
+      valueSource: c.valueSource,
+      dynamicKey: c.dynamicKey,
+      relation: c.relation,
       values: (c.values || []).map((v) => ({ id: v.id, label: v.label, stale: v.stale })),
       field: c.field,
       fieldName: c.fieldName,
@@ -367,6 +440,22 @@ function isAttr(c: PermCondition): boolean {
   return c.kind === 'attribute'
 }
 
+/** 部门维度：唯一支持动态取值的维度（后端 context_resolvers 对非 dept 维度 fail-closed）。 */
+function isDeptDim(c: PermCondition): boolean {
+  return (c.dimension || '') === 'dept'
+}
+
+function isDynamic(c: PermCondition): boolean {
+  return c.valueSource === 'dynamic'
+}
+
+const valueSourceOptions = [
+  { label: '指定部门', value: 'static' },
+  ...DYNAMIC_SOURCE_OPTIONS,
+]
+
+const relationOptions = DYNAMIC_RELATION_OPTIONS
+
 function attrFieldOf(c: PermCondition): AttributeField | undefined {
   return props.attributeFields.find((f) => f.sourcePath === c.field)
 }
@@ -392,16 +481,28 @@ function attrValueMode(c: PermCondition): 'none' | 'enum-single' | 'enum-multi' 
   return 'enum-single'
 }
 
-function attrSingleValueId(c: PermCondition): string | number | boolean | null {
-  if (c.value && typeof c.value === 'object') return (c.value as PermValue).id as string | number | boolean
-  return null
+function attrSingleValueId(c: PermCondition): string | number | undefined {
+  // PermValue.id 本就是 string | number；naive-ui 的 Value 不接受 boolean/null
+  if (c.value && typeof c.value === 'object') return (c.value as PermValue).id
+  return undefined
 }
 
-function attrMultiValueIds(c: PermCondition): Array<string | number | boolean> {
+function attrMultiValueIds(c: PermCondition): Array<string | number> {
   if (Array.isArray(c.value)) {
-    return c.value.map((v) => (v && typeof v === 'object' ? (v as PermValue).id : v)) as Array<string | number | boolean>
+    return c.value.map((v) => (v && typeof v === 'object' ? (v as PermValue).id : v)) as Array<string | number>
   }
   return []
+}
+
+/**
+ * 区间值归一为 number | null。
+ * meta.min / max 在运行时可能是 string（另一处 RuleAuthoring 用 <n-input> 承载，
+ * 值为文本），而本弹窗用 <n-input-number>，只接受 number，故在绑定处做一次转换。
+ */
+function toNumberOrNull(v: string | number | null | undefined): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
 }
 
 // ===== 增删改 =====
@@ -409,12 +510,16 @@ function addGroup() {
   localGroups.value.push({
     id: uid('g'),
     expr: '1',
-    conditions: [newCondition(firstDim())],
+    // newCondition(kind, dimension): 第一个参数是 kind，不是维度。
+    // 此前误写成 newCondition(firstDim())，导致维度被塞进 kind、
+    // dimension 永远退回默认值 'dept'，用户选的首个维度被丢弃。
+    conditions: [newCondition('relationship', firstDim())],
   })
 }
 
 function addCondition(g: PermConditionGroup) {
-  g.conditions.push(newCondition(firstDim()))
+  // 同上: 显式传 kind，维度放第二个参数位
+  g.conditions.push(newCondition('relationship', firstDim()))
 }
 
 function delCondition(g: PermConditionGroup, idx: number) {
@@ -434,6 +539,29 @@ function clearAll() {
 function onDimensionChange(c: PermCondition, v: string) {
   c.dimension = v
   c.values = [] // 切换维度清空已选值（不同维度值域不可混用）
+  // 只有部门维度支持动态取值；切到其它维度时一并退回静态，避免留下无效配置
+  if (v !== 'dept' && c.valueSource === 'dynamic') {
+    c.valueSource = 'static'
+    c.dynamicKey = undefined
+    c.relation = undefined
+  }
+}
+
+/** 切换取值来源：static ↔ dynamic，并清空另一侧的残留配置。 */
+function onValueSourceChange(c: PermCondition, v: 'static' | 'dynamic') {
+  if (v === 'dynamic') {
+    c.valueSource = 'dynamic'
+    c.dynamicKey = 'currentUser.departments' // 默认取「我的负责部门」
+    c.relation = 'contains'                  // 默认「包含」：需求部门是负责部门的父级
+    c.operator = 'in'                       // 动态模式下 operator 不参与编译，留合法默认值
+    c.values = []                            // 静态值不再使用，清掉避免误提交
+  } else {
+    c.valueSource = 'static'
+    c.dynamicKey = undefined
+    c.relation = undefined
+    c.operator = 'in'
+    c.values = [] // 切回静态需重新选值
+  }
 }
 
 function onValuesChange(c: PermCondition, ids: Array<string | number>) {
@@ -547,6 +675,97 @@ const previewText = computed(() => {
   return previewOf(m)
 })
 
+// ===== 权限模板引用 =====
+// 语义：模板是「起草工具」，引用时把展开结果快照进当前规则（templateRef 记来源）。
+// 因此管理员后续改模板不会让已配规则静默漂移；模板软删也不影响已配规则执行。
+const scopeTemplates = ref<ScopeTemplate[]>([])
+const selectedTemplateCode = ref<string | null>(null)
+const templateBindings = ref<Record<string, unknown>>({})
+const binding = ref(false)
+
+const templateOptions = computed(() =>
+  scopeTemplates.value.map((tpl) => ({ label: tpl.name + '（' + tpl.code + '）', value: tpl.code })),
+)
+const activeTemplate = computed(
+  () => scopeTemplates.value.find((tpl) => tpl.code === selectedTemplateCode.value) || null,
+)
+// 当前只支持「包含关系」这一类枚举参数绑定；其余参数走模板 default
+const activeRelationParam = computed(() => {
+  const list = activeTemplate.value?.params || []
+  return list.find((x) => x.key === 'relation') || null
+})
+const relationBindingOptions = computed(() =>
+  (activeRelationParam.value?.enum || []).map((o) =>
+    typeof o === 'string' ? { label: DYNAMIC_RELATION_LABELS[o] || o, value: o } : o,
+  ),
+)
+
+function bindingOf(p: ScopeTemplateParam | null): string {
+  if (!p) return ''
+  return String(templateBindings.value[p.key] ?? p.default ?? '')
+}
+function setBinding(p: ScopeTemplateParam | null, v: string) {
+  if (!p) return
+  templateBindings.value = { ...templateBindings.value, [p.key]: v }
+}
+
+async function loadScopeTemplates() {
+  if (!props.moduleKey) return
+  try {
+    scopeTemplates.value = await listScopeTemplates(props.moduleKey)
+    const first = scopeTemplates.value[0]
+    if (first && !selectedTemplateCode.value) {
+      selectedTemplateCode.value = first.code
+      templateBindings.value = Object.fromEntries(
+        (first.params || [])
+          .filter((p) => p.default !== undefined && p.default !== null)
+          .map((p) => [p.key, p.default]),
+      )
+    }
+  } catch {
+    // 模板是增强能力，取不到不影响手工配置条件
+    scopeTemplates.value = []
+  }
+}
+
+async function applyTemplate() {
+  const tpl = activeTemplate.value
+  if (!tpl) return
+  binding.value = true
+  try {
+    const data = await previewBindTemplate(tpl.code, templateBindings.value)
+    const groups = (data?.groups || []).map((g) => ({
+      id: uid('g'),
+      expr: g.expr || '',
+      templateRef: {
+        templateCode: data.templateCode,
+        templateVersion: data.templateVersion,
+        templateName: tpl.name,
+        bindings: { ...templateBindings.value },
+      } as TemplateRef,
+      conditions: (g.conditions || []).map((c: any) => ({ ...c, id: uid('c') })),
+    }))
+    if (!groups.length) {
+      message.warning(t('dataperm.modal.tpl.emptyResult'))
+      return
+    }
+    localGroups.value.push(...groups)
+    message.success(t('dataperm.modal.tpl.applied', { name: tpl.name }))
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || t('dataperm.modal.tpl.failed'))
+  } finally {
+    binding.value = false
+  }
+}
+
+watch(
+  () => [props.show, props.moduleKey] as const,
+  ([show]) => {
+    if (show) loadScopeTemplates()
+  },
+  { immediate: true },
+)
+
 // ===== 确认 =====
 function confirm() {
   if (localGroups.value.length === 0) {
@@ -591,7 +810,9 @@ function confirm() {
   border: 1px solid var(--border-hairline, #e2e8f0);
   border-radius: 10px;
   padding: 12px;
-  background: #fff;
+  /* 2026-10-11 暗色修复：原为硬编码 #fff，深色模式下与已反转的浅色文字令牌冲突。
+     --surface 浅色下恒为 #FFFFFF（零变化），深色下为 #1E293B。 */
+  background: var(--surface);
 }
 .group-head {
   display: flex;
@@ -632,6 +853,16 @@ function confirm() {
 .cond-dim { width: 110px; flex-shrink: 0; }
 .cond-op { width: 90px; flex-shrink: 0; }
 .cond-val { flex: 1; min-width: 0; }
+.cond-src { width: 150px; flex-shrink: 0; }
+.cond-rel { width: 130px; flex-shrink: 0; }
+/* 动态取值提示：说明该条件不由本表单决定值，改由登录用户在运行时决定 */
+.dynamic-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-soft, #64748b);
+}
 .stale-tag { flex-shrink: 0; background: var(--g2, #eef2f7); color: var(--ink-soft, #64748b); }
 
 .attr-field { width: 220px; flex-shrink: 0; }
@@ -650,8 +881,8 @@ function confirm() {
 .expr-input { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .expr-sub { font-size: 11px; color: var(--ink-soft, #94a3b8); flex-shrink: 0; }
 .expr-check { font-size: 12px; font-weight: 600; flex-shrink: 0; white-space: nowrap; }
-.expr-check.ok { color: #18a058; }
-.expr-check.bad { color: #d03050; }
+.expr-check.ok { color: var(--c-success-deep); }
+.expr-check.bad { color: var(--c-error-deep); }
 
 .inter-block {
   margin-top: 14px;
@@ -662,6 +893,20 @@ function confirm() {
 }
 .expr-row.inter { margin-top: 0; }
 .add-group-btn { margin-top: 10px; }
+
+/* 权限模板引用区：与条件组列表视觉分层（品牌浅底 + 虚线），表明它是「快捷入口」而非条件本身 */
+.tpl-box {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--brand-tint, rgba(99, 102, 241, 0.2));
+  border-radius: 10px;
+  background: var(--brand-soft, rgba(99, 102, 241, 0.08));
+}
+.tpl-label { display: block; font-size: 12px; font-weight: 600; color: var(--ink, #1e293b); margin-bottom: 8px; }
+.tpl-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tpl-pick { width: 220px; flex-shrink: 0; }
+.tpl-bind { width: 150px; flex-shrink: 0; }
+.tpl-tip { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: var(--ink-soft, #64748b); }
 
 .empty-state {
   border: 1px dashed var(--border-hairline, #cbd5e1);
