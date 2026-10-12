@@ -1,5 +1,12 @@
 # CHANGELOG
-> 最后更新：2026-10-08（依据 git 最后提交）
+> 最后更新：2026-10-12（依据 git 最后提交）
+
+## [Unreleased] - 2026-10-12 — 文档清理（回收无效/过时文档）
+
+### 🧹 文档清理
+- **`d196ebb3`** 清除第三方库误提交与孤立设计原型：删除 `docs/ui/vendor/naive-ui.umd.js`（4MB 第三方库，仅被一个原型引用）+ `metric-template-modal-naive-prototype.html`；删除 4 个带旧令牌值、已被新版取代的孤立原型 `metric-template-modal-redesign` / `PROCESS_STAGE_CARD_PREVIEW` / `PROCESS_MODAL_PREVIEW` / `PROCESS_STAGE_CARD_REVIEW_FIX`（共 −11.7 万行）。
+- **`bc79d361`** 删除 `docs/08-tasks/`（UI_TASKS + UI_TASKS_V2.8 共 34 份已完成历史任务卡，−3370 行），并同步清理 `docs/README.md` 中目录表行、✅ 08-tasks 整节与 P2 归档建议行。
+- **保留决策**：`docs/09-archive/`（11 篇 Aug–Sep 2026 归档/审计报告）保留——被 `docs/07-audit/` 下 6 份历史取证报告 + `verify_n1_runtime.py` 当作对比基线/归档区依赖，删除会削弱其取证自洽性；`docs/ui/`、`docs/04-ui/`、`docs/03-product/` 下仍被现行文档（README / `metric-template-modal-v4-plan.md` / `data-permission-ui-design.md`）引用的原型（`metric-template-modal-v4-prototype`、`metrics-redesign-2026-10-02`、`功能结构图-融合版`、`功能完成度与规划全景图`、`产品架构图-全生命周期`、`data-permission-prototype`）保留，避免断链。
 
 ## [Unreleased] - 2026-10-08 — 候选人发起背调 + 指标模板弹窗精度修正
 
