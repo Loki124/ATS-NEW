@@ -575,7 +575,8 @@ const { requestClose } = useCloseGuard({
 
 - **背景**：兵哥发现「有的弹窗点遮罩区域会关闭弹窗，有的不会」，要求统一。诊断根因——含可编辑表单的弹窗吃 Naive UI `mask-closable` 默认 `true`，点遮罩**静默丢草稿**；且各弹窗遮罩行为不一致。
 - **方案 B（抽公共 composable）**：新增 `web/app/src/composables/useCloseGuard.ts`，`requestClose()` 做脏检查 + 「放弃未保存的修改？」二次确认（`useDialog().warning` + `useMessage().warning`），`isSaving` 拦截并提示。按 preset 分两变体接线：① card-preset 受控（`:show`+`:mask-closable="false"`+`:on-mask-click`+`@update:show="(v)=>!v&&requestClose()"`+footer 取消走 `requestClose`）；② dialog-preset 保留 `v-model:show`+`:mask-closable="false"`+`:close-on-esc="false"`+`@negative-click="requestClose"`，`requestClose` **恒返 `false`** 阻止 Naive 钩子自动关闭（规避竞态）；③ 只读/简单弹窗仅加 `:mask-closable="false"`（Group 2）。
-- **代码（21 文件 +300/−40，commit a9e85bb6）**：`useCloseGuard.ts` 新增 + 20 个 `.vue` 全量接入——CampusControl（3 表单弹窗 + 2 导入抽屉锁遮罩）/ ResourcesTab（资源弹窗）/ RoleEditModal / RolesTab（克隆弹窗）/ AnnouncementSettings（编辑抽屉 + 推送 dialog 锁遮罩）/ InterviewEvaluationModal / ScrapedResumeList / ProcessStageEditor（Group 2 锁遮罩）。30 个含可编辑表单弹窗分类：21 接守卫 + 7 仅锁遮罩 + 2 只读豁免。
+- **代码（21 文件 +300/−40，commit a9e85bb6）**：`useCloseGuard.ts` 新增 + 20 个 `.vue` 全量接入——CampusControl（3 表单弹窗 + 2 导入抽屉锁遮罩）/ RoleEditModal / RolesTab（克隆弹窗）/ AnnouncementSettings（编辑抽屉 + 推送 dialog 锁遮罩）/ InterviewEvaluationModal / ScrapedResumeList / ProcessStageEditor（Group 2 锁遮罩）。30 个含可编辑表单弹窗分类：21 接守卫 + 7 仅锁遮罩 + 2 只读豁免。
+  · 修订（2026-10-12）：原列表中的 `ResourcesTab（资源弹窗）` 已移除——权限资源为代码注册目录（seed/bootstrap 写入），资源管理模块改为**只读**（仅 GET 展示，不再提供新增/编辑/删除弹窗），故 ResourcesTab 不再属于守卫接线范围。
 - **验证**：eslint（9 关键文件）exit 0；`vite build --mode nocheck` built in 17.80s，无 error/warning。提交纪律——逐路径 add 21 文件，**刻意排除** 4 个无关预存改动（SystemSwitcher.vue / Layout.vue / zh-CN.ts / en-US.ts，属菜单重构任务）。
 - **§6 新增**：§6.1「表单弹窗遮罩关闭守卫（useCloseGuard）」——根因 + 两变体接线模板 + 强制项（含可编辑表单弹窗禁 `mask-closable` 默认 `true` / dialog-preset `requestClose` 恒返 `false` / 守卫依赖全局 Provider）+ 落地范围。
 - **§7 修订**：自检清单新增「表单弹窗遮罩关闭守卫」勾项（card/dialog 两变体 + 只读弹窗仅锁遮罩）。
