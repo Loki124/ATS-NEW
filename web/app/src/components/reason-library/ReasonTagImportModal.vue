@@ -251,8 +251,8 @@ function resetAndClose() {
   color: var(--ink-soft);
 }
 .rl-result-numbers b { font-weight: 600; margin: 0 4px; }
-.rl-ok { color: var(--c-success); }
-.rl-err { color: var(--c-error); }
+.rl-ok { color: var(--c-success-deep); }
+.rl-err { color: var(--c-error-deep); }
 .rl-error-list {
   margin: 0;
   padding-left: 20px;

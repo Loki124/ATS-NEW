@@ -243,7 +243,7 @@ function groupHeadLabel(g: DisplayGroup): string {
 .entry-cond__chip {
   font-size: var(--fs-12);
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-fg);
   background: var(--brand-soft);
   border-radius: var(--radius-sm);
   padding: 1px var(--space-2);

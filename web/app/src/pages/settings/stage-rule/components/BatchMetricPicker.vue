@@ -85,7 +85,7 @@ function confirm() {
   transition: color var(--duration-fast) var(--ease-out);
 }
 .bmp-trigger:hover:not(.bmp-trigger--disabled) {
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .bmp-trigger--disabled {
   opacity: 0.4;

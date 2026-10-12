@@ -108,7 +108,7 @@
                     <n-descriptions-item :label="t('pages.referral.ReferralCenter.s22')">{{ rule.positionLevel || '不限' }}</n-descriptions-item>
                     <n-descriptions-item :label="t('pages.referral.ReferralCenter.s23')">{{ rule.triggerStage || '不限' }}</n-descriptions-item>
                     <n-descriptions-item v-if="rule.amount" :label="t('pages.referral.ReferralCenter.s24')">
-                      <span style="color: var(--brand); font-weight: 600">¥{{ rule.amount }}</span>
+                      <span style="color: var(--brand-fg); font-weight: 600">¥{{ rule.amount }}</span>
                     </n-descriptions-item>
                     <n-descriptions-item :label="t('pages.referral.ReferralCenter.s25')">
                       <n-text :depth="3">

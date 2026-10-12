@@ -126,7 +126,7 @@ function toggle(list: string[], v: string, checked: boolean) {
   padding: 1px 0;
   transition: color var(--duration-fast) var(--ease-out);
 }
-.opt-item:hover { color: var(--brand); }
+.opt-item:hover { color: var(--brand-fg); }
 .option-empty {
   margin: 2px 0 0;
   font-size: var(--fs-13);

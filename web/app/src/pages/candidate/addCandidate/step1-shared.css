@@ -108,7 +108,7 @@
   height: 18px;
   border-radius: 50%;
   background: var(--brand-a12);
-  color: var(--brand);
+  color: var(--brand-fg-on-soft);
   font-size: var(--fs-10);
   font-weight: 700;
 }
@@ -149,7 +149,7 @@
   color: var(--g7);
 }
 .occ-btn:hover { border-color: var(--brand); background: var(--brand-a12); }
-.occ-btn.primary { background: var(--brand); color: var(--n-100); border-color: var(--brand); }
+.occ-btn.primary { background: var(--brand-button); color: var(--on-brand); border-color: var(--brand); }
 .occ-btn.primary:hover { background: var(--ph); }
 /* v2 bugfix P0-C：.occ-btn.warn 白底 → 玻璃（两文件收敛到修复版） */
 .occ-btn.warn { background: var(--glass-bg-card); color: var(--c-error-deep); border-color: var(--c-error-deep); }
@@ -176,7 +176,7 @@
 .apply-pos-item.sel {
   border-color: var(--brand);
   background: var(--brand-a12);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
 }
 .apply-pos-done {
@@ -206,7 +206,7 @@
 }
 .score-overall-row { display: flex; align-items: center; gap: var(--space-3); margin-bottom: 10px; }
 .score-big { font-size: 28px; font-weight: 700; line-height: 1; }
-.score-big.pass { color: var(--c-success); }
+.score-big.pass { color: var(--c-success-deep); }
 .score-big.fail { color: var(--c-error-deep); }
 .score-pass-tag {
   padding: 2px var(--space-2);
@@ -265,7 +265,7 @@
   gap: var(--space-1);
   transition: 0.15s;
 }
-.replace-file-btn:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-a12); }
+.replace-file-btn:hover { border-color: var(--brand); color: var(--brand-fg); background: var(--brand-a12); }
 .replace-file-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .replace-banner {
   padding: 10px 14px;

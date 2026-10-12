@@ -199,7 +199,7 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
   color: var(--ink-soft);
   line-height: 1.6;
 }
-.step-intro b { color: var(--brand); font-weight: 600; }
+.step-intro b { color: var(--brand-fg); font-weight: 600; }
 
 .rl-empty { padding: var(--space-5); }
 
@@ -293,5 +293,5 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
   border-radius: 4px;
   display: inline-flex;
 }
-.tag-chip .rm:hover { background: var(--c-error-soft); color: var(--c-error); }
+.tag-chip .rm:hover { background: var(--c-error-soft); color: var(--c-error-deep); }
 </style>

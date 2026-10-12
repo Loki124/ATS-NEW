@@ -482,7 +482,7 @@ async function save() {
 }
 .rc-info-btn:hover,
 .rc-info-btn:focus-visible {
-  color: var(--brand);
+  color: var(--brand-fg);
   background: var(--g1);
   outline: none;
 }

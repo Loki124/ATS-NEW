@@ -330,12 +330,12 @@ watch(
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--ink-soft);
   flex-shrink: 0;
 }
 .os-count {
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-tertiary);
+  color: var(--ink-faint);
 }
 .os-search {
   margin: var(--space-2) 0;
@@ -357,8 +357,8 @@ watch(
 .os-tag-disabled {
   flex: 0 0 auto;
   font-size: 11px;
-  color: var(--color-warning);
-  border: 1px solid var(--color-warning);
+  color: var(--c-warning-deep);
+  border: 1px solid var(--c-warning-deep);
   border-radius: 4px;
   padding: 0 4px;
   line-height: 16px;
@@ -369,7 +369,7 @@ watch(
   gap: var(--space-2);
   padding: 6px 0;
   font-size: 13px;
-  border-bottom: 1px dashed var(--color-border);
+  border-bottom: 1px dashed var(--g4);
 }
 .os-sel-name {
   flex: 1;
@@ -379,7 +379,7 @@ watch(
 }
 .os-sel-code {
   flex: 0 0 90px;
-  color: var(--color-text-tertiary);
+  color: var(--ink-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -403,6 +403,6 @@ watch(
 }
 .os-header-label {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--ink-soft);
 }
 </style>

@@ -553,7 +553,7 @@ onMounted(() => {
   background: var(--g1);
   border-radius: 6px;
   font-size: var(--fs-12);
-  color: var(--n-500);
+  color: var(--ink-soft);
 }
 
 .rules-tip p {

@@ -294,7 +294,7 @@ onMounted(loadDetail)
 }
 
 .ann-detail-body :deep(a) {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   text-decoration: underline;
 }
 
@@ -387,7 +387,7 @@ onMounted(loadDetail)
 }
 
 .ann-attach-item:hover .ann-attach-action {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   background: var(--g1);
 }
 

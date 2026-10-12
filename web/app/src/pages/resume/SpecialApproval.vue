@@ -292,7 +292,7 @@ onMounted(() => {
 }
 
 .node-pending {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   font-style: italic;
 }
 </style>

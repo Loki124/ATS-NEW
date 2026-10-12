@@ -675,7 +675,7 @@ onMounted(() => {
 
 .policy-tree__node.active {
   background: var(--brand-a22);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
 }
 
@@ -700,7 +700,7 @@ onMounted(() => {
 
 .policy-tree__node.active .policy-tree__count {
   background: var(--brand-a22);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 
 /* 右侧主内容 */
@@ -853,7 +853,7 @@ onMounted(() => {
   height: 32px;
   border-radius: 6px;
   background: var(--brand-a22);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -879,7 +879,7 @@ onMounted(() => {
 .policy-doc-pinned {
   flex-shrink: 0;
   font-size: 11px;
-  color: var(--c-error);
+  color: var(--c-error-deep);
   background: var(--c-error-soft);
   padding: 1px 6px;
   border-radius: 4px;
@@ -919,7 +919,7 @@ onMounted(() => {
 }
 
 .attach-row__icon {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   display: flex;
   align-items: center;
   justify-content: center;

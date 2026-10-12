@@ -121,7 +121,7 @@ function onClick() {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }

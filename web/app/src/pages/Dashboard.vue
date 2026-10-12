@@ -458,8 +458,8 @@ function onMatterAction(_matter: MatterItem) {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-pill);
-  background: var(--brand);
-  color: white;
+  background: var(--brand-button);
+  color: var(--on-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -593,7 +593,7 @@ function onMatterAction(_matter: MatterItem) {
   height: 32px;
   border-radius: var(--radius-sm);
   background: var(--c-info-soft);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -629,7 +629,7 @@ function onMatterAction(_matter: MatterItem) {
 }
 
 .announcement-item:hover .announcement-item__arrow {
-  color: var(--c-info);
+  color: var(--c-info-deep);
 }
 
 .announcement-list__empty {
@@ -654,13 +654,13 @@ function onMatterAction(_matter: MatterItem) {
   padding: 0 6px;
   border-radius: var(--radius-pill);
   background: var(--c-info-soft);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   font-size: var(--fs-10);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .matter-tab__count--urgent {
   background: var(--c-error-soft);
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 </style>

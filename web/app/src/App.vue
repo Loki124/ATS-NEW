@@ -22,6 +22,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { darkTheme, zhCN, dateZhCN, type GlobalThemeOverrides } from 'naive-ui'
 import { useThemeStore } from './stores/theme'
+import { BRAND_TOKENS } from './styles/brand-tokens.gen'
 
 // 启动期 user 重水化 + 服务端重调已统一在 main.ts 处理.
 // 此前 App.vue onMounted 里的 localStorage('token') 兼容分支已删除 —
@@ -42,14 +43,19 @@ import { useThemeStore } from './stores/theme'
 //    通过 computed 切 :theme prop 让 n-data-table / n-tabs / n-alert
 //    等原生组件走深色调色板。配合 body.dark（CSS 变量）联动 glass/aurora。
 const themeStore = useThemeStore()
-const { brandHex, brandHoverHex, brandPressedHex, isDark } = storeToRefs(themeStore)
+const { brandHex, brandHoverHex, brandPressedHex, brandFgHex, isDark } = storeToRefs(themeStore)
 
 const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   common: {
-    primaryColor:        brandHex.value,
+    // ★ primaryColor 用 brandFgHex 而非 brandHex：brandHex(#6366F1) 作前景色
+    //   实测对白底仅 4.47:1、标签底 3.48:1，均不达 WCAG AA；且暗色下未按 R-212 重排
+    //   （暗底仅 4.13:1）。brandFgHex 取自 brand-tokens.gen.ts，与 CSS --brand-fg 同源，
+    //   浅色 -600（6.16:1）/ 暗色 -300（5.43:1），两模式均达标。
+    //   注意：primaryColor 同时用作按钮**背景**，此时 600+白字=6.16 / 300+深字=5.39 同样达标。
+    primaryColor:        brandFgHex.value,
     primaryColorHover:   brandHoverHex.value,
     primaryColorPressed: brandPressedHex.value,
-    primaryColorSuppl:   brandHex.value,
+    primaryColorSuppl:   brandFgHex.value,
     // === 语义色（与 tokens.css §4 语义色同步，改令牌需同步此处 hex 字面量：Naive parseColor 不解析 var()）===
     successColor: '#16A34A',
     warningColor: '#F59E0B',
@@ -86,12 +92,14 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   },
   Button: {
     borderRadiusMedium: '16px',
-    // 玻璃按钮：白字（DESIGN.md §4 btn-primary：品牌渐变背景 → 白字最稳）
-    textColorPrimary:          '#ffffff',
-    textColorHoverPrimary:     '#ffffff',
-    textColorPressedPrimary:   '#ffffff',
-    textColorFocusPrimary:     '#ffffff',
-    textColorDisabledPrimary:  '#ffffff',
+    // 主按钮文字色必须随主色阶走：primaryColor 在浅色取 -600（深紫，配白字 6.16:1），
+    // 暗色取 -300（**亮紫**，配白字仅 3.29:1，不达标）。
+    // 暗色下按 brand-tokens 的 --on-brand 用 #111827（配 -300 达 5.39:1）。
+    textColorPrimary:          BRAND_TOKENS.buttonText[isDark.value ? 'dark' : 'light'],
+    textColorHoverPrimary:     BRAND_TOKENS.buttonText[isDark.value ? 'dark' : 'light'],
+    textColorPressedPrimary:   BRAND_TOKENS.buttonText[isDark.value ? 'dark' : 'light'],
+    textColorFocusPrimary:     BRAND_TOKENS.buttonText[isDark.value ? 'dark' : 'light'],
+    textColorDisabledPrimary:  BRAND_TOKENS.buttonText[isDark.value ? 'dark' : 'light'],
   },
   // ★ v1.1 评审 P1-3：n-alert 暗色背景走 themeOverrides 不走 !important
   // 4 个 colorInfo/Success/Warning/Error 字段控制 n-alert 的色调

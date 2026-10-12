@@ -475,7 +475,7 @@ onMounted(() => loadProcess())
 }
 .sys-tag {
   font-size: 11px;
-  color: var(--c-warning);
+  color: var(--c-warning-deep);
   background: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
   padding: 1px 6px;
   border-radius: 3px;
@@ -499,7 +499,7 @@ onMounted(() => loadProcess())
 }
 .feature-chip {
   font-size: 11px;
-  color: var(--n-500);
+  color: var(--ink-soft);
   background: var(--g1);
   padding: 2px 6px;
   border-radius: 3px;

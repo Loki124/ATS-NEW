@@ -78,11 +78,11 @@ function isSelected(value: string) {
   align-items: center;
   gap: var(--space-2, 8px);
   padding: var(--space-2, 8px) var(--space-3, 12px);
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--g4);
   border-radius: 8px;
-  background: var(--color-bg-subtle, #f9fafb);
-  color: var(--text-color-base, #111827);
-  font-size: var(--text-sm, 14px);
+  background: var(--g1);
+  color: var(--ink);
+  font-size: var(--fs-14);
   line-height: 1.4;
   white-space: nowrap;
   cursor: pointer;
@@ -106,7 +106,7 @@ function isSelected(value: string) {
 .flo-indicator {
   width: 16px;
   height: 16px;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--g5);
   border-radius: 50%;
   display: inline-flex;
   align-items: center;

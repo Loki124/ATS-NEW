@@ -439,7 +439,7 @@ onMounted(() => {
   padding: 0 var(--space-1) var(--space-2);
 }
 .stats-row b {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 600;
   margin: 0 2px;
 }

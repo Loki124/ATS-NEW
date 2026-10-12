@@ -139,7 +139,7 @@ function onSelect(value: string) {
 .global-search__group-header {
   font-size: var(--fs-12);
   font-weight: 600;
-  color: var(--ink-2);
+  color: var(--ink-soft);
   padding: var(--space-1) 0;
 }
 </style>

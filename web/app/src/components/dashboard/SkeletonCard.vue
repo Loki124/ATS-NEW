@@ -33,9 +33,9 @@ withDefaults(defineProps<{
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
-  background: var(--card-color, #fff);
+  background: var(--surface);
   border-radius: 8px;
-  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+  border: 1px solid var(--g4);
   min-height: 80px;
 }
 .skeleton-card__header {

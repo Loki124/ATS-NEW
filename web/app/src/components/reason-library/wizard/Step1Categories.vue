@@ -351,7 +351,7 @@ function canMoveDown(cat: RuleCategory): boolean {
   color: var(--ink-soft);
   line-height: 1.6;
 }
-.step-intro b { color: var(--brand); font-weight: 600; }
+.step-intro b { color: var(--brand-fg); font-weight: 600; }
 
 .cat-tree {
   /* 去除全局 .glass-card 带来的半透明灰底 (rgba(255,255,255,.62)) → 正常白底 */
@@ -435,7 +435,7 @@ function canMoveDown(cat: RuleCategory): boolean {
   background: var(--g1);
   color: var(--ink-soft);
 }
-.level-badge.l1 { background: var(--brand-soft); color: var(--brand); }
+.level-badge.l1 { background: var(--brand-soft); color: var(--brand-fg); }
 .level-badge.l2 { background: var(--c-success-soft); color: var(--c-success-deep); }
 .level-badge.l3 { background: rgba(139, 92, 246, .12); color: #6d28d9; }
 .level-badge.l4 { background: var(--brand-warm-soft); color: var(--brand-warm-deep); }
@@ -463,7 +463,7 @@ function canMoveDown(cat: RuleCategory): boolean {
 .cat-name-input:disabled { color: var(--ink-faint); cursor: not-allowed; }
 
 .cat-count {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   color: var(--ink-faint);
   flex-shrink: 0;
 }
@@ -522,7 +522,7 @@ function canMoveDown(cat: RuleCategory): boolean {
   color: var(--ink-soft);
   flex-shrink: 0;
 }
-.expand-btn:hover { background: var(--brand-tint, rgba(99,102,241,.1)); color: var(--brand); }
+.expand-btn:hover { background: var(--brand-tint, rgba(99,102,241,.1)); color: var(--brand-fg); }
 .cat-actions {
   display: flex;
   gap: 2px;
@@ -536,13 +536,13 @@ function canMoveDown(cat: RuleCategory): boolean {
   border: none;
   background: none;
   color: var(--ink-soft);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   cursor: pointer;
   padding: 4px 7px;
   border-radius: 5px;
   transition: all var(--duration-fast) var(--ease-out);
 }
-.act-icon:hover:not(:disabled) { background: var(--brand-tint); color: var(--brand); }
-.act-icon.danger:hover:not(:disabled) { background: var(--c-error-soft); color: var(--c-error); }
+.act-icon:hover:not(:disabled) { background: var(--brand-tint); color: var(--brand-fg); }
+.act-icon.danger:hover:not(:disabled) { background: var(--c-error-soft); color: var(--c-error-deep); }
 .act-icon:disabled { color: var(--ink-faint); opacity: .4; cursor: not-allowed; }
 </style>

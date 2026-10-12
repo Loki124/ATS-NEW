@@ -669,7 +669,8 @@ function selectOptions(f: FieldDefinition): { label: string; value: any }[] {
 
 // 编辑表单中「模型映射 + 选项类」字段(需求类型 / 优先级)的下拉项
 function editBindingOptions(key: string): { label: string; value: any }[] {
-  if (key === 'demand_type') return demandTypeOptions
+  // demandTypeOptions 是 computed，需取 .value；priorityOptions 是普通数组
+  if (key === 'demand_type') return demandTypeOptions.value
   if (key === 'priority') return priorityOptions
   return []
 }
@@ -930,7 +931,8 @@ function onPageChange(p: number) {
 }
 
 // 表格列定义
-const columns = computed<DataTableColumns<any>[]>(() => [
+// DataTableColumns<T> 本身已是数组类型，不能再套一层 [] （否则变成「数组的数组」）
+const columns = computed<DataTableColumns<any>>(() => [
   {
     title: t('pages.demand.DemandList.s79'),
     key: 'code',
@@ -1334,7 +1336,7 @@ onUnmounted(() => {
 }
 
 .demand-code {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   font-weight: 600;
   font-size: var(--fs-13);
 }
@@ -1349,17 +1351,17 @@ onUnmounted(() => {
 
 .priority-pill--error {
   background: var(--c-error-soft);
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 
 .priority-pill--warning {
   background: var(--c-warning-soft);
-  color: var(--c-warning);
+  color: var(--c-warning-deep);
 }
 
 .priority-pill--info {
   background: var(--c-info-soft);
-  color: var(--c-info);
+  color: var(--c-info-deep);
 }
 
 .priority-pill--default {
@@ -1462,7 +1464,7 @@ onUnmounted(() => {
 }
 
 .cell-code {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   font-weight: 600;
 }
 
@@ -1513,7 +1515,7 @@ onUnmounted(() => {
 }
 
 .drawer-code {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   font-weight: 600;
   font-size: var(--fs-13);
   flex-shrink: 0;

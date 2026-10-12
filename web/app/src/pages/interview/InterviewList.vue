@@ -132,7 +132,7 @@ const columns = computed(() => [
                 options: items.map(it => ({
                   label: it.label,
                   key: it.key,
-                  ...(it.danger ? { props: { style: 'color: var(--c-error)' } } : {}),
+                  ...(it.danger ? { props: { style: 'color: var(--c-error-deep)' } } : {}),
                 })),
                 trigger: 'click',
                 onSelect: (k: string) => items.find(it => it.key === k)?.onClick(),
@@ -291,13 +291,13 @@ function rowProps(row: any) {
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">{{ t('pages.interview.InterviewList.s3') }}</div>
-        <div class="stat-value" style="color: var(--c-warning);">{{ stats.PENDING }}</div>
+        <div class="stat-value" style="color: var(--c-warning-deep);">{{ stats.PENDING }}</div>
       </n-card>
 </n-gi>
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">{{ t('pages.interview.InterviewList.s4') }}</div>
-        <div class="stat-value" style="color: var(--c-success);">{{ stats.COMPLETED }}</div>
+        <div class="stat-value" style="color: var(--c-success-deep);">{{ stats.COMPLETED }}</div>
       </n-card>
 </n-gi>
       <n-gi>

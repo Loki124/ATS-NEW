@@ -125,7 +125,7 @@ function onClick() {
 }
 
 .stat-card--urgent .stat-card__value {
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 
 .stat-card__suffix {
@@ -152,17 +152,17 @@ function onClick() {
 
 .stat-card__pill--urgent {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 
 .stat-card__pill--up {
   background: var(--c-success-soft);
-  color: var(--c-success);
+  color: var(--c-success-deep);
 }
 
 .stat-card__pill--down {
   background: var(--c-error-soft);
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 
 .stat-card__meta-text {

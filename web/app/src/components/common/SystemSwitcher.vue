@@ -32,7 +32,13 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
 import { useRouter } from 'vue-router'
-import { NDropdown, NIcon, useMessage } from 'naive-ui'
+import {
+  NDropdown,
+  NIcon,
+  useMessage,
+  type DropdownOption,
+  type DropdownDividerOption,
+} from 'naive-ui'
 import { ChevronDownOutline as ChevronDown, CheckmarkOutline as Check, ShareSocialOutline } from '@vicons/ionicons5'
 import { useSystemStore, RECRUIT_SYSTEMS, type RecruitSystemKey } from '../../stores/system'
 
@@ -49,13 +55,16 @@ const systemStore = useSystemStore()
 const message = useMessage()
 const router = useRouter()
 
-const options = computed(() => {
-  const list = RECRUIT_SYSTEMS.map((s) => ({
+const options = computed<Array<DropdownOption | DropdownDividerOption>>(() => {
+  // 下拉项是**异构**的：既含「社会招聘 / 校园招聘」系统切换项（key 为 RecruitSystemKey），
+  // 也含「内推助手」这类路由导航入口（key 为路由路径）与分隔线。
+  // 因此不能用 RecruitSystemKey 收窄，按「普通项 | 分隔线」联合类型声明。
+  const list: Array<DropdownOption | DropdownDividerOption> = RECRUIT_SYSTEMS.map((s) => ({
     key: s.key,
     label: s.label,
     icon: () =>
       s.key === systemStore.current
-        ? h(NIcon, { size: 14, style: 'color:var(--brand)' }, { default: () => h(Check) })
+        ? h(NIcon, { size: 14, style: 'color: var(--brand-fg)' }, { default: () => h(Check) })
         : h('span', { style: 'display:inline-block;width:14px' }),
   }))
   // 「内推助手」与「社会招聘 / 校园招聘」并列，作为校招、社招大分类下拉下的功能入口
@@ -100,7 +109,7 @@ function onSelect(key: string) {
 }
 .sys-switch:hover,
 .sys-switch:focus-visible {
-  color: var(--brand);
+  color: var(--brand-fg);
   background: var(--brand-tint);
 }
 .sys-switch:focus-visible {

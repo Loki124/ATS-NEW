@@ -128,7 +128,7 @@ async function onAdd() {
 .mf-switch {
   background: none;
   border: none;
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-12);
   cursor: pointer;
   padding: var(--space-1);

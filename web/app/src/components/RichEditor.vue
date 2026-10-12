@@ -332,7 +332,7 @@ onBeforeUnmount(() => {
 }
 
 .rich-editor__body :deep([data-slate-editor] a) {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   text-decoration: underline;
 }
 

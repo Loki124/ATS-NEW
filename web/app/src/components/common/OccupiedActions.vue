@@ -30,7 +30,7 @@ const emit = defineEmits<{
   transition: 0.15s;
 }
 .occ-btn:hover { border-color: var(--brand); background: var(--brand-a12); }
-.occ-btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.occ-btn.primary { background: var(--brand-button); color: var(--on-brand); border-color: var(--brand); }
 .occ-btn.primary:hover { background: var(--ph); }
 .occ-btn.warn { color: var(--c-error-deep); border-color: var(--c-error-deep); }
 .occ-btn.warn:hover { background: var(--c-error-bg); }

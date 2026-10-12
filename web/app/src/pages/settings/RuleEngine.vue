@@ -389,13 +389,13 @@ onMounted(loadList)
 <style scoped>
 /* 仅保留全局 .kpi-* 未覆盖的脚注行；其余（.page-header/.page-title/.page-subtitle/.kpi-row/.kpi-card/.toolbar/.table-wrap）
    统一复用 glass.css 全局类，禁止私有重定义（SETTINGS_PAGE_STRUCTURE.md §0 / §4） */
-.kpi-foot { color: var(--ink-faint); font-size: var(--fs-11); margin-top: 4px; }
+.kpi-foot { color: var(--ink-faint); font-size: var(--fs-12); margin-top: 4px; }
 
 .rule-name { font-weight: 500; color: var(--ink); }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--fs-12); }
 .count-badge {
   display: inline-block; min-width: 24px; padding: 0 8px; line-height: 18px;
-  background: var(--brand-tint); color: var(--brand);
+  background: var(--brand-tint); color: var(--brand-fg);
   border-radius: 10px; font-size: var(--fs-12); font-weight: 600;
   text-align: center;
 }

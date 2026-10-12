@@ -92,7 +92,7 @@ const emit = defineEmits<{
 }
 
 .matter-list__row--urgent .matter-list__title-text {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
 }
 
@@ -104,7 +104,7 @@ const emit = defineEmits<{
 }
 
 .matter-list__icon {
-  color: var(--brand);
+  color: var(--brand-fg);
   flex-shrink: 0;
 }
 

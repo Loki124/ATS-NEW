@@ -841,8 +841,8 @@ const handleSendNotification = () => {
 .candidate-avatar { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: 32px; font-weight: 700; } /* v2.9: 越界硬编码渐变 var(--c-purple)/var(--c-info-deep) → brand 渐变 + 移除 !important */
 .candidate-header { display: flex; justify-content: space-between; align-items: flex-start; }
 .contact-info { color: var(--ink-soft); }
-.position-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand); }
-.channel-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand); }
+.position-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand-fg); }
+.channel-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand-fg); }
 .candidate-meta { text-align: right; color: var(--ink-soft); font-size: var(--fs-12); }
 .tabs-card { border-radius: 24px; border: 1px solid var(--border-hairline); box-shadow: none; }
 .info-section { padding: var(--space-4); }
@@ -881,7 +881,7 @@ const handleSendNotification = () => {
 .left-sidebar { width: 340px; background: var(--c-info-soft); border-right: 1px solid var(--overlay-glass-mid); padding: var(--space-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-8); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
 .step-section { display: flex; flex-direction: column; gap: var(--space-4); }
 .step-title { font-size: var(--fs-16); font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: var(--space-2); margin: 0; }
-.step-number { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; font-size: var(--fs-12); font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.step-number { width: 24px; height: 24px; border-radius: 50%; background: var(--brand-button); color: var(--on-brand); font-size: var(--fs-12); font-weight: 600; display: flex; align-items: center; justify-content: center; }
 .step-content { display: flex; flex-direction: column; gap: var(--space-4); }
 .content-group { display: flex; flex-direction: column; gap: var(--space-2); }
 .content-group-title { font-size: var(--fs-14); font-weight: 600; color: var(--ink); padding-left: var(--space-1); }
@@ -891,14 +891,14 @@ const handleSendNotification = () => {
 .method-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); } /* v2.8 T2.8.2: var(--g6)/var(--g1) → var(--border-hairline)/var(--glass-bg-card) */
 .method-item:hover { border-color: var(--brand); background: var(--brand-soft); }
 .method-item.selected { border-color: var(--brand); background: var(--brand-a12); }
-.method-icon { font-size: var(--fs-20); color: var(--brand); }
+.method-icon { font-size: var(--fs-20); color: var(--brand-fg); }
 .method-name { font-size: var(--fs-14); font-weight: 600; color: var(--ink); }
 .right-content { flex: 1; padding: var(--space-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-6); background: var(--glass-bg-card); } /* v2.8 T2.8.2: var(--g1) → var(--glass-bg-card) */
 /* v2 bugfix P0-A: 金色硬编码 var(--c-warning-bg)/var(--c-warning-deep)/RGBA(255,214,102,0.1) → 改用 --c-warning 系列 token */
 .info-callout { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); background: var(--c-warning-soft); border: 1px solid var(--c-warning); border-radius: 8px; font-size: var(--fs-14); color: var(--ink); }
 .editor-section { display: flex; flex-direction: column; gap: var(--space-3); }
 .editor-header { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-3); border-bottom: 1px solid var(--overlay-glass-mid); }
-.editor-icon { font-size: var(--fs-24); color: var(--brand); }
+.editor-icon { font-size: var(--fs-24); color: var(--brand-fg); }
 .editor-title { font-size: var(--fs-16); font-weight: 600; color: var(--ink); margin: 0; }
 .editor-field { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: var(--fs-12); font-weight: 500; color: var(--ink-soft); }

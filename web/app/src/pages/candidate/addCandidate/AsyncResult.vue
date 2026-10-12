@@ -82,7 +82,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   gap: var(--space-1);
   transition: 0.15s;
 }
-.bp { background: var(--brand); color: var(--n-100); }
+.bp { background: var(--brand-button); color: var(--on-brand); }
 .bp:hover { background: var(--ph); }
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
 

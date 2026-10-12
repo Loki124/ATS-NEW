@@ -276,7 +276,7 @@ onMounted(() => {
   transition: color 0.15s, background 0.15s;
 }
 .ann-kb__back:hover {
-  color: var(--c-info);
+  color: var(--c-info-deep);
   background: var(--g1);
 }
 
@@ -305,7 +305,7 @@ onMounted(() => {
 
 .ann-kb__tree-node.active {
   background: var(--g1);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   font-weight: 500;
 }
 
@@ -323,7 +323,9 @@ onMounted(() => {
 
 .ann-kb__tree-count {
   font-size: var(--fs-12);
-  color: var(--n-380);
+  /* --n-380 / --ink-faint 是 #64748B：对白底 4.8:1 达标，但压在 --g1 (#F1F5F9) 徽标底上
+   * 只有 4.34:1，12px 小字不达 AA。浅色底一律降一档用 --ink-soft (#475569, 6.92:1)。 */
+  color: var(--ink-soft);
   background: var(--g1);
   padding: 1px 6px;
   border-radius: 10px;
@@ -331,7 +333,7 @@ onMounted(() => {
 
 .ann-kb__tree-node.active .ann-kb__tree-count {
   background: var(--g2);
-  color: var(--c-info);
+  color: var(--c-info-deep);
 }
 
 /* 右侧主内容 */
@@ -394,7 +396,7 @@ onMounted(() => {
   height: 42px;
   border-radius: 8px;
   background: var(--g1);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -491,7 +493,7 @@ onMounted(() => {
   height: 32px;
   border-radius: 6px;
   background: var(--g1);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   display: flex;
   align-items: center;
   justify-content: center;

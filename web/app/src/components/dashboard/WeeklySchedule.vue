@@ -270,7 +270,7 @@ function onItemClick(item: ScheduleItem) {
 
 .weekly-schedule__segment--active {
   background: var(--surface);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
@@ -309,7 +309,7 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .weekly-schedule__col--today .weekly-schedule__col-header {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
 }
 
@@ -346,7 +346,7 @@ function onItemClick(item: ScheduleItem) {
 }
 
 .weekly-schedule__time {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }

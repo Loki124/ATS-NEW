@@ -45,5 +45,5 @@ function select(pos: string) {
   transition: 0.15s;
 }
 .apply-pos-item:hover { border-color: var(--brand); }
-.apply-pos-item.sel { border-color: var(--brand); background: var(--brand-a12); color: var(--brand); font-weight: 500; }
+.apply-pos-item.sel { border-color: var(--brand); background: var(--brand-a12); color: var(--brand-fg); font-weight: 500; }
 </style>

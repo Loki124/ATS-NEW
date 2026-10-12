@@ -154,13 +154,13 @@ onMounted(loadList)
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">{{ t('pages.screening.ScreeningList.s6') }}</div>
-        <div class="stat-value" style="color: var(--c-success);">{{ stats.active }}</div>
+        <div class="stat-value" style="color: var(--c-success-deep);">{{ stats.active }}</div>
       </n-card>
 </n-gi>
       <n-gi>
 <n-card size="small" :bordered="false" class="stat-card">
         <div class="stat-label">{{ t('pages.screening.ScreeningList.s7') }}</div>
-        <div class="stat-value" style="color: var(--c-warning);">{{ stats.selected }}</div>
+        <div class="stat-value" style="color: var(--c-warning-deep);">{{ stats.selected }}</div>
       </n-card>
 </n-gi>
     </n-grid>

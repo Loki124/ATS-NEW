@@ -273,7 +273,7 @@ function confirm() {
   color: var(--ink);
 }
 .picker-row .en {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   color: var(--ink-faint);
   margin-left: 6px;
 }
@@ -283,7 +283,7 @@ function confirm() {
   padding: 1px 7px;
   border-radius: 999px;
 }
-.picker-row .type.system { background: var(--brand-soft); color: var(--brand); }
+.picker-row .type.system { background: var(--brand-soft); color: var(--brand-fg); }
 .picker-row .type.custom { background: rgba(139, 92, 246, .12); color: #6d28d9; }
 .picker-row.disabled { cursor: not-allowed; opacity: .6; }
 .picker-row.disabled:hover { background: transparent; }
@@ -293,7 +293,7 @@ function confirm() {
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--c-error-soft);
-  color: var(--c-error);
+  color: var(--c-error-deep);
   flex-shrink: 0;
 }
 

@@ -191,27 +191,27 @@ body.dark .glass-card {
 }
 .glass-tag--brand {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-fg);
   border-color: var(--brand-soft);
 }
 .glass-tag--success {
   background: var(--c-success-soft);
-  color: var(--c-success);
+  color: var(--c-success-deep);
   border-color: var(--c-success-soft);
 }
 .glass-tag--warning {
   background: var(--c-warning-soft);
-  color: var(--c-warning);
+  color: var(--c-warning-deep);
   border-color: var(--c-warning-soft);
 }
 .glass-tag--error {
   background: var(--c-error-soft);
-  color: var(--c-error);
+  color: var(--c-error-deep);
   border-color: var(--c-error-soft);
 }
 .glass-tag--info {
   background: var(--c-info-soft);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   border-color: var(--c-info-soft);
 }
 
@@ -274,7 +274,7 @@ body.dark .glass-card {
 }
 .btn-secondary:hover {
   border-color: var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .btn-secondary:disabled {
   opacity: .5;
@@ -310,7 +310,7 @@ body.dark .glass-card {
   gap: var(--space-2);
   background: var(--c-error-soft);
   border: 1px solid var(--c-error-soft);
-  color: var(--c-error);
+  color: var(--c-error-deep);
   border-radius: var(--radius-md);
   padding: 10px 18px;
   font-weight: 600;
@@ -348,7 +348,7 @@ body.dark .glass-card {
 }
 .glass-sidebar :deep(.n-menu-item-content--selected) {
   background: var(--brand-soft) !important;
-  color: var(--brand) !important;
+  color: var(--brand-fg) !important;
   font-weight: 600;
 }
 .glass-sidebar :deep(.n-menu-item-content--selected)::before {
@@ -575,7 +575,7 @@ body.dark .n-modal-mask {
 .n-dropdown-option--selected .n-dropdown-option-body__prefix,
 .n-dropdown-option--active .n-dropdown-option-body__prefix,
 .n-base-select-option--selected .n-base-select-option__prefix {
-  color: var(--brand) !important;
+  color: var(--brand-fg) !important;
 }
 .n-dropdown-option__content,
 .n-base-select-option__content {
@@ -823,9 +823,9 @@ body.dark .n-data-table .n-data-table-th {
 /* === .gradient-btn（参照 CampusControl .gradient-btn，全局化）===
  * 用于各设置页的主操作按钮，与 .btn-primary 同源但语义更聚焦。 */
 .gradient-btn {
-  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
+  background: linear-gradient(135deg, var(--brand-grad-from), var(--brand-grad-to)) !important;
   border: none !important;
-  color: var(--n-100) !important;
+  color: var(--on-brand) !important;
   box-shadow: 0 4px 14px var(--glow-brand) !important;
   transition: all var(--duration-base) var(--ease-out);
 }
@@ -839,9 +839,9 @@ body.dark .n-data-table .n-data-table-th {
  * 排除 text / ghost / dashed / secondary / color 等线型变体，避免破坏行内小按钮。
  * 弹窗/抽屉内按钮因 teleport 到 body 不在此作用域，保持品牌实色即可。 */
 .settings-scroll .n-button.n-button--primary-type:has(> .n-button__border):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
-  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
+  background: linear-gradient(135deg, var(--brand-grad-from), var(--brand-grad-to)) !important;
   border: none !important;
-  color: var(--n-100) !important;
+  color: var(--on-brand) !important;
   box-shadow: 0 4px 14px var(--glow-brand) !important;
   transition: all var(--duration-base) var(--ease-out);
 }
@@ -919,8 +919,8 @@ body.dark .kpi-card:hover {
 }
 .kpi-label { font-size: var(--text-meta); color: var(--ink-soft); }
 .kpi-value { font-size: 26px; font-weight: 700; color: var(--ink); }
-.kpi-card.danger .kpi-value { color: var(--c-error); }
-.kpi-card.warn .kpi-value { color: var(--c-warning); }
+.kpi-card.danger .kpi-value { color: var(--c-error-deep); }
+.kpi-card.warn .kpi-value { color: var(--c-warning-deep); }
 .kpi-card.danger:hover { box-shadow: 0 0 0 1px var(--c-error-soft), 0 14px 34px rgba(239, 68, 68, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
 .kpi-card.warn:hover { box-shadow: 0 0 0 1px var(--c-warning-soft), 0 14px 34px rgba(245, 158, 11, .14), 8px 8px 18px rgba(0,0,0,.10), -8px -8px 18px rgba(255,255,255,.5); }
 
@@ -1086,10 +1086,10 @@ body.dark .n-radio__label {
 }
 
 /* n-tag 暗色语义色微调（success/warning/error/info 在深玻璃上对比度补强） */
-body.dark .n-tag.n-tag--success-type { color: var(--c-success); background: var(--c-success-soft); }
-body.dark .n-tag.n-tag--warning-type { color: var(--c-warning); background: var(--c-warning-soft); }
-body.dark .n-tag.n-tag--error-type   { color: var(--c-error);   background: var(--c-error-soft); }
-body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(--c-info-soft); }
+body.dark .n-tag.n-tag--success-type { color: var(--c-success-deep); background: var(--c-success-soft); }
+body.dark .n-tag.n-tag--warning-type { color: var(--c-warning-deep); background: var(--c-warning-soft); }
+body.dark .n-tag.n-tag--error-type   { color: var(--c-error-deep);   background: var(--c-error-soft); }
+body.dark .n-tag.n-tag--info-type    { color: var(--c-info-deep);    background: var(--c-info-soft); }
 
 /* =============================================================
  * ★ 2026-08-24 阶段 F · 校招管控范本全局化（单一事实来源）
@@ -1264,11 +1264,15 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info);    background: var(
      （scoped 样式/主题切换易使其清零，导致表单/列表贴边）。这是"编辑院校"等弹窗贴边的根因。 */
   padding: var(--modal-pad-y) var(--modal-pad-x);
   scrollbar-width: thin;
-  scrollbar-color: var(--color-border) transparent;
+  /* ★ 原为 var(--color-border)，该令牌在本仓从未定义（真实色板是 --ink / --g / --c / --glass 系列）。
+     无 fallback 的未定义 var() 会让整条声明失效 → scrollbar-color 退回默认，
+     而下面 webkit thumb 的 background 同理失效，弹窗滚动条几乎不可见，
+     用户失去"内容还可继续滚动"的视觉线索。改用真实中性阶梯 --g5。 */
+  scrollbar-color: var(--g5) transparent;
 }
 .n-modal .n-card-content::-webkit-scrollbar { width: 8px; }
 .n-modal .n-card-content::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--g5);
   border-radius: 4px;
 }
 .n-modal .n-card-content::-webkit-scrollbar-track { background: transparent; }
@@ -1308,9 +1312,9 @@ body:has(.n-modal-body-wrapper) .page-body {
 
 /* === 弹窗主按钮渐变（teleport 到 body，全局兜底，与 .gradient-btn 同源）=== */
 .n-modal .n-button.n-button--primary-type:has(> .n-button__border):not(.n-button--ghost):not(.n-button--dashed):not(.n-button--secondary):not(.n-button--color) {
-  background: linear-gradient(135deg, var(--brand), var(--brand-grad-a)) !important;
+  background: linear-gradient(135deg, var(--brand-grad-from), var(--brand-grad-to)) !important;
   border: none !important;
-  color: var(--n-100) !important;
+  color: var(--on-brand) !important;
   box-shadow: 0 4px 14px var(--glow-brand) !important;
   transition: all var(--duration-base) var(--ease-out);
 }
@@ -1358,7 +1362,7 @@ body:has(.n-modal-body-wrapper) .page-body {
   top: 8px;
   z-index: var(--z-toast);
   background: var(--surface);
-  color: var(--brand);
+  color: var(--brand-fg);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
 }

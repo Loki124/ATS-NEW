@@ -940,7 +940,7 @@ onUnmounted(() => {
 /* margin-bottom 与负 margin（让底部 border 通栏）由全局 .settings-scroll .page-header 统一处理；
    本页仅保留 flex 布局以把「新增字典」按钮推到右侧。 */
 /* .page-title / .page-subtitle 复用全局 glass.css 渐变规格（26px 渐变标题 + --ink-soft 副标题），不再私有覆盖 */
-.code-pill, .num-pill { font-size: var(--fs-12); color: var(--n-500); background: var(--g1); padding: 2px var(--space-2); border-radius: 4px; }
+.code-pill, .num-pill { font-size: var(--fs-12); color: var(--ink-soft); background: var(--g1); padding: 2px var(--space-2); border-radius: 4px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
 .section { margin-bottom: var(--space-4); }
 .section--info :deep(.n-card__content) { padding: var(--space-3) var(--space-4) !important; }
@@ -966,9 +966,9 @@ onUnmounted(() => {
   font-size: var(--fs-13);
   color: var(--ink);
 }
-.hint-bar-icon { color: var(--c-warning); font-size: var(--fs-14); flex-shrink: 0; }
+.hint-bar-icon { color: var(--c-warning-deep); font-size: var(--fs-14); flex-shrink: 0; }
 .hint-bar-text { color: var(--ink-soft); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hint-bar-more { color: var(--brand); padding: 0 var(--space-1); }
+.hint-bar-more { color: var(--brand-fg); padding: 0 var(--space-1); }
 .hint-pop-list { margin: 0; padding-left: 18px; font-size: var(--fs-13); max-width: 360px; }
 .hint-pop-list li { margin-bottom: var(--space-1); line-height: 1.6; }
 
@@ -1018,18 +1018,18 @@ onUnmounted(() => {
 .el-cell .n-button { white-space: nowrap; }
 
 /* v3: 行内撤销 ×icon 按钮(行首) - 紧凑、红色、hover 才显高饱和度 */
-.row-cancel-icon { color: var(--c-error); padding: 0 4px !important; transition: opacity var(--dur-fast); }
-.row-cancel-icon:hover { color: var(--c-error); opacity: .75; }
+.row-cancel-icon { color: var(--c-error-deep); padding: 0 4px !important; transition: opacity var(--dur-fast); }
+.row-cancel-icon:hover { color: var(--c-error-deep); opacity: .75; }
 .row-cancel-icon :deep(.n-icon) { font-size: 14px; }
 
 .draft-hint {
   display: flex; align-items: center; gap: var(--space-2); flex: 1;
-  color: var(--c-warning); font-size: var(--fs-13); font-weight: 500;
+  color: var(--c-warning-deep); font-size: var(--fs-13); font-weight: 500;
   white-space: nowrap;
   transition: opacity 0.2s ease;
 }
 .draft-hint.hint-hidden { opacity: 0; pointer-events: none; }
-.draft-icon { color: var(--c-warning); }
+.draft-icon { color: var(--c-warning-deep); }
 
 .submit-bar {
   position: sticky; bottom: 16px; left: 0; right: 0;

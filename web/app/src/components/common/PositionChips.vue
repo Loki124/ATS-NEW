@@ -38,5 +38,5 @@ function toggle(id: string) {
   transition: 0.15s;
 }
 .pos-item:hover { border-color: var(--brand); }
-.pos-item.sel { border-color: var(--brand); background: var(--brand-a12); color: var(--brand); font-weight: 500; }
+.pos-item.sel { border-color: var(--brand); background: var(--brand-a12); color: var(--brand-fg); font-weight: 500; }
 </style>

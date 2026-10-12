@@ -1616,7 +1616,7 @@ onMounted(async () => {
   margin-top: var(--space-4);
 }
 
-.block-hint { color: var(--c-error); font-size: var(--text-small); margin: var(--space-2) 0 0; }
+.block-hint { color: var(--c-error-deep); font-size: var(--text-small); margin: var(--space-2) 0 0; }
 
 .drawer-footer { display: flex; justify-content: flex-end; gap: var(--space-3); }
 
@@ -1888,7 +1888,7 @@ onMounted(async () => {
 }
 .import-errors li {
   font-size: var(--fs-12);
-  color: var(--c-error);
+  color: var(--c-error-deep);
   margin-bottom: var(--space-1);
 }
 

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
+import { BRAND_TOKENS } from '@/styles/brand-tokens.gen'
 
 /**
  * Theme Store — v2 液态玻璃运行时换肤（DESIGN.md §2 可自定义机制）
@@ -10,6 +11,18 @@ import { ref, computed, watch } from 'vue'
  *
  * Naive UI themeOverrides 需要 hex 字面量（不接受 CSS 变量），
  * 因此 store 同时暴露 brandHex 给 App.vue 派生 primaryColor 等。
+ *
+ * ★ brandFgHex：品牌色「作前景色」（强调文字/图标/链接）的 hex。
+ *   不能直接用 brandHex —— 实测 #6366F1 对白底仅 4.47:1、标签底 3.48:1，均不达 AA。
+ *   也不能用 --brand-text —— 它锁 900 深阶，暗色下被 R-212 重排成近黑（1.2:1 不可见）。
+ *   本值取自 brand-tokens.gen.ts（由 brand-tokens.mjs 与 CSS 同源产出），
+ *   已按 R-210 逐模式选「刚好达标 4.5:1」的阶：浅 -600 / 暗 -300。
+ *   **切勿在 store 内另写推导**，否则会与 CSS 的 --brand-fg 漂移。
+ *
+ * ⚠️ 已知限制（既存，非本次引入）：applyBrandToDom 只写 --brand，
+ *    --brand-50..900 / --brand-button / --brand-fg 均不随换肤重算。
+ *    即在「公司信息管理」改品牌色后，色阶类令牌仍是旧品牌的阶。
+ *    要彻底修复需运行时重算整套色阶，属独立工程。
  *
  * 持久化：localStorage 'ats-theme' = { brand, mode }
  *   mode: 'light' | 'dark' | 'auto'（auto = 跟随 prefers-color-scheme）
@@ -118,8 +131,13 @@ export const useThemeStore = defineStore('theme', () => {
   let autoMq: MediaQueryList | null = null
 
   // === 派生（Naive UI themeOverrides 用） ===
-  const brandHoverHex = computed(() => deriveHover(brandHex.value))
-  const brandPressedHex = computed(() => derivePressed(brandHex.value))
+  /** 品牌色作前景（强调文字/图标/链接），逐模式取 ≥4.5:1 的阶。与 CSS --brand-fg 同源。 */
+  const brandFgHex = computed(() => (isDark.value ? BRAND_TOKENS.fg.dark.color : BRAND_TOKENS.fg.light.color))
+  // hover/pressed 必须基于 brandFgHex 派生，而非 brandHex：
+  // primaryColor 已改为 brandFgHex，若仍从 brandHex(#6366F1) 派生，
+  // hover 态会跳到与常态不同色系的紫，出现可见色跳。
+  const brandHoverHex = computed(() => deriveHover(brandFgHex.value))
+  const brandPressedHex = computed(() => derivePressed(brandFgHex.value))
 
   // === 内部：把状态写到 DOM / localStorage ===
 
@@ -229,6 +247,7 @@ export const useThemeStore = defineStore('theme', () => {
     // 派生
     brandHoverHex,
     brandPressedHex,
+    brandFgHex,        // ★ 品牌前景色（primaryColor 用），与 --brand-fg 同源
     // actions
     setBrand,
     setMode,

@@ -106,12 +106,12 @@ function formatDate(ts: number): string {
   padding: 12px 14px;
 }
 .cfc-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.cfc-icon { color: var(--brand); }
+.cfc-icon { color: var(--brand-fg); }
 .cfc-title { font-weight: 600; font-size: var(--fs-14); color: var(--ink); }
 .cfc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
 .cfc-cell { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .cfc-cell-label { font-size: var(--fs-13); color: var(--ink-soft); }
-.cfc-req { color: var(--error); margin-left: 2px; }
+.cfc-req { color: var(--c-error-deep); margin-left: 2px; }
 @media (max-width: 640px) {
   .cfc-grid { grid-template-columns: minmax(0, 1fr); }
 }

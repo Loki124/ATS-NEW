@@ -74,7 +74,7 @@ function onClick() {
   height: 36px;
   border-radius: var(--radius-sm);
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-fg-on-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -106,7 +106,7 @@ function onClick() {
 }
 
 .quick-entry__count {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--text-h3);
   font-weight: 500;
   font-variant-numeric: tabular-nums;

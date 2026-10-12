@@ -253,14 +253,14 @@ watch(
 .dr-section-head { display: flex; flex-direction: column; gap: 4px; }
 .dr-section-title {
   display: flex; align-items: center; gap: var(--space-2);
-  font-size: 14px; font-weight: 600; color: var(--color-text-primary);
+  font-size: 14px; font-weight: 600; color: var(--ink);
 }
 .dr-section-bar {
   width: 4px; height: 14px; border-radius: 2px;
-  background: var(--color-primary);
+  background: var(--brand);
 }
 .dr-section-sub {
-  font-size: 12px; color: var(--color-text-tertiary);
+  font-size: 12px; color: var(--ink-faint);
   padding-left: calc(4px + var(--space-2));
 }
 
@@ -271,11 +271,11 @@ watch(
 }
 .dr-row-index {
   width: 20px; text-align: right;
-  font-size: 14px; color: var(--color-text-secondary);
+  font-size: 14px; color: var(--ink-soft);
 }
 
 .dr-add { justify-content: flex-start; width: fit-content; }
 
 .dr-expr-item { margin-bottom: 0; }
-.dr-expr-item :deep(.n-form-item-feedback) { color: var(--color-text-tertiary); }
+.dr-expr-item :deep(.n-form-item-feedback) { color: var(--ink-faint); }
 </style>

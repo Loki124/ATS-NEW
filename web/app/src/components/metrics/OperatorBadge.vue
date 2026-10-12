@@ -63,7 +63,7 @@ function operatorLabel(op: string): string {
 .ws-op-pop-title {
   font-size: var(--fs-12);
   font-weight: 600;
-  color: var(--ink-strong);
+  color: var(--ink);
 }
 .ws-op-pop-chips {
   display: flex;

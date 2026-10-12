@@ -21,5 +21,5 @@ const crumbs = computed(() =>
 <style scoped>
 .ats-breadcrumb { font-size: var(--text-small); padding: var(--space-2) 0; color: var(--ink-faint); }
 .ats-breadcrumb a { color: var(--ink-soft); cursor: pointer; }
-.ats-breadcrumb a:hover { color: var(--brand); }
+.ats-breadcrumb a:hover { color: var(--brand-fg); }
 </style>

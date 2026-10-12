@@ -88,10 +88,10 @@ function onClick(stat: StatItem) {
   line-height: 1;
 }
 /* 强调色 → 语义四态（DESIGN.md §4 状态色） */
-.stat-bar__item--amber .stat-bar__value { color: var(--c-warning); }
-.stat-bar__item--rose .stat-bar__value { color: var(--c-error); }
-.stat-bar__item--sky .stat-bar__value { color: var(--c-info); }
-.stat-bar__item--emerald .stat-bar__value { color: var(--c-success); }
+.stat-bar__item--amber .stat-bar__value { color: var(--c-warning-deep); }
+.stat-bar__item--rose .stat-bar__value { color: var(--c-error-deep); }
+.stat-bar__item--sky .stat-bar__value { color: var(--c-info-deep); }
+.stat-bar__item--emerald .stat-bar__value { color: var(--c-success-deep); }
 
 /* === 响应式 4→2→1（DESIGN.md §11 断点 · T4.1 收口）===
  *   ≥1281px: 4 列横向（默认）

@@ -723,10 +723,10 @@ async function loadConfigIntoState() {
 }
 .sr-save-hint {
   font-size: var(--text-meta);
-  color: var(--c-warning);
+  color: var(--c-warning-deep);
 }
-.sr-save-hint.saved { color: var(--c-success); }
-.sr-save-hint.saving { color: var(--c-info); }
+.sr-save-hint.saved { color: var(--c-success-deep); }
+.sr-save-hint.saving { color: var(--c-info-deep); }
 
 .sr-config-body { min-height: 120px; }
 
@@ -775,7 +775,7 @@ async function loadConfigIntoState() {
 .sr-group-count {
   flex-shrink: 0;
   background: var(--c-info-soft);
-  color: var(--c-info);
+  color: var(--c-info-deep);
 }
 .sr-group-empty {
   padding: var(--space-3) 0;
@@ -797,7 +797,7 @@ async function loadConfigIntoState() {
 }
 .sr-drag-handle:hover {
   background: var(--brand-tint);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .sr-drag-handle:active { cursor: grabbing; }
 .sr-drag-handle-placeholder {
@@ -851,7 +851,7 @@ async function loadConfigIntoState() {
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--c-info-soft);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   font-size: var(--text-meta);
   white-space: nowrap;
 }
@@ -921,10 +921,10 @@ async function loadConfigIntoState() {
               color var(--duration-base, .2s) var(--ease-out, ease),
               border-color var(--duration-base, .2s) var(--ease-out, ease);
 }
-.sr-stage-chip:hover { border-color: var(--brand-tint); color: var(--brand); }
+.sr-stage-chip:hover { border-color: var(--brand-tint); color: var(--brand-fg); }
 .sr-stage-chip.active {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-fg);
   border-color: var(--brand-soft);
 }
 
@@ -964,7 +964,7 @@ async function loadConfigIntoState() {
 .sr-form-item { display: flex; flex-direction: column; gap: var(--space-1); }
 .sr-form-item--full { grid-column: 1 / -1; }
 .sr-form-label { font-size: var(--text-small); color: var(--ink-soft); }
-.sr-req { color: var(--c-error); margin-left: 2px; }
+.sr-req { color: var(--c-error-deep); margin-left: 2px; }
 .sr-attachment {
   border: 1px dashed var(--border-hairline);
   border-radius: var(--radius-md);

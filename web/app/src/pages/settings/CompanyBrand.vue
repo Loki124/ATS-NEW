@@ -506,7 +506,12 @@ onMounted(() => {
   margin: 0;
   font-size: var(--fs-18);
   font-weight: 600;
-  color: var(--pc);
+  /* 原 var(--pc) 未定义 → 回落继承。统一走 --brand-fg（brand-tokens.css 生成）：
+     该令牌按 R-210 在各模式下动态选「刚好达标 4.5:1」的最浅阶 ——
+     浅色取 -600（对白底 6.16:1），暗色取 -300（对暗底 5.43:1）。
+     不可直接用 --brand（白底 4.47 / 标签底 3.48，不达 AA），
+     也不可用 --brand-text（锁 900 深阶，暗色下被 R-212 重排成近黑，仅 1.2:1）。 */
+  color: var(--brand-fg);
   transition: color .3s ease;
 }
 .portal-sub {

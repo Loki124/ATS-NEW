@@ -638,7 +638,7 @@ function handleUserMenu(key: string) {
   transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .layout-header__back:hover {
-  color: var(--brand);
+  color: var(--brand-fg);
   background: var(--brand-tint);
 }
 
@@ -1007,7 +1007,7 @@ function handleUserMenu(key: string) {
 .sider-footer:hover,
 .sider-footer:focus-visible {
   background: var(--brand-tint);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .sider-footer:active {
   background: var(--brand-soft);
@@ -1037,7 +1037,7 @@ function handleUserMenu(key: string) {
 }
 /* 折叠态激活态(选中设置路由时高亮) */
 .sider-footer--active {
-  color: var(--brand);
+  color: var(--brand-fg-on-soft);
   background: var(--brand-soft);
 }
 </style>
@@ -1080,7 +1080,7 @@ function handleUserMenu(key: string) {
 
 .user-menu-dropdown .n-dropdown-option-body:not(.n-dropdown-option-body--disabled):hover .n-dropdown-option-body__prefix,
 .user-menu-dropdown .n-dropdown-option-body:not(.n-dropdown-option-body--disabled):hover .user-menu-row-label {
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 
 /* 分组标题 */
@@ -1130,7 +1130,7 @@ function handleUserMenu(key: string) {
 
 .user-menu-check {
   flex-shrink: 0;
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 
 /* 语言开关 */
@@ -1141,7 +1141,7 @@ function handleUserMenu(key: string) {
 /* 退出登录 */
 .user-menu-logout .n-dropdown-option-body__prefix,
 .user-menu-logout .user-menu-row-label {
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 
 .user-menu-logout .n-dropdown-option-body:hover {

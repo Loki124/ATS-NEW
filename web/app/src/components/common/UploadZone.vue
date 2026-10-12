@@ -70,5 +70,5 @@ function handleDrop(e: DragEvent) {
   color: var(--g6);
   cursor: pointer;
 }
-.up-quick span:hover { border-color: var(--brand); color: var(--brand); }
+.up-quick span:hover { border-color: var(--brand); color: var(--brand-fg); }
 </style>

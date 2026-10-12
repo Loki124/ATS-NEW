@@ -551,13 +551,13 @@ const stageLibrary = ref<{ id: string; code: string; name: string; stageType: st
 // ===== 元数据映射 =====
 // 阶段类型为系统内置枚举 (后端 StageType), 与后端 StageType.choices 对齐; 不再依赖数据字典.
 const STAGE_TYPE_META: Record<string, { label: string; color: string; tagType: 'info' | 'warning' | 'success' | 'primary' | 'default'; icon: any }> = {
-  START_END:  { label: t('pages.settings.ProcessDetailModal.s81'), color: 'var(--c-primary)', tagType: 'primary', icon: FlagOutline },
+  START_END:  { label: t('pages.settings.ProcessDetailModal.s81'), color: 'var(--brand)', tagType: 'primary', icon: FlagOutline },
   SCREEN:     { label: t('pages.settings.ProcessDetailModal.s82'), color: 'var(--c-info)',    tagType: 'info',    icon: FilterOutline },
   INVITATION: { label: t('pages.settings.ProcessDetailModal.s83'), color: 'var(--c-warning)', tagType: 'warning', icon: MailOutline },
   INTERVIEW:  { label: t('pages.settings.ProcessDetailModal.s84'), color: 'var(--c-purple)',  tagType: 'primary', icon: VideocamOutline },
   ASSESSMENT: { label: t('pages.settings.ProcessDetailModal.s85'), color: 'var(--c-cyan)',    tagType: 'info',    icon: ClipboardOutline },
   OFFER:      { label: t('pages.settings.ProcessDetailModal.s86'), color: 'var(--c-success)', tagType: 'success', icon: DocumentTextOutline },
-  OTHER:      { label: t('pages.settings.ProcessDetailModal.s87'), color: 'var(--c-default)', tagType: 'default', icon: AppsOutline },
+  OTHER:      { label: t('pages.settings.ProcessDetailModal.s87'), color: 'var(--g5)', tagType: 'default', icon: AppsOutline },
 }
 
 // B: 弹窗标题 (编辑流程-「流程名称(流程编号)」-「阶段数量」)
@@ -1650,12 +1650,12 @@ function scrollToSection(id: string) {
 }
 .dp-tab:hover {
   background: color-mix(in srgb, var(--brand) 10%, white);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .dp-tab:focus-visible {
   outline: none;
   border-color: var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent);
 }
 .dp-modal-footer {
@@ -1743,7 +1743,7 @@ function scrollToSection(id: string) {
   align-items: center;
   justify-content: center;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-12);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -1751,7 +1751,7 @@ function scrollToSection(id: string) {
 /* 不包含行: 编号圆点转红, 与「不包含」语义呼应 */
 .scope-row.scope-card--exclude .scope-row__no {
   background: var(--c-error-bg);
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 .scope-row__key { min-width: 0; }
 .scope-row__mode { min-width: 0; }
@@ -1765,11 +1765,11 @@ function scrollToSection(id: string) {
   border: none;
   border-radius: var(--radius-sm, 6px);
   background: transparent;
-  color: var(--brand);
+  color: var(--brand-fg);
   cursor: pointer;
   transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
-.scope-row__remove:hover { color: var(--c-error); background: var(--c-error-bg); }
+.scope-row__remove:hover { color: var(--c-error-deep); background: var(--c-error-bg); }
 .scope-row__add {
   display: inline-flex;
   align-items: center;
@@ -1780,7 +1780,7 @@ function scrollToSection(id: string) {
   border: 1px solid var(--brand-a32);
   border-radius: var(--radius-md);
   background: var(--brand-tint);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-13);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
@@ -1808,7 +1808,7 @@ function scrollToSection(id: string) {
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 600;
 }
 
@@ -1855,7 +1855,7 @@ function scrollToSection(id: string) {
   height: 26px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--brand) 12%, white);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-13);
   font-weight: 600;
   display: inline-flex;
@@ -1930,7 +1930,7 @@ function scrollToSection(id: string) {
   display: inline-flex;
   align-items: center;
   background: color-mix(in srgb, var(--brand) 10%, white);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-12);
   padding: 2px var(--space-2);
   border-radius: 3px;

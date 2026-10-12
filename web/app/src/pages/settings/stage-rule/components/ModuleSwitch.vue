@@ -54,7 +54,7 @@ function onToggle(e: Event) {
   transition: color var(--duration-fast) var(--ease-out);
 }
 .module-switch--on {
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .module-switch--disabled {
   opacity: 0.55;

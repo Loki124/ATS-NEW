@@ -42,7 +42,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
     <div v-if="store.allScoringDone" style="text-align:center;margin-top: var(--space-6);">
       <div style="font-size: var(--fs-13);color:var(--g7);margin-bottom: var(--space-3);">
-        <span style="color:var(--c-success);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result?.passed).length }} {{ t('pages.candidate.addCandidate.ScoringOverlay.s3') }}</span> ·
+        <span style="color:var(--c-success-deep);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result?.passed).length }} {{ t('pages.candidate.addCandidate.ScoringOverlay.s3') }}</span> ·
         <span style="color:var(--c-error-deep);font-weight:600;">{{ Object.values(store.scoringProgress).filter((s: any) => s?.result && !s?.result?.passed).length }} {{ t('pages.candidate.addCandidate.ScoringOverlay.s4') }}</span>
       </div>
       <button class="btn bp" data-testid="close-scoring" style="padding:10px 28px;font-size: var(--fs-13);" @click="emit('close')">{{ t('pages.candidate.addCandidate.ScoringOverlay.s2') }}</button>
@@ -138,7 +138,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   align-items: center;
   justify-content: center;
   font-size: var(--fs-13);
-  color: var(--g5);
+  color: var(--ink-soft);
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -146,7 +146,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 .sc-name { font-weight: 600; font-size: var(--fs-13); }
 .sc-status { font-size: 11px; color: var(--g5); }
 .sc-score { font-size: var(--fs-20); font-weight: 700; flex-shrink: 0; }
-.sc-score.pass { color: var(--c-success); }
+.sc-score.pass { color: var(--c-success-deep); }
 .sc-score.fail { color: var(--c-error-deep); }
 .sc-detail {
   padding: 0 14px var(--space-3);
@@ -166,7 +166,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   gap: var(--space-1);
   transition: 0.15s;
 }
-.bp { background: var(--brand); color: #fff; }
+.bp { background: var(--brand-button); color: var(--on-brand); }
 .bp:hover { background: var(--ph); }
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
 @keyframes spin { to { transform: rotate(360deg); } }

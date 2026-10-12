@@ -112,7 +112,7 @@ async function onPick(e: Event) {
   border-radius: var(--radius-sm); color: var(--ink-soft); font-size: var(--fs-13);
   width: fit-content;
 }
-.au-add:hover { border-color: var(--brand); color: var(--brand); }
+.au-add:hover { border-color: var(--brand); color: var(--brand-fg); }
 .au-input { display: none; }
 .au-uploading { font-size: var(--fs-12); }
 </style>

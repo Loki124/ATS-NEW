@@ -101,8 +101,8 @@ function onClick() {
 }
 
 .job-card__urgent {
-  background: var(--brand);
-  color: white;
+  background: var(--brand-button);
+  color: var(--on-brand);
   font-size: var(--fs-10);
   font-weight: 500;
   padding: 1px var(--space-1);
@@ -142,7 +142,7 @@ function onClick() {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }

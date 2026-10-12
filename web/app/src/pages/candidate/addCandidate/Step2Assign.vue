@@ -199,7 +199,7 @@ const isMulti = () => store.resumes.length > 1
   transition: 0.15s;
 }
 .apply-mode span:hover { border-color: var(--brand); }
-.apply-mode span.active { background: var(--brand); color: var(--n-100); border-color: var(--brand); }
+.apply-mode span.active { background: var(--brand-button); color: var(--on-brand); border-color: var(--brand); }
 .dir-opts { display: flex; flex-direction: column; gap: 6px; }
 .dopt {
   padding: 10px 14px;
@@ -242,7 +242,7 @@ const isMulti = () => store.resumes.length > 1
 .pos-item.sel {
   border-color: var(--brand);
   background: var(--brand-a12);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 500;
 }
 .per-dir-list { display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto; }
@@ -344,7 +344,7 @@ const isMulti = () => store.resumes.length > 1
   gap: var(--space-1);
   transition: 0.15s;
 }
-.bp { background: var(--brand); color: var(--n-100); }
+.bp { background: var(--brand-button); color: var(--on-brand); }
 .bp:hover { background: var(--ph); }
 .bp:disabled { background: var(--g4); cursor: not-allowed; }
 .btn-spinner {

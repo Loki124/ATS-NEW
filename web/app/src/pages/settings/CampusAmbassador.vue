@@ -65,11 +65,11 @@
       :show="showModal"
       :mask-closable="false"
       :on-mask-click="requestClose"
-      @update:show="(v: boolean) => !v && requestClose()"
       preset="card"
       :title="editingId ? t('pages.settings.CampusAmbassador.s31', '编辑校园大使') : t('pages.settings.CampusAmbassador.s32', '添加校园大使')"
       class="ca-modal"
       :auto-focus="false"
+      @update:show="(v: boolean) => !v && requestClose()"
     >
       <n-form ref="formRef" :model="form" :rules="rules" label-placement="top">
         <n-form-item :label="t('pages.settings.CampusAmbassador.s33', '高校')" path="school">
@@ -407,7 +407,7 @@ onMounted(() => {
   min-height: 240px;
 }
 .ca-empty {
-  padding: var(--space-10) 0;
+  padding: var(--space-12) 0;
 }
 .ca-modal {
   width: 520px;
@@ -425,16 +425,20 @@ onMounted(() => {
   font-size: var(--fs-12);
   line-height: 1.4;
 }
+/* 状态标签：底用 -soft 预设、文字用 -deep（浅色下 deep 对白底 ≥7:1，
+   暗色下 tokens 会把 deep 重排为亮色，保证暗底可读）。
+   原写法 var(--color-*) 在本仓从未定义 → color-mix 整条失效，
+   标签退化为无底色 + 默认文字色。 */
 .ca-tag--on {
-  background: color-mix(in oklch, var(--color-success) 16%, transparent);
-  color: var(--color-success);
+  background: var(--c-success-soft);
+  color: var(--c-success-deep);
 }
 .ca-tag--off {
-  background: color-mix(in oklch, var(--color-warning) 16%, transparent);
-  color: var(--color-warning);
+  background: var(--c-warning-soft);
+  color: var(--c-warning-deep);
 }
 .ca-tag--muted {
-  background: color-mix(in oklch, var(--color-text-tertiary) 16%, transparent);
-  color: var(--color-text-secondary);
+  background: var(--g2);
+  color: var(--ink-soft);
 }
 </style>

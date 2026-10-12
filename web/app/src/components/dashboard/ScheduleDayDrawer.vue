@@ -82,7 +82,7 @@ const formattedDate = computed(() => {
 
 .schedule-drawer__time {
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-fg);
   min-width: 50px;
   font-variant-numeric: tabular-nums;
 }

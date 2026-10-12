@@ -61,11 +61,11 @@
       :show="showModal"
       :mask-closable="false"
       :on-mask-click="requestClose"
-      @update:show="(v: boolean) => !v && requestClose()"
       preset="card"
       :title="editingId ? t('pages.settings.CampusSession.s36') : t('pages.settings.CampusSession.s37')"
       class="cs-modal"
       :auto-focus="false"
+      @update:show="(v: boolean) => !v && requestClose()"
     >
       <n-form ref="formRef" :model="form" :rules="rules" label-placement="top">
         <n-form-item :label="t('pages.settings.CampusSession.s6')" path="title">
@@ -469,7 +469,7 @@ onMounted(() => {
   min-height: 240px;
 }
 .cs-empty {
-  padding: var(--space-10) 0;
+  padding: var(--space-12) 0;
 }
 .cs-modal {
   width: 560px;
@@ -487,8 +487,8 @@ onMounted(() => {
   font-size: var(--fs-12);
   line-height: 1.4;
 }
-.cs-tag--planned { background: color-mix(in oklch, var(--color-info) 16%, transparent); color: var(--color-info); }
-.cs-tag--ongoing { background: color-mix(in oklch, var(--color-success) 16%, transparent); color: var(--color-success); }
-.cs-tag--ended { background: color-mix(in oklch, var(--color-text-tertiary) 16%, transparent); color: var(--color-text-secondary); }
-.cs-tag--cancelled { background: color-mix(in oklch, var(--color-error) 16%, transparent); color: var(--color-error); }
+.cs-tag--planned { background: var(--c-info-soft); color: var(--c-info-deep); }
+.cs-tag--ongoing { background: var(--c-success-soft); color: var(--c-success-deep); }
+.cs-tag--ended { background: var(--g2); color: var(--ink-soft); }
+.cs-tag--cancelled { background: var(--c-error-soft); color: var(--c-error-deep); }
 </style>

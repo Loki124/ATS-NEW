@@ -211,15 +211,15 @@ async function onRollback(v: SceneRuleVersion) {
   color: var(--ink);
 }
 .ver-current-badge {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-fg);
   background: var(--brand-soft, rgba(32, 128, 240, 0.12));
   border-radius: 999px;
   padding: 1px 8px;
 }
 .ver-time {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   color: var(--ink-faint);
   margin-left: auto;
 }
@@ -240,13 +240,13 @@ async function onRollback(v: SceneRuleVersion) {
   flex-wrap: wrap;
 }
 .ver-fields-label {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 .ver-field-tag { font-family: var(--font-mono, monospace); }
 .ver-by {
   margin-top: var(--space-1);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 </style>

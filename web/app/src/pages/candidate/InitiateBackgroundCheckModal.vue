@@ -268,5 +268,5 @@ const stepStatus = computed<'process' | 'error'>(() => (submitting.value ? 'proc
 
 <style scoped>
 .bg-field-label { font-size: var(--fs-13); font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
-.bg-field-label.required::before { content: '*'; color: var(--c-error); margin-right: 4px; }
+.bg-field-label.required::before { content: '*'; color: var(--c-error-deep); margin-right: 4px; }
 </style>

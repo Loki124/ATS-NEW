@@ -328,7 +328,7 @@ async function handleSubmit() {
   letter-spacing: -0.01em;
 }
 .stage-rule-config-modal .card-title .n-icon {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: 14px;
   flex-shrink: 0;
 }
@@ -391,7 +391,7 @@ async function handleSubmit() {
   flex-wrap: wrap;
 }
 .stage-rule-config-modal .block-header .n-icon {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -477,7 +477,7 @@ async function handleSubmit() {
 }
 .hero__tip {
   font-size: var(--fs-12);
-  color: var(--brand);
+  color: var(--brand-fg);
   background: var(--brand-a12);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);

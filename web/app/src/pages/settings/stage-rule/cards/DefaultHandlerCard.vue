@@ -143,7 +143,7 @@ function onRule(v: string | null) {
   line-height: 1.3;
 }
 .required-mark {
-  color: var(--c-error);
+  color: var(--c-error-deep);
   margin-left: 2px;
 }
 </style>

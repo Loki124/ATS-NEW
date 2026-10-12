@@ -952,14 +952,14 @@ onMounted(() => {
    与 .toolbar .spacer { flex:1 }；本页不再私有重写（SETTINGS_PAGE_STRUCTURE.md §0） */
 .scope-readout {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--ink-soft);
   line-height: 1.5;
 }
 /* 融合弹窗内：组织/人员数据范围读出行 */
 .detail-range-readout {
   margin-top: var(--space-2);
   padding: 6px 10px;
-  background: var(--color-bg-subtle);
+  background: var(--g1);
   border-radius: 6px;
 }
 /* 需求 E：配置人员范围 → 实际人员表（姓名/邮箱/组织 + 筛选） */
@@ -994,7 +994,7 @@ onMounted(() => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--ink);
 }
 /* 前导强调条：明确「范围区块」分组边界，提升视觉层次（品牌 token，不硬编码） */
 .scope-block-title::before {
@@ -1008,7 +1008,7 @@ onMounted(() => {
 .scope-block-total {
   margin-top: 4px;
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--ink-faint);
 }
 /* 详情元信息（融合弹窗已移除抽屉，保留只读提示样式备用） */
 .detail-tabs {
@@ -1035,7 +1035,7 @@ onMounted(() => {
   font-size: 20px;
   font-weight: 600;
   line-height: 1.3;
-  color: var(--color-text-primary);
+  color: var(--ink);
 }
 .unit-meta-row {
   display: flex;
@@ -1043,7 +1043,7 @@ onMounted(() => {
   align-items: center;
   gap: var(--space-4);
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--ink-soft);
 }
 .meta-item {
   display: inline-flex;
@@ -1051,10 +1051,10 @@ onMounted(() => {
   gap: 6px;
 }
 .meta-item label {
-  color: var(--color-text-tertiary);
+  color: var(--ink-faint);
 }
 .meta-value {
-  color: var(--color-text-primary);
+  color: var(--ink);
 }
 .modal-title {
   font-size: 16px;

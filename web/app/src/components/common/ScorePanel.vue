@@ -19,7 +19,7 @@ function dimColor(s: number) {
 
 <template>
   <div class="score-panel glass-card">
-    <div class="score-panel-title"><NIcon :size="16" style="vertical-align:-2px;margin-right:4px;color:var(--brand)" aria-hidden="true"><Target /></NIcon>{{ t('components.common.ScorePanel.s1') }}</div>
+    <div class="score-panel-title"><NIcon :size="16" style="vertical-align:-2px;margin-right:4px;color: var(--brand-fg)" aria-hidden="true"><Target /></NIcon>{{ t('components.common.ScorePanel.s1') }}</div>
     <div class="score-overall-row">
       <div :class="['score-big', score.passed ? 'pass' : 'fail']">{{ score.score }}</div>
       <div>
@@ -64,8 +64,8 @@ function dimColor(s: number) {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.score-big.pass { color: var(--c-success); }
-.score-big.fail { color: var(--c-error); }
+.score-big.pass { color: var(--c-success-deep); }
+.score-big.fail { color: var(--c-error-deep); }
 .score-subtitle {
   font-size: var(--text-meta);
   color: var(--ink-soft);
@@ -78,8 +78,8 @@ function dimColor(s: number) {
   display: inline-block;
   margin-top: var(--space-1);
 }
-.score-pass-tag.pass { background: var(--c-success-soft); color: var(--c-success); }
-.score-pass-tag.fail { background: var(--c-error-soft);   color: var(--c-error); }
+.score-pass-tag.pass { background: var(--c-success-soft); color: var(--c-success-deep); }
+.score-pass-tag.fail { background: var(--c-error-soft);   color: var(--c-error-deep); }
 .score-hint {
   font-size: var(--text-meta);
   color: var(--ink-faint);

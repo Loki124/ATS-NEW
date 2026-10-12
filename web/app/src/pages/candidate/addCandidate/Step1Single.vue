@@ -197,7 +197,7 @@ function val(field: string): any {
   align-items: center;
   justify-content: center;
   font-size: var(--fs-20);
-  color: var(--brand);
+  color: var(--brand-fg-on-soft);
   font-weight: 600;
   flex-shrink: 0;
 }

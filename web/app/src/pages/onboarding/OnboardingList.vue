@@ -100,7 +100,7 @@ const columns = computed(() => [
                 options: rest.map(it => ({
                   label: it.label,
                   key: it.key,
-                  ...(it.danger ? { props: { style: 'color: var(--c-error)' } } : {}),
+                  ...(it.danger ? { props: { style: 'color: var(--c-error-deep)' } } : {}),
                 })),
                 trigger: 'click',
                 onSelect: (k: string) => rest.find(it => it.key === k)?.onClick(),

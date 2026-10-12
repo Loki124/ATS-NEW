@@ -1344,9 +1344,9 @@ onMounted(() => {
   margin-bottom: var(--space-4);
 }
 /* KPI 卡片复用全局 .kpi-card；仅强调数字用变量化色阶，不硬编码 hex 破坏暗色 */
-.kpi-value--ok { color: var(--c-success); }
-.kpi-value--info { color: var(--c-info); }
-.kpi-value--warn { color: var(--c-error); }
+.kpi-value--ok { color: var(--c-success-deep); }
+.kpi-value--info { color: var(--c-info-deep); }
+.kpi-value--warn { color: var(--c-error-deep); }
 /* 弹窗 tabs 布局：保持暗色下透明导航，视觉走全局 */
 .bc-tabs :deep(.n-tabs-nav) { background: transparent; margin-bottom: var(--space-2); }
 /* 接入凭证 tab 内「接口路径」分组小标题，复用变量不硬编码 */
@@ -1375,7 +1375,7 @@ onMounted(() => {
 /* 接口说明文档抽屉（变量化，暗色安全） */
 .doc-p { color: var(--ink-soft); font-size: var(--fs-13); line-height: 1.7; margin: var(--space-1) 0 var(--space-2); }
 .doc-p code, .doc-code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-.doc-p code { background: var(--g1); padding: 1px 6px; border-radius: 4px; font-size: var(--fs-12); color: var(--brand); }
+.doc-p code { background: var(--g1); padding: 1px 6px; border-radius: 4px; font-size: var(--fs-12); color: var(--brand-fg); }
 .doc-h { font-size: var(--fs-14); font-weight: 600; color: var(--ink); margin: var(--space-4) 0 var(--space-2); }
 .doc-code {
   background: var(--g1);

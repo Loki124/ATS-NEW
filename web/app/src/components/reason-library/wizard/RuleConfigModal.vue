@@ -304,7 +304,7 @@ function confirm() {
   color: var(--ink);
 }
 .cfg-hint {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   color: var(--ink-faint);
 }
 
@@ -317,7 +317,7 @@ function confirm() {
   padding: var(--space-2) var(--space-3);
   font-size: var(--fs-12);
   line-height: 1.6;
-  color: var(--brand-ink, var(--brand));
+  color: var(--brand-text);
   background: var(--brand-soft, rgba(32, 128, 240, 0.1));
   border: 1px solid var(--brand-tint, rgba(32, 128, 240, 0.2));
   border-radius: var(--radius-md);
@@ -344,7 +344,7 @@ function confirm() {
   --accent: var(--brand);
   --accent-soft: var(--brand-soft);
   --accent-tint: var(--brand-tint);
-  --accent-ink: var(--brand-ink);
+  --accent-ink: var(--brand-text);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -386,7 +386,7 @@ function confirm() {
   color: var(--accent-ink);
 }
 .card-badge {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   font-weight: 600;
   color: var(--accent-ink);
   background: var(--accent-soft);
