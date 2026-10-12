@@ -16,20 +16,18 @@ import io
 from zipfile import BadZipFile
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment, Font
 from openpyxl.utils.exceptions import InvalidFileException
+
+from apps.common.excel import (
+    BORDER,
+    SAMPLE_FILL,
+    set_column_widths,
+    style_header_row,
+)
 
 # ---- 列头（模板首行 / 导出首行 一致） ----
 INDICATOR_HEADERS = ['维度', '指标名称', '是否启用']
-
-# 样式（与 io_xlsx 对齐视觉）
-HEADER_FILL = PatternFill('solid', fgColor='6366F1')
-HEADER_FONT = Font(color='FFFFFF', bold=True, size=11)
-SAMPLE_FILL = PatternFill('solid', fgColor='F1F5F9')
-THIN = Side(style='thin', color='E2E8F0')
-BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
-NOTE_FILL = PatternFill('solid', fgColor='FFF7ED')
 
 BOOL_TRUE = ('是', '启用', 'true', 'True', 'TRUE', '1', 'yes', 'Yes', 'YES', 'y', 'Y')
 BOOL_FALSE = ('否', '停用', 'false', 'False', 'FALSE', '0', 'no', 'No', 'NO', 'n', 'N')
@@ -61,7 +59,9 @@ def build_indicator_export_workbook(rows):
     wb = Workbook()
     ws = wb.active
     ws.title = '指标'
-    _write_header(ws)
+    for c, h in enumerate(INDICATOR_HEADERS, start=1):
+        ws.cell(row=1, column=c, value=h)
+    style_header_row(ws)
     for i, r in enumerate(rows):
         row_idx = i + 2
         ws.cell(row=row_idx, column=1, value=r.get('dimension_name', ''))
@@ -69,7 +69,7 @@ def build_indicator_export_workbook(rows):
         ws.cell(row=row_idx, column=3, value=_bool_to_text(r.get('is_active')))
         for c in range(1, 4):
             ws.cell(row=row_idx, column=c).border = BORDER
-    _style_sheet(ws)
+    set_column_widths(ws, [20, 24, 12])
     return wb
 
 
@@ -78,13 +78,15 @@ def build_indicator_template_workbook():
     wb = Workbook()
     ws = wb.active
     ws.title = '指标'
-    _write_header(ws)
+    for c, h in enumerate(INDICATOR_HEADERS, start=1):
+        ws.cell(row=1, column=c, value=h)
+    style_header_row(ws)
     sample = ['性别', '男', '是']
     for c, val in enumerate(sample, start=1):
         cell = ws.cell(row=2, column=c, value=val)
         cell.fill = SAMPLE_FILL
         cell.border = BORDER
-    _style_sheet(ws)
+    set_column_widths(ws, [20, 24, 12])
 
     note_ws = wb.create_sheet('填写说明')
     notes = [
@@ -112,10 +114,8 @@ def build_indicator_error_report_workbook(original_rows, errors_by_line):
     ws.title = '错误明细'
     headers = ['行号', '维度', '指标名称', '是否启用', '错误原因']
     for c, h in enumerate(headers, start=1):
-        cell = ws.cell(row=1, column=c, value=h)
-        cell.fill = HEADER_FILL
-        cell.font = HEADER_FONT
-        cell.border = BORDER
+        ws.cell(row=1, column=c, value=h)
+    style_header_row(ws)
     for i, r in enumerate(original_rows, start=2):
         ws.cell(row=i, column=1, value=r.get('line'))
         ws.cell(row=i, column=2, value=r.get('dimension_name', ''))
@@ -124,23 +124,8 @@ def build_indicator_error_report_workbook(original_rows, errors_by_line):
         ws.cell(row=i, column=5, value=errors_by_line.get(r.get('line'), ''))
         for c in range(1, 6):
             ws.cell(row=i, column=c).border = BORDER
-    for c, w in enumerate([8, 16, 20, 12, 60], start=1):
-        ws.column_dimensions[get_column_letter(c)].width = w
+    set_column_widths(ws, [8, 16, 20, 12, 60])
     return wb
-
-
-def _write_header(ws):
-    for c, h in enumerate(INDICATOR_HEADERS, start=1):
-        cell = ws.cell(row=1, column=c, value=h)
-        cell.fill = HEADER_FILL
-        cell.font = HEADER_FONT
-        cell.border = BORDER
-        cell.alignment = Alignment(horizontal='center')
-
-
-def _style_sheet(ws):
-    for c, w in enumerate([20, 24, 12], start=1):
-        ws.column_dimensions[get_column_letter(c)].width = w
 
 
 # ============================================================

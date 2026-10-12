@@ -24,11 +24,16 @@ from zipfile import BadZipFile
 
 from django.db import DatabaseError
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment, Font
 from openpyxl.utils.exceptions import InvalidFileException
 
 from apps.audit.models import AuditLog
+from apps.common.excel import (
+    BORDER,
+    SAMPLE_FILL,
+    set_column_widths,
+    style_header_row,
+)
 from apps.rule_engine.models import UnifiedOperator
 
 from .models import AtomicMetric, DerivedMetric, MetricTemplate
@@ -39,13 +44,6 @@ logger = logging.getLogger(__name__)
 
 # ---- 列头（模板首行 / 导出首行 一致） ----
 TEMPLATE_HEADERS = ['模板名称', '指标类型', '引用指标名称', '支持的运算符', '参数枚举', '允许为空', '状态', '说明']
-
-# 样式（与 io_indicator 对齐视觉）
-HEADER_FILL = PatternFill('solid', fgColor='6366F1')
-HEADER_FONT = Font(color='FFFFFF', bold=True, size=11)
-SAMPLE_FILL = PatternFill('solid', fgColor='F1F5F9')
-THIN = Side(style='thin', color='E2E8F0')
-BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 
 BOOL_TRUE = ('是', '启用', 'true', 'True', 'TRUE', '1', 'yes', 'Yes', 'YES', 'y', 'Y')
 BOOL_FALSE = ('否', '停用', 'false', 'False', 'FALSE', '0', 'no', 'No', 'NO', 'n', 'N')
@@ -160,26 +158,14 @@ def build_template_export_rows():
 # ===========================================================================
 #  xlsx 构建
 # ===========================================================================
-def _write_header(ws):
-    for c, h in enumerate(TEMPLATE_HEADERS, start=1):
-        cell = ws.cell(row=1, column=c, value=h)
-        cell.fill = HEADER_FILL
-        cell.font = HEADER_FONT
-        cell.border = BORDER
-        cell.alignment = Alignment(horizontal='center')
-
-
-def _style_sheet(ws):
-    for c, w in enumerate([20, 12, 20, 36, 20, 12, 12, 40], start=1):
-        ws.column_dimensions[get_column_letter(c)].width = w
-
-
 def build_template_export_workbook(rows):
     """rows: list[{name, metric_kind, metric_name, operators, param_enums, param_allow_null, status, description}] → xlsx 工作簿。"""
     wb = Workbook()
     ws = wb.active
     ws.title = '指标模板'
-    _write_header(ws)
+    for c, h in enumerate(TEMPLATE_HEADERS, start=1):
+        ws.cell(row=1, column=c, value=h)
+    style_header_row(ws)
     for i, r in enumerate(rows):
         row_idx = i + 2
         ws.cell(row=row_idx, column=1, value=r.get('name', ''))
@@ -192,7 +178,7 @@ def build_template_export_workbook(rows):
         ws.cell(row=row_idx, column=8, value=r.get('description', ''))
         for c in range(1, 9):
             ws.cell(row=row_idx, column=c).border = BORDER
-    _style_sheet(ws)
+    set_column_widths(ws, [20, 12, 20, 36, 20, 12, 12, 40])
     return wb
 
 
@@ -201,13 +187,15 @@ def build_template_template_workbook():
     wb = Workbook()
     ws = wb.active
     ws.title = '指标模板'
-    _write_header(ws)
+    for c, h in enumerate(TEMPLATE_HEADERS, start=1):
+        ws.cell(row=1, column=c, value=h)
+    style_header_row(ws)
     sample = ['性别', '原子', '性别', 'IS_EMPTY,IS_NOT_EMPTY,IN,NOT_IN', '男,女', '否', '启用', '候选人性别']
     for c, val in enumerate(sample, start=1):
         cell = ws.cell(row=2, column=c, value=val)
         cell.fill = SAMPLE_FILL
         cell.border = BORDER
-    _style_sheet(ws)
+    set_column_widths(ws, [20, 12, 20, 36, 20, 12, 12, 40])
 
     note_ws = wb.create_sheet('填写说明')
     notes = [
@@ -239,10 +227,8 @@ def build_template_error_report_workbook(original_rows, errors_by_line):
     ws.title = '错误明细'
     headers = ['行号', '模板名称', '指标类型', '引用指标名称', '支持的运算符', '错误原因']
     for c, h in enumerate(headers, start=1):
-        cell = ws.cell(row=1, column=c, value=h)
-        cell.fill = HEADER_FILL
-        cell.font = HEADER_FONT
-        cell.border = BORDER
+        ws.cell(row=1, column=c, value=h)
+    style_header_row(ws)
     for i, r in enumerate(original_rows, start=2):
         ws.cell(row=i, column=1, value=r.get('line'))
         ws.cell(row=i, column=2, value=r.get('name', ''))
@@ -252,8 +238,7 @@ def build_template_error_report_workbook(original_rows, errors_by_line):
         ws.cell(row=i, column=6, value=errors_by_line.get(r.get('line'), ''))
         for c in range(1, 7):
             ws.cell(row=i, column=c).border = BORDER
-    for c, w in enumerate([8, 16, 12, 20, 28, 60], start=1):
-        ws.column_dimensions[get_column_letter(c)].width = w
+    set_column_widths(ws, [8, 16, 12, 20, 28, 60])
     return wb
 
 

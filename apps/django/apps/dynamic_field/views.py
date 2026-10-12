@@ -29,11 +29,10 @@ from djangorestframework_camel_case.util import camel_to_underscore
 from rest_framework import serializers as drf_serializers
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
-from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 
 from apps.common.mixins import ExportMixin
+from apps.core.permissions_v2 import V2Permission
 
 
 def _field_key_aliases(field_key: str) -> set[str]:
@@ -816,7 +815,8 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
             )
             buf = io.StringIO()
             buf.write('\n'.join(comment_lines) + '\n')
-            writer = csv.DictWriter(buf, fieldnames=headers)
+            from apps.common.csv_safe import SafeCsvDictWriter
+            writer = SafeCsvDictWriter(buf, fieldnames=headers)
             writer.writeheader()
             writer.writerow(example)
             # 模板含中文表头, 同样需 BOM 才能在 Excel 下正确显示中文

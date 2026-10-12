@@ -42,6 +42,7 @@ from collections import OrderedDict, defaultdict
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from apps.common.excel import read_raw_rows
 from apps.library.models import School
 
 # 内置副本优先：生产部署机没有 ~/Desktop
@@ -150,11 +151,8 @@ class Command(BaseCommand):
             School.all_objects.all().delete()
             self.stdout.write('已清空 School 表')
 
-        import openpyxl
-
-        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-        ws = wb[wb.sheetnames[0]]
-        rows = list(ws.iter_rows(values_only=True))
+        # B 批: 改用共享 read_raw_rows (与旧 load_workbook(read_only, data_only) 逐字等价, 保留表头行)
+        rows = read_raw_rows(path)
         if not rows:
             self.stdout.write(self.style.ERROR('空表'))
             return

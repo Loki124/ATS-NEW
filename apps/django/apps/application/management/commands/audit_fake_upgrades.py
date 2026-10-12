@@ -36,13 +36,14 @@ T3 修复后写入的审计 detail 必定包含 ``stage_remapped`` 键（由 ``r
 """
 from __future__ import annotations
 
-import csv
 import datetime as _dt
 import io
 import logging
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
+
+from apps.common.csv_safe import SafeCsvWriter
 
 logger = logging.getLogger(__name__)
 
@@ -159,14 +160,14 @@ class Command(BaseCommand):
     def _emit_csv(self, rows, output_path):
         if output_path:
             with open(output_path, 'w', newline='', encoding='utf-8-sig') as fh:
-                writer = csv.writer(fh)
+                writer = SafeCsvWriter(fh)
                 writer.writerow(CSV_HEADER)
                 writer.writerows(rows)
             self.stdout.write(f'CSV 已写入：{output_path}')
             return
 
         buf = io.StringIO()
-        writer = csv.writer(buf)
+        writer = SafeCsvWriter(buf)
         writer.writerow(CSV_HEADER)
         writer.writerows(rows)
         self.stdout.write(buf.getvalue().rstrip('\r\n'))

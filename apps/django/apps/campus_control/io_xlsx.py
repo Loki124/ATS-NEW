@@ -20,8 +20,14 @@ v2.9 扁平模型：每条规则 = 独占 (适用范围·维度·指标·年度)
 from decimal import Decimal, InvalidOperation
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment, Font, PatternFill
+
+from apps.common.excel import (
+    BORDER,
+    SAMPLE_FILL,
+    set_column_widths,
+    style_header_row,
+)
 
 from .constants import ALL_MONTHS, DEPTS, LEVELS, POSITIONS, STRENGTH
 from .models import ControlDimension, ControlIndicator
@@ -37,12 +43,7 @@ MONTH_START_COL = 8  # 第 8 列(下标)起为 1月
 # 扁平模型下 target 写库恒为 1.0；模板不再要求用户填写占比列
 FLAT_TARGET = 1.0
 
-# 样式
-HEADER_FILL = PatternFill('solid', fgColor='6366F1')
-HEADER_FONT = Font(color='FFFFFF', bold=True, size=11)
-SAMPLE_FILL = PatternFill('solid', fgColor='F1F5F9')
-THIN = Side(style='thin', color='E2E8F0')
-BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+# 样式（领域专有；品牌表头/边框/示例底纹复用 apps.common.excel）
 NOTE_FILL = PatternFill('solid', fgColor='FFF7ED')
 NOTE_FONT = Font(color='9A3412', size=10)
 
@@ -76,12 +77,7 @@ def build_export_workbook(rules):
     ws = wb.active
     ws.title = '管控规则'
     ws.append(HEADERS)
-    for c in range(1, len(HEADERS) + 1):
-        cell = ws.cell(row=1, column=c)
-        cell.fill = HEADER_FILL
-        cell.font = HEADER_FONT
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        cell.border = BORDER
+    style_header_row(ws)
 
     for r in rules:
         mt = r.get('monthly_targets') or [0] * 12
@@ -102,8 +98,7 @@ def build_export_workbook(rules):
 
     # 列宽（v2.9：删除占比列宽；总列 = 8 + 12 = 20）
     widths = [10, 10, 10, 10, 8, 10, 10, 12] + [7] * N_MONTH_COLS
-    for i, w in enumerate(widths, start=1):
-        ws.column_dimensions[get_column_letter(i)].width = w
+    set_column_widths(ws, widths)
     ws.freeze_panes = 'A2'
     return wb
 
@@ -134,10 +129,7 @@ def build_template_workbook():
     header_row = len(notes) + 2  # 空一行
     for c, h in enumerate(HEADERS, start=1):
         cell = ws.cell(row=header_row, column=c, value=h)
-        cell.fill = HEADER_FILL
-        cell.font = HEADER_FONT
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        cell.border = BORDER
+    style_header_row(ws, row=header_row)
 
     # 示例行（院校标签·985，全局，2026，硬约束，年100）— v2.9 删占比列
     example = ['院校标签', '985', '', '', '', 2026, '硬约束', 100] + [8, 8, 8, 8, 9, 9, 8, 8, 9, 9, 8, 8]
@@ -147,8 +139,7 @@ def build_template_workbook():
         cell.border = BORDER
 
     widths = [10, 10, 10, 10, 8, 10, 10, 12] + [7] * N_MONTH_COLS
-    for i, w in enumerate(widths, start=1):
-        ws.column_dimensions[get_column_letter(i)].width = w
+    set_column_widths(ws, widths)
     ws.freeze_panes = ws.cell(row=header_row + 1, column=1).coordinate
     return wb, header_row
 
@@ -285,12 +276,11 @@ def build_error_report_workbook(original_rows, errors_by_line):
     ws.title = '导入错误明细'
     headers = list(HEADERS) + [ERROR_COL]
     ws.append(headers)
-    for c in range(1, len(headers) + 1):
-        cell = ws.cell(row=1, column=c)
-        cell.fill = HEADER_FILL if c <= len(HEADERS) else ERROR_FILL
-        cell.font = HEADER_FONT if c <= len(HEADERS) else ERROR_FONT
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        cell.border = BORDER
+    style_header_row(ws)
+    # 错误原因列用专属红底样式（覆盖品牌表头）
+    err_header = ws.cell(row=1, column=len(headers))
+    err_header.fill = ERROR_FILL
+    err_header.font = ERROR_FONT
 
     for line_no, vals in original_rows:
         err = errors_by_line.get(line_no, '')
@@ -303,8 +293,7 @@ def build_error_report_workbook(original_rows, errors_by_line):
             ws.cell(row=excel_row, column=len(headers)).font = ERROR_FONT
 
     widths = [10, 10, 10, 10, 8, 10, 10, 12] + [7] * N_MONTH_COLS + [50]
-    for i, w in enumerate(widths, start=1):
-        ws.column_dimensions[get_column_letter(i)].width = w
+    set_column_widths(ws, widths)
     ws.freeze_panes = 'A2'
     return wb
 

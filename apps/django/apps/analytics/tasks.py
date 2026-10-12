@@ -7,6 +7,8 @@ from celery.exceptions import SoftTimeLimitExceeded
 from django.db import DatabaseError
 from django.utils import timezone
 
+from apps.common.excel import build_workbook
+
 logger = logging.getLogger(__name__)
 
 
@@ -60,13 +62,10 @@ def run_export_task(export_task_id: str) -> Dict:
         filepath = os.path.join(export_dir, filename)
 
         if task.format == 'XLSX':
-            import openpyxl
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            if data:
-                ws.append(list(data[0].keys()))
-                for row in data:
-                    ws.append([str(v) for v in row.values()])
+            headers = list(data[0].keys()) if data else []
+            rows = [[str(v) for v in r.values()] for r in data]
+            # 品牌色表头 + 自适应列宽 + 冻结首行，与全站导出一致（去内联 openpyxl）
+            wb = build_workbook({'Sheet': (headers, rows)}, autosize=True)
             wb.save(filepath)
         elif task.format == 'CSV':
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
