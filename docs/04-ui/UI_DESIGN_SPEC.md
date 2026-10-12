@@ -38,7 +38,7 @@
 |-------|--------|--------|-----------------|------|
 | `--ink` | `#0F172A` | `#E8ECF6` | 15:1 / — | 标题、重要正文 |
 | `--ink-soft` | `#475569` | `#AEB8CC` | 7.0:1 / — | 次要正文、标签 |
-| `--ink-faint` | **`#64748B`**（修订） | `#94A3B8` | **4.8:1** / 高 | 辅助/占位（**旧 `#94A3B8` 仅 2.6:1，已不达标，弃用**） |
+| `--ink-faint` | **`#5B6B84`**（再修订） | `#94A3B8` | **5.41:1** / 高 | 辅助/占位（`#94A3B8` 仅 2.6:1；`#64748B` 压 `--g1` 仅 4.34:1，均已弃用） |
 | `--surface` | `#FFFFFF` | `#1E293B` | — | 不透明兜底 |
 
 ### 2.3 中性灰阶梯（Neutral Ramp · **本次新增，修复 `--g1…--g7` 未定义缺陷**）
@@ -50,7 +50,7 @@ onboarding 流程曾引用 `--g1…--g7` 但全仓未定义，导致边框/底�
 | `--g2` | `#E2E8F0` | `#1E293B` | hover 填充 | Step2Assign:128、Step1Batch:192 |
 | `--g3` | `var(--border-hairline)` | `var(--border-hairline)` | 发丝边框 | 全 onboarding `1px solid var(--g3)` |
 | `--g4` | `rgba(15,23,42,.16)` | `rgba(255,255,255,.16)` | 较强边框 / 虚线框 | UploadZone:45、Step1Batch:123 |
-| `--g5` | **`#64748B`** | `#94A3B8` | 辅助文字（**必须 ≥4.5:1**） | AddCandidateModal:99、Step1Single:108 |
+| `--g5` | **`#5B6B84`** | `#94A3B8` | 辅助文字（**必须 ≥4.5:1**，与 `--ink-faint` 同值） | AddCandidateModal:99、Step1Single:108 |
 | `--g6` | `#CBD5E1` | `#334155` | 中间填充（备用） | — |
 | `--g7` | `var(--ink-soft)` | `var(--ink-soft)` | 按钮/标签文字色 | Step2Assign:321 `.bs color` |
 
@@ -333,7 +333,7 @@ MUST 实现以下状态，并提供明确视觉反馈：
 
 ## 7. 可访问性基线（Accessibility · WCAG 2.1 AA）
 
-1. **对比度**：普通文字 ≥ 4.5:1（`--ink-faint` 已降至 `#64748B`）；大字号(≥18px/14px粗) ≥ 3:1。禁用态文字同样达标。
+1. **对比度**：普通文字 ≥ 4.5:1（`--ink-faint` 已降至 `#5B6B84`，白底 5.41 / `--g1` 4.94:1）；大字号(≥18px/14px粗) ≥ 3:1。禁用态文字同样达标。
 2. **焦点可见**：全局 `:focus-visible { outline:2px solid var(--brand); outline-offset:2px }`（修订 3.2）。
 3. **键盘**：可点元素 `role="button"` + `tabindex=0` + `keydown.enter`（StatCard/侧栏 footer 已遵）；**补充 `keydown.space` 以符合按钮语义**。
 4. **地标**：`<main>` + 跳转链接；`aria-hidden` 用于装饰。

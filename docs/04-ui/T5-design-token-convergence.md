@@ -168,8 +168,16 @@ web/app/src/pages/settings/DataDashboard.vue
 | 2 | `background: var(--brand)` + 文字前景 —— 实底应用选阶后的 `--brand-button` | 4.47:1 → 6.16:1 | 10 文件 12 处 | ✅ **本轮已修**（批量改） |
 | 3 | **Naive UI Badge 数字** —— error 底 `#EF4444` + 白字 | **3.76:1**（12px 文字） | `App.vue` 的 `themeOverrides` | ⏸ **未修**：需改 Naive 全局主题配置，影响全站 Badge，须连同视觉回归一起做 |
 | 4 | Naive placeholder / `n-empty__description` | 1.78:1 | Naive 默认色 | ⏸ 未修：WCAG 对 placeholder 无强制要求，但建议改善 |
-| 5 | 侧边栏激活项 `itemTextColorActive: 'var(--brand)'` 等 15 处 | 4.47:1 | `Layout.vue:321-359` | ⏸ 未修：Naive menu `themeOverrides`，需与 #3 一并处理 |
-| 6 | 浅色 `--ink-faint` 压 `--g1` | 4.34:1（差 0.16） | `tokens.css` | ⏸ 未修：改动全站辅助文字观感，需设计侧拍板 |
+| 5 | 侧边栏激活项 `itemTextColorActive: 'var(--brand)'` 等 15 处 | 源码待修（见下方注 1） | `Layout.vue:321-359` | ⏸ 未修：Naive menu `themeOverrides`，需与 #3 一并处理 |
+| 6 | 浅色 `--ink-faint` 压 `--g1` | 4.34:1（差 0.16） | `tokens.css` | ✅ **本轮已修**（见下方注 2） |
+
+**注 1（#5 复核，2026-10-12）**：在 `/candidates` 实测，**全页没有任何元素计算出 `rgb(99,102,241)`**（即 `--brand` 未被解析为生效色）。说明 Naive menu 的 `themeOverrides` 对 `'var(--brand)'` 字符串的解析行为与 CSS 上下文不同，实际观感需截图复核后再定性 —— 在拿到确定结论前，**源码 15 处仍按未修对待**，不计入"已达标"。
+
+**注 2（#6 处置，2026-10-12）**：`#64748B` → `#5B6B84`，**白底 4.76→5.41:1、压 `--g1` 4.34→4.94:1、压 `--g2` 4.55→5.17:1**。取值留有余量而非卡线 4.5，且视觉上仍属辅助灰档。
+同值同角色的 `--g5`（37 处，含 `AnnouncementList/Detail` 作 `color:`）与 6 个遗留别名 `--n-350/380/400/440/450/500`（50 处）一并对齐，否则只改 `--ink-faint` 会留下 87 处同样的不达标。
+运行时复核：`--ink-faint` 直用样本实测 **5.41:1**，三页（`/settings/metrics`、`/candidates`、`/announcements`）截图目视无破损。
+
+**⚠️ 复核方法提醒**：`color: var(--brand)` 的**静态扫描结果为 0 不代表 #5 已修** —— #5 是 `themeOverrides` 里的 JS 字符串，不是 CSS 声明，两者只能分别查。
 
 #### ⚠️ 治理方法论：两类方法的覆盖差异
 
@@ -179,3 +187,16 @@ web/app/src/pages/settings/DataDashboard.vue
 | 运行时逐元素实测 | 上述全部 + opacity 合成后的真实值 | 受扫描器精度限制：Naive 玻璃层 `backdrop-filter` 会导致背景穿透，产生假阳性 |
 
 > 运行时扫描在本轮报出暗色 127 条 FAIL，但**截图逐页目视确认视觉正常** —— 绝大部分是玻璃层穿透导致的假阳性。**运行时扫描适合"发现线索"，结论必须经截图复核，不可直接当验收依据。**
+
+### 5.6 Naive UI 全局主题覆盖缺口（2026-10-12 实测新发现）
+
+在 `/candidates` 复测时另发现两项**不经过 CSS 令牌、直接来自 Naive 默认值**的文字色。它们与 #3（Badge）、#4（placeholder）同源：**`App.vue` 的 `themeOverrides` 未覆盖到位，Naive 退回自己的默认色**。
+
+| # | 元素 | 实测值 | 计算样式 | 根因 |
+|---|---|---|---|---|
+| 7 | `n-text` 副标题「管理所有候选人信息…」 | **2.56:1**（22px 常规字重，**不适用大文本豁免**） | `--n-text-color: rgba(148,163,184,1)` = `#94A3B8` | `themeOverrides.textColor3` 浅色值仍是 `#94A3B8`，未随本轮 `--ink-faint` 一起下调 |
+| 8 | 输入框占位符「在当前页面搜索关键词」 | **1.78:1** | `rgb(194,194,194)` = `#C2C2C2` | Naive placeholder 默认色，**独立于 `textColor3`**，需单独覆盖 |
+
+⏸ 两项均未修。修复方向已明确（`textColor3` 浅色改 `#5B6B84`、暗色改 `#93A0B5` 以与 `--ink-faint` 同源；placeholder 需覆盖 `Input.colorPlaceholder`），但因 `App.vue` 的 `themeOverrides` 同时被 #3 Badge 依赖，建议 #3 / #7 / #8 合并为一次 Naive 主题专项，并连同视觉回归一起做。
+
+> ⚠️ **为什么 Naive 侧要单独列**：Naive 的 `themeOverrides` 解析 `var()` 的行为与 CSS 上下文不同（见 §5.5 注 1），所以**"令牌改了"不等于"Naive 组件跟着改了"**。凡是走 `themeOverrides` 传值的颜色，都必须单独实测，不能靠扫描 CSS 令牌推断。
