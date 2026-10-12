@@ -1,5 +1,5 @@
 """Candidate Models (PRD v4 §14.3)"""
-from django.db import models
+from django.db import models, transaction
 from django_fsm import FSMField, FSMModelMixin, transition
 from nanoid import generate as nanoid_generate
 
@@ -35,6 +35,11 @@ class Candidate(FSMModelMixin, FullAuditModel):
       未来用 AES-SIV 等 deterministic encryption 可全加密, 当前方案是 trade-off
     """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    # 候选人编号：C + 8 位流水号 (C00000001..)，save() 自动补号，规则对齐 campus_control.Person.code
+    code = models.CharField(
+        max_length=20, unique=True, blank=True, db_index=True,
+        verbose_name='候选人编号', help_text='C+8位流水号, save() 未传时自动补号',
+    )
     # 招聘类型硬分区 (social/campus): 社会/校园招聘数据相互隔离, 历史数据默认 social.
     recruit_type = models.CharField(
         max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
@@ -178,6 +183,26 @@ class Candidate(FSMModelMixin, FullAuditModel):
         phone_hash/email_hash 同构.
         """
         from apps.common.encryption import hash_for_search
+        # 2026-10-12: 候选人编号自动补号 (C+8位流水号)。未传 code 时事务内锁定末行取
+        # 最大序号 +1，避免并发撞 unique 约束 (规则与 campus_control.Person.save 一致)。
+        assigned_code = False
+        if not self.code:
+            with transaction.atomic():
+                last = (
+                    Candidate.objects
+                    .select_for_update()
+                    .filter(code__startswith='C')
+                    .order_by('-code')
+                    .first()
+                )
+                seq = 0
+                if last and last.code and last.code.startswith('C'):
+                    try:
+                        seq = int(last.code[1:9])
+                    except (ValueError, IndexError):
+                        seq = 0
+                self.code = f'C{seq + 1:08d}'
+            assigned_code = True
         # 计算 hash (无论是否变化, 简单起见都重算; 候选人 save 不频繁)
         new_phone_hash = hash_for_search(self.phone) if self.phone else ''
         new_email_hash = hash_for_search(self.email) if self.email else ''
@@ -214,6 +239,9 @@ class Candidate(FSMModelMixin, FullAuditModel):
                 update_fields.add('email_hash')
             if 'id_card_no' in update_fields:
                 update_fields.add('id_card_hash')
+            # 本次 save 内补号的 code 必须一并写入, 否则编号只留在内存、DB 仍为空
+            if assigned_code:
+                update_fields.add('code')
             kwargs['update_fields'] = frozenset(update_fields)
         super().save(*args, **kwargs)
 

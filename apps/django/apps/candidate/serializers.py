@@ -44,7 +44,8 @@ class CandidateListSerializer(FieldAclSerializerMixin, serializers.ModelSerializ
     class Meta:
         model = Candidate
         fields = [
-            'id', 'recruit_type', 'name', 'phone', 'email', 'gender', 'age',
+            'id', 'code', 'recruit_type', 'name', 'phone', 'email', 'gender', 'age',
+            'highest_education', 'work_years', 'current_city',
             'current_state', 'state_display',
             'source_channel', 'source_channel_name',
             'referral_type', 'tags',
