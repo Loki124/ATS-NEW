@@ -22,6 +22,7 @@ from apps.candidate.models import Candidate
 from apps.common.exceptions import NotFound
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions import HasProcessPermission
+from apps.core.permissions_v2 import V2Permission
 from apps.process.models import ProcessStageLink
 
 from .models import EntryConditionLog, EntryConditionRule, EntryConditionRuleStatus
@@ -40,7 +41,14 @@ logger = logging.getLogger(__name__)
 class EntryConditionRuleViewSet(viewsets.ModelViewSet):
     """进入条件规则 ViewSet"""
     queryset = EntryConditionRule.objects.all()
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required_map = {
+        'create': 'recruit:settings:recruitment-process:edit',
+        'update': 'recruit:settings:recruitment-process:edit',
+        'partial_update': 'recruit:settings:recruitment-process:edit',
+        'destroy': 'recruit:settings:recruitment-process:edit',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['link', 'status', 'link__process']

@@ -29,7 +29,14 @@ class ChannelCostViewSet(EnvelopeAuditModelViewSet):
     """渠道成本 ViewSet"""
     queryset = ChannelCost.objects.all()
     serializer_class = ChannelCostSerializer
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:channel:cost:list'
+    permission_required_map = {
+        'create': 'recruit:channel:cost:edit',
+        'update': 'recruit:channel:cost:edit',
+        'partial_update': 'recruit:channel:cost:edit',
+        'destroy': 'recruit:channel:cost:edit',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['channel', 'cost_type']

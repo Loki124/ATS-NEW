@@ -28,6 +28,26 @@ export function usePermission() {
 
   const isSuperAdmin = () => roles.value.includes(SUPER_ADMIN)
 
+  /**
+   * 后端是否已下发功能权限清单。
+   * `permissions` 来自 /me 的 role_permission 展开（apps/core/views_auth.py:245-262），
+   * 空数组意味着该用户的角色**从未配置过功能权限** —— 这是「未配置」而非「无权限」。
+   */
+  const isPermissionConfigured = computed<boolean>(() => permissions.value.length > 0)
+
+  /**
+   * 菜单 / 路由的可见性判定（fail-open，绝不把用户锁死）：
+   * - 未配置功能权限（permissions 为空）→ 一律可见，交由后端 403 兜底；
+   * - 已配置 → 必须命中对应资源码；
+   * - 超管 → 恒可见。
+   */
+  const canAccess = (code?: string | null): boolean => {
+    if (!code) return true
+    if (isSuperAdmin()) return true
+    if (!isPermissionConfigured.value) return true
+    return permissions.value.includes(code)
+  }
+
   /** 是否拥有某个资源码 */
   const hasPermission = (code: string): boolean => {
     if (isSuperAdmin()) return true
@@ -52,6 +72,8 @@ export function usePermission() {
     permissions,
     roles,
     isSuperAdmin,
+    isPermissionConfigured,
+    canAccess,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,

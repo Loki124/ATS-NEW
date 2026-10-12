@@ -96,6 +96,12 @@ class V2Permission(BasePermission):
         explicit = getattr(view, 'permission_required_map', None) or {}
         if action and action in explicit:
             return self._any(user, explicit[action])
+        # 1b) 纯 APIView (无 DRF action, action 恒为 None): 表键按 HTTP method 小写匹配,
+        #     使 POST-only 视图能声明精确码 (:create / :export / ...), 而不必退化成派生 :edit。
+        if not action and isinstance(explicit, dict):
+            by_method = (request.method or '').lower()
+            if by_method in explicit:
+                return self._any(user, explicit[by_method])
 
         # 2) 自助操作白名单: 只作用于当前用户自己的数据, 无资源级授权概念。
         #    必须是 action 名集合 (而非布尔开关), 便于 scripts_scan_v2_write_guard.py

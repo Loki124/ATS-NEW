@@ -8,6 +8,7 @@ scopes 动作 (apps/mou/urls.py 的 MouAgreementViewSetWithScopes) 自带 {succe
 """
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions_v2 import V2Permission
 from apps.common.viewsets import EnvelopeModelViewSet
 from apps.core.permissions import MOUVIEWSetPermission  # noqa: F401
 
@@ -24,7 +25,14 @@ class MouAgreementViewSet(EnvelopeModelViewSet):
     """MOU 协议 CRUD - 仅 HRBP+ (Fix 1)"""
     queryset = MouAgreement.objects.all().order_by('-created_at')
     serializer_class = MouAgreementSerializer
-    permission_classes = [MOUVIEWSetPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:mou:list'
+    permission_required_map = {
+        'create': 'recruit:mou:create',
+        'update': 'recruit:mou:edit',
+        'partial_update': 'recruit:mou:edit',
+        'destroy': 'recruit:mou:edit',
+    }
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -39,7 +47,14 @@ class MouContainerViewSet(EnvelopeModelViewSet):
     """MOU 容器 (配额) CRUD - 仅 HRBP+ (Fix 1)"""
     queryset = MouContainer.objects.all().order_by('mou__code', 'code')
     serializer_class = MouContainerSerializer
-    permission_classes = [MOUVIEWSetPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:mou:list'
+    permission_required_map = {
+        'create': 'recruit:mou:create',
+        'update': 'recruit:mou:edit',
+        'partial_update': 'recruit:mou:edit',
+        'destroy': 'recruit:mou:edit',
+    }
     pagination_class = StandardResultsSetPagination
 
 
@@ -47,7 +62,14 @@ class MutualExclusionGroupViewSet(EnvelopeModelViewSet):
     """互斥组 CRUD - 仅 HRBP+ (Fix 1)"""
     queryset = MutualExclusionGroup.objects.all().order_by('-created_at')
     serializer_class = MutualExclusionGroupSerializer
-    permission_classes = [MOUVIEWSetPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:mou:list'
+    permission_required_map = {
+        'create': 'recruit:mou:create',
+        'update': 'recruit:mou:edit',
+        'partial_update': 'recruit:mou:edit',
+        'destroy': 'recruit:mou:edit',
+    }
     pagination_class = StandardResultsSetPagination
 
 
@@ -55,5 +77,12 @@ class MouRuleViewSet(EnvelopeModelViewSet):
     """自动化规则 CRUD - 仅 HRBP+ (Fix 1)"""
     queryset = MouRule.objects.all().order_by('-created_at')
     serializer_class = MouRuleSerializer
-    permission_classes = [MOUVIEWSetPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:mou:list'
+    permission_required_map = {
+        'create': 'recruit:mou:create',
+        'update': 'recruit:mou:edit',
+        'partial_update': 'recruit:mou:edit',
+        'destroy': 'recruit:mou:edit',
+    }
     pagination_class = StandardResultsSetPagination

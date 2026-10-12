@@ -24,6 +24,7 @@ from rest_framework.views import APIView
 
 from apps.common.mixins import ExportMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions_v2 import V2Permission
 from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
 from apps.common.viewsets import EnvelopeModelViewSet
@@ -111,6 +112,14 @@ class _RefCheckMixin:
 
 
 class AtomicMetricViewSet(EnvelopeWriteMixin, _RefCheckMixin, viewsets.ModelViewSet):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
+    permission_required_map = {
+        'create': 'recruit:settings:metrics:edit',
+        'update': 'recruit:settings:metrics:edit',
+        'partial_update': 'recruit:settings:metrics:edit',
+        'destroy': 'recruit:settings:metrics:edit',
+    }
     # #9 (2026-10-09): AtomicMetricSerializer.get_template_count 逐行 obj.templates.count() -> N+1,
     # prefetch 一次取回, 计数走缓存不落库。
     queryset = AtomicMetric.objects.all().order_by('name').prefetch_related('templates')
@@ -119,6 +128,14 @@ class AtomicMetricViewSet(EnvelopeWriteMixin, _RefCheckMixin, viewsets.ModelView
 
 
 class DerivedMetricViewSet(EnvelopeWriteMixin, _RefCheckMixin, viewsets.ModelViewSet):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
+    permission_required_map = {
+        'create': 'recruit:settings:metrics:edit',
+        'update': 'recruit:settings:metrics:edit',
+        'partial_update': 'recruit:settings:metrics:edit',
+        'destroy': 'recruit:settings:metrics:edit',
+    }
     # #9 (2026-10-09): DerivedMetricSerializer.get_template_count 逐行 obj.templates.count() -> N+1,
     # prefetch 一次取回, 计数走缓存不落库。
     queryset = DerivedMetric.objects.all().order_by('name').prefetch_related('templates')
@@ -127,6 +144,14 @@ class DerivedMetricViewSet(EnvelopeWriteMixin, _RefCheckMixin, viewsets.ModelVie
 
 
 class MetricTemplateViewSet(ExportMixin, EnvelopeWriteMixin, viewsets.ModelViewSet):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
+    permission_required_map = {
+        'create': 'recruit:settings:metrics:edit',
+        'update': 'recruit:settings:metrics:edit',
+        'partial_update': 'recruit:settings:metrics:edit',
+        'destroy': 'recruit:settings:metrics:edit',
+    }
     queryset = MetricTemplate.objects.all().select_related(
         'atomic_metric', 'derived_metric'
     ).order_by('name')
@@ -306,6 +331,8 @@ class MetricTemplateViewSet(ExportMixin, EnvelopeWriteMixin, viewsets.ModelViewS
 
 
 class EvaluateSceneView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """POST /api/v1/metrics/rules/evaluate-scene/ —— 业务触发点统一入口。
 
     body: {scene: TALENT_POOL|FILTER|SCORING, candidateId}
@@ -340,6 +367,8 @@ def _cache_key(scene: str, candidate_ids: List[str]) -> str:
 
 
 class FilterAsyncView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """POST /api/v1/metrics/rules/filter-async/ —— 全量异步筛选。
 
     候选人规模超过 FILTER_MAX_CANDIDATES 时用（同步端点会截断）。
@@ -373,6 +402,8 @@ class FilterAsyncView(APIView):
 
 
 class FilterStatusView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """GET /api/v1/metrics/rules/filter-status/?taskId= —— 查询异步筛选进度/结果。"""
 
     def get(self, request):
@@ -391,6 +422,8 @@ class FilterStatusView(APIView):
 
 
 class FilterBySceneView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """POST /api/v1/metrics/rules/filter/ —— 批量按场景规则筛选候选人。
 
     两种用法：
@@ -450,6 +483,14 @@ class FilterBySceneView(APIView):
 
 
 class MetricRuleViewSet(EnvelopeModelViewSet):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
+    permission_required_map = {
+        'create': 'recruit:settings:metrics:edit',
+        'update': 'recruit:settings:metrics:edit',
+        'partial_update': 'recruit:settings:metrics:edit',
+        'destroy': 'recruit:settings:metrics:edit',
+    }
     """指标规则 CRUD + 启停 + 按持久化规则执行。
 
     与一次性 execute 的区别：本 ViewSet 的规则**落库**，可被业务触发点按 scene
@@ -492,6 +533,9 @@ class MetricRuleViewSet(EnvelopeModelViewSet):
 
 
 class RuleExecuteView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
+    permission_required_map = {'post': 'recruit:settings:metrics:edit'}
     """POST /api/v1/metrics/rules/execute/ —— 配置即执行，不落库。"""
 
     def post(self, request):
@@ -562,6 +606,8 @@ class RuleExecuteView(APIView):
 
 
 class OperatorCatalogView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """GET 运算符目录（复用统一规则引擎的 11 种运算符）。"""
 
     def get(self, request):
@@ -572,6 +618,8 @@ class OperatorCatalogView(APIView):
 
 
 class DerivedFuncCatalogView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """GET 派生计算函数目录 —— 运营据此零代码新增派生指标。"""
 
     def get(self, request):
@@ -584,6 +632,8 @@ def sample_data(request):
 
 
 class CandidateSnapshotView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """GET /api/v1/metrics/candidates/{id}/snapshot/ —— 真实候选人数据快照。
 
     规则引擎的取值入口：把 ORM 组装成嵌套 dict，供原子指标 source_path 解析。
@@ -601,6 +651,8 @@ class CandidateSnapshotView(APIView):
 
 
 class CandidateFieldCatalogView(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """GET /api/v1/metrics/candidate-fields/ —— 可引用的字段路径清单。
 
     供配置原子指标时下拉选择（path/label/dataType），避免手填路径导致解析失败。
@@ -611,6 +663,8 @@ class CandidateFieldCatalogView(APIView):
 
 
 class MetricDefinitionViewSet(APIView):
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:metrics:list'
     """GET /api/v1/metrics/definitions/ —— 统一「指标定义」视图（原子 + 派生合并）。
 
     将原子指标与派生指标整合为一张清单，列与产品截图一致：

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { ROLE_GROUPS } from '../utils/role'
+import { permissionForPath } from '../utils/permissionMenu'
 
 /**
  * Plan O 优化:
@@ -302,6 +303,24 @@ export async function routeGuard(to: any, _from: any, next: any) {
         `user has ${userRoles.length ? userRoles.join(',') : 'undefined'}`
       )
       return next('/forbidden')
+    }
+  }
+
+  // 3. 功能权限校验（G4）：路由 meta.permission 或路径登记的资源码。
+  // fail-open：/me.permissions 为空 = 该角色「从未配置功能权限」，此时不拦，
+  // 交由后端 403 兜底 —— 避免配置数据缺失时把全站用户锁死。
+  {
+    const permissions = userStore.user?.permissions ?? []
+    const isSuperAdmin = (userStore.user?.roles ?? []).includes('SUPER_ADMIN')
+    if (!isSuperAdmin && permissions.length > 0) {
+      const declared = (to.meta.permission as string | undefined)
+        ?? permissionForPath(to.path)
+      if (declared && !permissions.includes(declared)) {
+        console.warn(
+          `[router] access denied to ${to.path}: missing permission ${declared}`
+        )
+        return next('/forbidden')
+      }
     }
   }
 

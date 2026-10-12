@@ -50,6 +50,7 @@ def _paged_response(paginator: CodeTablePagination, queryset, request, serialize
 
 class _BaseCodeViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:code-tables:list'
     pagination_class = CodeTablePagination
 
     def list(self, request, *args, **kwargs):

@@ -60,7 +60,15 @@ class InterviewEvaluationViewSet(EnvelopeAuditModelViewSet):
     """面试评价 ViewSet"""
     queryset = InterviewEvaluation.objects.all()
     serializer_class = InterviewEvaluationSerializer
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    # 面试评价的读写都归 feedback 码 (无独立评价删除码)
+    permission_required = 'recruit:interview:list'
+    permission_required_map = {
+        'create': 'recruit:interview:feedback',
+        'update': 'recruit:interview:feedback',
+        'partial_update': 'recruit:interview:feedback',
+        'destroy': 'recruit:interview:feedback',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['interview', 'interviewer', 'recommendation']

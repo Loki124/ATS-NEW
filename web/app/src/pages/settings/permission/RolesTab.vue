@@ -81,14 +81,6 @@
       :role="editModal.role"
       @saved="onEditSaved"
     />
-
-    <RoleDataPermDrawer
-      v-model:visible="dataPermDrawer.show"
-      :role-id="dataPermDrawer.roleId"
-      :role-code="dataPermDrawer.roleCode"
-      :role-name="dataPermDrawer.roleName"
-      @saved="onDataPermSaved"
-    />
   </div>
 </template>
 
@@ -106,12 +98,11 @@
  *   - 表格包 .table-wrap + flex-height（仅表体内部滚动）；空状态区分「无数据/无筛选结果」
  */
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, NTooltip, useMessage } from 'naive-ui'
+import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, useMessage } from 'naive-ui'
 import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } from '@/api/role-v2'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
 import { localPagination } from '@/composables/useTablePagination'
 import RoleEditModal from './RoleEditModal.vue'
-import RoleDataPermDrawer from '@/components/role/RoleDataPermDrawer.vue'
 import { useCloseGuard } from '@/composables/useCloseGuard'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
@@ -162,8 +153,8 @@ const scopeTypeLabels: Record<string, string> = {
 }
 
 const columns = [
-  { title: '角色编码', key: 'roleCode', width: 160, render: (r: RoleV2) => r.roleCode || '—' },
-  { title: '角色名称', key: 'roleName', width: 160, render: (r: RoleV2) => r.roleName || '—' },
+  { title: '身份编码', key: 'roleCode', width: 160, render: (r: RoleV2) => r.roleCode || '—' },
+  { title: '身份名称', key: 'roleName', width: 160, render: (r: RoleV2) => r.roleName || '—' },
   { title: '模板来源', key: 'templateCode', width: 140, render: (r: RoleV2) => r.templateCode || '—' },
   {
     title: '默认数据范围',
@@ -209,29 +200,9 @@ const columns = [
   {
     title: '操作',
     key: 'actions',
-    width: 230,
+    width: 150,
     fixed: 'right' as const,
     render(row: RoleV2) {
-      const isSuper = row.roleCode === 'SUPER_ADMIN'
-      const dataPermBtn = h(
-        NTooltip,
-        { disabled: !isSuper },
-        {
-          trigger: () =>
-            h(
-              NButton,
-              {
-                size: 'small',
-                tertiary: true,
-                type: 'primary',
-                disabled: isSuper,
-                onClick: () => openDrawer(row),
-              },
-              () => t('dataperm.entry.button'),
-            ),
-          default: () => t('dataperm.entry.tooltip.superAdmin'),
-        },
-      )
       return h(NSpace, { size: 4 }, () => [
         h(NButton, {
           size: 'small',
@@ -239,7 +210,6 @@ const columns = [
           type: 'primary',
           onClick: () => onEdit(row),
         }, () => '编辑'),
-        dataPermBtn,
         h(NButton, {
           size: 'small',
           tertiary: true,
@@ -274,24 +244,6 @@ const editModal = reactive({
   role: null as RoleV2 | null,
 })
 
-const dataPermDrawer = reactive({
-  show: false,
-  roleId: '',
-  roleCode: '',
-  roleName: '',
-})
-
-function openDrawer(row: RoleV2) {
-  dataPermDrawer.roleId = row.id
-  dataPermDrawer.roleCode = row.roleCode
-  dataPermDrawer.roleName = row.roleName
-  dataPermDrawer.show = true
-}
-
-function onDataPermSaved() {
-  dataPermDrawer.show = false
-}
-
 async function load() {
   loading.value = true
   try {
@@ -319,7 +271,7 @@ function onCloneFromTemplate() {
 async function onSubmitClone() {
   const { templateCode, roleCode, roleName } = cloneModal.form
   if (!templateCode || !roleCode || !roleName) {
-    message.warning('模板 + 新角色编码 + 新角色名称 必填')
+    message.warning('模板 + 新身份编码 + 新身份名称 必填')
     return
   }
   cloneModal.saving = true

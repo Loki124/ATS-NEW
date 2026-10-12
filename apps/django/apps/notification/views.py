@@ -25,7 +25,14 @@ class NotificationTemplateViewSet(EnvelopeAuditModelViewSet):
     """通知模板 ViewSet"""
     queryset = NotificationTemplate.objects.all()
     serializer_class = NotificationTemplateSerializer
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:notification:list'
+    permission_required_map = {
+        'create': 'recruit:notification:create',
+        'update': 'recruit:notification:edit',
+        'partial_update': 'recruit:notification:edit',
+        'destroy': 'recruit:notification:delete',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['event', 'is_active']

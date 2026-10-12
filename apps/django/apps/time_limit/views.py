@@ -9,6 +9,7 @@ from apps.candidate.models import Candidate
 from apps.common.exceptions import NotFound
 from apps.common.mixins import AuditMixin, SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions_v2 import V2Permission
 from apps.core.permissions import HasProcessPermission
 from apps.process.models import ProcessStageLink
 
@@ -27,7 +28,14 @@ class TimeLimitRuleViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelVie
     """阶段限时规则 ViewSet"""
     queryset = TimeLimitRule.objects.all()
     serializer_class = TimeLimitRuleSerializer
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required_map = {
+        'create': 'recruit:settings:recruitment-process:edit',
+        'update': 'recruit:settings:recruitment-process:edit',
+        'partial_update': 'recruit:settings:recruitment-process:edit',
+        'destroy': 'recruit:settings:recruitment-process:edit',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['link', 'enabled', 'effective_scope', 'link__process']

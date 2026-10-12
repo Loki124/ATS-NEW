@@ -84,13 +84,15 @@ const collapsed = ref(false)
 //   group 项：type: 'group' + 必填 children
 //   叶子项：可选 icon render 函数
 import type { MenuOption } from 'naive-ui'
+import { usePermission } from '../../composables/usePermission'
+import { filterMenuByPermission } from '../../utils/permissionMenu'
 const { t } = useI18n()
 type MenuItem = MenuOption
 
 // ★ v1.1 修复：subMenuOptions 列全 5 个分组（基本信息/过程管理/招聘提速/内容管理/其他）
 //   + 每组 children 完整迁移（22 项菜单）
 //   icon 渲染：保持 render 函数形式（与 Layout.vue 一致）
-const subMenuOptions: MenuItem[] = [
+const rawSubMenuOptions: MenuItem[] = [
   {
     key: 'g-basic',
     type: 'group',
@@ -136,8 +138,8 @@ const subMenuOptions: MenuItem[] = [
         icon: () => h(NIcon, null, { default: () => h(ShieldOutline) }),
         children: [
           { key: '/settings/permissions', label: t('pages.settings.SettingsLayout.s19'), icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
-          { key: '/settings/permissions/resources', label: t('pages.settings.SettingsLayout.s20'), icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
           { key: '/settings/mou', label: t('pages.settings.SettingsLayout.s21'), icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
+          { key: '/settings/permissions/resources', label: t('pages.settings.SettingsLayout.s20'), icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
           { key: '/settings/field-acl', label: t('pages.settings.SettingsLayout.s22'), icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
         ],
       },
@@ -247,6 +249,12 @@ const subMenuOptions: MenuItem[] = [
   },
 ]
 
+// G4: 按功能权限裁剪设置菜单（fail-open：未配置功能权限时全部可见）
+const { canAccess } = usePermission()
+const subMenuOptions = computed<MenuItem[]>(() =>
+  filterMenuByPermission(rawSubMenuOptions as MenuOption[], canAccess) as MenuItem[]
+)
+
 // n-menu themeOverrides（让 Naive n-menu 字色走 CSS 变量，单一来源）
 const settingsMenuThemeOverrides = {
   itemTextColor: 'var(--ink-soft)',
@@ -278,7 +286,7 @@ function findPathToKey(items: MenuItem[], target: string, currentPath: Array<str
 }
 
 function expandCurrentTo(path: string) {
-  const chain = findPathToKey(subMenuOptions, path)
+  const chain = findPathToKey(rawSubMenuOptions, path)
   if (!chain) return
   // chain 是从最外层 group 到目标 key 的完整路径，剔除目标本身
   const ancestors = chain.slice(0, -1)
@@ -412,7 +420,7 @@ watch(() => route.path, () => {
   color: var(--ink-soft); cursor: pointer; font-size: var(--fs-16);
   transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
-.collapse-btn:hover { background: var(--brand-tint); color: var(--brand); border-color: var(--glass-border); }
+.collapse-btn:hover { background: var(--brand-tint); color: var(--brand-fg); border-color: var(--glass-border); }
 .collapse-btn.collapsed { width: 32px; height: 32px; }
 
 /* 右侧内容区 */

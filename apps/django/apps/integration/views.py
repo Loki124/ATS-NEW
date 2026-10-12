@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions_v2 import V2Permission
 from apps.common.viewsets import EnvelopeAuditModelViewSet, EnvelopeModelViewSet
 from apps.core.permissions import IsHROrAbove, IsSuperAdmin
 
@@ -212,7 +213,15 @@ class BackgroundCheckOrderViewSet(EnvelopeModelViewSet):
     - cancel 动作：平台发起取消（置 status=6，写 CANCEL 事件 + 出向供应商取消接口）
     """
     queryset = BackgroundCheckOrder.objects.all()
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    # 背调订单属外部集成域
+    permission_required = 'recruit:settings:external:list'
+    permission_required_map = {
+        'create': 'recruit:settings:external:create',
+        'update': 'recruit:settings:external:edit',
+        'partial_update': 'recruit:settings:external:edit',
+        'destroy': 'recruit:settings:external:delete',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['config', 'status', 'candidate_id']

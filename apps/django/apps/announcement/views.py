@@ -12,6 +12,7 @@ from rest_framework.response import Response
 
 from apps.common.mixins import AuditMixin, SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions_v2 import V2Permission
 from apps.common.response import success_response
 from apps.core.models import User
 from apps.core.role_v2_query import HR_TIER, user_has_any_role
@@ -53,7 +54,14 @@ class AnnouncementViewSet(SoftDeleteViewSetMixin, AuditMixin, viewsets.ModelView
     """
 
     queryset = Announcement.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:announcements:list'
+    permission_required_map = {
+        'create': 'recruit:settings:announcements:edit',
+        'update': 'recruit:settings:announcements:edit',
+        'partial_update': 'recruit:settings:announcements:edit',
+        'destroy': 'recruit:settings:announcements:edit',
+    }
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
 
     def get_permissions(self):

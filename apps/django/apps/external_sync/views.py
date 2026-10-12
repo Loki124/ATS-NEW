@@ -12,6 +12,7 @@
 真实同步 (摩卡 People / 邮箱) 待企业 API 授权后实现, 此处不落地。
 """
 from rest_framework.permissions import IsAuthenticated
+from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,7 +20,9 @@ from rest_framework.views import APIView
 class CompanySyncListView(APIView):
     """GET /external-sync/syncs — 当前无真实同步记录, 返回空列表 (Mock)."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; POST 走派生 :edit (external:edit)
+    permission_required = 'recruit:settings:external:list'
 
     def get(self, request):
         # Mock: 暂无任何法人公司同步记录, 返回空列表避免前端表格 .length 崩溃.
@@ -29,7 +32,9 @@ class CompanySyncListView(APIView):
 class CompanySyncTriggerView(APIView):
     """POST /external-sync/sync/{companyId}/{system} — 触发同步 (Mock 确认)."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; POST 走派生 :edit (external:edit)
+    permission_required = 'recruit:settings:external:list'
 
     def post(self, request, company_id, system):
         return Response({
@@ -46,7 +51,9 @@ class CompanySyncTriggerView(APIView):
 class CompanySyncRetryView(APIView):
     """POST /external-sync/syncs/{syncId}/retry — 重试 (Mock 确认)."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; POST 走派生 :edit (external:edit)
+    permission_required = 'recruit:settings:external:list'
 
     def post(self, request, sync_id):
         return Response({

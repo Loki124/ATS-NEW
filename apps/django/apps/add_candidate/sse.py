@@ -14,6 +14,7 @@ from django.http import StreamingHttpResponse
 from rest_framework.views import APIView
 
 from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import V2Permission
 from apps.core.role_v2_query import is_super_admin
 
 _redis = None
@@ -77,7 +78,8 @@ class ScoringStreamView(APIView):
 
     SSE 评分进度流。前端 EventSource 连这个端点。
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
 
     def get(self, request, task_id):
         # 2026-07-02: IDOR fix — 校验 task_id 归属当前 actor (或超管)

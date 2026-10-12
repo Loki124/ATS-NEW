@@ -3,12 +3,14 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.exceptions import NotFound, ValidationError
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permission_check import has_perm
 from apps.core.permissions_v2 import V2Permission
 from apps.core.viewsets import BaseModelViewSet
 from apps.process.models import RecruitmentProcess
@@ -30,6 +32,18 @@ class DemandViewSet(BaseModelViewSet):
     queryset = Demand.objects.all().order_by('-created_at')
     permission_classes = [V2Permission]
     permission_required = 'recruit:demand:list'
+    # G1: seed 定义的审批码在此真实消费。此前 transition 作为自定义 action 一律按
+    # 派生码 recruit:demand:edit 校验，导致身份管理里单独勾「审批需求」不生效。
+    # 类级 map 放行持有 approve/edit 任一码的请求进入 action，再按 FSM 动作细查。
+    permission_required_map = {
+        'transition': ['recruit:demand:approve', 'recruit:demand:edit'],
+    }
+    # 审批人决策动作（PENDING 阶段的 approve/reject）→ 审批码；
+    # 其余动作（submit/start_recruiting/pause/...）按 :edit 校验
+    TRANSITION_ACTION_PERM = {
+        'approve': 'recruit:demand:approve',
+        'reject': 'recruit:demand:approve',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['state', 'department', 'hr', 'requested_by', 'priority']
@@ -120,6 +134,10 @@ class DemandViewSet(BaseModelViewSet):
         serializer = DemandTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action_name = serializer.validated_data['action']
+        # 细粒度校验：审批动作要求审批码，其余流转动作要求 :edit（G1）
+        required = self.TRANSITION_ACTION_PERM.get(action_name, 'recruit:demand:edit')
+        if not has_perm(request.user, required):
+            raise PermissionDenied(f'无权执行该操作，缺少权限码 {required}')
         method = getattr(instance, action_name, None)
         if not method:
             raise ValidationError(f'不支持的操作：{action_name}')
@@ -206,7 +224,9 @@ class DemandConfigView(APIView):
     camel-case 解析器入参 snake 化、渲染器出参 camel 化，round-trip 安全。
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; PUT/POST 走派生 :edit (demand-config:edit)
+    permission_required = 'recruit:settings:demand-config:list'
 
     @staticmethod
     def _get_or_create():

@@ -88,7 +88,14 @@ class RecruitmentStageViewSet(EnvelopeModelViewSet):
     destroy:   删除 (HRBP+) - 引用中不可删
     """
     queryset = RecruitmentStage.objects.all()
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-stage:list'
+    permission_required_map = {
+        'create': 'recruit:settings:recruitment-stage:edit',
+        'update': 'recruit:settings:recruitment-stage:edit',
+        'partial_update': 'recruit:settings:recruitment-stage:edit',
+        'destroy': 'recruit:settings:recruitment-stage:edit',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['stage_type', 'status', 'is_builtin']
@@ -233,7 +240,8 @@ class RecruitmentProcessViewSet(EnvelopeModelViewSet):
         'batch_recommend': 'recruit:settings:recruitment-process:edit',
     }
     queryset = RecruitmentProcess.objects.all()
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-process:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'is_template', 'template_code', 'is_enabled']
@@ -509,7 +517,14 @@ class ProcessStageLinkViewSet(EnvelopeModelViewSet):
     """流程-阶段关联 ViewSet"""
     queryset = ProcessStageLink.objects.all()
     serializer_class = ProcessStageLinkSerializer
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required_map = {
+        'create': 'recruit:settings:recruitment-process:edit',
+        'update': 'recruit:settings:recruitment-process:edit',
+        'partial_update': 'recruit:settings:recruitment-process:edit',
+        'destroy': 'recruit:settings:recruitment-process:edit',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     # 2026-07-03: FE 用 ?processId= 调 list (axios 自动 camelCase),
@@ -641,7 +656,14 @@ class StageRuleViewSet(viewsets.ModelViewSet):
     """阶段规则 ViewSet"""
     queryset = StageRule.objects.all()
     serializer_class = StageRuleSerializer
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required_map = {
+        'create': 'recruit:settings:recruitment-process:edit',
+        'update': 'recruit:settings:recruitment-process:edit',
+        'partial_update': 'recruit:settings:recruitment-process:edit',
+        'destroy': 'recruit:settings:recruitment-process:edit',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['link', 'processing_rule', 'is_grab_mode']
@@ -667,7 +689,14 @@ class InterviewRoundViewSet(EnvelopeAuditModelViewSet):
     status:     切换启用/停用状态
     """
     queryset = InterviewRound.objects.all()
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-round:list'
+    permission_required_map = {
+        'create': 'recruit:settings:recruitment-round:edit',
+        'update': 'recruit:settings:recruitment-round:edit',
+        'partial_update': 'recruit:settings:recruitment-round:edit',
+        'destroy': 'recruit:settings:recruitment-round:edit',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'is_universal']
@@ -721,6 +750,7 @@ class ProcessTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProcessTemplateSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-process:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'is_builtin', 'is_active']
@@ -776,7 +806,8 @@ class EntryConditionFieldCatalogView(APIView):
     契约（对齐前端 SPEC-stage-rule-config.md / ConditionPicker.vue）：source 字典带
     `source` 键、field 字典带 `field` 键（同时保留 `key` 兼容）。
     """
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-process:list'
 
     def get(self, request):
         from apps.entry_condition.models import ConditionOperator
@@ -942,7 +973,9 @@ class EntryConditionFieldCatalogView(APIView):
 # ============================================================
 class ProcessApplyTemplateView(APIView):
     """应用流程模板创建新流程"""
-    permission_classes = [HasProcessPermission]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required_map = {'post': 'recruit:settings:recruitment-process:edit'}
 
     @extend_schema(
         summary='从模板创建流程',

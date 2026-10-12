@@ -273,10 +273,118 @@ RESOURCES = [
     ('recruit:settings:approval-flow:edit', '审批/驳回/转交', 'BUTTON', 'settings'),
     # 码表库 (management)
     ('recruit:settings:code-tables:menu:view', '码表库菜单', 'MENU', 'settings'),
+    ('recruit:settings:code-tables:list', '码表列表', 'BUTTON', 'settings'),
     ('recruit:settings:code-tables:create', '新增码表', 'BUTTON', 'settings'),
     ('recruit:settings:code-tables:edit', '编辑码表', 'BUTTON', 'settings'),
     ('recruit:settings:code-tables:delete', '删除码表', 'BUTTON', 'settings'),
     ('recruit:settings:code-tables:export', '导出码表', 'BUTTON', 'settings'),
+
+    # --- module: channel ---
+    # 2026-10-11 (G2 接线): channel/views.py 声明的是 recruit:channel:list, 但 seed 里
+    # 从未定义该码 → _derive 回退 + 非超管恒 403。补齐后端点才真正可用。
+    ('recruit:channel:menu:view', '渠道菜单', 'MENU', 'channel'),
+    ('recruit:channel:list', '渠道列表', 'BUTTON', 'channel'),
+    ('recruit:channel:cost:list', '渠道成本列表', 'BUTTON', 'channel'),
+    ('recruit:channel:cost:edit', '渠道成本维护', 'BUTTON', 'channel'),
+
+    # --- module: process ---
+    ('recruit:settings:recruitment-process:list', '流程列表', 'BUTTON', 'settings'),
+
+    # --- module: notification ---
+    ('recruit:notification:menu:view', '通知中心菜单', 'MENU', 'notification'),
+    ('recruit:notification:list', '通知列表', 'BUTTON', 'notification'),
+    ('recruit:notification:create', '新建通知模板', 'BUTTON', 'notification'),
+    ('recruit:notification:edit', '编辑通知模板', 'BUTTON', 'notification'),
+    ('recruit:notification:delete', '删除通知模板', 'BUTTON', 'notification'),
+
+    # --- module: user_role ---
+    # 2026-10-11 (G2 接线): views_permission_v2 声明的 user_app_data_scope 码此前不存在
+    ('recruit:user_app_data_scope:menu:view', '应用数据范围菜单', 'MENU', 'user_role'),
+    ('recruit:user_app_data_scope:list', '应用数据范围列表', 'BUTTON', 'user_role'),
+    ('recruit:user_app_data_scope:edit', '编辑应用数据范围', 'BUTTON', 'user_role'),
+
+    # --- 配置类模块补 :list 读码 ---
+    # 2026-10-11 (G2 接线): 这些模块此前只有 menu:view + 写码, 缺读码。
+    # 端点接入 V2Permission 后读操作需要一个可校验的码 (permission_required 即读码),
+    # 否则只能拿 menu:view / edit 码凑, 语义不准。写码仍复用各模块既有 :edit/:create/:delete。
+    ('recruit:settings:campus-control:list', '校招管控列表', 'BUTTON', 'settings'),
+    ('recruit:settings:dictionary:list', '数据字典列表', 'BUTTON', 'settings'),
+    ('recruit:settings:dynamic-fields:list', '动态字段列表', 'BUTTON', 'settings'),
+    ('recruit:settings:duplicate-candidate:list', '重复候选人规则列表', 'BUTTON', 'settings'),
+    ('recruit:settings:standard-resume:list', '标准简历列表', 'BUTTON', 'settings'),
+    ('recruit:settings:application-form:list', '报名表单列表', 'BUTTON', 'settings'),
+    ('recruit:settings:announcements:list', '公告列表', 'BUTTON', 'settings'),
+    ('recruit:settings:external:list', '外部集成列表', 'BUTTON', 'settings'),
+    ('recruit:settings:company-brand:list', '品牌信息列表', 'BUTTON', 'settings'),
+    ('recruit:settings:demand-config:list', '需求配置列表', 'BUTTON', 'settings'),
+    ('recruit:settings:rule-engine:list', '规则引擎列表', 'BUTTON', 'settings'),
+    ('recruit:settings:recruitment-stage:list', '招聘阶段列表', 'BUTTON', 'settings'),
+    ('recruit:settings:recruitment-round:list', '面试轮次列表', 'BUTTON', 'settings'),
+    ('recruit:settings:metrics:list', '指标列表', 'BUTTON', 'settings'),
+    ('recruit:settings:metrics:edit', '指标维护', 'BUTTON', 'settings'),
+    ('recruit:settings:data-dashboard:list', '数据看板列表', 'BUTTON', 'settings'),
+    ('recruit:settings:company-library:list', '公司库列表', 'BUTTON', 'settings'),
+]
+
+
+# 配置类资源码 (2026-10-11, G2 接线)
+# 这些模块的端点此前是裸 IsAuthenticated / 角色白名单 —— 任意登录用户都能改配置。
+# 接入 V2Permission 后改为按资源码校验, 为保持 HR / HRBP 现有的配置可用范围,
+# 这里把配置类码同时授予 TMPL_DIRECTOR 与 TMPL_SPECIALIST;
+# 更细的粒度由管理员在「身份管理 → 功能权限」按需勾选。
+CONFIG_CODES = [
+    # 招聘流程 / 阶段 / 轮次
+    'recruit:settings:recruitment-process:menu:view', 'recruit:settings:recruitment-process:list',
+    'recruit:settings:recruitment-process:create', 'recruit:settings:recruitment-process:edit',
+    'recruit:settings:recruitment-process:delete',
+    'recruit:settings:recruitment-stage:menu:view', 'recruit:settings:recruitment-stage:list',
+    'recruit:settings:recruitment-stage:edit',
+    'recruit:settings:recruitment-round:menu:view', 'recruit:settings:recruitment-round:list',
+    'recruit:settings:recruitment-round:edit',
+    # 数据字典 / 码表 / 动态字段 / 重复候选人
+    'recruit:settings:dictionary:menu:view', 'recruit:settings:dictionary:list',
+    'recruit:settings:dictionary:create', 'recruit:settings:dictionary:edit',
+    'recruit:settings:dictionary:delete', 'recruit:settings:dictionary:export',
+    'recruit:settings:code-tables:menu:view', 'recruit:settings:code-tables:list',
+    'recruit:settings:code-tables:create', 'recruit:settings:code-tables:edit',
+    'recruit:settings:code-tables:delete', 'recruit:settings:code-tables:export',
+    'recruit:settings:dynamic-fields:menu:view', 'recruit:settings:dynamic-fields:list',
+    'recruit:settings:dynamic-fields:create', 'recruit:settings:dynamic-fields:edit',
+    'recruit:settings:dynamic-fields:delete', 'recruit:settings:dynamic-fields:export',
+    'recruit:settings:duplicate-candidate:menu:view', 'recruit:settings:duplicate-candidate:list',
+    'recruit:settings:duplicate-candidate:create', 'recruit:settings:duplicate-candidate:edit',
+    'recruit:settings:duplicate-candidate:delete', 'recruit:settings:duplicate-candidate:export',
+    # 简历 / 报名表单 / 品牌 / 公告 / 外部集成 / 需求配置 / 规则引擎 / 校招管控 / 指标
+    'recruit:settings:standard-resume:menu:view', 'recruit:settings:standard-resume:list',
+    'recruit:settings:standard-resume:edit',
+    'recruit:settings:application-form:menu:view', 'recruit:settings:application-form:list',
+    'recruit:settings:application-form:edit',
+    'recruit:settings:company-brand:menu:view', 'recruit:settings:company-brand:list',
+    'recruit:settings:company-brand:edit',
+    'recruit:settings:announcements:menu:view', 'recruit:settings:announcements:list',
+    'recruit:settings:announcements:edit',
+    'recruit:settings:external:menu:view', 'recruit:settings:external:list',
+    'recruit:settings:external:create', 'recruit:settings:external:edit',
+    'recruit:settings:external:delete',
+    'recruit:settings:demand-config:menu:view', 'recruit:settings:demand-config:list',
+    'recruit:settings:demand-config:edit',
+    'recruit:settings:rule-engine:menu:view', 'recruit:settings:rule-engine:list',
+    'recruit:settings:rule-engine:edit',
+    'recruit:settings:campus-control:menu:view', 'recruit:settings:campus-control:list',
+    'recruit:settings:campus-control:edit',
+    'recruit:settings:metrics:list', 'recruit:settings:metrics:edit',
+    # 渠道成本 / 通知模板
+    'recruit:channel:menu:view', 'recruit:channel:list',
+    'recruit:channel:cost:list', 'recruit:channel:cost:edit',
+    'recruit:notification:menu:view', 'recruit:notification:list',
+    'recruit:notification:create', 'recruit:notification:edit',
+    'recruit:notification:delete',
+    # 管理单元 / 身份 / 用户授权 (HR 需要维护组织与授权)
+    'recruit:mou:create', 'recruit:mou:edit',
+    'recruit:role:create', 'recruit:role:edit',
+    'recruit:user_role:create', 'recruit:user_role:edit',
+    'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
+    'recruit:mgmt_unit:create', 'recruit:mgmt_unit:edit',
 ]
 
 
@@ -289,7 +397,7 @@ TEMPLATES = [
     {
         'code': 'TMPL_DIRECTOR',
         'name': '招聘总经理',
-        'codes': [
+        'codes': CONFIG_CODES + [
             'recruit:candidate:menu:view', 'recruit:candidate:list',
             'recruit:candidate:export',
             'recruit:offer:menu:view', 'recruit:offer:list',
@@ -306,15 +414,15 @@ TEMPLATES = [
             'recruit:mou:menu:view', 'recruit:mou:list',
             'recruit:role:menu:view', 'recruit:role:list',
             'recruit:user_role:menu:view', 'recruit:user_role:list',
-            'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
         ],
     },
     {
         'code': 'TMPL_SPECIALIST',
         'name': '招聘专员',
-        'codes': [
+        'codes': CONFIG_CODES + [
             'recruit:candidate:menu:view', 'recruit:candidate:list',
             'recruit:candidate:create', 'recruit:candidate:edit',
+            'recruit:candidate:export',
             'recruit:offer:menu:view', 'recruit:offer:list',
             'recruit:offer:create',
             'recruit:interview:menu:view', 'recruit:interview:list',
@@ -325,6 +433,12 @@ TEMPLATES = [
             'recruit:invitation:menu:view', 'recruit:invitation:list',
             'recruit:invitation:create',
             'recruit:talent_pool:menu:view', 'recruit:talent_pool:list',
+            'recruit:talent_pool:create', 'recruit:talent_pool:edit',
+            'recruit:talent_pool:delete',
+            'recruit:mou:menu:view', 'recruit:mou:list',
+            'recruit:role:menu:view', 'recruit:role:list',
+            'recruit:user_role:menu:view', 'recruit:user_role:list',
+            'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
         ],
     },
     {

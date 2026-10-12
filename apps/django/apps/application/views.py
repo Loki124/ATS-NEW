@@ -41,6 +41,7 @@ from rest_framework.response import Response
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions_v2 import V2Permission
 from apps.common.response import success_response
 from apps.common.search import keyword_q
 from apps.common.views import EnvelopeWriteMixin
@@ -567,7 +568,8 @@ class GrabPoolViewSet(viewsets.GenericViewSet):
     queryset/serializer_class 显式声明：list() 虽直接用 GrabService 取数不走
     get_queryset()，但 drf-spectacular 生成 schema 时会访问，避免告警。
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:application:list'
     pagination_class = StandardResultsSetPagination
     queryset = Application.objects.none()
     serializer_class = ApplicationListSerializer

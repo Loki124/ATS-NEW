@@ -99,6 +99,7 @@ class SchoolViewSet(EnvelopeModelViewSet):
     serializer_class = SchoolSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:company-library:list'
     # 2026-10-08: 写操作显式授权 (此前未声明 → 任意登录用户可增删改院校库基础数据)。
     permission_required_map = {
         'create': 'recruit:settings:school-library:create',

@@ -16,6 +16,7 @@
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -54,7 +55,9 @@ def _apply_audit(obj, user, *, creating: bool = False):
 class DuplicateCatalogView(APIView):
     """查重项字段目录（强 / 中 / 弱）"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
+    permission_required = 'recruit:settings:duplicate-candidate:list'
 
     def get(self, request):
         groups = [
@@ -71,7 +74,9 @@ class DuplicateCatalogView(APIView):
 class DuplicateConfigView(APIView):
     """重复候选人管理 —— 全局配置（合并规则 / 重复申请管理）"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
+    permission_required = 'recruit:settings:duplicate-candidate:list'
 
     def get(self, request):
         return Response({
@@ -132,7 +137,9 @@ class DuplicateConfigView(APIView):
 class DuplicateRuleListView(APIView):
     """候选人查重规则集合：列出 / 新建"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
+    permission_required = 'recruit:settings:duplicate-candidate:list'
 
     def get(self, request):
         # 首次访问时惰性补齐系统内置规则（幂等，不覆盖用户改动）
@@ -158,7 +165,9 @@ class DuplicateRuleListView(APIView):
 class DuplicateRuleDetailView(APIView):
     """单条候选人查重规则：详情 / 更新 / 软删除"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
+    permission_required = 'recruit:settings:duplicate-candidate:list'
 
     @staticmethod
     def _get(pk):
@@ -215,7 +224,9 @@ class DuplicateRuleToggleView(APIView):
     （前端发 isEnabled）。
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
+    permission_required = 'recruit:settings:duplicate-candidate:list'
 
     def post(self, request, pk):
         rule = DuplicateRule.objects.filter(pk=pk, deleted_at__isnull=True).first()
@@ -238,7 +249,9 @@ class DuplicateRuleToggleView(APIView):
 class DuplicateRuleResetView(APIView):
     """恢复系统默认：软删自定义规则 + 系统规则复位"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
+    permission_required = 'recruit:settings:duplicate-candidate:list'
 
     def post(self, request):
         rules = reset_rules()

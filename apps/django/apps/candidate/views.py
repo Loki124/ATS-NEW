@@ -531,7 +531,15 @@ class CandidateTagViewSet(viewsets.ModelViewSet):
     """候选人标签字典"""
     queryset = CandidateTag.objects.all()
     serializer_class = CandidateTagSerializer
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    # 标签无独立写码, 写统一按候选人编辑码
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {
+        'create': 'recruit:candidate:edit',
+        'update': 'recruit:candidate:edit',
+        'partial_update': 'recruit:candidate:edit',
+        'destroy': 'recruit:candidate:edit',
+    }
     pagination_class = StandardResultsSetPagination
 
 
@@ -542,7 +550,8 @@ class CandidateResumeFieldsView(APIView):
     PUT  /api/v1/candidates/<pk>/resume-fields/  body { values: {fieldKey: value} } -> upsert 每个 field_key
     用于「候选人详情 - 编辑简历」: 标准简历配置中无 Candidate 模型列的扩展字段值存取。
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
 
     def _check_candidate(self, request, pk):
         """校验候选人存在**且在当前用户数据范围内**。
@@ -606,7 +615,9 @@ class CandidateBatchRecommendView(APIView):
     POST /api/v1/candidates/batch/recommend/
     body: {candidateIds: string[], positionId: string, comment?: string}
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:edit'}
 
     def post(self, request):
         candidate_ids = request.data.get('candidate_ids', [])
@@ -668,7 +679,9 @@ class CandidateBatchArchiveView(APIView):
     POST /api/v1/candidates/batch/archive/
     body: {candidateIds: string[], reason?: string}
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:edit'}
 
     def post(self, request):
         candidate_ids = request.data.get('candidate_ids', [])
@@ -694,7 +707,9 @@ class CandidateBatchAssignView(APIView):
     POST /api/v1/candidates/batch/assign/
     body: {candidateIds: string[], recruiterId: string}
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:edit'}
 
     def post(self, request):
         candidate_ids = request.data.get('candidate_ids', [])
@@ -732,7 +747,9 @@ class CandidateBatchScreenView(APIView):
     POST /api/v1/candidates/batch/screen/
     body: {candidateIds: string[], result: 'PASS'|'FAIL'|'KEEP', comment?: string}
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:edit'}
 
     def post(self, request):
         candidate_ids = request.data.get('candidate_ids', [])
@@ -786,7 +803,10 @@ class CandidateBatchExportView(APIView):
     POST /api/v1/candidates/batch/export/
     body: {candidateIds?: string[], filter?: {state?, keyword?}}
     """
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    # 导出是数据出口, 单独要求导出码 (不再与编辑码混用)
+    permission_required = 'recruit:candidate:list'
+    permission_required_map = {'post': 'recruit:candidate:export'}
 
     def post(self, request):
         import io

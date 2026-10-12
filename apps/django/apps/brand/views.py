@@ -19,6 +19,7 @@ from django.core.files.storage import default_storage
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -37,7 +38,9 @@ MAX_LOGO_SIZE = 2 * 1024 * 1024
 class BrandInfoView(APIView):
     """雇主品牌信息 单例 CRUD 视图。"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; POST/PUT 走派生 :edit (company-brand:edit)
+    permission_required = 'recruit:settings:company-brand:list'
 
     def _get_or_create(self) -> BrandInfo:
         """取唯一一行; 不存在则惰性创建(首次访问即给一份默认值)。"""
@@ -72,7 +75,9 @@ class BrandLogoUploadView(APIView):
     ``BrandInfo.logo_url`` 字段(PUT /api/v1/brand/)。
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # 读按列表码; POST/PUT 走派生 :edit (company-brand:edit)
+    permission_required = 'recruit:settings:company-brand:list'
     parser_classes = [MultiPartParser]
 
     def post(self, request, *args, **kwargs) -> Response:

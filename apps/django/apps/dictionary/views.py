@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions_v2 import V2Permission
 from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
 
@@ -62,7 +63,14 @@ class DictionaryTypeViewSet(EnvelopeWriteMixin, DictionaryCRUDMixin, viewsets.Mo
 
     queryset = DictionaryType.objects.filter(deleted_at__isnull=True)
     serializer_class = DictionaryTypeSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:dictionary:list'
+    permission_required_map = {
+        'create': 'recruit:settings:dictionary:create',
+        'update': 'recruit:settings:dictionary:edit',
+        'partial_update': 'recruit:settings:dictionary:edit',
+        'destroy': 'recruit:settings:dictionary:delete',
+    }
     pagination_class = StandardResultsSetPagination
     lookup_field = 'code'
 
@@ -392,7 +400,14 @@ class DictionaryItemViewSet(EnvelopeWriteMixin, DictionaryCRUDMixin, viewsets.Mo
         .select_related('type', 'parent')
     )
     serializer_class = DictionaryItemSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:dictionary:list'
+    permission_required_map = {
+        'create': 'recruit:settings:dictionary:create',
+        'update': 'recruit:settings:dictionary:edit',
+        'partial_update': 'recruit:settings:dictionary:edit',
+        'destroy': 'recruit:settings:dictionary:delete',
+    }
     pagination_class = StandardResultsSetPagination
 
     _unique_field = 'key'

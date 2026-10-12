@@ -13,6 +13,7 @@ CandidateInfoTable（候选人信息登记表设置，单体 JSON config）：
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -33,7 +34,8 @@ DEFAULT_CANDIDATE_INFO_TABLE = {
 
 
 class BaseConfigView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:standard-resume:list'
 
     KEY = None  # 子类必须指定配置键，对应 standard_resume_configs 表的 key 行
 
@@ -91,7 +93,8 @@ class FormConfigView(APIView):
     交互形式对标「标准简历设置」：分组 + 双层字段拖拽、显隐/必填开关、实时预览、自动保存。
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:application-form:list'
 
     RESOURCE_KEYS = {
         'Demand': 'form_demand',
@@ -137,7 +140,8 @@ class FormConfigView(APIView):
 class RegistrationFormListView(APIView):
     """登记 / 申请表集合：列出 / 新建"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:application-form:list'
 
     def get(self, request):
         qs = RegistrationForm.objects.filter(deleted_at__isnull=True).order_by('order_index', 'id')
@@ -160,7 +164,8 @@ class RegistrationFormListView(APIView):
 class RegistrationFormDetailView(APIView):
     """单个登记 / 申请表：更新 / 软删除"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:application-form:list'
 
     def _get(self, pk):
         return RegistrationForm.objects.filter(pk=pk, deleted_at__isnull=True).first()

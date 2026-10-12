@@ -28,7 +28,14 @@ class ReportSnapshotViewSet(AuditMixin, viewsets.ModelViewSet):
     # #9 (2026-10-09): ReportSnapshotSerializer 嵌套 generated_by_name, 列表逐行查 -> N+1, 一次 join.
     queryset = ReportSnapshot.objects.all().select_related('generated_by')
     serializer_class = ReportSnapshotSerializer
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:data-dashboard:list'
+    permission_required_map = {
+        'create': 'recruit:settings:data-dashboard:create',
+        'update': 'recruit:settings:data-dashboard:edit',
+        'partial_update': 'recruit:settings:data-dashboard:edit',
+        'destroy': 'recruit:settings:data-dashboard:delete',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['report_type', 'generated_by']
@@ -41,7 +48,16 @@ class ExportTaskViewSet(EnvelopeAuditModelViewSet):
     """数据导出任务 ViewSet"""
     # #9 (2026-10-09): ExportTaskSerializer 嵌套 requested_by_name, 列表逐行查 -> N+1, 一次 join.
     queryset = ExportTask.objects.all().select_related('requested_by')
-    permission_classes = [IsHROrAbove]
+    permission_classes = [V2Permission]
+    # 导出任务: 创建/执行按导出码
+    permission_required = 'recruit:settings:data-dashboard:list'
+    permission_required_map = {
+        'create': 'recruit:settings:data-dashboard:export',
+        'run': 'recruit:settings:data-dashboard:export',
+        'update': 'recruit:settings:data-dashboard:edit',
+        'partial_update': 'recruit:settings:data-dashboard:edit',
+        'destroy': 'recruit:settings:data-dashboard:delete',
+    }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['entity', 'format', 'status', 'requested_by']
@@ -94,6 +110,7 @@ class ExportTaskViewSet(EnvelopeAuditModelViewSet):
 # 返回 DashboardKpi TS interface 期望的精确 shape.
 # ============================================================
 class KpiViewSet(viewsets.ViewSet):
+    permission_required = 'recruit:settings:data-dashboard:list'
     """数据看板 KPI 汇总 — HR 看板上方的 6 个数字.
 
     字段定义来自 web/app/src/api/data.ts:DashboardKpi interface.

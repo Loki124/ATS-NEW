@@ -8,6 +8,7 @@
 """
 import pytest
 from django.contrib.auth import get_user_model
+from tests.fixtures_common import attach_super_admin
 from rest_framework.test import APIClient
 
 from apps.dictionary.models import DictionaryItem, DictionaryType
@@ -24,7 +25,7 @@ def auth_client(db):
         username='dict_env_user', password='Test@1234', employee_id='EDE001'
     )
     client = APIClient()
-    client.force_authenticate(user)
+    client.force_authenticate(attach_super_admin(user))
     return client
 
 

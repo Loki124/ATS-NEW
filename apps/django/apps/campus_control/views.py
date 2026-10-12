@@ -36,6 +36,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.permissions_v2 import V2Permission
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 
@@ -144,7 +145,15 @@ class CampusCRUDMixin:
 class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     queryset = ControlDimension.objects.all()
     serializer_class = ControlDimensionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # G2: 校招管控配置此前对任意登录用户开放, 现改为资源码校验
+    permission_required = 'recruit:settings:campus-control:list'
+    permission_required_map = {
+        'create': 'recruit:settings:campus-control:edit',
+        'update': 'recruit:settings:campus-control:edit',
+        'partial_update': 'recruit:settings:campus-control:edit',
+        'destroy': 'recruit:settings:campus-control:edit',
+    }
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -189,7 +198,15 @@ class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
 class ControlIndicatorViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     queryset = ControlIndicator.objects.all()
     serializer_class = ControlIndicatorSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # G2: 校招管控配置此前对任意登录用户开放, 现改为资源码校验
+    permission_required = 'recruit:settings:campus-control:list'
+    permission_required_map = {
+        'create': 'recruit:settings:campus-control:edit',
+        'update': 'recruit:settings:campus-control:edit',
+        'partial_update': 'recruit:settings:campus-control:edit',
+        'destroy': 'recruit:settings:campus-control:edit',
+    }
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -284,7 +301,15 @@ class ControlIndicatorViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
 class ControlRuleViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     queryset = ControlRule.objects.all()
     serializer_class = ControlRuleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # G2: 校招管控配置此前对任意登录用户开放, 现改为资源码校验
+    permission_required = 'recruit:settings:campus-control:list'
+    permission_required_map = {
+        'create': 'recruit:settings:campus-control:edit',
+        'update': 'recruit:settings:campus-control:edit',
+        'partial_update': 'recruit:settings:campus-control:edit',
+        'destroy': 'recruit:settings:campus-control:edit',
+    }
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -475,7 +500,15 @@ class PersonViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
 
     queryset = Person.objects.all()
     serializer_class = PersonSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    # G2: 校招管控配置此前对任意登录用户开放, 现改为资源码校验
+    permission_required = 'recruit:settings:campus-control:list'
+    permission_required_map = {
+        'create': 'recruit:settings:campus-control:edit',
+        'update': 'recruit:settings:campus-control:edit',
+        'partial_update': 'recruit:settings:campus-control:edit',
+        'destroy': 'recruit:settings:campus-control:edit',
+    }
     pagination_class = StandardResultsSetPagination
 
     @action(detail=True, methods=['post'], url_path='restore')

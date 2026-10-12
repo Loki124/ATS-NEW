@@ -30,6 +30,7 @@ from rest_framework import serializers as drf_serializers
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 
 from apps.common.mixins import ExportMixin
@@ -95,7 +96,14 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
     """动态字段定义 CRUD — 按 resource 过滤, detail 端点按 id 寻址。"""
 
     serializer_class = DynamicFieldSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:dynamic-fields:list'
+    permission_required_map = {
+        'create': 'recruit:settings:dynamic-fields:create',
+        'update': 'recruit:settings:dynamic-fields:edit',
+        'partial_update': 'recruit:settings:dynamic-fields:edit',
+        'destroy': 'recruit:settings:dynamic-fields:delete',
+    }
 
     # 导入模板/导入解析用的中英文字段名映射: 模板用中文表头, 解析端统一归一到模型字段名
     FIELD_HEADER_ALIASES = {
@@ -1172,7 +1180,14 @@ class FieldModuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
     """字段模块(父级) CRUD — 按 resource 过滤。"""
 
     serializer_class = FieldModuleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:dynamic-fields:list'
+    permission_required_map = {
+        'create': 'recruit:settings:dynamic-fields:create',
+        'update': 'recruit:settings:dynamic-fields:edit',
+        'partial_update': 'recruit:settings:dynamic-fields:edit',
+        'destroy': 'recruit:settings:dynamic-fields:delete',
+    }
 
     def get_resource(self) -> str:
         return str(self.kwargs.get('resource') or '')
@@ -1219,7 +1234,14 @@ class FieldGroupViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
     """字段分组(子级) CRUD — 按 module_id (query) 过滤, 隶属某个模块。"""
 
     serializer_class = FieldGroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:dynamic-fields:list'
+    permission_required_map = {
+        'create': 'recruit:settings:dynamic-fields:create',
+        'update': 'recruit:settings:dynamic-fields:edit',
+        'partial_update': 'recruit:settings:dynamic-fields:edit',
+        'destroy': 'recruit:settings:dynamic-fields:delete',
+    }
 
     def get_resource(self) -> str:
         return str(self.kwargs.get('resource') or '')
@@ -1240,7 +1262,14 @@ class FieldLinkageRuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
     """同模块字段联动规则 CRUD — 按 module_id (query) 过滤。"""
 
     serializer_class = FieldLinkageRuleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:dynamic-fields:list'
+    permission_required_map = {
+        'create': 'recruit:settings:dynamic-fields:create',
+        'update': 'recruit:settings:dynamic-fields:edit',
+        'partial_update': 'recruit:settings:dynamic-fields:edit',
+        'destroy': 'recruit:settings:dynamic-fields:delete',
+    }
 
     def get_resource(self) -> str:
         return str(self.kwargs.get('resource') or '')

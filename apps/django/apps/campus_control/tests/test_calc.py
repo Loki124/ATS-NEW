@@ -70,7 +70,9 @@ def hr_user(db):
     )
     u.set_password('test123')
     u.save()
-    return u
+    # G2: 端点改按资源码校验后, 无角色用户会 403 —— 给全权限身份
+    from tests.fixtures_common import attach_super_admin
+    return attach_super_admin(u)
 
 
 @pytest.fixture

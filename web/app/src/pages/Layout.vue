@@ -212,6 +212,9 @@ import { useI18n } from 'vue-i18n'
 import { ref, h, computed, watch, nextTick, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage, NIcon, NModal, NSwitch } from 'naive-ui'
+import type { MenuOption } from 'naive-ui'
+import { usePermission } from '../composables/usePermission'
+import { filterMenuByPermission } from '../utils/permissionMenu'
 import {
   SpeedometerOutline,
   DocumentTextOutline,
@@ -366,6 +369,7 @@ const menuLayout = computed<'side' | 'top'>(() =>
 // G-2026-09-23: 菜单按系统差异（双系统）。社招/校招共享主功能菜单；校招额外追加
 // 「校招专属」分组（校园大使/宣讲会）。切换系统时菜单实时刷新（computed 依赖 systemStore）。
 const systemStore = useSystemStore()
+const { canAccess } = usePermission()
 const menuOptions = computed(() => {
   const base = [
     { key: '/dashboard', label: '工作台', icon: renderIcon(SpeedometerOutline) },
@@ -421,7 +425,8 @@ const menuOptions = computed(() => {
       ],
     })
   }
-  return base
+  // G4: 按功能权限裁剪菜单（fail-open：未配置功能权限时全部可见）
+  return filterMenuByPermission(base as MenuOption[], canAccess) as any[]
 })
 
 // header 固定定位后宽度需跟随布局模式（2026-08-24 21:31 改范式后 sider 不再影响 header：
