@@ -38,7 +38,6 @@
 | [05-campus-control/](./05-campus-control/) | 12 | 校招管控专项 |
 | [06-runbook/](./06-runbook/) | 19 | 部署运维与变更 |
 | [07-audit/](./07-audit/) | 14 | 审计、复盘与验证 |
-| [08-tasks/](./08-tasks/) | 34 | UI 整改任务清单（2 个子目录，含已完成历史卡） |
 | [09-archive/](./09-archive/) | 11 | 历史归档（不再维护） |
 
 ### 🆕 2026-10-03 复核：未纳入初版（2026-09-07）索引的文档
@@ -192,47 +191,6 @@
 | [DOC_CALIBRATION_FRONTEND_2026-09-07.md](./07-audit/DOC_CALIBRATION_FRONTEND_2026-09-07.md) | 前端文档校准报告（2026-09-07） | 57 | 2026-09-07 |
 | [04-ui/StageRuleConfigModal_验收Spec.md](./04-ui/StageRuleConfigModal_验收Spec.md) | StageRuleConfigModal 验收规格（视觉/交互/滚动锁） | 308 | — |
 
-### ✅ 08-tasks — UI 整改任务清单
-
-> UI_TASKS 与 UI_TASKS_V2.8 两批整改任务卡（多为已完成的历史执行记录）。
-
-| 文档 | 说明 | 行数 | 最新日期 |
-|---|---|---:|---|
-| [INDEX.md](./08-tasks/UI_TASKS/INDEX.md) | UI v2 AI 任务包索引（24 个 self-contained 任务 · 调研后基线 v2.7） | 165 | 2026-08-22 |
-| [T10.1-scrollbar-dark-mode.md](./08-tasks/UI_TASKS/T10.1-scrollbar-dark-mode.md) | T10.1 · 滚动条暗色（U7 / P2） | 79 | — |
-| [T10.2-icon-button-aria.md](./08-tasks/UI_TASKS/T10.2-icon-button-aria.md) | T10.2 · n-icon-button aria-label 全（A5 / P1） | 78 | — |
-| [T10.3-loading-state.md](./08-tasks/UI_TASKS/T10.3-loading-state.md) | T10.3 · LoadingState 组件统一（I5 / P1） | 114 | — |
-| [T10.4-empty-state.md](./08-tasks/UI_TASKS/T10.4-empty-state.md) | T10.4 · EmptyState 组件统一（I5 / P1） | 109 | — |
-| [T5.1.1-OfferList-colors.md](./08-tasks/UI_TASKS/T5.1.1-OfferList-colors.md) | T5.1.1 · OfferList OfferStatusColor 字典 token 化 | 73 | — |
-| [T5.1.2-DemandList-colors.md](./08-tasks/UI_TASKS/T5.1.2-DemandList-colors.md) | T5.1.2 · DemandList 颜色 + 容器 token 化 | 83 | — |
-| [T5.1.3-OnboardingList-colors.md](./08-tasks/UI_TASKS/T5.1.3-OnboardingList-colors.md) | T5.1.3 · OnboardingList 颜色 token 化 | 43 | — |
-| [T5.1.4-InterviewList-colors.md](./08-tasks/UI_TASKS/T5.1.4-InterviewList-colors.md) | T5.1.4 · InterviewList 颜色 token 化 + 键盘 tabindex | 51 | — |
-| [T5.1.5-CandidateList-colors.md](./08-tasks/UI_TASKS/T5.1.5-CandidateList-colors.md) | T5.1.5 · CandidateList 颜色 + 容器 token 化（最复杂） | 100 | — |
-| [T5.1.6-CandidateList-mockdata.md](./08-tasks/UI_TASKS/T5.1.6-CandidateList-mockdata.md) | T5.1.6 · CandidateList mockData 张三真实化 | 52 | — |
-| [T6.1-listpages-responsive.md](./08-tasks/UI_TASKS/T6.1-listpages-responsive.md) | T6.1 · 5 列表页响应式 patch | 96 | — |
-| [T6.2-Layout-sidebar-drawer.md](./08-tasks/UI_TASKS/T6.2-Layout-sidebar-drawer.md) | T6.2 · Layout.vue 侧栏 ≤768 折叠为 n-drawer | 118 | — |
-| [T7.1-remove-important-override.md](./08-tasks/UI_TASKS/T7.1-remove-important-override.md) | T7.1 · 主按钮 !important 覆盖移除（C2 / P0） | 86 | — |
-| [T7.2-glass-table-header.md](./08-tasks/UI_TASKS/T7.2-glass-table-header.md) | T7.2 · n-data-table 表头玻璃化（C11 / P1） | 77 | — |
-| [T7.3-matter-tab-count-info.md](./08-tasks/UI_TASKS/T7.3-matter-tab-count-info.md) | T7.3 · Dashboard matter-tab__count 强调色规范统一 | 81 | — |
-| [T7.4-table-actions-slim.md](./08-tasks/UI_TASKS/T7.4-table-actions-slim.md) | T7.4 · 5 列表页操作列 n-dropdown 化（I3 / P1） | 92 | — |
-| [T8.1.1-NotFound-page.md](./08-tasks/UI_TASKS/T8.1.1-NotFound-page.md) | T8.1.1 · 新建 NotFound.vue 错误页（双列布局 · v2.7） | 118 | — |
-| [T8.1.2-Forbidden-rewrite.md](./08-tasks/UI_TASKS/T8.1.2-Forbidden-rewrite.md) | T8.1.2 · Forbidden 移到 errors/ + 双列化 | 96 | — |
-| [T8.1.3-Placeholder-rewrite.md](./08-tasks/UI_TASKS/T8.1.3-Placeholder-rewrite.md) | T8.1.3 · Placeholder 双列化 + ETA/Issue 元数据 | 116 | — |
-| [T8.1.4-router-wildcard.md](./08-tasks/UI_TASKS/T8.1.4-router-wildcard.md) | T8.1.4 · router wildcard 改 NotFound + 5 占位路由 compone | 72 | — |
-| [T8.2-axios-message-toast.md](./08-tasks/UI_TASKS/T8.2-axios-message-toast.md) | T8.2 · axios 拦截器加 message toast（U11 / P0 · 已存在拦截器上扩展 | 90 | 2026-06-29 |
-| [T8.3-danger-confirm-dialog.md](./08-tasks/UI_TASKS/T8.3-danger-confirm-dialog.md) | T8.3 · 关键操作二次确认（U12 / P1） | 88 | — |
-| [T8.4-table-row-keyboard.md](./08-tasks/UI_TASKS/T8.4-table-row-keyboard.md) | T8.4 · 表格行键盘可达（I1 / P1） | 85 | — |
-| [T8.5-breadcrumb-component.md](./08-tasks/UI_TASKS/T8.5-breadcrumb-component.md) | T8.5 · Breadcrumb 组件 + 挂载（F6 / P1） | 107 | — |
-| [T8.6-page-fadeup-animation.md](./08-tasks/UI_TASKS/T8.6-page-fadeup-animation.md) | T8.6 · 5 列表页入场动效扩展（I4 / P1） | 67 | — |
-| [T8.7-keyboard-shortcuts.md](./08-tasks/UI_TASKS/T8.7-keyboard-shortcuts.md) | T8.7 · 键盘快捷键扩展（I10 / P2） | 109 | — |
-| [T9.1-SettingsLayout-cleanup.md](./08-tasks/UI_TASKS/T9.1-SettingsLayout-cleanup.md) | T9.1 · SettingsLayout 删 :deep 300 行（F4 / P1 · 风险最高） | 119 | — |
-| [T9.2-SettingsLayout-menu-unify.md](./08-tasks/UI_TASKS/T9.2-SettingsLayout-menu-unify.md) | T9.2 · SettingsLayout 自写导航改 n-menu（F5 / P2） | 102 | — |
-| [INDEX.md](./08-tasks/UI_TASKS_V2.8/INDEX.md) | v2.8 增量任务包 · 业务页 v1 阶段遗留清理 | 108 | 2026-08-22 |
-| [T2.8.1-addCandidate-white-bg.md](./08-tasks/UI_TASKS_V2.8/T2.8.1-addCandidate-white-bg.md) | T2.8.1 · addCandidate 子页面白底背景 15 处清零 | 124 | — |
-| [T2.8.2-CandidateDetail-business-cards.md](./08-tasks/UI_TASKS_V2.8/T2.8.2-CandidateDetail-business-cards.md) | T2.8.2 · CandidateDetail.vue 业务卡片 token 化 | 141 | — |
-| [T2.8.3-light-color-hardcode.md](./08-tasks/UI_TASKS_V2.8/T2.8.3-light-color-hardcode.md) | T2.8.3 · 6 文件浅色硬编码 `#fafbfc/#f0f5ff/#f8f9ff/#fff7e6` | 112 | — |
-| [T2.8.4-important-cleanup.md](./08-tasks/UI_TASKS_V2.8/T2.8.4-important-cleanup.md) | T2.8.4 · 全站 !important 散落清理（P2 · 风险高 · 谨慎执行） | 136 | — |
-
 ### 🗄 09-archive — 历史归档（不再维护）
 
 > 09-archive 为历史决策留痕（可能已过期），仅供回溯；`superpowers/` 33 份 2026-06 过期规划已于 2026-10-03 清理。
@@ -299,7 +257,6 @@
 | **P1** | 给 60 份无日期文档补 `最后更新` 标注 | 全库 |
 | **P1** | 统一命名规范（建议 `主题-描述-YYYY-MM-DD.md`，避免中英混用） | 全库 |
 | **P2** | 合并重复内容（如 4 份校招需求文档、多份 UI 合规自查） | `05-campus-control/`、`04-ui/` |
-| **P2** | `08-tasks` 34 份已完成任务卡可考虑转入归档 | `08-tasks/` |
 
 ---
 
