@@ -12,6 +12,18 @@ QA-4 在 round-2/3 重跑确认：原 0005_candidate_id_card_hash.py 的 backfil
 - 身份证为空 / 缺失的行被正确跳过 (id_card_hash 留空串)
 - reverse callback 正确清空 hash
 """
+# ⚠️ 本文件的 django_db(transaction=True) 必须保留，2026-10-11 复核确认过，不能去掉：
+#
+# 1. 下面三个用例直接调用 backfill/reverse，并用 connection.schema_editor() 包裹。
+#    schema_editor 走真实 DDL，而 DDL 在普通事务里不可执行（PostgreSQL 明确禁止
+#    transaction 内 DDL），普通 django_db 会直接抛 TransactionManagementError。
+# 2. 它们同时声明了 django_db_serialized_rollback fixture —— 该 fixture 本身就是
+#    为 transaction=True 场景设计的（依赖 flush 而非 savepoint 隔离）。
+#
+# 本轮把另外 8 个「仅因照抄而带上 transaction=True、既不依赖 on_commit 也不走
+# select_for_update 自动补号」的文件改回了普通事务，那些才是污染源。
+# 判据是行为依赖，不是这个标记本身。
+#
 # 直接按文件路径 import 0005 (Django migrations 包不会 re-export migration 函数)
 import importlib
 import os

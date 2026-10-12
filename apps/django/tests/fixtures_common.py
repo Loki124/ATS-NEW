@@ -205,9 +205,15 @@ def _ensure_v2_schema(django_db_setup, django_db_blocker):
                                 )
                             elif isinstance(declared, (list, tuple)):
                                 resource_codes.update(declared)
-                            # 显式 action 覆盖表里的码也必须授予, 否则写用例 403
+                            # 显式 action 覆盖表里的码也必须授予, 否则写用例 403。
+                            # 2026-10-10 G1: 值支持 str 或 list/tuple（任一命中语义,
+                            # 如 offer/demand transition 的 approve|edit）, 需展平。
                             if isinstance(mapping, dict):
-                                resource_codes.update(mapping.values())
+                                for v in mapping.values():
+                                    if isinstance(v, (list, tuple)):
+                                        resource_codes.update(v)
+                                    else:
+                                        resource_codes.add(v)
                     except ImportError:
                         pass
                 # 给 HR/HRBP/SUPER_ADMIN 三个角色都授权
@@ -306,6 +312,19 @@ def _create_role_v2(code: str, name: str):
                 [code, name, now, now],
             )
     return RoleV2.objects.get(role_code=code, system_code='recruit')
+
+
+def attach_super_admin(user):
+    """给测试用户挂 SUPER_ADMIN 角色 (走 is_super_admin bypass)。
+
+    背景 (2026-10-11 G2): 端点从裸 IsAuthenticated / 角色白名单切到 V2Permission 后,
+    「已登录但没有任何角色」的测试用户会 403。这类用例测的是业务逻辑而非权限,
+    统一用本 helper 给足权限, 避免逐个用例去补 role_permission 行
+    (测试库里 PermissionResource 未 seed, 按码授权反而无从枚举)。
+    """
+    role = _create_role_v2('SUPER_ADMIN', '超级管理员')
+    _attach_role(user, role)
+    return user
 
 
 def _attach_role(user, role) -> None:

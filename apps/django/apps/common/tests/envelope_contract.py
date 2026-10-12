@@ -94,6 +94,13 @@ ENVELOPE_LIST_ENDPOINTS = [
     '/api/v1/announcements/',
     '/api/v1/resumes/approval-flows/',
     '/api/v1/integrations/',
+    # 码表库 (G46)
+    '/api/v1/code-tables/regions/',
+    '/api/v1/code-tables/countries/',
+    '/api/v1/code-tables/ethnicities/',
+    '/api/v1/code-tables/languages/',
+    '/api/v1/code-tables/currencies/',
+    '/api/v1/code-tables/industries/',
     # 注: /api/v1/metrics/ 与 /api/v1/library/ 是 DRF 路由根视图
     # (返回子端点 URL 字典, 非列表信封), 不入契约注册表; 其真实 list 端点
     # (metrics/atomic-metrics、library/majors 等) 由各 app test_envelope.py 覆盖.

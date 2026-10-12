@@ -24,7 +24,13 @@ from apps.onboarding.models import Onboarding, OnboardingState
 from apps.position.models import Position
 from apps.process.models import RecruitmentProcess
 
-pytestmark = pytest.mark.django_db(transaction=True)
+# 2026-10-11 去掉 django_db(transaction=True)。
+#
+# 本文件不依赖 transaction.on_commit，也不走 save() 内 select_for_update 自动补号，
+# 普通 django_db 已把整个测试包在一个原子事务里，语义足够；而transaction=True
+# 会让写入真实提交且不回滚，本文件在业务表留下的数据残留到后续用例，
+# 曾导致 dynamic_field / process 等模块出现上百个看不懂的断言失败。
+pytestmark = pytest.mark.django_db
 
 LIST = '/api/v1/onboardings/'
 

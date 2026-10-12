@@ -14,6 +14,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from apps.common.response import error_response
+
 logger = logging.getLogger(__name__)
 
 
@@ -121,6 +123,7 @@ def custom_exception_handler(exc, context):
                 'success': False,
                 'code': exc.code,
                 'message': exc.message,
+                'data': None,
                 'extra': exc.extra,
             },
             status=exc.status_code,
@@ -135,25 +138,21 @@ def custom_exception_handler(exc, context):
         message = '请求处理失败'
         if code == 'throttled' and isinstance(response.data, dict):
             message = response.data.get('detail') or message
-        return Response(
-            {
-                'success': False,
-                'code': code,
-                'message': message,
-                'errors': response.data,
-            },
-            status=response.status_code,
+        return error_response(
+            message=message,
+            code=code,
+            status_code=response.status_code,
+            data=None,
+            errors=response.data,
         )
 
     # 未捕获异常
     logger.exception('Unhandled exception: %s', exc)
-    return Response(
-        {
-            'success': False,
-            'code': 'internal_error',
-            'message': '服务器内部错误',
-        },
-        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    return error_response(
+        message='服务器内部错误',
+        code='internal_error',
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        data=None,
     )
 
 
