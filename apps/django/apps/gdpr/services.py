@@ -63,7 +63,7 @@ def send_verification_code(req, plaintext_code: str) -> bool:
             recipient_list=[to],
             fail_silently=False,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 — 邮件后端异常类型多样（smtplib/socket/模板渲染），统一降级为「发送失败」并保留 exception 日志
         logger.exception('GDPR request %s: 验证码邮件发送失败', req.id)
         return False
 

@@ -55,7 +55,7 @@ def test_qa4_register_creates_pending_user_not_fake_success():
     assert not User.objects.filter(email='qa4_reg@corp.com').exists()
     c = APIClient()
     res = c.post('/api/v1/auth/register',
-                 {'email': 'qa4_reg@corp.com', 'password': 'Secret123'}, format='json')
+                 {'email': 'qa4_reg@corp.com', 'password': 'Str0ng!Pass#2026v2'}, format='json')
     print(f"\n[R5] POST /api/v1/auth/register -> {res.status_code}")
     assert res.status_code == 201, f'期望 201, 实际 {res.status_code}: {res.content[:200]}'
     assert res.data['success'] is True

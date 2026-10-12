@@ -84,7 +84,10 @@ def test_products_ok(hr_client, bg_config, mock_supplier):
     assert resp.status_code == 200
     body = resp.json()
     assert body['success'] is True
-    assert 'list' in body['data']
+    # 契约（views.py products 视图 docstring）：
+    #   data = {source: 'config' | 'supplier', packages: [...]}，前端按 packages 渲染并可手动兜底
+    assert body['data']['source'] in ('config', 'supplier')
+    assert isinstance(body['data']['packages'], list)
 
 
 def test_products_missing_config_id(hr_client, bg_config):

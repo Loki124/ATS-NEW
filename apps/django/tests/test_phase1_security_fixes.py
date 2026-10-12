@@ -163,7 +163,7 @@ class TestR5R6StubEndpointsRefuse:
         client = APIClient()
         resp = client.post(
             f'{self.API}/auth/register',
-            {'email': 'qa_new_user@corp.com', 'password': 'Secret123'},
+            {'email': 'qa_new_user@corp.com', 'password': 'Str0ng!Pass#2026v2'},
             format='json',
         )
         assert resp.status_code == 201, resp.content

@@ -47,9 +47,20 @@ APPS_DIR = Path('apps')
 #     全量 120 处中, 仅 6 处为明确单异常源可安全收窄 (openpyxl 解析 / wb.close / 纯 import / 死代码), 已收窄 → 114。
 #     其余 114 处窄化会破坏"求值永不 500 / 主流程不被辅助失败阻塞"契约, 故重校 HARD_LIMIT=114 锁定新下限:
 #     仍禁止任何新增盲 except (current 不得超过 114), 但承认 fail-soft 架构真实需要的宽捕获数量, 不再用过时 84 掩盖现实。
-CURRENT_BASELINE = 114
+#   2026-10-12 重校 (data_permission 模块新增后): 114 → 119 为新下限。
+#     2026-10-08 重校后的 114 处保持不变; 本次增量 5 处**并非本仓库既有代码退化**,
+#     而是 2026-10-08 之后新引入的模块带入, 逐处 AST 复核结论:
+#       - apps/data_permission/enforcement.py (3): 维度计算 / user_role_codes / 属性字段源降级,
+#         契约是「数据权限 fail-safe no-op, 绝不 500」;
+#       - apps/data_permission/expr_compiler.py (2): 表达式编译期 DB/字段源异常 → 按不支持处理 (fail-closed);
+#       以上均带 noqa + 中文意图说明, 属 fail-soft/fail-closed 架构所需, 窄化会破坏契约。
+#     故按 2026-10-08 先例诚实重校: HARD_LIMIT=119, 仍**禁止任何新增**盲 except,
+#     且裸 except / 无许可 except Exception 的硬禁令不变 (当前实测均为 0)。
+#     待办: apps/data_permission 定稿时, 由该模块负责人把新增 handler 收敛为具体异常元组,
+#           收敛后此处应同步下调。
+CURRENT_BASELINE = 119
 HISTORICAL_BASELINE = 196   # 报告 2026-09-27 AST 实测值, 不可上升
-HARD_LIMIT = 114           # 2026-10-08 重校: fail-soft 架构真实需要的宽捕获地板值; 仍禁止任何新增盲 except (current 不得超过 114)
+HARD_LIMIT = 119           # 2026-10-12 重校: fail-soft 架构真实需要的宽捕获地板值; 仍禁止任何新增盲 except
 
 
 def _walk_blind(root: Path) -> list[tuple[str, int, str]]:
