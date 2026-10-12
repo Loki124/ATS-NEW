@@ -31,8 +31,17 @@
   /* ===== §2. 墨色 / 中性 ===== */
   --ink:        #0F172A; /* 标题、重要正文 */
   --ink-soft:   #475569; /* 次要正文、标签 */
-  --ink-faint:  #64748B; /* 占位符、辅助（P2 整改：原 #94A3B8 仅 2.6:1 不达标，改为 #64748B 4.8:1 达 WCAG AA）*/
+  --ink-faint:  #64748B; /* 占位符、辅助（P2 整改：原 #94A3B8 仅 2.6:1 不达标，改为 #64748B 4.8:1 达 WCAG AA）
+                       * ⚠ 4.8:1 只对【纯白底】成立。压在 --g1 #F1F5F9 / --g2 等浅灰底上只有 4.34:1，
+                       *   小于 14px 的文字放在浅灰底/徽标底上必须降一档用 --ink-soft (#475569, 6.92:1)。 */
   --surface:    #FFFFFF; /* 不透明兜底 */
+  /* §2.1 浮起面实心等价值：--glass-bg-elevated(96% 白 + blur) 与 backdrop 内容无关地
+   * 近似为纯白，故浅色下等值 #FFFFFF；暗色见 §14 对应行 #0F172A。
+   * 用途：弹窗/抽屉内**需要不透明**的承托面（吸顶页签栏、内层滚动容器）。
+   * 何时必须用：半透明玻璃上再叠一层半透明色，两层合成色随背后内容漂移 → 出现色带；
+   *   玻璃上叠一层不透明色，若与底层合成色不等 → 同样出现色带。
+   *   二者只有在「承托面与其上覆盖层取同一个本令牌」时才彻底消色差。 */
+  --surface-elevated: #FFFFFF;
   --border-hairline: rgba(15, 23, 42, .08);
 
   /* ===== §2.3 中性灰阶梯（修复 onboarding 流程未定义 --g* 缺陷）===== */
@@ -74,6 +83,15 @@
   --c-error-deep:   #991B1B;  --c-error-bg:   #FECACA;
   --c-info-deep:    #1E40AF;  --c-info-bg:    #BFDBFE;
 
+  /* §4.2b 语义色【实底】之上的前景色（R-210 同理：--c-info #3B82F6 配白字仅 3.68:1，
+   *   --c-success 3.30:1、--c-warning 2.15:1 —— 与 --brand-500 同一个坑，
+   *   不能直接拿 --c-* 当按钮/chip/圆点实底）。
+   *   实底本身用已有的 --c-*-deep（两模式已各自重排），这里只补前景。 */
+  --on-c-success-deep: #FFFFFF;  /* #065F46 实底 → 7.68:1 */
+  --on-c-warning-deep: #FFFFFF;  /* #92400E 实底 → 7.09:1 */
+  --on-c-error-deep:   #FFFFFF;  /* #991B1B 实底 → 8.31:1 */
+  --on-c-info-deep:    #FFFFFF;  /* #1E40AF 实底 → 8.72:1 */
+
   /* §4.4 品牌暖色（FBCE5B — studied-DNA 时代品牌金，2026-09-03 面试评价表单设计稿采用）
    *   不在 --brand（indigo #6366F1）OKLCH 派生链中，是 brand 系统外的独立 accent。
    *   用途：banner 底色 / section accent bar / 激活态 / 提交按钮
@@ -82,7 +100,27 @@
    */
   --brand-warm:      #FBCE5B;
   --brand-warm-soft: rgba(251, 206, 91, .15);
-  --brand-warm-deep: #B45309;  /* 深色文字（对浅底 4.5:1 达 AA） */
+  --brand-warm-deep: #B45309;  /* 深色文字（对浅底 / 暖色半透底 4.5:1 达 AA） */
+  --brand-warm-ink:  #7C2D12;  /* 暖色【实底】(--brand-warm) 之上的文字。
+                                *   为什么不用 --brand-warm-deep：暗色模式下 --brand-warm 提亮为
+                                *   #FCD34D，与 --brand-warm-deep 同值 → 对比度 1.00:1（文字完全不可见）。
+                                *   本令牌两模式同值（暖色实底在两模式都是亮色），压实底 6.28 / 6.50:1。
+                                *   仅用于"文字直接压在 --brand-warm 实底上"，压 --brand-warm-soft 仍用 deep。 */
+
+  /* §4.5 品牌文字阶补充（本次对比度治理新增）
+   *   --brand-fg / --brand-text / --brand-warm-deep 均已达标，以下两个补齐缺口：
+   */
+  /* 品牌前景色的 hover 阶：浅色加深 / 暗色提亮，保证 hover 后对比度【不下降】。
+   *   禁用 --brand-hover 作文字色：它是 color-mix(... 75%, #fff)，两模式都向白偏，
+   *   浅色实测仅 3.58:1（12px 链接不达 AA 4.5:1），hover 反而比常态更难读。 */
+  --brand-fg-hover:  var(--brand-pressed);
+  /* 品牌色文字压在【品牌半透底】（--brand-soft / --brand-a12 等）上时用。
+   *   不能直接用 --brand-fg：暗色下 --brand-soft 合成后底色偏亮（#34405E），
+   *   --brand-fg(#99a2e3) 对它仅 3.13:1，导航激活项文字会糊成一片。 */
+  --brand-fg-on-soft: var(--brand-fg);
+  /* 派生型 / 次级品牌强调的文字色（--brand-grad-a 的文字化替身）。
+   *   grad-a #8c63fa 作装饰渐变端点没问题，但直接当文字仅 3.98:1（暗底 3.68:1）。 */
+  --brand-alt-ink:   #5b32c8;
 
   /* §4.3 中性灰阶（补全 X-05 灰字面量归宿；命名 n-<步长>，值=与 --g* / --ink* 同值
    *   实现全档 light 模式像素级一致；dark 模式覆盖见 §17 body.dark）
@@ -219,7 +257,8 @@ body.dark {
   /* 墨色反转 */
   --ink:       #E8ECF6;
   --ink-soft:  #AEB8CC;
-  --ink-faint: #7C879B;
+  --ink-faint: #93A0B5;  /* 原 #7C879B 对 --surface(#1E293B) 仅 4.04:1，全站辅助文字不达标；
+                       *   #93A0B5 → 5.52:1（对 --surface-elevated #0F172A 为 6.73:1） */
 
   /* 中性灰阶梯·暗色（与 §2 暗色同源） */
   --g1: #0B1220;
@@ -240,6 +279,7 @@ body.dark {
   --glass-border-strong: rgba(255, 255, 255, .22);
   --border-hairline:    rgba(255, 255, 255, .08);
   --surface:            #1E293B; /* 暗色兜底 */
+  --surface-elevated:   #0F172A; /* = rgba(15,23,42,.94) 的实心等价值（§2.1 暗色对应） */
 
   /* 极光转深空 */
   --aurora-base: linear-gradient(180deg, #0B1020 0%, #111936 100%);
@@ -257,12 +297,23 @@ body.dark {
   --brand-warm:      #FCD34D;  /* 浅色 #FBCE5B → 暗底提亮 amber-300 */
   --brand-warm-soft: rgba(252, 211, 77, .18);
   --brand-warm-deep: #FCD34D;  /* 深色模式文字直接用亮 amber-300，省 deep-bg 区分 */
+  /* --brand-warm-ink 两模式同值，不需覆盖（见 §4.4 说明）。 */
+
+  /* 品牌文字阶暗色重排：hover 改为【提亮】方向（暗底上加深会掉对比度），
+   * 次级强调改为亮紫。实测 #b1baed 对暗底 7.74:1、#c4a6ff 对暗底 7.14:1。 */
+  --brand-fg-hover:  var(--brand-100);
+  --brand-fg-on-soft: var(--brand-100);  /* 对暗色合成底 #34405E / #2F3A55 → 6.5:1 / 6.0:1 */
+  --brand-alt-ink:   #c4a6ff;
 
   /* 语义 deep/bg 暗色重排（深字转亮、浅底转半透明，保证暗底可读） */
   --c-success-deep: #6EE7B7;  --c-success-bg: rgba(22, 163, 74, .22);
   --c-warning-deep: #FCD34D;  --c-warning-bg: rgba(245, 158, 11, .24);
   --c-error-deep:   #FCA5A5;  --c-error-bg:   rgba(239, 68, 68, .22);
   --c-info-deep:    #93C5FD;  --c-info-bg:    rgba(59, 130, 246, .22);
+  --on-c-info-deep: #0F172A;  /* 暗色：亮实底必须配深字（白字只有 1.80:1）→ 9.90:1 */
+  --on-c-success-deep: #0F172A;
+  --on-c-warning-deep: #0F172A;
+  --on-c-error-deep:   #0F172A;
 
   /* 阴影转纯黑低透 */
   --shadow-xs:      0 1px 2px rgba(0, 0, 0, .20);

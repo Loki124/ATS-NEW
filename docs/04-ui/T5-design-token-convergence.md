@@ -61,7 +61,7 @@ brand-tokens.mjs (OKLCH #6366F1 → 50..900 色阶 + 自动选阶)
 
 > 注：`DemandList.vue:771/861/912/1071` 的 `#1890ff → var(--c-info)` 仅出现在**注释**中（历史修复标注），非活跃代码，未改动。
 
-### 1.3 执行清单（P1 已按方案 B 执行；P2/P3 待执行）
+### 1.3 执行清单（P1 已按方案 B 执行；P2/P3 已于 §5.1 收口）
 
 | 级别 | 项 | 位置 | 根因 / 约束 | 推荐方案 |
 |---|---|---|---|---|
@@ -125,5 +125,57 @@ web/app/src/pages/settings/DataDashboard.vue
 - 新增 test_bootstrap_startup.py 原稿有 4 处测试缺陷（REQUIRED_TABLES 未定义 / e2e 路径错一级 / test.py 默认关闭守卫致 ready() 短路 / SQLite 事务内 DROP 表 FK 报错），已全部修复。
 - 验证：pytest 8 例全绿，含端到端 `test_migrate_on_brand_new_sqlite_db_exits_zero`（全新库 migrate 退出码 0，无 no such table）。
 
-### 5.3 待用户决策的遗留发现（超出本次残留范围）
-- `--bl`/`--b`/`--s`/`--p`/`--d`/`--dl` 等「幽灵令牌」跨 6 个文件大量使用（ApplyPositionSelector / CheckBanner / Step1*/Step2Assign / AsyncResult 的 `.pfill.*`、`.nbar.*`、`.cb.*`），源码未定义 → 运行时解析为初始值（透明/无背景）。属「假绿」类缺陷，需专项收敛。建议单独立项，勿与本次 P2/P3 混改。
+### 5.3 「幽灵令牌」遗留项 —— ✅ 已收敛（2026-10-12 复扫）
+
+**原发现**：`--bl`/`--b`/`--s`/`--p`/`--d`/`--dl` 等跨 6 个文件大量使用（ApplyPositionSelector / CheckBanner / Step1*/Step2Assign / AsyncResult 的 `.pfill.*`、`.nbar.*`、`.cb.*`），源码未定义 → 运行时解析为初始值（透明/无背景）。属「假绿」类缺陷。
+
+**复扫结论**：已全部定义，不再是幽灵令牌。
+
+| 项 | 结果 |
+|---|---|
+| 扫描范围 | `src/` 下 **171** 个 `.vue`/`.css` 文件 |
+| 统计 | 引用 **182** 个令牌，定义 **214** 个 |
+| 幽灵令牌 | **12** 处残留，逐个核对后**均无活跃高危项** |
+
+**12 处残留分类**（逐个打开确认）：
+
+| 类别 | 数量 | 说明 |
+|---|---|---|
+| 有 fallback | 7 | `var(--n-border-color, …)`、`var(--cat-tint, …)`、`var(--n-text-color-3, …)` 等，降级安全 |
+| 已修复 + 注释留痕 | 4 | `--pc`→`--brand-fg`（CompanyBrand）、`--border`→`--g2`（EntryConditionCard）、`--shadow-elev`→`--shadow-elevated`（EntryRuleEditModal）、`--color-border`→`--glass-border`（glass.css），各处均已注明「原 X 未定义，声明会被丢弃」 |
+| 误报：Naive UI 运行时变量 | 1 | `index.css:50` `var(--n-color)` —— 由 Naive UI 在运行时注入，非源码定义，**不应改** |
+
+> ⚠️ **扫描器局限**：本核查基于源码静态匹配，**无法识别运行时注入的 CSS 变量**（如 Naive UI 的 `--n-*`、UnoCSS 的 `--un-*`）。这类命中需人工判断，不宜自动化删除。
+
+### 5.4 新增关联遗留：文字对比度专项（2026-10-12）
+
+本轮全站文字对比度治理与本文件同属「令牌收敛」，一并记录：
+
+| 项 | 详见 |
+|---|---|
+| 令牌规范与选阶规则 | `frontend-DESIGN.md` §2 / §2.5 / §2.6 |
+| 合规矩阵与验收状态 | `UI_COMPLIANCE_SELFCHECK.md` §2.1、R-03 / R-05 / R-08 |
+| `R-109` 复算结论 | `accessibility-and-gating-diagnosis.md` §5 |
+| 未收口项 | 见下方 §5.5 |
+
+### 5.5 遗留项（2026-10-12 运行时回归后）
+
+静态扫描（按 CSS 源码匹配）报 0 FAIL，但**运行时逐元素实测**发现了静态方法覆盖不到的类别：
+
+| # | 遗留项 | 实测 | 归属 | 处置 |
+|---|---|---|---|---|
+| 1 | **JS 内联样式的颜色字符串** —— `statusColor()` 返回 `var(--c-info)` 等主色，用作 22px/600 统计数字 | 2.15–3.98:1 | `OfferList.vue`、`InvitationCenter.vue` | ✅ **本轮已修**（改 `-deep` 阶） |
+| 2 | `background: var(--brand)` + 文字前景 —— 实底应用选阶后的 `--brand-button` | 4.47:1 → 6.16:1 | 10 文件 12 处 | ✅ **本轮已修**（批量改） |
+| 3 | **Naive UI Badge 数字** —— error 底 `#EF4444` + 白字 | **3.76:1**（12px 文字） | `App.vue` 的 `themeOverrides` | ⏸ **未修**：需改 Naive 全局主题配置，影响全站 Badge，须连同视觉回归一起做 |
+| 4 | Naive placeholder / `n-empty__description` | 1.78:1 | Naive 默认色 | ⏸ 未修：WCAG 对 placeholder 无强制要求，但建议改善 |
+| 5 | 侧边栏激活项 `itemTextColorActive: 'var(--brand)'` 等 15 处 | 4.47:1 | `Layout.vue:321-359` | ⏸ 未修：Naive menu `themeOverrides`，需与 #3 一并处理 |
+| 6 | 浅色 `--ink-faint` 压 `--g1` | 4.34:1（差 0.16） | `tokens.css` | ⏸ 未修：改动全站辅助文字观感，需设计侧拍板 |
+
+#### ⚠️ 治理方法论：两类方法的覆盖差异
+
+| 方法 | 能发现 | 发现不了 |
+|---|---|---|
+| 静态 CSS 扫描（按 `color: var(--x)` 匹配） | `<style>` 块内的声明 | ① JS 里的颜色字符串（`statusColor()`）② 模板内联 `:style` / `color="var(--x)"` |
+| 运行时逐元素实测 | 上述全部 + opacity 合成后的真实值 | 受扫描器精度限制：Naive 玻璃层 `backdrop-filter` 会导致背景穿透，产生假阳性 |
+
+> 运行时扫描在本轮报出暗色 127 条 FAIL，但**截图逐页目视确认视觉正常** —— 绝大部分是玻璃层穿透导致的假阳性。**运行时扫描适合"发现线索"，结论必须经截图复核，不可直接当验收依据。**

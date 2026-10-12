@@ -369,14 +369,14 @@ defineExpose({ submit })
   width: 18px; height: 18px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-pill);
-  background: var(--brand);
+  background: var(--brand-button);
   color: var(--on-brand);
   font-size: var(--fs-12); font-weight: 700; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .bgx-sec__title { font-size: var(--fs-14); font-weight: 700; color: var(--ink); letter-spacing: .01em; }
 .bgx-sec__hint { font-size: var(--fs-12); color: var(--ink-faint); font-weight: 400; }
-.bgx-req::before { content: '*'; color: var(--c-error); margin-right: 3px; }
+.bgx-req::before { content: '*'; color: var(--c-error-deep); margin-right: 3px; }
 
 /* ===== 字段 ===== */
 .bgx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-4); }
@@ -417,7 +417,7 @@ defineExpose({ submit })
   width: 18px; height: 18px;
   display: none; align-items: center; justify-content: center;
   border-radius: var(--radius-pill);
-  background: var(--brand); color: var(--on-brand);
+  background: var(--brand-button); color: var(--on-brand);
   font-size: 11px; line-height: 1;
 }
 .bgx-card.is-on .bgx-card__check { display: inline-flex; }
@@ -454,7 +454,7 @@ defineExpose({ submit })
   overflow-wrap: anywhere;
 }
 .bgx-chip--base { color: var(--ink-soft); background: var(--g2); }
-.bgx-chip--plus { color: var(--brand); background: var(--brand-soft); font-weight: 600; }
+.bgx-chip--plus { color: var(--brand-fg); background: var(--brand-soft); font-weight: 600; }
 
 /* ===== 基础核查项面板 ===== */
 .bgx-base {

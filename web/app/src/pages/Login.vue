@@ -260,7 +260,7 @@ const handleLogin = async (values: { username: string; password: string }) => {
       // 注：message API 的 MessageOptions 不含 containerStyle（仅 MessageProvider 才有），故改用 render 自渲染保留下暗色可读性
       message.success(t('pages.Login.s20'), {
         render: () => h('div', {
-          style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success); padding: 8px 14px; border-radius: 6px;',
+          style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success-deep); padding: 8px 14px; border-radius: 6px;',
         }, t('pages.Login.s20')),
       })
       // 用 nextTick 避免 message toast 在路由切换时被销毁
@@ -400,7 +400,7 @@ onBeforeUnmount(() => {
 }
 .lang-btn.active {
   color: #fff;
-  background: var(--brand);
+  background: var(--brand-button);
   box-shadow: 0 2px 8px var(--glow-brand);
 }
 .lang-btn.active:hover {
@@ -491,13 +491,13 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 .forgot-link {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--text-small);
   text-decoration: none;
   transition: color var(--duration-fast) var(--ease-out);
 }
 .forgot-link:hover {
-  color: var(--brand-hover);
+  color: var(--brand-fg-hover);
 }
 
 /* === 短信验证码输入框组 === */
@@ -518,7 +518,7 @@ onBeforeUnmount(() => {
 }
 :deep(.code-button:not([disabled]):hover) {
   border-color: var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 :deep(.code-button[disabled]) {
   color: var(--ink-faint);

@@ -36,7 +36,7 @@
         <n-space :size="6">
           <n-button v-if="ruleId" size="tiny" @click="openVersionHistory">
             <template #icon><n-icon :component="TimeOutline" /></template>
-            {{ t('reasonLibrary.wizard.history') }}
+            {{ t('reasonLibrary.wizard.viewHistory') }}
           </n-button>
           <n-button size="tiny" @click="openRuleConfig">
             <template #icon><n-icon :component="SettingsOutline" /></template>
@@ -154,7 +154,7 @@ import {
   CheckmarkOutline, SettingsOutline, TimeOutline,
 } from '@vicons/ionicons5'
 import {
-  createRule, getRule, wizardSave, deleteRule, extractReasonApiError, listTags, getSceneConfig,
+  createRule, getRule, wizardSave, discardDraftRule, extractReasonApiError, listTags, getSceneConfig,
 } from '../../api/reason-library'
 import type {
   ReasonTag, RuleCategory, RecruitType, SceneRecruitPair, SceneRule, WizardPayload,
@@ -427,12 +427,14 @@ async function onSave() {
       result = await wizardSave(payload.id, payload)
     } else {
       // 新建: 先建规则头, 再原子保存 (创建与保存合一)
-      // 若保存失败, 回滚刚建的规则头, 避免留下『新建规则』垃圾数据
+      // 若保存失败, 回滚刚建的空规则头, 避免留下『新建规则』垃圾数据
+      // (删除功能已下线, 该回滚走 discardDraftRule 内部补偿接口:
+      //  仅空规则可删, 已配置内容的规则后端一律拒绝 40911)
       const created = await createRule({ name: payload.name, description: payload.description })
       try {
         result = await wizardSave(created.id, payload)
       } catch (saveErr) {
-        await deleteRule(created.id).catch(() => {})
+        await discardDraftRule(created.id).catch(() => {})
         throw saveErr
       }
     }
@@ -515,7 +517,7 @@ function onShowChange(v: boolean) {
   font-weight: 600;
 }
 .rl-empty-tag {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   padding: 2px 9px;
   border-radius: 999px;
   background: var(--g1);
@@ -564,11 +566,11 @@ function onShowChange(v: boolean) {
   transition: all var(--duration-base) var(--ease-out);
 }
 .step.on .num {
-  background: var(--brand);
+  background: var(--brand-button);
   color: #fff;
 }
 .step.on {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 600;
 }
 .step.done .num {

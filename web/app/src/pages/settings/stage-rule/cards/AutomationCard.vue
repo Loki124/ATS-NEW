@@ -214,7 +214,7 @@ function actionLabel(a: SkipRule['action']) {
   padding: 2px 0;
   transition: color var(--duration-fast) var(--ease-out);
 }
-.opt-item:hover { color: var(--brand); }
+.opt-item:hover { color: var(--brand-fg); }
 .opt-item input[type="checkbox"] {
   width: 14px;
   height: 14px;
@@ -234,7 +234,7 @@ function actionLabel(a: SkipRule['action']) {
 .btn-outline-primary {
   background: var(--surface);
   border: 1px solid var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
   padding: 0 14px;
   height: 30px;
   border-radius: var(--radius-sm);
@@ -248,7 +248,7 @@ function actionLabel(a: SkipRule['action']) {
   font-weight: 500;
 }
 .btn-outline-primary:hover {
-  background: var(--brand);
+  background: var(--brand-button);
   border-color: var(--brand);
   color: var(--on-brand);
   box-shadow: var(--shadow-sm);
@@ -274,7 +274,7 @@ function actionLabel(a: SkipRule['action']) {
 .btn-outline:hover {
   background: var(--brand-a12);
   border-color: var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 
 /* {{ t('pages.settings.stage-rule.cards.AutomationCard.s21') }}执行动作（HTML 原型 .rule-table .action-btns 同款多行结构） */
@@ -289,7 +289,7 @@ function actionLabel(a: SkipRule['action']) {
 .btn-text-primary {
   background: transparent;
   border: none;
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-12);
   cursor: pointer;
   display: inline-flex;
@@ -299,7 +299,7 @@ function actionLabel(a: SkipRule['action']) {
   padding: 0 var(--space-1);
 }
 .btn-text-primary:hover {
-  color: var(--brand-hover);
+  color: var(--brand-fg-hover);
 }
 .action-btns {
   display: flex;
@@ -307,17 +307,17 @@ function actionLabel(a: SkipRule['action']) {
   flex-wrap: wrap;
 }
 .action-btns a {
-  color: var(--brand);
+  color: var(--brand-fg);
   text-decoration: none;
   cursor: pointer;
   font-size: var(--fs-12);
 }
 .action-btns a:hover {
-  color: var(--brand-hover);
+  color: var(--brand-fg-hover);
   text-decoration: underline;
 }
 .action-btns a.danger {
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 .action-btns a.danger:hover {
   color: var(--c-error-deep);

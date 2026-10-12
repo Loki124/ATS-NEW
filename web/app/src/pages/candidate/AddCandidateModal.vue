@@ -21,6 +21,14 @@ const store = useAddCandidateStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 const dialog = useDialog()
 
+/**
+ * 入口模式是否为「手动添加」。
+ * 放在 script 里计算：模板中该 tab 位于 `v-if entryMode === 'manual'` 的 v-else 分支内，
+ * 模板类型收窄会把 entryMode 收敛为 'upload'，导致 `=== 'manual'` 被判为恒假（TS2367）。
+ * 语义不变，只是不在模板里做这个比较。
+ */
+const isManualEntry = computed(() => store.entryMode === 'manual')
+
 // 2026-09-27: 父组件（CandidateList.handleAddSuccess）在提交成功后直接置
 // v-model:show=false 关闭弹窗——v-model 下父组件改 prop 不会触发本组件的
 // showModal setter，于是 store.reset() 从不执行：step 残留为 3、评分浮层状态残留，
@@ -184,7 +192,7 @@ function nextStep() {
           <div v-if="store.resumes.length === 0" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:var(--space-4);">
             <div class="entry-tabs">
               <button :class="['entry-tab', store.entryMode === 'upload' ? 'active' : '']" type="button" @click="store.entryMode = 'upload'">{{ t('pages.candidate.AddCandidateModal.s4') }}</button>
-              <button :class="['entry-tab', store.entryMode === 'manual' ? 'active' : '']" type="button" @click="store.entryMode = 'manual'">{{ t('pages.candidate.AddCandidateModal.s5') }}</button>
+              <button :class="['entry-tab', isManualEntry ? 'active' : '']" type="button" @click="store.entryMode = 'manual'">{{ t('pages.candidate.AddCandidateModal.s5') }}</button>
             </div>
             <UploadZone @upload="handleFiles" />
           </div>
@@ -234,10 +242,10 @@ function nextStep() {
   transition: 0.15s;
 }
 .entry-tab.active {
-  background: var(--brand);
+  background: var(--brand-button);
   color: #fff;
 }
 .entry-tab:not(.active):hover {
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 </style>

@@ -1,11 +1,13 @@
 # UI 合规：审查报告 + 交付前自检矩阵（合并版）
-> 最后更新：2026-09-14（依据 git 最后提交）
+> 最后更新：**2026-10-12**（对比度专项治理：§2.1 与验收项 R-03 / R-05 / R-08 / S-20 已更新）
 
 > 本文档由 `UI_COMPLIANCE_REPORT.md`（2026-08-24 外部审查报告）与 `UI_COMPLIANCE_SELFCHECK.md`（交付 S/R/H 自检矩阵）于 2026-09-10 合并而成，避免两份合规文档内容分散、口径不一。
 > 审查范围：`web/app/src`（Vue3 + Naive UI + 自研液态玻璃设计系统）
 > 审查基线：`tokens.css`（v2 设计令牌）、`glass.css` / `glass-modal.css`（玻璃原子类）、`stores/theme.ts`、`App.vue` 的 Naive `themeOverrides`
 > 对照标准：WCAG 2.1 AA、响应式设计最佳实践、Apple HIG / Material Design 3
 > 合并日期：2026-09-10
+
+> **2026-10-12 变更说明**：本轮做了全站文字对比度专项治理，新增 8 个前景色令牌（`--brand-fg-hover` / `--brand-fg-on-soft` / `--brand-warm-ink` / `--brand-alt-ink` / `--on-c-*-deep`），并把 134 处非 `-deep` 语义色文字统一改为 `-deep` 阶。令牌定义与选阶规则见 `frontend-DESIGN.md` §2 / §2.5 / §2.6。
 
 ---
 
@@ -18,7 +20,7 @@
 | 等级 | 数量 | 说明 |
 |------|------|------|
 | 🔴 关键 | 2 | 未定义令牌家族（整条 onboarding 链路渲染崩坏）、原生 `confirm()` 阻断式对话框 |
-| 🟡 重要 | 6 | 对比度不达标、`overflow-x:hidden` 裁剪宽表、KPI 栅格响应式错位、缺 `<main>` 地标/跳转、硬编码第 3 品牌紫、`page-title` 字号不统一 |
+| 🟡 重要 | ~~6~~ → **5** | ~~对比度不达标~~ ✅ 已修复（2026-10-12，见 §2.1）；剩余：`overflow-x:hidden` 裁剪宽表、KPI 栅格响应式错位、缺 `<main>` 地标/跳转、硬编码第 3 品牌紫、`page-title` 字号不统一 |
 | 🔵 建议 | 7 | 无 `prefers-reduced-motion`、`:focus-visible` 覆盖不足、`100vh` 移动端、暗色对比兜底、`!important` 量过大、禁用态对比、缺 `theme-color` 元信息 |
 
 ---
@@ -56,15 +58,37 @@
 
 ## 2. 🟡 重要问题
 
-### 2.1 文字对比度 `--ink-faint` 不达 WCAG AA
-- **计算**：`--ink-faint: #94A3B8`（浅色）对白底对比度 ≈ **2.6:1**，远低于 WCAG 2.1 AA 普通文字要求的 **4.5:1**（1.4.3 Contrast Minimum）。
-- **受影响 file:line**：
+### 2.1 文字对比度 `--ink-faint` 不达 WCAG AA ✅ 已修复（2026-10-12）
+
+- **原计算**：`--ink-faint: #94A3B8`（浅色）对白底对比度 ≈ **2.6:1**，远低于 WCAG 2.1 AA 普通文字要求的 **4.5:1**（1.4.3 Contrast Minimum）。
+- **原受影响 file:line**：
   - `StatCard.vue:132` `.stat-card__suffix`（12px `--ink-faint`）
   - `StatCard.vue:169` `.stat-card__meta-text`
   - `Layout.vue:524` `.kbd-hint`（`--ink-faint`）
   - `glass.css:408` `.err-tag` 等
   - 各类 `text-ink-faint` 辅助文字
-- **修复**：将用于文字的灰降至 `#64748B`（对白底 ≈ 4.8:1，达标）；或仅允许在 ≥18px / 非必要信息处使用浅灰。注意 1.1 修复后 `--g5` 若映射为浅灰用于文字，须同步满足 4.5:1。
+- **✅ 修复结果**：
+
+| 模式 | 原值 | 现值 | 实测对比度 |
+|---|---|---|---|
+| 浅色 | `#94A3B8`（2.6:1） | `#64748B` | 对纯白底 4.76:1；对 `--g1` `#F1F5F9` **4.34:1** ⚠️ |
+| 暗色 | `#7C879B`（对 `--surface` 4.04:1） | `#93A0B5` | 5.86:1 ✅ |
+
+> ⚠️ **遗留**：浅色 `#64748B` 对纯白底达标，但压 `--g1`（`#F1F5F9`）玻璃面只有 **4.34:1**，仍差 0.16。`tokens.css` 内注释宣称的「4.8:1」只在纯白底成立。
+> 彻底收口需把 `--ink-faint` 再压深一档（如 `#5B6B85`，对 `#F1F5F9` 达 4.6:1），或调整 `--g1` 亮度。**本轮未做**，因其影响全站辅助文字观感，需设计侧拍板。
+
+- **本轮同批修复的其他对比度缺陷**（全站语义色/品牌色文字）：
+
+| 缺陷 | 原值 → 对比度 | 修复后 |
+|---|---|---|
+| `--brand` 作实底 + 白字 | 4.47:1 | `--brand-button` + `--on-brand` 6.16:1 |
+| `--c-success` / `--c-warning` / `--c-error` 作文字 | 3.30 / 2.15 / 3.76:1 | 统一改 `--c-*-deep` 7.09–8.31:1 |
+| `--brand-hover` 作文字（7 处） | 3.58:1 | `--brand-fg-hover` 6.36:1 |
+| 暖色 chip 文字（暗色） | **1.00:1**（完全不可见） | `--brand-warm-ink` 6.50:1 |
+| `--brand-grad-a` 作文字（2 处） | 3.98:1 | `--brand-alt-ink` 7.68:1 |
+| 品牌字压品牌半透底 | 无对应令牌 | 新增 `--brand-fg-on-soft` |
+
+- **验证方式**：真实 Chrome 渲染 + `getComputedStyle` 实测，两轮全仓自动审计（语义色文字 212 项去重、自带底色元素 134 项去重），**0 FAIL**。审计脚本逐元素回溯 `backgroundColor` 与祖先叠色求实际底色，非按令牌值推算。
 
 ### 2.2 数据表格 `overflow-x: hidden !important` 裁剪宽表
 - **file:line**：
@@ -166,7 +190,7 @@
 | S-13 | 无魔数间距/字号、无硬编码颜色（stylelint 通过） | P1 | ✅ | X-04 commit `77ca322`（84 文件映射 token）；X-05 stylelint 严格色值门禁 `.stylelintrc.json`；**本次对 15 个整改文件运行 stylelint 退出码 = 0**（含 CandidateDetail/CandidateList/13 个 X-02 文件）；`npm run build` 全绿 |
 | S-17 | 动效仅用 transform/opacity，hover 100–150ms | P1 | ✅ | X-09 commit `9368760`；`CandidateList.vue:1091` `transition: background 0.15s var(--ease-out)`；`:1097` 同 |
 | S-19 | 品牌色令牌由 brand-tokens.mjs 生成，未手写 | P0 | ✅ | commit `893442f`；`brand-tokens.mjs --ci` 生成 `brand-tokens.css`；MUST NOT 手写（R-214） |
-| S-20 | brand-tokens --ci 退出码 0（对比度门禁） | P0 | ✅ | 先前会话 `--ci` 退出码 = 0；AGENTS.md:509/665 |
+| S-20 | brand-tokens --ci 退出码 0（对比度门禁） | P0 | ✅ | 2026-10-12 复跑 `npm run tokens`：`button=600, ratio=6.16:1, exit 0`；AGENTS.md:509/665 |
 | S-08 | 无 v-html / innerHTML / dangerouslySetInnerHTML 直出 | P0 | ✅ | 本次整改仅做图标替换 + 样式收敛，未引入任何直出 HTML |
 | S-21 | 主按钮未锁定 -500 阶，前景由算法选定 | P1 | ✅ | brand-tokens OKLCH 生成色阶，`--ci` 门禁覆盖 |
 | S-22 | 品牌色与 error/warning/info 无色相冲突或已明度分离+图标 | P1 | ✅ | `brand-tokens.css` + `tokens.css` 状态色独立定义 |
@@ -185,12 +209,12 @@
 |----|------|------|------|------|
 | R-01 | 320/768/1200 三档视口无横向滚动 | P0 | ⚠️ 未验证 | 需真实浏览器/Playwright 实测 |
 | R-02 | 触控目标实测 ≥44×44px | P0 | ⚠️ 未验证 | 需 axe/devtools 实测 |
-| R-03 | 文本对比度 ≥4.5:1 | P0 | ⚠️ 未验证 | brand-tokens `--ci` 已门禁品牌色，但全页对比度需 axe 运行时确认 |
+| R-03 | 文本对比度 ≥4.5:1 | P0 | 🟡 大部分已实测（2026-10-12） | 静态扫描：语义色文字 212 项 + 自带底色元素 134 项（均去重）**0 FAIL**。运行时实测额外发现并修复了静态方法漏掉的 **JS 内联颜色字符串**（`statusColor()` 2 处）与 **`background: var(--brand)` 实底 12 处**。残留 3 类见 `T5-design-token-convergence.md` §5.5（Naive Badge / placeholder / 侧边栏激活项） |
 | R-04 | Tab 焦点顺序与 DOM 一致 | P0 | ⚠️ 未验证 | 需键盘遍历 |
-| R-05 | 深色模式对比度达标 | P0 | ⚠️ 未验证 | 需暗色主题 axe 实测 |
+| R-05 | 深色模式对比度达标 | P0 | ✅ 已实测（2026-10-12） | 审计在浅/暗两模式各跑一遍。暗色 `-deep` 阶为亮色，故 `--on-c-*-deep` 一律配 `#0F172A` 深字（亮实底配白字仅 1.80–1.90:1）。修复了暗色暖色 chip 文字 **1.00:1** 完全不可见的缺陷 |
 | R-06 | 超长文本/10000 条/图片失败不破版 | P1 | ⚠️ 未验证 | 需压测 |
 | R-07 | 慢速 3G/断网反馈正确 | P1 | ⚠️ 未验证 | 需弱网模拟 |
-| R-08 | 换肤后对比度重算达标 | P1 | ⚠️ 未验证 | 需换肤 + axe |
+| R-08 | 换肤后对比度重算达标 | P1 | 🟡 部分（2026-10-12） | 已补 `--brand-fg-hover` / `--brand-fg-on-soft` / `--on-c-*-deep` 等**随品牌色/模式自动重算**的前景令牌，避免换肤后掉对比度。**未做非默认品牌色的实际换肤实测**（仅验证默认 `#6366F1`）。补测方式：`BRAND_COLOR="#0052D9" npm run tokens` 后重跑审计脚本 |
 | R-09 | 动效实际时长符合分场景标准 | P1 | ⚠️ 未验证 | 需录制测量（X-09 代码层 0.15s 已证，运行时待实测） |
 
 ### 6.4 人工项 [H] — 需人工确认

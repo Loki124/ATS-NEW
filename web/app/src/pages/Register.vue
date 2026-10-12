@@ -235,7 +235,7 @@ const onVerify = async () => {
     if (data.success) {
       message.success(t('pages.Register.s28'), {
         render: () => h('div', {
-          style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success); padding: 8px 14px; border-radius: 6px;',
+          style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success-deep); padding: 8px 14px; border-radius: 6px;',
         }, t('pages.Register.s28')),
       })
       // 落在「已提交 / 等待审核」终态，明确告知用户后续流程，而非直接弹回登录页
@@ -353,7 +353,7 @@ onBeforeUnmount(() => {
   display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--c-success) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent);
-  color: var(--c-success);
+  color: var(--c-success-deep);
   font-size: 36px;
   margin-bottom: var(--space-2);
 }
@@ -386,7 +386,7 @@ onBeforeUnmount(() => {
 }
 :deep(.code-button:not([disabled]):hover) {
   border-color: var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 :deep(.code-button[disabled]) {
   color: var(--ink-faint);
@@ -426,12 +426,12 @@ onBeforeUnmount(() => {
 }
 .login-footer p { color: var(--ink-faint); font-size: var(--text-meta); margin: 0; }
 .forgot-link {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--text-small);
   text-decoration: none;
   transition: color var(--duration-fast) var(--ease-out);
 }
-.forgot-link:hover { color: var(--brand-hover); }
+.forgot-link:hover { color: var(--brand-fg-hover); }
 .login-features {
   display: flex;
   justify-content: center;

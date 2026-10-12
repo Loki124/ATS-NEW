@@ -39,25 +39,25 @@ const sanitized = computed(() => sanitizeHtml(props.html))
 <style module>
 .root {
   /* 富文本容器默认排版（沿用 AnnouncementDetail 原 ann-detail-body 样式契约） */
-  font-size: var(--text-base, 14px);
+  font-size: var(--fs-14);
   line-height: 1.7;
-  color: var(--color-text-primary, #111827);
+  color: var(--ink);
   word-break: break-word;
 }
 .root :deep(p) { margin: 0 0 12px; }
-.root :deep(a) { color: var(--brand-button, #6366f1); text-decoration: none; }
+.root :deep(a) { color: var(--brand-fg); text-decoration: none; }
 .root :deep(a:hover) { text-decoration: underline; }
 .root :deep(strong) { font-weight: 600; }
 .root :deep(em) { font-style: italic; }
 .root :deep(code) {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  background: var(--color-bg-subtle, #f9fafb);
+  background: var(--g1);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 0.92em;
 }
 .root :deep(pre) {
-  background: var(--color-bg-subtle, #f9fafb);
+  background: var(--g1);
   padding: 12px 14px;
   border-radius: 8px;
   overflow-x: auto;
@@ -65,8 +65,8 @@ const sanitized = computed(() => sanitizeHtml(props.html))
 .root :deep(blockquote) {
   margin: 8px 0;
   padding: 4px 14px;
-  border-left: 3px solid var(--color-border, #e5e7eb);
-  color: var(--color-text-secondary, #6b7280);
+  border-left: 3px solid var(--g4);
+  color: var(--ink-soft);
 }
 .root :deep(ul),
 .root :deep(ol) { padding-left: 24px; margin: 0 0 12px; }
@@ -74,13 +74,13 @@ const sanitized = computed(() => sanitizeHtml(props.html))
 .root :deep(table) { border-collapse: collapse; width: 100%; }
 .root :deep(th),
 .root :deep(td) {
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--g4);
   padding: 6px 10px;
   text-align: left;
 }
 .root :deep(hr) {
   border: none;
-  border-top: 1px solid var(--color-border, #e5e7eb);
+  border-top: 1px solid var(--g4);
   margin: 16px 0;
 }
 </style>

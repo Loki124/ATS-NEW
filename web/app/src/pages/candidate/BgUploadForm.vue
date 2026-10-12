@@ -271,7 +271,7 @@ defineExpose({ submit })
 
 <style scoped>
 .bg-field-label { font-size: var(--fs-13); font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
-.bg-field-label.required::before { content: '*'; color: var(--c-error); margin-right: 4px; }
+.bg-field-label.required::before { content: '*'; color: var(--c-error-deep); margin-right: 4px; }
 .bg-muted { font-size: var(--fs-13); color: var(--ink-faint); font-weight: 400; margin-left: 8px; }
 .bg-q__ask { font-size: var(--fs-13); margin-bottom: 6px; line-height: 1.5; }
 
@@ -284,14 +284,14 @@ defineExpose({ submit })
   width: 18px; height: 18px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-pill);
-  background: var(--brand);
+  background: var(--brand-button);
   color: var(--on-brand);
   font-size: var(--fs-12); font-weight: 700; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .bgu-sec__title { font-size: var(--fs-14); font-weight: 700; color: var(--ink); letter-spacing: .01em; }
 .bgu-sec__hint { font-size: var(--fs-12); color: var(--ink-faint); font-weight: 400; }
-.bgu-req::before { content: '*'; color: var(--c-error); margin-right: 3px; }
+.bgu-req::before { content: '*'; color: var(--c-error-deep); margin-right: 3px; }
 
 .bgu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-4); }
 .bgu-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }

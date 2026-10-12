@@ -54,18 +54,22 @@ const stepClass = computed(() => (s: 1 | 2) => {
   background: var(--glass-bg-card); /* v2.8 T2.8.1: #fff → var(--glass-bg-card) */
   color: var(--g5);
 }
-.sdot.on { border-color: var(--brand); background: var(--brand); color: #fff; }
-.sdot.ok { border-color: var(--c-success); background: var(--c-success); color: #fff; }
-.sdot.warn { border-color: var(--w); background: var(--w); color: #fff; }
+/* 圆点内是 11px 数字 / 16px 对勾图标，压在实底上。
+   实底+前景必须成对取令牌，不能随手"品牌色/语义色 + 白字"：
+     旧值 --brand 4.47:1 / --c-success 3.30:1 / --c-warning 2.15:1（均不达 4.5:1）。
+   现走 --brand-button + --on-brand、--c-*-deep + --on-c-*-deep（两模式各自重排）。 */
+.sdot.on { border-color: var(--brand-button); background: var(--brand-button); color: var(--on-brand); }
+.sdot.ok { border-color: var(--c-success-deep); background: var(--c-success-deep); color: var(--on-c-success-deep); }
+.sdot.warn { border-color: var(--c-warning-deep); background: var(--c-warning-deep); color: var(--on-c-warning-deep); }
 .slabel {
   font-size: 11px;
   color: var(--g5);
   font-weight: 500;
   margin-left: 6px;
 }
-.sdot.on + .slabel { color: var(--brand); }
-.sdot.ok + .slabel { color: var(--c-success); }
-.sdot.warn + .slabel { color: var(--w); }
+.sdot.on + .slabel { color: var(--brand-fg); }
+.sdot.ok + .slabel { color: var(--c-success-deep); }
+.sdot.warn + .slabel { color: var(--c-warning-deep); }
 .sline {
   width: 56px;
   height: 2px;

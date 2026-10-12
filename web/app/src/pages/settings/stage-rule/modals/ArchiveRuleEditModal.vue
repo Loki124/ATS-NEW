@@ -215,7 +215,7 @@ function onSave() {
   font-weight: 500;
 }
 .required-mark {
-  color: var(--c-error);
+  color: var(--c-error-deep);
   margin-left: 2px;
 }
 .cond-list {
@@ -234,7 +234,7 @@ function onSave() {
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--brand-a12);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-12);
   font-weight: 600;
   display: flex;
@@ -251,7 +251,7 @@ function onSave() {
   flex-shrink: 0;
 }
 .cond-del:hover:not(:disabled) {
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 .cond-del:disabled {
   opacity: 0.4;
@@ -273,7 +273,7 @@ function onSave() {
   background: var(--c-error-soft);
 }
 .error-msg {
-  color: var(--c-error);
+  color: var(--c-error-deep);
   font-size: var(--fs-12);
   margin: 4px 0 0;
 }
@@ -281,7 +281,7 @@ function onSave() {
 .btn-outline-primary {
   background: var(--surface);
   border: 1px solid var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
   padding: 0 14px;
   height: 30px;
   border-radius: var(--radius-sm);
@@ -298,7 +298,7 @@ function onSave() {
   cursor: not-allowed;
 }
 .btn-outline-primary:hover:not(:disabled) {
-  background: var(--brand);
+  background: var(--brand-button);
   border-color: var(--brand);
   color: var(--on-brand);
   box-shadow: var(--shadow-sm);

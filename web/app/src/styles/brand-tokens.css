@@ -29,6 +29,7 @@
   --brand-button: var(--brand-600);
   --on-brand: #ffffff;                       /* --brand-button 上的前景色 */
   --brand-text: var(--brand-900);               /* 浅底上的品牌文字色 */
+  --brand-fg:   var(--brand-600);    /* 品牌色作前景(强调文字/图标/链接)，跨模式自选阶 */
 
   /* === 向后兼容别名（glass.css / .vue 现有引用，禁止改名破坏） === */
   --brand-hover:    color-mix(in oklch, var(--brand-600) 75%, #fff);
@@ -44,6 +45,16 @@
   /* === 装饰性渐变端点（谐波旋转，非语义色 R-211 豁免） === */
   --brand-grad-a: #8c63fa;
   --brand-grad-b: #e959b9;
+
+  /* === 主按钮渐变端点（R-210 选阶，随模式重排） ===
+     原先主按钮渐变写死 var(--brand) → var(--brand-grad-a)，而 grad-a 是装饰端点
+     （#8c63fa）且**无暗色重排**，导致：
+       浅色 渐变最亮端配浅字 ≈ 4.08:1
+       暗色 深字 #1E293B 压在亮紫渐变上 ≈ 3.27:1
+     两模式都不达 AA，且与品牌色无关 —— 换任何品牌色都一样不达标。
+     故按模式重排：浅色用深阶配 on-brand 亮字，暗色用亮阶配 on-brand 深字。 */
+  --brand-grad-from: var(--brand-600);
+  --brand-grad-to:   var(--brand-700);
 }
 
 /* R-212 暗色模式：重排 L / 降低 C，禁止 (1-L) 反转 / 复用浅色阶 */
@@ -63,6 +74,13 @@ body.dark {
   /* 暗色主按钮：亮阶 + 深色前景（防光晕） */
   --brand-button: var(--brand-300);
   --on-brand: #111827;
+
+  /* R-212 暗色重排：品牌前景色必须换到亮阶，否则深阶在暗底上不可读 */
+  --brand-fg: var(--brand-200);
+
+  /* 主按钮渐变：暗色改亮阶（配 --on-brand 深字），浅色用深阶（配亮字） */
+  --brand-grad-from: var(--brand-300);
+  --brand-grad-to:   var(--brand-200);
 
   /* 暗色别名（基于亮阶重新配比，避免浅色半透底在暗玻璃上消失） */
   --brand-hover:    color-mix(in oklch, var(--brand-300) 78%, #fff);

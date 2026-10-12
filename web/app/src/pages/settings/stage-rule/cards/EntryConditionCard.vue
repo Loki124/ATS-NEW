@@ -129,7 +129,7 @@ function formatCondition(it: ConditionItem): string {
 .btn-outline-primary {
   background: var(--surface);
   border: 1px solid var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
   padding: 0 14px;
   height: 30px;
   border-radius: var(--radius-sm);
@@ -143,7 +143,7 @@ function formatCondition(it: ConditionItem): string {
   font-weight: 500;
 }
 .btn-outline-primary:hover {
-  background: var(--brand);
+  background: var(--brand-button);
   border-color: var(--brand);
   color: var(--on-brand);
   box-shadow: var(--shadow-sm);

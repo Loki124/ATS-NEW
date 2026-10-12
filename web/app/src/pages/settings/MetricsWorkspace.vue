@@ -2933,7 +2933,7 @@ onUnmounted(() => {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 13px;
   letter-spacing: 0.02em;
-  color: var(--ink-3, #8a94a6);
+  color: var(--ink-faint);
 }
 /* 详情页编号：与表格保持一致的系统感 */
 .dm-code {
@@ -2969,8 +2969,8 @@ onUnmounted(() => {
 }
 .ws-origin-tag.is-manual {
   background: transparent;
-  border: 1px solid var(--ink-4, #d5dae3);
-  color: var(--ink-3, #8a94a6);
+  border: 1px solid var(--g4);
+  color: var(--ink-faint);
 }
 .ws-module-tag {
   display: inline-flex;
@@ -3070,13 +3070,13 @@ onUnmounted(() => {
   gap: 6px;
   padding: 6px 14px;
   border-radius: var(--radius-pill);
-  font-size: var(--text-base, 15px);
+  font-size: var(--fs-15);
   font-weight: 600;
   background: var(--surface);
   border: 1px solid var(--border-hairline);
 }
-.dm-kind-badge.is-atomic { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 30%, transparent); }
-.dm-kind-badge.is-derived { color: var(--brand-grad-a); border-color: color-mix(in srgb, var(--brand-grad-a) 30%, transparent); }
+.dm-kind-badge.is-atomic { color: var(--brand-fg); border-color: color-mix(in srgb, var(--brand) 30%, transparent); }
+.dm-kind-badge.is-derived { color: var(--brand-alt-ink); border-color: color-mix(in srgb, var(--brand-grad-a) 30%, transparent); }
 .dm-meta-chip {
   display: inline-flex;
   align-items: baseline;
@@ -3087,7 +3087,7 @@ onUnmounted(() => {
   border: 1px solid var(--border-hairline);
 }
 .dm-meta-k { color: var(--ink-faint); font-size: var(--fs-12); }
-.dm-meta-v { color: var(--ink); font-size: var(--text-base, 15px); font-weight: 600; }
+.dm-meta-v { color: var(--ink); font-size: var(--fs-15); font-weight: 600; }
 
 .dm-section {
   position: relative;
@@ -3130,7 +3130,7 @@ onUnmounted(() => {
 .detail-params-block { display: flex; flex-direction: column; gap: var(--space-3); }
 .detail-params-form { display: flex; flex-direction: column; gap: var(--space-2); }
 .detail-param-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.param-label { min-width: 96px; color: var(--ink-strong); font-size: var(--fs-13, 13px); font-weight: 500; }
+.param-label { min-width: 96px; color: var(--ink); font-size: var(--fs-13, 13px); font-weight: 500; }
 .param-input { width: 220px; max-width: 100%; }
 .param-hint { color: var(--ink-faint); font-size: var(--fs-12); line-height: 1.4; }
 
@@ -3439,7 +3439,7 @@ onUnmounted(() => {
 .im-file-empty { color: var(--ink-faint); }
 .im-feedback { margin-top: var(--space-1); }
 .im-alert :deep(.n-alert-body) { align-items: flex-start; }
-.im-err-title { font-size: var(--fs-13); color: var(--ink-strong); }
+.im-err-title { font-size: var(--fs-13); color: var(--ink); }
 .im-err-list {
   margin: var(--space-1) 0 0;
   padding-left: var(--space-4);

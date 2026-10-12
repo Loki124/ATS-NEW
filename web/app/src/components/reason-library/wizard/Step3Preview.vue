@@ -685,7 +685,7 @@ function rowStyle(row: TagRow) {
     background var(--duration-fast) var(--ease-out);
 }
 .rl-sim-modal__edit-btn.visible { opacity: 1; }
-.rl-sim-modal__edit-btn:hover { color: var(--brand); background: var(--brand-tint); }
+.rl-sim-modal__edit-btn:hover { color: var(--brand-fg); background: var(--brand-tint); }
 /* 模拟弹窗标题输入框: 外观还原为标题样式, 但可编辑; 默认占位「选择原因」 */
 .rl-sim-modal__title-input {
   flex: 0 1 auto;
@@ -751,7 +751,7 @@ function rowStyle(row: TagRow) {
   font-size: var(--fs-12);
   color: var(--ink-soft);
 }
-.rl-mod-limit.full { color: var(--c-error); font-weight: 600; }
+.rl-mod-limit.full { color: var(--c-error-deep); font-weight: 600; }
 
 /* === 合并单元格式卡片网格 (纯 CSS Grid, 零 <table>) ===
  * - 行高由标签单元内容决定; 跨行的分类单元随其跨越的行一起延展
@@ -810,10 +810,10 @@ function rowStyle(row: TagRow) {
   border: none;
   border-radius: 6px;
   padding: 3px 9px;
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   line-height: 1.3;
   color: #fff;
-  background: var(--brand);
+  background: var(--brand-button);
   cursor: pointer;
   white-space: nowrap;
   transition: background-color var(--duration-fast) var(--ease-out);
@@ -849,7 +849,7 @@ function rowStyle(row: TagRow) {
   border-radius: 7px;
   background: var(--surface);
   color: var(--ink-soft);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   padding: 4px 11px;
   line-height: 1.4;
   display: inline-flex;
@@ -860,9 +860,9 @@ function rowStyle(row: TagRow) {
   user-select: none;
   transition: all var(--duration-fast) var(--ease-out);
 }
-.rl-tag:hover { border-color: var(--brand); color: var(--brand); }
+.rl-tag:hover { border-color: var(--brand); color: var(--brand-fg); }
 .rl-tag.selected {
-  background: var(--brand);
+  background: var(--brand-button);
   border-color: var(--brand);
   color: #fff;
 }
@@ -871,7 +871,7 @@ function rowStyle(row: TagRow) {
   opacity: .45;
 }
 .rl-tag.disabled:hover { border-color: var(--border-hairline); color: var(--ink-soft); }
-.rl-tag.other { border-style: dashed; color: var(--brand); border-color: var(--brand); }
+.rl-tag.other { border-style: dashed; color: var(--brand-fg); border-color: var(--brand); }
 .rl-tag.other:hover { background: var(--brand-tint); }
 /* 已填内容的「其他」: 视觉完全复用 .rl-tag.selected (品牌底白字), 仅颜色区分, 不引入抖动 */
 .rl-tag-clear {
@@ -894,7 +894,7 @@ function rowStyle(row: TagRow) {
 .rl-other-input {
   border: 1px solid var(--brand);
   border-radius: 7px;
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   padding: 4px 10px;
   line-height: 1.4;
   width: 130px;
@@ -947,15 +947,15 @@ function rowStyle(row: TagRow) {
 }
 .rl-color-mode {
   flex: 0 0 auto;
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   padding: 2px 9px;
   border-radius: 999px;
   border: 1px solid var(--border-hairline);
   color: var(--ink-soft);
   background: var(--surface);
 }
-.rl-color-mode.is-exclusive { color: var(--brand); border-color: var(--brand-a22); background: var(--brand-tint); }
-.rl-color-mode.is-override { color: #fff; border-color: transparent; background: var(--c-warn, #d97706); }
+.rl-color-mode.is-exclusive { color: var(--brand-fg); border-color: var(--brand-a22); background: var(--brand-tint); }
+.rl-color-mode.is-override { color: #fff; border-color: transparent; background: var(--c-warning, #d97706); }
 .rl-color-mode.is-inherit { color: var(--ink-soft); }
 .rl-color-mode.is-default { color: var(--ink-faint); }
 .rl-palette { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -978,7 +978,7 @@ function rowStyle(row: TagRow) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   color: var(--ink-soft);
   cursor: pointer;
 }
@@ -993,7 +993,7 @@ function rowStyle(row: TagRow) {
 }
 .rl-color-reset {
   flex: 0 0 auto;
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   padding: 3px 10px;
   border-radius: 6px;
   border: 1px solid var(--border-hairline);
@@ -1002,5 +1002,5 @@ function rowStyle(row: TagRow) {
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
 }
-.rl-color-reset:hover { border-color: var(--brand); color: var(--brand); }
+.rl-color-reset:hover { border-color: var(--brand); color: var(--brand-fg); }
 </style>

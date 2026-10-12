@@ -249,7 +249,7 @@ function onSave() {
   font-weight: 500;
 }
 .required-mark {
-  color: var(--c-error);
+  color: var(--c-error-deep);
   margin-left: 2px;
 }
 .help-icon,
@@ -264,7 +264,7 @@ function onSave() {
   margin-left: 4px;
   vertical-align: middle;
 }
-.op-expr-help:hover { color: var(--brand); }
+.op-expr-help:hover { color: var(--brand-fg); }
 .op-expr-popover {
   position: absolute;
   bottom: calc(100% + 10px);
@@ -295,7 +295,7 @@ function onSave() {
   border-radius: 1px;
 }
 .op-expr-popover strong { color: var(--surface); }
-.op-expr-popover em { font-style: normal; color: var(--brand); }
+.op-expr-popover em { font-style: normal; color: var(--brand-fg); }
 .op-expr-popover ol { margin: 2px 0 0; padding-left: 16px; color: var(--g6); }
 .op-expr-popover li { margin-bottom: 1px; padding-left: 2px; }
 @keyframes erFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -338,8 +338,8 @@ function onSave() {
   gap: 3px;
   transition: color var(--duration-fast) var(--ease-out);
 }
-.group-actions a:hover { color: var(--brand); }
-.group-actions a.danger:hover { color: var(--c-error); }
+.group-actions a:hover { color: var(--brand-fg); }
+.group-actions a.danger:hover { color: var(--c-error-deep); }
 
 .cond-list {
   display: flex;
@@ -357,7 +357,7 @@ function onSave() {
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--brand-a12);
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-12);
   font-weight: 600;
   display: flex;
@@ -374,7 +374,7 @@ function onSave() {
   flex-shrink: 0;
 }
 .cond-del:hover:not(:disabled) {
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 .cond-del:disabled {
   opacity: 0.4;
@@ -403,7 +403,7 @@ function onSave() {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--brand);
+  color: var(--brand-fg);
   font-size: var(--fs-12);
   font-weight: 500;
   text-decoration: none;
@@ -411,7 +411,7 @@ function onSave() {
   margin-top: 10px;
   transition: color var(--duration-fast) var(--ease-out);
 }
-.add-link:hover { color: var(--brand-hover); }
+.add-link:hover { color: var(--brand-fg-hover); }
 .add-link--disabled {
   color: var(--ink-faint);
   cursor: not-allowed;
@@ -425,7 +425,7 @@ function onSave() {
   background: var(--c-error-soft);
 }
 .error-msg {
-  color: var(--c-error);
+  color: var(--c-error-deep);
   font-size: var(--fs-12);
   margin: 4px 0 0;
 }

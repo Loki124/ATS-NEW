@@ -151,12 +151,13 @@ const statusStats = computed(() => {
   }))
 })
 
+/** 统计卡数字的文字色。必须是 -deep 阶：主色压白底仅 2.15–3.76:1，不达 AA。 */
 function statusColor(s: string): string {
   const map: Record<string, string> = {
-    DRAFT: 'var(--c-info)', PENDING_APPROVAL: 'var(--c-warning)', APPROVED: 'var(--c-success)',
-    SENT: 'var(--brand-grad-a)', ACCEPTED: 'var(--c-success)', REJECTED: 'var(--c-error)', EXPIRED: 'var(--c-warning)',
+    DRAFT: 'var(--c-info-deep)', PENDING_APPROVAL: 'var(--c-warning-deep)', APPROVED: 'var(--c-success-deep)',
+    SENT: 'var(--brand-alt-ink)', ACCEPTED: 'var(--c-success-deep)', REJECTED: 'var(--c-error-deep)', EXPIRED: 'var(--c-warning-deep)',
   }
-  return map[s] || 'var(--ink-faint)'
+  return map[s] || 'var(--ink-soft)'
 }
 
 const templateModal = ref({
@@ -232,7 +233,7 @@ const columns = computed(() => [
                 options: rest.map(it => ({
                   label: it.label,
                   key: it.key,
-                  ...(it.danger ? { props: { style: 'color: var(--c-error)' } } : {}),
+                  ...(it.danger ? { props: { style: 'color: var(--c-error-deep)' } } : {}),
                 })),
                 trigger: 'click',
                 onSelect: (k: string) => rest.find(it => it.key === k)?.onClick(),

@@ -48,9 +48,9 @@ const { t } = useI18n()
   stroke-width: 1.6;
 }
 .ki-atomic {
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .ki-derived {
-  color: var(--brand-grad-a);
+  color: var(--brand-alt-ink);
 }
 </style>

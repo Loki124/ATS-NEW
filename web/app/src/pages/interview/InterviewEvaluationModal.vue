@@ -595,7 +595,7 @@ const avgValueScore = computed(() => {
   color: var(--ink);
 }
 .ats-comp__required {
-  color: var(--c-error);
+  color: var(--c-error-deep);
   margin-right: 4px;
 }
 .ats-comp__choices {
@@ -604,7 +604,7 @@ const avgValueScore = computed(() => {
 .ats-comp__hint {
   margin: 6px 0 0;
   font-size: 12px;
-  color: var(--c-error);
+  color: var(--c-error-deep);
 }
 
 /* ===== 三档 chip ===== */
@@ -622,22 +622,26 @@ const avgValueScore = computed(() => {
 .ats-chip:hover:not(:disabled) {
   border-color: var(--brand-warm);
 }
+/* 文字压在 --brand-warm 实底上：必须用 --brand-warm-ink。
+   原用 --brand-warm-deep → 浅色 3.37:1、暗色 1.00:1（暗色下 chip 文字与底色同值，完全看不见）。 */
 .ats-chip.is-active.ats-chip--pass {
   background: var(--brand-warm);
   border-color: var(--brand-warm);
-  color: var(--brand-warm-deep);
+  color: var(--brand-warm-ink);
   font-weight: 500;
 }
+/* 实底用 --c-info-deep（两模式各自重排），前景用 --on-c-info-deep：
+   原为 --c-info #3B82F6 + #fff，实测仅 3.68:1，与 --brand-500 同一个坑。 */
 .ats-chip.is-active.ats-chip--partial {
-  background: var(--c-info);
-  border-color: var(--c-info);
-  color: #FFFFFF;
+  background: var(--c-info-deep);
+  border-color: var(--c-info-deep);
+  color: var(--on-c-info-deep);
   font-weight: 500;
 }
 .ats-chip.is-active.ats-chip--fail {
   background: var(--brand-warm);
   border-color: var(--brand-warm);
-  color: var(--brand-warm-deep);
+  color: var(--brand-warm-ink);
   font-weight: 500;
 }
 .ats-chip:disabled { cursor: not-allowed; opacity: .85; }
@@ -669,7 +673,7 @@ const avgValueScore = computed(() => {
 .ats-dot.is-active {
   background: var(--brand-warm);
   border-color: var(--brand-warm);
-  color: var(--brand-warm-deep);
+  color: var(--brand-warm-ink);
   font-weight: 600;
 }
 .ats-dot:disabled { cursor: not-allowed; opacity: .85; }

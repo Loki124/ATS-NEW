@@ -898,7 +898,7 @@ watch(
   color: var(--ink);
   cursor: pointer;
 }
-.candidate-name:hover { color: var(--brand-hover); }
+.candidate-name:hover { color: var(--brand-fg); }
 .candidate-id {
   font-size: var(--fs-12);
   color: var(--ink-faint);
@@ -936,7 +936,7 @@ watch(
 .timeline-position { color: var(--ink-soft); }
 .timeline-more {
   font-size: var(--fs-12);
-  color: var(--c-info);
+  color: var(--c-info-deep);
   cursor: default;
 }
 
@@ -964,8 +964,8 @@ watch(
 }
 .stage-name { color: var(--ink); font-weight: 500; font-size: var(--fs-12); }
 .stage-status { color: var(--ink-soft); font-size: var(--fs-12); }
-.stage-status.pass { color: var(--c-success); }
-.stage-status.reject { color: var(--c-error); }
+.stage-status.pass { color: var(--c-success-deep); }
+.stage-status.reject { color: var(--c-error-deep); }
 /* v2 bugfix P0-B: var(--n-300) → var(--ink-faint) */
 .stage-status.placeholder { color: var(--ink-faint); }
 .stage-foot {
@@ -1054,16 +1054,16 @@ watch(
 }
 .method-item:hover { background: var(--glass-bg-input); }
 .method-item.selected { background: var(--brand-tint); border: 1px solid var(--brand); }
-.method-icon { font-size: var(--fs-18); color: var(--brand); }
+.method-icon { font-size: var(--fs-18); color: var(--brand-fg); }
 .method-name { font-weight: 500; }
 .right-content { flex: 1; min-width: 0; }
 .info-callout {
   background: var(--g1); border: 1px solid var(--c-info-bg); border-radius: 6px;
-  padding: var(--space-3); font-size: var(--text-body); color: var(--c-info); margin-bottom: var(--space-4);
+  padding: var(--space-3); font-size: var(--text-body); color: var(--c-info-deep); margin-bottom: var(--space-4);
 }
 .editor-section { background: var(--glass-bg-input); border-radius: 8px; padding: var(--space-4); margin-bottom: var(--space-4); }
 .editor-header { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
-.editor-icon { font-size: var(--fs-18); color: var(--brand); }
+.editor-icon { font-size: var(--fs-18); color: var(--brand-fg); }
 .editor-title { font-weight: 600; margin: 0; }
 .editor-field { margin-bottom: var(--space-3); }
 .field-label { display: block; font-size: var(--fs-13); color: var(--n-500); margin-bottom: 6px; }

@@ -74,13 +74,13 @@ const showDetail = ref(false)
 
 .error-code { width: 100%; max-width: 42ch; }
 .error-code-toggle {
-  background: none; border: none; color: var(--brand, #6366f1);
-  font-size: var(--text-sm); cursor: pointer; padding: var(--space-1);
+  background: none; border: none; color: var(--brand-fg);
+  font-size: var(--fs-14); cursor: pointer; padding: var(--space-1);
 }
 .error-code-body {
   margin: var(--space-2) 0 0; padding: var(--space-2);
-  background: var(--surface-2, #f4f4f5); border-radius: var(--radius-sm, 8px);
-  font-size: var(--text-xs); color: var(--ink-soft);
+  background: var(--g1); border-radius: var(--radius-sm, 8px);
+  font-size: var(--fs-12); color: var(--ink-soft);
   text-align: left; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow: auto;
 }
 

@@ -36,11 +36,13 @@ const cfg = config[props.status] || { label: '未知', tone: 'success' as const 
   height: 5px;
   border-radius: 50%;
 }
-/* 语义四态（DESIGN.md §4 Badges · v2 液态玻璃） */
-.tag-success { background: var(--c-success-soft); color: var(--c-success); }
-.tag-warning { background: var(--c-warning-soft); color: var(--c-warning); }
-.tag-error   { background: var(--c-error-soft);   color: var(--c-error); }
-.tag-info    { background: var(--c-info-soft);    color: var(--c-info); }
+/* 语义四态（DESIGN.md §4 Badges · v2 液态玻璃）
+   文字必须用 --c-*-deep：--c-* 主色压在自家 soft 底上仅约 2.9:1
+   （例 #16A34A on rgba(22,163,74,.12) over #FFF = #E3F4E9），不达 4.5:1。 */
+.tag-success { background: var(--c-success-soft); color: var(--c-success-deep); }
+.tag-warning { background: var(--c-warning-soft); color: var(--c-warning-deep); }
+.tag-error   { background: var(--c-error-soft);   color: var(--c-error-deep); }
+.tag-info    { background: var(--c-info-soft);    color: var(--c-info-deep); }
 
 .td-success { background: var(--c-success); }
 .td-warning { background: var(--c-warning); }

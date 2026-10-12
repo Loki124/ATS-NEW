@@ -38,25 +38,42 @@ ATS-NEW 是腾讯招聘/人才管理后台（B 端、高频、数据密集）。
 | 角色 | HEX | CSS 变量 | 使用场景 / 派生方式 |
 |---|---|---|---|
 | Brand | `#6366F1` | `--brand` | 主按钮、激活态、链接、强调。**唯一必填输入** |
-| Brand Hover | 派生 | `--brand-hover` | hover。`color-mix(in srgb,var(--brand) 80%,#fff)` |
-| Brand Pressed | 派生 | `--brand-pressed` | active/pressed。`color-mix(in srgb,var(--brand) 82%,#000)` |
-| Brand Dark | 派生 | `--brand-dark` | 渐变深端。`color-mix(in srgb,var(--brand) 66%,#000)` |
+| Brand Button | 自动选阶 | `--brand-button` | **实底**（按钮/chip/选中态）。禁止锁 `-500` 阶，见 §4 |
+| Brand Hover | 派生 | `--brand-hover` | hover。`color-mix(in oklch, var(--brand-600) 75%, #fff)`（暗色 `var(--brand-300) 78%`） |
+| Brand Pressed | 派生 | `--brand-pressed` | active/pressed。`color-mix(in oklch, var(--brand-600) 80%, #000)`（暗色 `var(--brand-300) 80%`） |
+| Brand Dark | 派生 | `--brand-dark` | 渐变深端。`color-mix(in oklch, var(--brand-600) 66%, #000)`（暗色 55%） |
 | Gradient A | `#A855F7` | `--brand-grad-a` | 标题/按钮渐变中段（默认类比紫，可覆盖） |
 | Gradient B | `#EC4899` | `--brand-grad-b` | 标题渐变末段（默认类比粉，仅装饰，可覆盖） |
+| Warm | `#FBCE5B` | `--brand-warm` | 暖色实底（通过/优秀档位）。暗色提亮为 `#FCD34D` |
+| Warm Soft | `rgba(251,206,91,.15)` | `--brand-warm-soft` | 暖色半透底 |
+
+> ⚠️ 派生色一律用 `oklch` 而非 `srgb`/`hsl`：HSL 的 L 通道非感知均匀，同 L 值下黄与蓝视觉亮度差近一倍，会导致换品牌色后色阶节奏失衡。
+> 本表所有 `-600`/`-300` 引用均由 `brand-tokens.mjs` 按品牌色自动生成，**禁止手工编辑**；改品牌色只需改 `--brand` 一个输入。
+
+#### 品牌文字色（作前景用，与实底色严格分离）
+
+| 角色 | CSS 变量 | 浅色（`#6366F1`） | 暗色 | 用途 |
+|---|---|---|---|---|
+| Brand Fg | `--brand-fg` | `--brand-600` `#5050D1` | `--brand-200` `#B9C7FF` | 强调文字 / 图标 / 链接（压普通表面） |
+| Brand Fg Hover | `--brand-fg-hover` | `--brand-pressed` | `--brand-100` `#D0DFFF` | 品牌文字 hover 阶，**保证 hover 后对比度不下降** |
+| Brand Fg On Soft | `--brand-fg-on-soft` | `--brand-fg` | `--brand-100` | 品牌字压**品牌半透底**（`--brand-soft` / 玻璃面板合成后） |
+| Brand Alt Ink | `--brand-alt-ink` | `#5B32C8` | `#C4A6FF` | 派生型 / 次级强调。`--brand-grad-a` 的**文字化替身** |
+| Warm Ink | `--brand-warm-ink` | `#7C2D12` | `#7C2D12`（同值） | 文字压在 `--brand-warm` **实底**上 |
+| Warm Deep | `--brand-warm-deep` | `#B45309` | `#FCD34D` | 文字压在 `--brand-warm-soft` **半透底**上 |
+| On Brand | `--on-brand` | `#FFFFFF` | `#111827` | 压在 `--brand-button` 实底上的前景 |
 
 **可自定义机制（白标 / 换肤）**
-- `--brand` 是**唯一来源**：改一处即全站换肤（按钮渐变、激活态、链接、玻璃辉光、极光主光斑联动）。
-- hover/pressed/dark 经 `color-mix` 从 `--brand` **自动派生**，无需手维护。
+- 品牌色是**唯一外部输入**：改一处即全站换肤（按钮渐变、激活态、链接、玻璃辉光、极光主光斑联动）。
+- `--brand-50…--brand-900` 九阶、`--brand-button`、`--brand-fg`、`--brand-hover/pressed/dark` 全部由 `brand-tokens.mjs` 经 **OKLCH 自动生成**，无需手维护。
 - 渐变端 `--brand-grad-a/--brand-grad-b` 提供默认类比色；白标场景可整体覆盖为品牌近似色。
 - Naive UI `themeOverrides`（`App.vue`）由**同一品牌值**在 JS 计算 primaryColor/hover/pressed，保证原生组件与玻璃类一致。
-- 腾讯 CI 备选：`--brand:#0052D9`（仅改一处，组件 CSS 不动）。
+- 腾讯 CI 备选：`BRAND_COLOR="#0052D9"`（仅改一处，组件 CSS 不动）。
 
-```css
-/* 单一输入驱动全站 —— 仅设 --brand 即可 */
-:root{ --brand:#6366F1;
-  --brand-hover:color-mix(in srgb,var(--brand) 80%,#fff);
-  --brand-pressed:color-mix(in srgb,var(--brand) 82%,#000);
-  --brand-dark:color-mix(in srgb,var(--brand) 66%,#000); }
+```bash
+# 🚫 不要在 :root 手写派生色 —— 会覆盖 brand-tokens.css 的生成产物，
+#    且绕开 --ci 门禁，导致换肤后对比度静默不达标。
+# ✅ 只改品牌色这一个输入：
+BRAND_COLOR="#0052D9" npm run tokens
 ```
 
 ### Neutral / Ink（墨色，替代原 `#1f2937` 深灰侧栏）
@@ -64,7 +81,7 @@ ATS-NEW 是腾讯招聘/人才管理后台（B 端、高频、数据密集）。
 |---|---|---|---|
 | Ink | `#0F172A` | `--ink` | 标题、重要正文 |
 | Ink Soft | `#475569` | `--ink-soft` | 次要正文、标签 |
-| Ink Faint | `#94A3B8` | `--ink-faint` | 占位符、辅助说明 |
+| Ink Faint | `#64748B` | `--ink-faint` | 占位符、辅助说明。原 `#94A3B8` 仅 2.6:1，已整改 |
 | Surface | `#FFFFFF` | `--surface` | 不透明兜底表面 |
 | Border Hairline | `rgba(15,23,42,.08)` | `--border-hairline` | 实体分隔线 |
 
@@ -79,12 +96,30 @@ ATS-NEW 是腾讯招聘/人才管理后台（B 端、高频、数据密集）。
 | 强描边 | `rgba(255,255,255,.90)` | `--glass-border-strong` |
 
 ### Semantic Colors（语义色，仅状态，不做品牌）
-| 角色 | 主色 | 浅底 | CSS 变量 |
+
+每族三个色阶：**主色**（装饰/图标/图形）→ **`-deep`**（**文字专用**，两模式各自重排）→ **`-soft`**（浅底）。
+
+| 角色 | 主色 | Deep（文字） | 浅色 Deep | 暗色 Deep | 浅底 |
+|---|---|---|---|---|---|
+| Success | `#16A34A` | `--c-success-deep` | `#065F46` | `#6EE7B7` | `rgba(22,163,74,.12)` |
+| Warning | `#F59E0B` | `--c-warning-deep` | `#92400E` | `#FCD34D` | `rgba(245,158,11,.14)` |
+| Error | `#EF4444` | `--c-error-deep` | `#991B1B` | `#FCA5A5` | `rgba(239,68,68,.12)` |
+| Info | `#3B82F6` | `--c-info-deep` | `#1E40AF` | `#93C5FD` | `rgba(59,130,246,.12)` |
+
+**实底之上的前景色**（`--c-*-deep` 作背景时配对使用，如圆点、实底 chip）：
+
+| CSS 变量 | 浅色 | 暗色 | 实底 → 前景对比度 |
 |---|---|---|---|
-| Success | `#16A34A` | `rgba(22,163,74,.12)` | `--c-success` / `--c-success-soft` |
-| Warning | `#F59E0B` | `rgba(245,158,11,.14)` | `--c-warning` / `--c-warning-soft` |
-| Error | `#EF4444` | `rgba(239,68,68,.12)` | `--c-error` / `--c-error-soft` |
-| Info | `#3B82F6` | `rgba(59,130,246,.12)` | `--c-info` / `--c-info-soft` |
+| `--on-c-success-deep` | `#FFFFFF` | `#0F172A` | 7.68:1 / 11.71:1 |
+| `--on-c-warning-deep` | `#FFFFFF` | `#0F172A` | 7.09:1 / 12.38:1 |
+| `--on-c-error-deep` | `#FFFFFF` | `#0F172A` | 8.31:1 / 9.41:1 |
+| `--on-c-info-deep` | `#FFFFFF` | `#0F172A` | 8.72:1 / 9.90:1 |
+
+> 暗色下 `-deep` 是**亮色**，`#FFFFFF` 前景只有 1.80–1.90:1 —— 故暗色一律 `#0F172A` 深字。
+
+> 🚫 **`--c-*` 主色不得当文字色，也不得当实底色。**
+> 主色压自家 `-soft` 底仅约 2.9:1（例 `#16A34A` on `#E3F4E9` = 2.89:1）；主色配白字仅 2.15–4.47:1。
+> 文字一律用 `-deep`，实底一律用 `-deep` + `--on-c-*-deep`。
 
 ### Shadow Colors
 | 角色 | rgba |
@@ -106,7 +141,7 @@ ATS-NEW 是腾讯招聘/人才管理后台（B 端、高频、数据密集）。
 |---|---|---|---|
 | 墨色 Ink | `#0F172A` | `#E8ECF6` | `--ink` |
 | 次墨 | `#475569` | `#AEB8CC` | `--ink-soft` |
-| 辅墨 | `#94A3B8` | `#7C879B` | `--ink-faint` |
+| 辅墨 | `#64748B` | `#93A0B5` | `--ink-faint`（暗色原 `#7C879B` 对 `--surface` 仅 4.04:1） |
 | 玻璃面板 | `rgba(255,255,255,.55)` | `rgba(30,41,59,.55)` | `--glass-bg-panel` |
 | 玻璃卡片 | `rgba(255,255,255,.62)` | `rgba(30,41,59,.62)` | `--glass-bg-card` |
 | 玻璃浮起 | `rgba(255,255,255,.72)` | `rgba(30,41,59,.72)` | `--glass-bg-elevated` |
@@ -119,6 +154,67 @@ ATS-NEW 是腾讯招聘/人才管理后台（B 端、高频、数据密集）。
 | 阴影色调 | 深蓝灰低透 | 纯黑低透 | `--shadow-*`（暗色加深） |
 
 > 暗色模式开关建议持久化（localStorage / 用户设置），并提供「跟随系统」（`prefers-color-scheme`）。品牌自定义与暗色可叠加生效。
+
+---
+
+## 2.5 前景色选阶与文字色禁忌（强制）
+
+品牌色与语义色的**主色是为实底/装饰设计的，直接当文字用会静默不达标**。以下为踩过的坑与唯一正确姿势。
+
+### 选阶规则
+
+- **前景色策略必须先于阶位决定**。否则亮品牌（黄 / 浅绿）被压成褐色、暗品牌被提亮成反常识配色。
+- 明度 `baseL > 0.75` 判为亮色品牌 → 固定**深色字**，取最接近 `baseL` 的阶（限制 200–500，避免过浅失去分量）。
+- 常规品牌 → 固定**对比色**（浅色模式白字），取「对比度刚好达标」的**最浅**阶。
+- 优选区间（浅色 400–800 / 暗色 400–700）无解才扩展到全色阶。
+- 由 `brand-tokens.mjs` 自动完成，`--ci` 门禁失败即退出码非 0。
+
+### 🚫 五条硬性禁忌
+
+| # | 禁忌 | 为什么 | 改用 |
+|---|---|---|---|
+| 1 | 禁止 `--brand` / `--brand-500` 直接当实底 | `#3B82F6` 配白字仅 3.68:1 | `--brand-button` + `--on-brand` |
+| 2 | 禁止 `--brand-hover` 当文字色 | 两模式都向白偏，浅色实测 **3.58:1**，hover 后反而比常态更难读 | `--brand-fg-hover` |
+| 3 | 禁止 `--c-*` 主色当文字色 | 压自家 `-soft` 底仅约 **2.9:1**；配白字 2.15–4.47:1 | `--c-*-deep` |
+| 4 | 禁止 `--brand-grad-a` 当文字色 | `#8C63FA` 仅 **3.98:1**（暗底 3.68:1） | `--brand-alt-ink` |
+| 5 | 禁止文字压 `--brand-warm` 实底时用 `--brand-warm-deep` | 暗色下两者**同为 `#FCD34D`** → 对比度 **1.00:1**，文字完全不可见 | `--brand-warm-ink` |
+
+### 颜色语义与色相冲突
+
+品牌色与语义色色相接近时（如品牌橙 vs error 红）语义系统失效。**消解策略是拉开明度（OKLCH ΔL ≥ 0.20），禁止旋转语义色色相** —— 旋转会破坏功能语义（"错误红"变成紫红后用户不再认为它是错误）。拉开明度后必须强制搭配图标。
+
+### 暗色前景色必须反向推导
+
+暗色模式下 `-deep` 阶是**亮色**，前景不能再用白色（仅 1.75:1）。本轮修正涉及：
+
+- `--brand-fg` 暗色阶位由 `300` 改为 **`200`**（选阶参考底由极光深蓝 `#0F172A` 改为 `--surface` `#1E293B`，更贴近真实底色）→ `#B9C7FF`，对暗底 **8.83:1**。
+- `--ink-faint` 暗色由 `#7C879B` 改为 **`#93A0B5`**（原值对 `--surface` 仅 4.04:1）。
+
+> ⚠️ 这两项是**全局视觉变更**：暗色下所有品牌强调文字与辅助文字都会变亮。改色后必须做全站视觉回归，不得只看单个页面。
+
+---
+
+## 2.6 令牌单一事实源
+
+| 令牌类别 | 权威文件 | 可否手工改 |
+|---|---|---|
+| 品牌色阶 + 前景选阶 | `web/app/src/styles/brand-tokens.css`（由 `brand-tokens.mjs` 生成） | 🚫 否 |
+| 品牌色 TS 常量 | `web/app/src/styles/brand-tokens.gen.ts` | 🚫 否 |
+| 语义色 / 中性色 / 间距 / 字号 | `web/app/src/styles/tokens.css` | ✅ 是 |
+| 玻璃 / 层级 | `web/app/src/styles/glass.css` | ✅ 是 |
+
+改品牌色只需改**一个输入**：`npm run tokens` 脚本中的 `BRAND_COLOR` 环境变量（或直接 `node brand-tokens.mjs --brand "#XXXXXX"`），其余色阶与前景色自动重算。`--ci` 门禁会对实底前景对比度做校验，不达标即非 0 退出。
+
+```bash
+# 换品牌色：改这一处即可
+BRAND_COLOR="#0052D9" npm run tokens
+```
+
+| 命令 | 用途 |
+|---|---|
+| `npm run tokens` | 生成 + `--ci` 门禁（**提交前必跑**） |
+| `npm run tokens -- --report` | 打印色阶与对比度报告，人工核对 |
+| `npm run tokens -- --json` | 输出机器可读格式，供其他工具消费 |
 
 ---
 
@@ -175,19 +271,20 @@ ATS-NEW 是腾讯招聘/人才管理后台（B 端、高频、数据密集）。
   color:var(--ink);border-radius:var(--radius-md);padding:10px 18px;
   backdrop-filter:blur(10px);
 }
-.btn-secondary:hover{border-color:var(--brand);color:var(--brand);}
+/* hover 文字用 --brand-fg-hover，不用 --brand-hover（后者仅 3.58:1） */
+.btn-secondary:hover{border-color:var(--brand-fg);color:var(--brand-fg-hover);}
 
 /* Ghost：透明，仅 hover 浅底 */
 .btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid transparent;border-radius:var(--radius-md);}
 .btn-ghost:hover{background:rgba(15,23,42,.04);color:var(--ink);}
 
-/* Danger：玻璃错误 */
+/* Danger：玻璃错误 —— soft 底必须配 deep 字 */
 .btn-danger{
   background:var(--c-error-soft);border:1px solid rgba(239,68,68,.3);
-  color:var(--c-error);border-radius:var(--radius-md);padding:10px 18px;
+  color:var(--c-error-deep);border-radius:var(--radius-md);padding:10px 18px;
 }
 ```
-> Naive UI 按钮：通过 `App.vue` 的 `GlobalThemeOverrides` 把 `primaryColor` 改为 `--brand`，文字色改 `#fff`，圆角 `var(--radius-md)`；不再使用金色 `#FBCE5B`。
+> Naive UI 按钮：通过 `App.vue` 的 `GlobalThemeOverrides` 把 `primaryColor` 改为 `--brand-button`，文字色取 `--on-brand`（浅色 `#fff` / 暗色 `#111827`），圆角 `var(--radius-md)`；不再使用金色 `#FBCE5B`。
 
 ### Cards / Panels（玻璃面板，替换 `card-base` 扁平白卡）
 ```css
@@ -214,7 +311,7 @@ ATS-NEW 是腾讯招聘/人才管理后台（B 端、高频、数据密集）。
   border-radius:var(--radius-sm);padding:9px 12px;color:var(--ink);
   backdrop-filter:blur(var(--glass-blur-input));transition:all var(--duration-fast) var(--ease-out);
 }
-.glass-input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(99,102,241,.18);outline:none;}
+.glass-input:focus{border-color:var(--brand-fg);box-shadow:0 0 0 3px rgba(99,102,241,.18);outline:none;}
 ::placeholder{color:var(--ink-faint);}
 ```
 
@@ -228,8 +325,12 @@ ATS-NEW 是腾讯招聘/人才管理后台（B 端、高频、数据密集）。
 .glass-tag{display:inline-flex;align-items:center;padding:2px 10px;border-radius:var(--radius-pill);
   background:var(--glass-bg-card);border:1px solid var(--glass-border);color:var(--ink-soft);
   font-size:var(--text-meta);font-weight:500;}
-.glass-tag--brand{background:rgba(99,102,241,.12);color:var(--brand);border-color:rgba(99,102,241,.25);}
-/* 语义 tag 同理用 --c-*-soft 底 + --c-* 字 */
+/* 品牌半透底 → 必须用 --brand-fg-on-soft，不是 --brand-fg，也不是 --brand */
+.glass-tag--brand{background:rgba(99,102,241,.12);color:var(--brand-fg-on-soft);border-color:rgba(99,102,241,.25);}
+/* 语义 tag：--c-*-soft 底 + --c-*-deep 字（主色仅 2.9:1，禁止使用） */
+.glass-tag--error{background:var(--c-error-soft);color:var(--c-error-deep);}
+/* 实底 chip：--c-*-deep 底 + --on-c-*-deep 字 */
+.chip--error.is-active{background:var(--c-error-deep);color:var(--on-c-error-deep);}
 ```
 
 ### Modals / Dialogs / Drawers

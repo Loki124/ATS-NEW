@@ -143,12 +143,14 @@ const statusStats = computed(() => {
   }))
 })
 
+/** 统计卡数字的文字色。必须是 -deep 阶：主色压白底仅 2.15–3.76:1，不达 AA。
+ *  INVITING 的 --c-purple 无 -deep 对应阶，改用次级品牌强调 --brand-alt-ink。 */
 function statusColor(s: string): string {
   const map: Record<string, string> = {
-    PENDING_CLAIM: 'var(--c-warning)', PENDING_INVITE: 'var(--c-info)', INVITING: 'var(--c-purple)',
-    SUCCESS: 'var(--c-success)', FAILED: 'var(--c-error)', INTERVENED: 'var(--c-warning)',
+    PENDING_CLAIM: 'var(--c-warning-deep)', PENDING_INVITE: 'var(--c-info-deep)', INVITING: 'var(--brand-alt-ink)',
+    SUCCESS: 'var(--c-success-deep)', FAILED: 'var(--c-error-deep)', INTERVENED: 'var(--c-warning-deep)',
   }
-  return map[s] || 'var(--n-400)'
+  return map[s] || 'var(--ink-soft)'
 }
 
 function formatCountdown(timeoutAt?: string): string {

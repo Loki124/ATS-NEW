@@ -89,13 +89,13 @@ function onRequestClose() {
   gap: 10px;
 }
 .action-btns a {
-  color: var(--brand);
+  color: var(--brand-fg);
   text-decoration: none;
   cursor: pointer;
   font-size: var(--fs-12);
 }
 .action-btns a:hover {
-  color: var(--brand-hover);
+  color: var(--brand-fg-hover);
   text-decoration: underline;
 }
 .modal-footer {

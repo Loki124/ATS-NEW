@@ -90,5 +90,6 @@ function dimColor(s: number) {
 .ats-sum__val {
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
-.ats-sum__line--warn .ats-sum__label { color: var(--c-warning); }
+/* 12px/600 小字：--c-warning #F59E0B 在浅色底仅 2.15:1，改用 --c-warning-deep（7.09:1） */
+.ats-sum__line--warn .ats-sum__label { color: var(--c-warning-deep); }
 </style>

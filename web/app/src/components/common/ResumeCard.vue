@@ -140,7 +140,7 @@ function progressColor(p: string | null) {
   align-items: center;
   justify-content: center;
   font-size: var(--text-h4);
-  color: var(--brand);
+  color: var(--brand-fg-on-soft);
   flex-shrink: 0;
   font-weight: 600;
 }
@@ -192,8 +192,10 @@ function progressColor(p: string | null) {
   border-radius: var(--radius-pill);
   transition: width var(--duration-base) var(--ease-out);
 }
+/* 3px 进度条填充属"非文本图形"，对底色只需 3:1；--c-warning #F59E0B 在浅色底上仅 2.15:1，
+   故 amber 档改走 --c-warning-deep（#92400E，7.09:1）。 */
 .pfill-info    { background: var(--c-info); }
-.pfill-warning { background: var(--c-warning); }
+.pfill-warning { background: var(--c-warning-deep); }
 .pfill-brand   { background: var(--brand); }
 
 /* 解析超时 / 失败的错误提示条（始终可见，不依赖展开） */
@@ -222,7 +224,7 @@ function progressColor(p: string | null) {
 }
 .replace-file-btn:hover {
   border-color: var(--brand);
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .c-body {
   padding: 0 var(--space-3) var(--space-3);

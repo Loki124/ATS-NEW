@@ -36,11 +36,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ---------- CLI 解析 ----------
 function parseArgs(argv) {
-  const args = { brand: '#6366F1', out: 'src/styles/brand-tokens.css', prefix: 'brand', report: false, json: false, ci: false };
+  const args = { brand: '#6366F1', out: 'src/styles/brand-tokens.css', outTs: 'src/styles/brand-tokens.gen.ts', prefix: 'brand', report: false, json: false, ci: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--brand') args.brand = argv[++i];
     else if (a === '--out') args.out = argv[++i];
+    else if (a === '--out-ts') args.outTs = argv[++i];
     else if (a === '--prefix') args.prefix = argv[++i];
     else if (a === '--report') args.report = true;
     else if (a === '--json') args.json = true;
@@ -148,6 +149,29 @@ function generate({ brand, prefix = 'brand' }) {
   // 品牌文字（落在浅 brand-soft 底上可读）—— 用最深阶
   const textColor = scaleLight[900];
 
+  // R-210 品牌色「作前景色」（强调文字 / 图标 / 链接）的跨模式自动选阶。
+  // 为什么需要独立于 --brand-text：--brand-text 锁 900 深阶，浅底很稳，但暗色模式下
+  // 900 阶被 R-212 重排成近黑（实测对暗底仅 1.2:1，文字几乎不可见），不能跨模式复用。
+  // 也不能简单锁 -600：暗色下 600 阶同样被重排为"深"（实测 2.3:1），比现状更差。
+  // 故按 R-210 同一原则各模式动态选「刚好达标」的最浅阶 ——
+  //   浅色：白底上从浅往深取第一个 ≥4.5 的阶（保留品牌紫识别度的最浅可用阶）
+  //   暗色：暗底上从深往浅取第一个 ≥4.5 的阶
+  // 暗色参考底用 --surface(#1E293B，页面主底) 而不是 --surface-elevated(#0F172A，最深面)：
+  //   品牌前景色九成场景落在页面/卡片主底上，而主底比最深面亮。原按 #0F172A 选出的
+  //   300 阶实测对 #1E293B 仅 4.45:1（差 0.05 不达标），改用主底后自动上抬到 200 阶
+  //   （对 #1E293B 6.01:1、对 #0F172A 6.90:1，两种底都稳）。
+  const DARK_FG_REF = '#1E293B';
+  const fgLightCands = lightScale
+    .map((s) => ({ ...s, ratio: contrast(s.hex, '#ffffff') }))
+    .filter((s) => s.ratio >= 4.5)
+    .sort((a, b) => b.l - a.l);                       // l 降序 = 由浅到深
+  const fgLight = fgLightCands[0];
+  const fgDarkCands = darkScale
+    .map((s) => ({ ...s, ratio: contrast(s.hex, DARK_FG_REF) }))
+    .filter((s) => s.ratio >= 4.5)
+    .sort((a, b) => a.l - b.l);                       // l 升序 = 由深到浅
+  const fgDark = fgDarkCands[0];
+
   // R-211 语义冲突检测
   const conflicts = SEMANTIC
     .map((s) => ({ name: s.name, delta: ringHueDelta(h, s.hue) }))
@@ -167,6 +191,14 @@ function generate({ brand, prefix = 'brand' }) {
       dark: { step: darkButton?.step, bg: darkButton?.hex, fg: '#111827', ratio: +darkButtonRatio.toFixed(2) },
     },
     text: { light: { step: 900, color: textColor, ratio: +contrast(textColor, '#ffffff').toFixed(2) } },
+    fg: {
+      light: fgLight
+        ? { step: fgLight.step, color: fgLight.hex, ratio: +fgLight.ratio.toFixed(2) }
+        : { step: 800, color: scaleLight[800], ratio: +contrast(scaleLight[800], '#ffffff').toFixed(2) },
+      dark: fgDark
+        ? { step: fgDark.step, color: fgDark.hex, ratio: +fgDark.ratio.toFixed(2) }
+        : { step: 300, color: scaleDark[300], ratio: +contrast(scaleDark[300], DARK_FG_REF).toFixed(2) },
+    },
     conflicts,
     grad: { a: gradA, b: gradB },
     rgbChannels,
@@ -209,6 +241,7 @@ ${lightScaleLines}
   --${P}-button: var(--${P}-${btn.step});
   --on-${P}: ${btn.fg};                       /* --${P}-button 上的前景色 */
   --${P}-text: var(--${P}-900);               /* 浅底上的品牌文字色 */
+  --${P}-fg:   var(--${P}-${g.fg.light.step});    /* 品牌色作前景(强调文字/图标/链接)，跨模式自选阶 */
 
   /* === 向后兼容别名（glass.css / .vue 现有引用，禁止改名破坏） === */
   --${P}-hover:    color-mix(in oklch, var(--${P}-${btn.step}) 75%, #fff);
@@ -224,6 +257,16 @@ ${lightScaleLines}
   /* === 装饰性渐变端点（谐波旋转，非语义色 R-211 豁免） === */
   --${P}-grad-a: ${gradA};
   --${P}-grad-b: ${gradB};
+
+  /* === 主按钮渐变端点（R-210 选阶，随模式重排） ===
+     原先主按钮渐变写死 var(--${P}) → var(--${P}-grad-a)，而 grad-a 是装饰端点
+     （#8c63fa）且**无暗色重排**，导致：
+       浅色 渐变最亮端配浅字 ≈ 4.08:1
+       暗色 深字 #1E293B 压在亮紫渐变上 ≈ 3.27:1
+     两模式都不达 AA，且与品牌色无关 —— 换任何品牌色都一样不达标。
+     故按模式重排：浅色用深阶配 on-brand 亮字，暗色用亮阶配 on-brand 深字。 */
+  --${P}-grad-from: var(--${P}-600);
+  --${P}-grad-to:   var(--${P}-700);
 }
 
 /* R-212 暗色模式：重排 L / 降低 C，禁止 (1-L) 反转 / 复用浅色阶 */
@@ -234,6 +277,13 @@ ${darkScaleLines}
   /* 暗色主按钮：亮阶 + 深色前景（防光晕） */
   --${P}-button: var(--${P}-${dbtn.step});
   --on-${P}: #111827;
+
+  /* R-212 暗色重排：品牌前景色必须换到亮阶，否则深阶在暗底上不可读 */
+  --${P}-fg: var(--${P}-${g.fg.dark.step});
+
+  /* 主按钮渐变：暗色改亮阶（配 --on-brand 深字），浅色用深阶（配亮字） */
+  --${P}-grad-from: var(--${P}-300);
+  --${P}-grad-to:   var(--${P}-200);
 
   /* 暗色别名（基于亮阶重新配比，避免浅色半透底在暗玻璃上消失） */
   --${P}-hover:    color-mix(in oklch, var(--${P}-${dbtn.step}) 78%, #fff);
@@ -249,6 +299,39 @@ ${darkScaleLines}
 `;
 }
 
+// ---------- TS 常量渲染（供 JS 消费，保证与 CSS 同源） ----------
+// 为什么需要：Naive UI 的 parseColor 不解析 CSS 变量，themeOverrides 只接受 hex 字面量
+// （见 src/App.vue 中「已知限制」注释）。若在 store 里另写一套推导，会与 CSS 的
+// --brand-fg / --brand-button 各算一套、必然漂移。故由本生成器单点产出。
+function renderTs(g) {
+  const { P } = g.tokens;
+  return `/* 由 brand-tokens.mjs 生成，请勿手改 —— 运行 \`npm run tokens\` 重新生成。 */
+/**
+ * 品牌令牌（TS 侧）。
+ * 与 ${P}-tokens.css 同源产出，供 Naive UI themeOverrides 使用：
+ * Naive 的 parseColor 不解析 CSS 变量，只接受 hex 字面量。
+ *
+ * - ${P}-fg     : 品牌色作前景（强调文字/图标/链接），已按 R-210 逐模式选「刚好达标 4.5:1」的阶
+ * - ${P}-button : 主按钮底色 + 其上的前景色（-on-）
+ */
+export const BRAND_TOKENS = {
+  brand: '${g.brand}',
+  fg: {
+    light: { step: ${g.fg.light.step}, color: '${g.fg.light.color}', ratio: ${g.fg.light.ratio} },
+    dark:  { step: ${g.fg.dark.step},  color: '${g.fg.dark.color}',  ratio: ${g.fg.dark.ratio} },
+  },
+  button: {
+    light: { step: ${g.button.light.step}, bg: '${g.button.light.bg}', on: '${g.button.light.fg}', ratio: ${g.button.light.ratio} },
+    dark:  { step: ${g.button.dark.step},  bg: '${g.button.dark.bg}',  on: '#111827', ratio: ${g.button.dark.ratio} },
+  },
+  buttonText: {
+    light: '${g.button.light.fg}',
+    dark:  '#111827',
+  },
+} as const;
+`;
+}
+
 // ---------- 报告 ----------
 function renderReport(g) {
   const { h, c, l } = g.oklch;
@@ -258,6 +341,8 @@ function renderReport(g) {
   out += `色阶(浅): ` + STEPS.map((s) => `${s}=${g.scale.light[s]}`).join('  ') + '\n';
   out += `主按钮(浅): --brand-${btn.step} ${btn.bg} + ${btn.fg}  对比度 ${btn.ratio}:1\n`;
   if (dbtn.step) out += `主按钮(暗): --brand-${dbtn.step} ${dbtn.bg} + #111827  对比度 ${dbtn.ratio}:1\n`;
+  out += `品牌前景色(浅): --brand-${g.fg.light.step} ${g.fg.light.color}  对白底 ${g.fg.light.ratio}:1\n`;
+  out += `品牌前景色(暗): --brand-${g.fg.dark.step} ${g.fg.dark.color}  对暗底 ${g.fg.dark.ratio}:1\n`;
   out += `冲突检测(R-211): `;
   if (g.conflicts.length === 0) out += '无 (<30° 色相冲突)\n';
   else out += g.conflicts.map((x) => `${x.name}(Δ${x.delta}°)`).join(', ') + ' — 需明度分离 + 图标\n';
@@ -309,8 +394,10 @@ function main() {
       process.exit(1);
     }
     for (const w of warnings) console.warn('  ⚠ ' + w);
-    // 新鲜度：重新生成并与已提交文件比对
+    // 新鲜度：重新生成并与已提交文件比对（CSS 与 TS 常量两份都要校验）
+    const outTsPath = resolve(__dirname, args.outTs);
     const expected = renderCss(g);
+    const expectedTs = renderTs(g);
     if (!existsSync(outPath)) {
       console.error(`[brand-tokens] 缺失生成文件: ${args.out}（请运行 npm run tokens 并提交）`);
       process.exit(1);
@@ -321,6 +408,15 @@ function main() {
       console.error('  请运行 `npm run tokens` 重新生成并提交。');
       process.exit(1);
     }
+    if (!existsSync(outTsPath)) {
+      console.error(`[brand-tokens] 缺失生成文件: ${args.outTs}（请运行 npm run tokens 并提交）`);
+      process.exit(1);
+    }
+    if (readFileSync(outTsPath, 'utf8').trim() !== expectedTs.trim()) {
+      console.error('[brand-tokens] 已提交的 brand-tokens.gen.ts 与当前 --brand 不一致（已过期）。');
+      console.error('  请运行 `npm run tokens` 重新生成并提交。');
+      process.exit(1);
+    }
     console.log(`[brand-tokens] ✅ CI 门禁通过（brand=${g.brand}, button=${g.button.light.step}, ratio=${g.button.light.ratio}:1）`);
     process.exit(0);
   }
@@ -328,7 +424,9 @@ function main() {
   // 非 CI：写文件（除非显式只想要报告）
   if (!args.report && !args.json) {
     writeFileSync(outPath, renderCss(g), 'utf8');
+    writeFileSync(resolve(__dirname, args.outTs), renderTs(g), 'utf8');
     console.log(`[brand-tokens] 已写入 ${args.out}`);
+    console.log(`[brand-tokens] 已写入 ${args.outTs}`);
   }
 }
 
