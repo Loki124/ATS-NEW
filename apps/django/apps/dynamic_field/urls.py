@@ -31,6 +31,12 @@ urlpatterns = [
         DynamicFieldViewSet.as_view({'post': 'reorder'}),
         name='dynamicfield-reorder',
     ),
+    # 2026-10-12 批量修改字段类型/字段分组 (静态段, 须排在 <str:pk> 之前)
+    path(
+        '<str:resource>/fields/batch-update/',
+        DynamicFieldViewSet.as_view({'post': 'batch_update'}),
+        name='dynamicfield-batch-update',
+    ),
     # 2026-09-24 兵哥: 限制条件校验 + 录入落库端点 (须排在 <str:pk> 之前, 否则被 detail 路由截走)
     path(
         '<str:resource>/fields/validate-values/',

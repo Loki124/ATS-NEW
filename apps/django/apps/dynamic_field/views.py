@@ -90,6 +90,25 @@ CSV_TRUNCATION_MARK = '…[已截断'
 # 仅用于防止字段定义病态膨胀时一次性序列化全表。
 MAX_FIELD_ROWS = 500
 
+# 批量修改(batch-update)单次允许的最大字段数: 字段定义正常规模远低于此值,
+# 上限仅用于防止病态大请求把逐条更新拖成慢查询。
+BATCH_UPDATE_MAX_IDS = 200
+
+
+def _flatten_validation_error(exc: drf_serializers.ValidationError) -> str:
+    """把 DRF ValidationError 的 detail 摊平为单行文案, 供批量结果逐条展示。"""
+    detail = exc.detail
+    if isinstance(detail, dict):
+        parts = []
+        for key, value in detail.items():
+            if isinstance(value, (list, tuple)):
+                value = '; '.join(str(item) for item in value)
+            parts.append(f'{key}: {value}')
+        return '; '.join(parts)
+    if isinstance(detail, (list, tuple)):
+        return '; '.join(str(item) for item in detail)
+    return str(detail)
+
 
 class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
     """动态字段定义 CRUD — 按 resource 过滤, detail 端点按 id 寻址。"""
@@ -102,6 +121,8 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
         'update': 'recruit:settings:dynamic-fields:edit',
         'partial_update': 'recruit:settings:dynamic-fields:edit',
         'destroy': 'recruit:settings:dynamic-fields:delete',
+        # 2026-10-12 批量修改字段类型/字段分组: 与单字段 update 同码
+        'batch_update': 'recruit:settings:dynamic-fields:edit',
     }
 
     # 导入模板/导入解析用的中英文字段名映射: 模板用中文表头, 解析端统一归一到模型字段名
@@ -475,6 +496,157 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
         for index, field_id in enumerate(ordered_ids):
             self.get_queryset().filter(id=field_id, resource=resource).update(order_index=index)
         return Response({'success': True})
+
+    @action(detail=False, methods=['post'], url_path='batch-update')
+    def batch_update(self, request, resource=None) -> Response:
+        """POST /dynamic-fields/<resource>/fields/batch-update/ — 批量修改字段类型/字段分组。
+
+        Body (camelCase, 与前端一致; 全局 CamelCaseJSONParser 负责转换)::
+
+            { "ids": ["f_a", "f_b"], "fieldType": "NUMBER", "groupId": "g_x" }
+
+        契约:
+          - ``ids``: 字段 id 列表, 非空, 单次不超过 ``BATCH_UPDATE_MAX_IDS`` 条;
+          - ``fieldType`` / ``groupId`` 至少传一项, 都传则同时生效;
+          - ``groupId`` 传 ``null``/``''`` 表示移到「未分组」(保留原模块);
+            传具体分组时, 字段的 ``module_id`` 一并跟随该分组所属模块,
+            避免出现「字段挂 A 模块、分组属 B 模块」的不一致状态;
+          - 系统锁定字段(编号/名称/状态, ``SYSTEM_FIELD_LOCKED_KEYS``)改字段类型
+            → 逐条跳过并说明原因, 与单字段 ``update`` 守卫口径一致 (后端权威, 防绕过);
+          - 逐条独立更新, 单条失败(如改为组合字段但缺子字段)不影响其余条目;
+          - 返回 ``updated`` / ``skipped`` / ``failed`` 明细, 不把跳过/失败计入成功,
+            避免假成功。
+
+        Returns:
+            Response: ``{"data": {"requested", "updated", "updatedCount", "skipped", "failed"}}``
+        """
+        resource = self.get_resource() or resource or ''
+
+        ids = request.data.get('ids')
+        if ids is None:
+            ids = request.data.get('fieldIds')
+        if not isinstance(ids, list) or not ids:
+            return Response(
+                {'success': False, 'message': 'ids 必须为非空数组'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # 去重 (保序), 避免同一条目被重复计入结果
+        ids = list(dict.fromkeys(str(i) for i in ids))
+        if len(ids) > BATCH_UPDATE_MAX_IDS:
+            return Response(
+                {'success': False, 'message': f'单次最多批量修改 {BATCH_UPDATE_MAX_IDS} 个字段'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        new_field_type = request.data.get('field_type')
+        if new_field_type is None:
+            new_field_type = request.data.get('fieldType')
+        # group_id 需区分「未传」与「传 null(=清空分组)」: 两种 key 拼写都兼容
+        has_group = ('group_id' in request.data) or ('groupId' in request.data)
+        raw_group = request.data.get('group_id')
+        if raw_group is None:
+            raw_group = request.data.get('groupId')
+        new_group_id = str(raw_group).strip() if raw_group not in (None, '') else None
+
+        if new_field_type is None and not has_group:
+            return Response(
+                {'success': False, 'message': '请至少指定一项要修改的属性(fieldType / groupId)'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_field_type is not None:
+            valid_types = {choice[0] for choice in DynamicField.FieldType.choices}
+            if new_field_type not in valid_types:
+                return Response(
+                    {'success': False, 'message': f'不支持的字段类型: {new_field_type}'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # 目标分组一次性校验 (共享目标, 非法即整体 400, 不必逐条试错)
+        target_group = None
+        if has_group and new_group_id:
+            target_group = FieldGroup.objects.filter(
+                id=new_group_id,
+                deleted_at__isnull=True,
+                module__deleted_at__isnull=True,
+                module__resource=resource,
+            ).select_related('module').first()
+            if target_group is None:
+                return Response(
+                    {'success': False, 'message': f'字段分组不存在或不属于当前资源: {new_group_id}'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        fields_by_id = {
+            f.id: f
+            for f in self.get_queryset().filter(resource=resource, id__in=ids)
+        }
+
+        updated: list[str] = []
+        skipped: list[dict] = []
+        failed: list[dict] = []
+
+        for field_id in ids:
+            field = fields_by_id.get(field_id)
+            if field is None:
+                skipped.append({'id': field_id, 'label': '', 'reason': '字段不存在或已删除'})
+                continue
+
+            # 系统锁定字段(编号/名称/状态): 字段类型不可改, 与单字段 update 守卫同口径
+            if (
+                new_field_type is not None
+                and new_field_type != field.field_type
+                and getattr(field, 'is_system', False)
+                and field.field_key in SYSTEM_FIELD_LOCKED_KEYS
+            ):
+                skipped.append({
+                    'id': field_id,
+                    'label': field.label,
+                    'reason': f'系统锁定字段「{field.label}」的字段类型不可修改',
+                })
+                continue
+
+            payload: dict = {}
+            if new_field_type is not None and new_field_type != field.field_type:
+                payload['field_type'] = new_field_type
+                # 与单字段编辑一致: 新类型不需要选项时清空手动选项, 避免残留脏数据
+                if new_field_type not in DynamicField.OPTION_TYPES:
+                    payload['options'] = []
+                # 组合字段子结构仅在 COMPOSITE 类型下保留
+                if new_field_type != DynamicField.FieldType.COMPOSITE:
+                    payload['sub_fields'] = []
+            if has_group and new_group_id != (field.group_id or None):
+                payload['group_id'] = new_group_id
+                if target_group is not None:
+                    # 分组(子)归属模块(父): 移组时模块一并跟随, 保持层级一致
+                    payload['module_id'] = target_group.module_id
+
+            if not payload:
+                # 目标值即现值: 无需写库, 视为已生效
+                updated.append(field_id)
+                continue
+
+            try:
+                serializer = self.get_serializer(field, data=payload, partial=True)
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                updated.append(field_id)
+            except drf_serializers.ValidationError as exc:
+                failed.append({
+                    'id': field_id,
+                    'label': field.label,
+                    'reason': _flatten_validation_error(exc),
+                })
+            except (IntegrityError, ValueError) as exc:  # 单条撞唯一/校验约束, 计入 failed 继续下一条
+                failed.append({'id': field_id, 'label': field.label, 'reason': str(exc)})
+
+        return success_response({
+            'requested': len(ids),
+            'updated': updated,
+            'updatedCount': len(updated),
+            'skipped': skipped,
+            'failed': failed,
+        })
 
     # --- 限制条件校验 (2026-09-24 兵哥) -----------------------------------------
 

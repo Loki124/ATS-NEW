@@ -42,6 +42,9 @@
         <n-button type="primary" @click="openFieldCreate()">
           <template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.DynamicFieldManager.s217') }}
         </n-button>
+        <n-button :disabled="!rows.length" @click="openBatchModal">
+          <template #icon><n-icon :component="CheckboxOutline" /></template>{{ t('pages.settings.DynamicFieldManager.s318') }}
+        </n-button>
         <n-dropdown :options="exportOptions" @select="onExportSelect">
           <n-button>{{ t('pages.settings.DynamicFieldManager.s6') }}</n-button>
         </n-dropdown>
@@ -783,6 +786,87 @@
           </n-space>
         </template>
       </n-modal>
+
+      <!-- ============ 批量操作 Modal（字段类型 / 字段分组） ============ -->
+      <n-modal
+        v-model:show="batchModalVisible"
+        preset="card"
+        :title="t('pages.settings.DynamicFieldManager.s318')"
+        style="width: 780px; max-width: 94vw;"
+        class="df-batch-modal"
+      >
+        <n-space vertical :size="12">
+          <n-alert type="info" :show-icon="true">
+            {{ t('pages.settings.DynamicFieldManager.s326') }}
+          </n-alert>
+          <n-space justify="space-between" align="center" :wrap="true">
+            <n-text depth="3">{{ t('pages.settings.DynamicFieldManager.s319', { n: batchCheckedIds.length, total: rows.length }) }}</n-text>
+            <n-text v-if="filterModule || filterGroup" depth="3" style="font-size: 12px">
+              {{ t('pages.settings.DynamicFieldManager.s338') }}
+            </n-text>
+          </n-space>
+          <n-data-table
+            v-model:checked-row-keys="batchCheckedIds"
+            :columns="batchColumns"
+            :data="rows"
+            :loading="loading"
+            :pagination="false"
+            :row-key="(row: any) => row.id"
+            size="small"
+            striped
+            style="max-height: 380px"
+          />
+          <!-- 第一步: 选择批量动作 -->
+          <n-space v-if="!batchAction" justify="end">
+            <n-button :disabled="batchApplying" @click="batchModalVisible = false">{{ t('pages.settings.DynamicFieldManager.s331') }}</n-button>
+            <n-button :disabled="!batchCheckedIds.length || batchApplying" @click="startBatchAction('type')">
+              <template #icon><n-icon :component="CreateOutline" /></template>{{ t('pages.settings.DynamicFieldManager.s320') }}
+            </n-button>
+            <n-button :disabled="!batchCheckedIds.length || batchApplying" @click="startBatchAction('group')">
+              <template #icon><n-icon :component="ListOutline" /></template>{{ t('pages.settings.DynamicFieldManager.s321') }}
+            </n-button>
+          </n-space>
+          <!-- 第二步: 修改字段类型 -->
+          <n-space v-else-if="batchAction === 'type'" vertical :size="10">
+            <n-space align="center" :wrap="true">
+              <span class="res-label">{{ t('pages.settings.DynamicFieldManager.s322') }}</span>
+              <n-select
+                v-model:value="batchTypeValue"
+                :options="FIELD_TYPE_OPTIONS"
+                :virtual-scroll="false"
+                :placeholder="t('pages.settings.DynamicFieldManager.s332')"
+                class="df-input-select"
+              />
+            </n-space>
+            <n-alert type="warning" :show-icon="true">{{ t('pages.settings.DynamicFieldManager.s327') }}</n-alert>
+            <n-space justify="end">
+              <n-button :disabled="batchApplying" @click="cancelBatchAction">{{ t('pages.settings.DynamicFieldManager.s330') }}</n-button>
+              <n-button type="primary" class="gradient-btn" :loading="batchApplying" :disabled="!batchTypeValue" @click="applyBatchUpdate">{{ t('pages.settings.DynamicFieldManager.s329') }}</n-button>
+            </n-space>
+          </n-space>
+          <!-- 第二步: 修改字段分组 -->
+          <n-space v-else vertical :size="10">
+            <n-radio-group v-model:value="batchGroupMode">
+              <n-radio value="group">{{ t('pages.settings.DynamicFieldManager.s324') }}</n-radio>
+              <n-radio value="none">{{ t('pages.settings.DynamicFieldManager.s325') }}</n-radio>
+            </n-radio-group>
+            <n-space v-if="batchGroupMode === 'group'" align="center" :wrap="true">
+              <span class="res-label">{{ t('pages.settings.DynamicFieldManager.s323') }}</span>
+              <n-select
+                v-model:value="batchGroupValue"
+                :options="batchGroupOptions"
+                :placeholder="t('pages.settings.DynamicFieldManager.s333')"
+                class="df-input-select"
+              />
+            </n-space>
+            <n-alert type="info" :show-icon="true">{{ t('pages.settings.DynamicFieldManager.s328') }}</n-alert>
+            <n-space justify="end">
+              <n-button :disabled="batchApplying" @click="cancelBatchAction">{{ t('pages.settings.DynamicFieldManager.s330') }}</n-button>
+              <n-button type="primary" class="gradient-btn" :loading="batchApplying" :disabled="batchGroupMode === 'group' && !batchGroupValue" @click="applyBatchUpdate">{{ t('pages.settings.DynamicFieldManager.s329') }}</n-button>
+            </n-space>
+          </n-space>
+        </n-space>
+      </n-modal>
   </div>
 </template>
 
@@ -794,11 +878,12 @@ import {
   NModal, NForm, NFormItem, NInput, NDynamicInput, NTabs, NTabPane, NDropdown,
   NRadioGroup, NRadio, NRadioButton, NCheckbox, NAlert, NText, useMessage, useDialog,
 } from 'naive-ui';
-import { AddOutline, TrashOutline, CreateOutline, ShieldCheckmarkOutline, BanOutline, PlayOutline, AppsOutline, ListOutline, GitNetworkOutline } from '@vicons/ionicons5';
+import { AddOutline, TrashOutline, CreateOutline, ShieldCheckmarkOutline, BanOutline, PlayOutline, AppsOutline, ListOutline, GitNetworkOutline, CheckboxOutline } from '@vicons/ionicons5';
 import FieldListOptions from '@/components/FieldListOptions.vue';
 import RegionCascader from '@/components/RegionCascader.vue';
 import {
   listFields, upsertField, deleteField, extractApiError,
+  batchUpdateFields,
   FIELD_TYPE_OPTIONS, FIELD_TYPE_LABEL,
   DATE_FORMAT_OPTIONS, isDateFieldType,
   REGION_LEVEL_OPTIONS, isRegionFieldType,
@@ -814,6 +899,7 @@ import {
   type LinkageConditionOp, type LinkageActionType, type VisibilityPermission,
   type DateFormatValue, type RegionLevelValue, type SubField,
   type FieldValidation,
+  type BatchUpdateFieldsResult,
 } from '@/api/dynamic-field';
 // 2026-09-24 (兵哥) 限制条件: 类型分组与前端校验共用同一真源
 import {
@@ -1462,6 +1548,120 @@ function confirmDeleteField(row: FieldDefinition) {
       } catch (e: any) { message.error(t('pages.settings.DynamicFieldManager.s249') + extractApiError(e)); }
     },
   });
+}
+
+// ============ 批量操作（字段类型 / 字段分组） ============
+const batchModalVisible = ref(false);
+const batchCheckedIds = ref<string[]>([]);
+const batchAction = ref<'type' | 'group' | null>(null);
+const batchTypeValue = ref<FieldType | null>(null);
+const batchGroupMode = ref<'group' | 'none'>('group');
+const batchGroupValue = ref<string | null>(null);
+const batchApplying = ref(false);
+
+/** 批量操作弹窗的目标分组下拉: embedded 模式仅默认模块的分组, 其余取全部 */
+const batchGroupOptions = computed(() => {
+  const base = isEmbedded.value && defaultModuleId.value
+    ? groups.value.filter((g) => g.moduleId === defaultModuleId.value)
+    : groups.value;
+  return base.map((g) => ({ label: `${g.module?.name || ''} / ${g.name}`, value: g.id }));
+});
+
+const batchColumns = computed(() => [
+  { type: 'selection' as const },
+  {
+    title: t('pages.settings.DynamicFieldManager.s164'), key: 'label', minWidth: 150,
+    render: (row: FieldDefinition) => h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
+      row.label,
+      row.isLocked
+        ? h(NTag, { size: 'small', type: 'error', bordered: false }, () => t('pages.settings.DynamicFieldManager.s224'))
+        : row.isSystem
+          ? h(NTag, { size: 'small', type: 'info', bordered: false }, () => t('pages.settings.DynamicFieldManager.s225'))
+          : null,
+    ].filter(Boolean)),
+  },
+  {
+    title: t('pages.settings.DynamicFieldManager.s165'), key: 'labelEn', minWidth: 120,
+    render: (row: FieldDefinition) => row.labelEn || '-',
+  },
+  {
+    title: t('pages.settings.DynamicFieldManager.s166'), key: 'fieldType', width: 110,
+    render: (row: FieldDefinition) => h(NTag, { size: 'small', type: FIELD_TYPE_COLOR[row.fieldType] || 'default' }, () => FIELD_TYPE_LABEL[row.fieldType] || row.fieldType),
+  },
+  {
+    title: t('pages.settings.DynamicFieldManager.s339'), key: 'groupName', minWidth: 140,
+    render: (row: FieldDefinition) => row.group?.name || row.groupName || t('pages.settings.DynamicFieldManager.s274'),
+  },
+]);
+
+function openBatchModal() {
+  batchCheckedIds.value = [];
+  batchAction.value = null;
+  batchTypeValue.value = null;
+  batchGroupMode.value = 'group';
+  batchGroupValue.value = null;
+  batchModalVisible.value = true;
+}
+
+function startBatchAction(kind: 'type' | 'group') {
+  batchAction.value = kind;
+  batchTypeValue.value = null;
+  batchGroupMode.value = 'group';
+  batchGroupValue.value = null;
+}
+
+function cancelBatchAction() {
+  batchAction.value = null;
+}
+
+/** 汇总 skipped/failed 原因 (按行去重, 最多展示前 3 条, 避免消息过长) */
+function summarizeBatchIssues(issues: { label: string; reason: string }[], max = 3): string {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const it of issues) {
+    const line = it.label ? `${it.label}: ${it.reason}` : it.reason;
+    if (seen.has(line)) continue;
+    seen.add(line);
+    lines.push(line);
+    if (lines.length >= max) break;
+  }
+  return lines.join('；');
+}
+
+async function applyBatchUpdate() {
+  const ids = [...batchCheckedIds.value];
+  if (!ids.length) return;
+  if (batchAction.value === 'type' && !batchTypeValue.value) {
+    message.error(t('pages.settings.DynamicFieldManager.s332'));
+    return;
+  }
+  if (batchAction.value === 'group' && batchGroupMode.value === 'group' && !batchGroupValue.value) {
+    message.error(t('pages.settings.DynamicFieldManager.s333'));
+    return;
+  }
+  batchApplying.value = true;
+  try {
+    const body: { ids: string[]; fieldType?: FieldType; groupId?: string | null } = { ids };
+    if (batchAction.value === 'type') body.fieldType = batchTypeValue.value as FieldType;
+    if (batchAction.value === 'group') body.groupId = batchGroupMode.value === 'none' ? null : batchGroupValue.value;
+    const result: BatchUpdateFieldsResult = await batchUpdateFields(currentResource.value, body);
+    const { updatedCount, skipped, failed } = result;
+    if (updatedCount > 0 && !skipped.length && !failed.length) {
+      message.success(t('pages.settings.DynamicFieldManager.s334', { n: updatedCount }));
+    } else {
+      // 部分跳过/失败: 如实汇总, 不粉饰为全成功
+      const parts = [t('pages.settings.DynamicFieldManager.s335', { ok: updatedCount, skip: skipped.length, fail: failed.length })];
+      if (skipped.length) parts.push(t('pages.settings.DynamicFieldManager.s336', { reasons: summarizeBatchIssues(skipped) }));
+      if (failed.length) parts.push(t('pages.settings.DynamicFieldManager.s337', { reasons: summarizeBatchIssues(failed) }));
+      message.warning(parts.join('；'));
+    }
+    await reloadFields();
+    batchModalVisible.value = false;
+  } catch (e: any) {
+    message.error(t('pages.settings.DynamicFieldManager.s248') + extractApiError(e));
+  } finally {
+    batchApplying.value = false;
+  }
 }
 
 // ============ 字段权限管理弹窗 ============
