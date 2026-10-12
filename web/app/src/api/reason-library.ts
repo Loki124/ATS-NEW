@@ -13,7 +13,7 @@
  *   POST   /rules/                      创建空规则 (头部, 三步内容走 wizard/save)
  *   GET    /rules/{id}/                 详情 (完整嵌套树)
  *   PATCH  /rules/{id}/                 头部更新 (可选 If-Match)
- *   DELETE /rules/{id}/                 删除 (system 或被引用 → 40310/40910)
+ *   DELETE /rules/{id}/                 空规则草稿回滚 (内部补偿; 删除功能已下线 → 非空规则 40911)
  *   POST   /rules/{id}/snapshot/        复制为 custom 副本 (name + "(副本)")
  *   POST   /rules/{id}/wizard/save/     三步原子保存 (可选 If-Match)
  *   POST   /rules/import/               JSON 完整草稿导入
@@ -216,7 +216,17 @@ export function updateRule(
     .then((r) => unwrap<SceneRule>(r))
 }
 
-export function deleteRule(id: string): Promise<void> {
+/**
+ * 空规则草稿回滚 (内部补偿, **不是**业务删除入口)。
+ *
+ * 场景规则的删除功能已下线: 前端不提供任何删除入口。规则需要下线时统一改用
+ * 「停用」 (updateRule(id, { enabled: false }))。
+ *
+ * 本方法仅供向导「新建规则 → 三步保存失败」时清理刚创建的空规则头使用:
+ * 后端仅允许删除「没有任何分类」的空规则, 已配置内容的规则一律返回 40911
+ * (RULE_DELETE_DISABLED)。
+ */
+export function discardDraftRule(id: string): Promise<void> {
   return api
     .delete<ApiResponse<null>>(`/reason-library/rules/${id}/`)
     .then((r) => {
@@ -482,7 +492,7 @@ export default {
   getRule,
   createRule,
   updateRule,
-  deleteRule,
+  discardDraftRule,
   snapshotRule,
   wizardSave,
   importRule,

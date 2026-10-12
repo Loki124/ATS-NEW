@@ -90,7 +90,7 @@ def test_custom_rule_disable_ok(admin_api_client, custom_rule):
 def test_rule_with_scene_refs_can_be_disabled(admin_api_client, custom_rule):
     """E-03 注: 实际上只要 system=False, 启用/停用不受 scene 引用限制 (业务态查时返回 None)。
     本测试验证: custom rule 即使绑定了 scene, HR 仍可停用 (场景只是"默认绑定",不是"启用约束").
-    严格 E-03 是 RULE_HAS_SCENE_REFS, 但仅在 DELETE 路径检查; PATCH 路径允许。
+    严格 E-03 是 RULE_HAS_SCENE_REFS, 但仅在「空规则回滚」路径检查; PATCH 路径允许。
     """
     client, _ = admin_api_client
     RuleSceneAssignment.objects.create(rule=custom_rule, scene='筛选不通过')
@@ -99,19 +99,30 @@ def test_rule_with_scene_refs_can_be_disabled(admin_api_client, custom_rule):
 
 
 # ---------------------------------------------------------------------------
-# E-05: 删除非空分类级联 (CASCADE 自动级联删 categories + assignments)
+# 删除功能已下线: DELETE 仅保留「空规则草稿回滚」(向导新建保存失败的补偿路径)
 # ---------------------------------------------------------------------------
 
-def test_delete_rule_cascades_categories(admin_api_client, custom_rule, reason_tag):
+def test_delete_configured_rule_rejected(admin_api_client, custom_rule, reason_tag):
+    """已配置内容 (存在分类) 的规则不可删除 → 409 RULE_DELETE_DISABLED, 数据完好。"""
     client, _ = admin_api_client
     cat = RuleCategory.objects.create(rule=custom_rule, name='c')
     CategoryAssignment.objects.create(category=cat, tag=reason_tag)
     rule_id = custom_rule.id
     cat_id = cat.id
     resp = client.delete(f'{RULE_LIST}{rule_id}/')
+    assert resp.status_code == 409
+    assert resp.json().get('code') == 40911
+    assert SceneRule.objects.filter(pk=rule_id).exists()
+    assert RuleCategory.objects.filter(pk=cat_id).exists()
+
+
+def test_delete_empty_draft_rule_allowed(admin_api_client, custom_rule):
+    """空规则 (无任何分类) 仍可回滚 —— 向导新建保存失败的补偿路径依赖此行为。"""
+    client, _ = admin_api_client
+    rule_id = custom_rule.id
+    resp = client.delete(f'{RULE_LIST}{rule_id}/')
     assert resp.status_code == 200
     assert not SceneRule.objects.filter(pk=rule_id).exists()
-    assert not RuleCategory.objects.filter(pk=cat_id).exists()
 
 
 def test_delete_system_rule_403(admin_api_client, system_rule):

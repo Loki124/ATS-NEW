@@ -5,7 +5,7 @@
 - POST   /rules/                    创建 (头部, 后续 wizard/save 灌树)
 - GET    /rules/{id}/               详情 (完整树: rule + categories + assignments + scenes)
 - PATCH  /rules/{id}/               更新头部 (is_system=True 仅超管)
-- DELETE /rules/{id}/               删除 (system 不可删; 有引用 scene 不可删)
+- DELETE /rules/{id}/               空规则草稿回滚 (内部补偿; 删除功能已下线)
 - POST   /rules/{id}/snapshot/      复制为 custom 副本 (name + "(副本)")
 - POST   /rules/{id}/wizard/save/   三步原子保存 (见 wizard_view.py)
 - POST   /rules/import/             JSON 导入完整 draft (T09)
@@ -196,6 +196,16 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
 
     @_api
     def destroy(self, request: Request, *args, **kwargs):
+        """空规则草稿回滚 (内部补偿接口, 非业务删除入口)。
+
+        场景规则的「删除」功能已下线: 前端不再提供任何删除入口, 本端点仅保留给
+        向导「新建规则 → 三步保存失败」时清理刚创建的空规则头, 避免留下垃圾数据。
+
+        约束:
+        - 系统预置规则一律拒绝 (40310)
+        - 已配置内容 (存在任何分类) 的规则一律拒绝 (40911) —— 即业务意义上的
+          「规则不可删除」成为硬约束, 替代方案是停用 (enabled=False)
+        """
         try:
             obj = self.get_object()
         except SceneRule.DoesNotExist:
@@ -209,8 +219,14 @@ class SceneRuleViewSet(viewsets.ModelViewSet):
                 '系统预置规则不可删除 (仅超管可改字段, 不允许删除)',
                 status_code=403,
             )
-        # 有场景引用时, 若调用方没显式解绑 scene, 自动解绑 (CASCADE 自带)
-        # 此处不报错, 因为 rule 一删 scene 绑定自动释放
+        # 删除功能已下线: 只允许回滚「一个分类都没有」的空规则头。
+        # 任何已配置内容的规则都不可删除 —— 需下线请改用停用 (PATCH enabled=False)。
+        if obj.categories.exists():
+            raise BizException(
+                BizCode.RULE_DELETE_DISABLED,
+                '规则删除功能已下线, 该规则已配置内容, 请改用「停用」使其不再生效',
+                status_code=409,
+            )
         rule_id = obj.id
         rule_name = obj.name
         with transaction.atomic():

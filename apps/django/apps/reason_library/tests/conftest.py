@@ -28,8 +28,20 @@ from apps.reason_library.models import (
 def _clear_seed_before_tests(django_db_setup, django_db_blocker):
     """session 启动: 在 DB 已 migrate 完成后, 清掉 0002 seed 数据。
     让 pytest 用 fresh DB (假定测试场景独占 scene 等)。
+
+    ⚠️ 先补齐 reason_library 迁移: pytest-django 的 :memory: 测试库在 --reuse-db 下
+    偶发只执行到 0013, 跳过 0014-0016 (scene_rule.code / version / SceneRuleVersion),
+    导致 "no such column: scene_rule.code"。清 seed 前必须保证列已存在。
+    这里显式补 migrate 该 app, 已应用则跳过 (幂等)。
     """
     with django_db_blocker.unblock():
+        from django.db import connection
+        from django.db.migrations.loader import MigrationLoader
+        from django.core.management import call_command
+        loader = MigrationLoader(connection)
+        if ("reason_library", "0016_alter_sceneruleversion_change_kind") not in loader.applied_migrations:
+            call_command("migrate", "reason_library", verbosity=0)
+
         from django.db import transaction
         # 删除 seed 灌入的数据 (按业务标识)
         with transaction.atomic():

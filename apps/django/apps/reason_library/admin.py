@@ -24,6 +24,10 @@ class SceneRuleAdmin(admin.ModelAdmin):
     list_filter = ('is_system', 'enabled')
     search_fields = ('name', 'description')
 
+    def has_delete_permission(self, request, obj=None) -> bool:
+        """删除功能已下线: 后台同样禁止删除场景规则, 避免绕过产品约束误删数据。"""
+        return False
+
 
 @admin.register(RuleCategory)
 class RuleCategoryAdmin(admin.ModelAdmin):

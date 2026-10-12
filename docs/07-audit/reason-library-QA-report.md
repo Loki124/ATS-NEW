@@ -21,7 +21,7 @@
 |---|---|---|
 | E-01 标签列表分页/搜索 | test_tag_list_pagination | ✅ |
 | E-02 创建自定义标签 | test_create_custom_tag | ✅ |
-| E-03 系统规则不可误删（超管可改） | test_delete_system_rule_403 | ✅ |
+| E-03 系统规则不可误删（超管可改） | test_delete_system_rule_403 | ✅（删除功能已下线，端点仅存空规则回滚） |
 | E-04 向导三级分类树 | test_wizard_save_happy_path | ✅ |
 | E-05 标签软删不进 active | test_disabled_tag_excluded_from_active | ✅ |
 | E-06 规则详情含分类树 | test_rule_detail_with_tree | ✅ |
@@ -33,6 +33,9 @@
 | E-12 snapshot 副本接管场景 | test_snapshot_creates_custom_copy | ✅ |
 | AC-1 53 系统标签展示 | test_tag_list_seed | ✅ |
 | AC-3 系统规则 403 | test_delete_system_rule_403 | ✅ |
+| AC-11 规则列表无删除入口 | 前端人工验收 / E2E | ✅（2026-10-10 删除功能下线） |
+| AC-12 已配置规则删除被拒 40911 | test_delete_configured_rule_rejected | ✅ |
+| AC-13 空规则草稿可回滚 | test_delete_empty_draft_rule_allowed | ✅ |
 | AC-4 向导 level≤4 | test_wizard_save_rollback_on_level_exceed | ✅ |
 | AC-5 同场景 409 | test_wizard_save_scene_conflict_409 | ✅ |
 | AC-6 snapshot 场景转移 | test_snapshot_creates_custom_copy | ✅ |

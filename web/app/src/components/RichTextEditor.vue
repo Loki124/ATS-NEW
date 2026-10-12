@@ -217,7 +217,7 @@ onMounted(() => {
   width: 100%;
   border: 1px solid var(--n-border-color, #d9d9d9);
   border-radius: 3px;
-  background: #fff;
+  background: var(--surface);
   overflow: hidden;
 }
 .rich-text-editor.is-disabled {
@@ -230,7 +230,7 @@ onMounted(() => {
   gap: 4px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--n-border-color, #f0f0f0);
-  background: #fafafa;
+  background: var(--surface);
   flex-wrap: wrap;
 }
 .rte-btn {
@@ -247,14 +247,14 @@ onMounted(() => {
 }
 .rte-btn:hover {
   border-color: var(--n-border-color, #d9d9d9);
-  background: #fff;
+  background: var(--surface);
 }
 .rte-select {
   height: 28px;
   padding: 0 4px;
   border: 1px solid var(--n-border-color, #d9d9d9);
   border-radius: 3px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   font-size: 13px;
 }

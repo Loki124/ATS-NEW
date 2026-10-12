@@ -112,7 +112,7 @@ function isSelected(value: string) {
   align-items: center;
   justify-content: center;
   flex: none;
-  background: #ffffff;
+  background: var(--surface);
 }
 .flo-indicator.is-multi {
   border-radius: 4px;

@@ -86,8 +86,9 @@ export const BIZ_CODE = {
   RULE_NAME_DUPLICATED: 40010,
   RULE_NOT_FOUND: 40410,
   OPTIMISTIC_LOCK_FAILED: 41200, // PATCH / wizard save If-Match 不匹配
-  SYSTEM_RULE_IMMUTABLE: 40310, // 系统预置规则不可删
+  SYSTEM_RULE_IMMUTABLE: 40310, // 系统预置规则不可停用/回滚
   RULE_HAS_SCENE_REFS: 40910, // 规则被场景引用, 不可停用
+  RULE_DELETE_DISABLED: 40911, // 删除功能已下线: 非空规则不可删除, 请改用停用
   JSON_FORMAT_INVALID: 40011, // JSON 导入格式非法
   // Scene
   RULE_SCENE_CONFLICT: 40920, // 场景/类型组合已被其他规则占用

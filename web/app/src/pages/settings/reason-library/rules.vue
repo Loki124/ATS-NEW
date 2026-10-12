@@ -93,13 +93,6 @@
         :rule-id="editingRuleId"
         @saved="onWizardSaved"
       />
-
-      <!-- 删除确认 popconfirm (按 E-03 系统规则仅二次确认) -->
-      <ReasonRuleDeleteConfirm
-        v-model:show="deleteShow"
-        :rule="deletingRule"
-        @confirm="onDeleteConfirm"
-      />
     </div>
   </div>
 </template>
@@ -109,25 +102,24 @@
  * 原因库 - 场景规则 Tab (T-15 + T-17)
  *
  * - 列表: 5 列 (规则名/应用场景/原因数量/规则状态/操作)
- * - 系统预置规则: 不可删除/启停, 只能编辑 (超管能力)
+ * - 系统预置规则: 不可停用, 只能编辑 (超管能力)
  * - 启停按钮 disabled 条件: isSystem || sceneCount > 0 (Q6 规则)
- * - 删除: 自定义规则直接删, 系统规则 (超管) 仅二次确认
+ * - 删除功能已下线: 规则不再提供删除入口, 不再需要请改用「停用」(enabled=False)
  */
 import { ref, computed, h, onMounted } from 'vue'
 import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
 import { SearchOutline, RefreshOutline, AddOutline, SettingsOutline } from '@vicons/ionicons5'
-import { listRules, updateRule, deleteRule, extractReasonApiError } from '../../../api/reason-library'
+import { listRules, updateRule, extractReasonApiError } from '../../../api/reason-library'
 import type { SceneRuleListItem } from '../../../types/reason-library'
 import { BIZ_CODE } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 import ReasonRuleWizard from '../../../components/reason-library/ReasonRuleWizard.vue'
-import ReasonRuleDeleteConfirm from '../../../components/reason-library/ReasonRuleDeleteConfirm.vue'
 
 const message = useMessage()
 
-// Item2: 系统预置规则 (「系统预置规则」) — 所有页面可访问用户均可编辑, 但不可停用 (后端保存时强制 enabled=True);
-//        删除仍受后端 SYSTEM_RULE_IMMUTABLE 保护 (任何角色均不可删)。
+// Item2: 系统预置规则 (「系统预置规则」) — 所有页面可访问用户均可编辑, 但不可停用 (后端保存时强制 enabled=True)。
+//        场景规则的删除功能已下线, 停用是唯一的下线手段。
 
 // ============= 查询 =============
 const searchText = ref('')
@@ -245,34 +237,6 @@ async function toggleEnabled(rule: SceneRuleListItem) {
     } else if (e?.code === BIZ_CODE.OPTIMISTIC_LOCK_FAILED) {
       // 仅在 ENABLE_OPTIMISTIC_LOCK=true (多人协作) 时才可能抛出
       message.error(t('reasonLibrary.errors.OPTIMISTIC_LOCK_FAILED'))
-    } else {
-      message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
-    }
-  }
-}
-
-// 删除: 弹 ReasonRuleDeleteConfirm
-const deleteShow = ref(false)
-const deletingRule = ref<SceneRuleListItem | null>(null)
-function openDeleteConfirm(rule: SceneRuleListItem) {
-  deletingRule.value = rule
-  deleteShow.value = true
-}
-async function onDeleteConfirm() {
-  const rule = deletingRule.value
-  if (!rule) return
-  try {
-    await deleteRule(rule.id)
-    message.success(t('reasonLibrary.common.success'))
-    deleteShow.value = false
-    deletingRule.value = null
-    await loadList()
-    refreshStats()
-  } catch (e: any) {
-    if (e?.code === BIZ_CODE.SYSTEM_RULE_IMMUTABLE) {
-      message.error(t('reasonLibrary.errors.SYSTEM_RULE_IMMUTABLE'))
-    } else if (e?.code === BIZ_CODE.RULE_HAS_SCENE_REFS) {
-      message.error(t('reasonLibrary.errors.RULE_HAS_SCENE_REFS'))
     } else {
       message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
     }
@@ -410,10 +374,10 @@ const columns = computed(() => [
   {
     title: t('reasonLibrary.rules.col.actions'),
     key: 'actions',
-    width: 240,
+    width: 120,
     fixed: 'right' as const,
-    render: (row: SceneRuleListItem) => {
-      const editBtn = h(
+    render: (row: SceneRuleListItem) =>
+      h(
         NButton,
         {
           size: 'small',
@@ -424,21 +388,7 @@ const columns = computed(() => [
           icon: () => h(NIcon, null, { default: () => h(SettingsOutline) }),
           default: () => t('reasonLibrary.rules.edit'),
         },
-      )
-      // 删除按钮: 系统规则仅超管可点
-      const deleteBtn = h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          type: 'error',
-          disabled: row.isSystem,
-          onClick: () => openDeleteConfirm(row),
-        },
-        { default: () => t('reasonLibrary.common.delete') },
-      )
-      return h(NSpace, { size: 4 }, () => [editBtn, deleteBtn])
-    },
+      ),
   },
 ])
 
@@ -479,7 +429,7 @@ onMounted(() => {
   padding: 0 var(--space-1) var(--space-2);
 }
 .stats-row b {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 600;
   margin: 0 2px;
 }
@@ -512,17 +462,17 @@ onMounted(() => {
   font-family: var(--font-mono, monospace);
   font-size: var(--fs-12);
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-fg);
 }
 .rl-scene-empty {
   color: var(--ink-faint);
   font-size: var(--fs-12);
 }
 .rl-scene-tag {
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
 }
 .rl-tag-count {
-  color: var(--brand);
+  color: var(--brand-fg);
   font-weight: 600;
 }
 .rl-tag-unit {

@@ -71,7 +71,7 @@ web/app/src/
 │   ├── index.vue  tags.vue  rules.vue
 ├── components/reason-library/
 │   ├── ReasonTagTable.vue  ReasonTagModal.vue  ReasonTagImportModal.vue
-│   ├── ReasonRuleTable.vue  ReasonRuleWizard.vue  ReasonRuleDeleteConfirm.vue
+│   ├── ReasonRuleWizard.vue  （删除确认弹窗 ReasonRuleDeleteConfirm.vue 已随删除功能下线移除）
 │   ├── CategoryTreeEditor.vue  TagPicker.vue  SceneBindingEditor.vue
 │   └── RulePreview.vue
 ├── locales/{zh-CN,en-US}.ts                 # reasonLibrary 命名空间（193 key）
@@ -84,7 +84,7 @@ web/app/src/
 reason_tag (1) ──< (N) category_assignment >── (1) rule_category (N) ──< (1) scene_rule
                                                                               │
                                                                               └──< (N) rule_scene_assignment >── (1) scene (字符串枚举)
-scene_rule (1) ──< (N) scene_rule_version   # 版本快照（仅 INSERT，规则删除 CASCADE）
+scene_rule (1) ──< (N) scene_rule_version   # 版本快照（仅 INSERT；删除功能下线后实际不再被级联删除）
 ```
 
 - `rule_category.parent` 自引用 → 树形，level ≤ 4（CheckConstraint `condition=Q(level__gte=1) & Q(level__lte=4)`）
@@ -99,7 +99,7 @@ scene_rule (1) ──< (N) scene_rule_version   # 版本快照（仅 INSERT，�
 | `POST /tags/` | DB UNIQUE 兜底 → 同名抛 40001（非 40000 VALIDATION_FAILED） |
 | `POST /tags/import/` | CSV 重复 → 40001；格式错误 → 40002 |
 | `PATCH /rules/{id}/` | 带 `If-Match` 头做乐观锁；naive/aware datetime 统一补 UTC |
-| `DELETE /rules/{id}/` | 系统规则一律 403 SYSTEM_RULE_IMMUTABLE（含超管） |
+| `DELETE /rules/{id}/` | **规则删除功能已下线**：仅允许回滚「无任何分类」的空规则头（向导新建保存失败的补偿路径）；系统规则 40310，已配置内容的规则 40911 RULE_DELETE_DISABLED |
 | `POST /rules/{id}/snapshot/` | 副本接管 src scene（src 释放绑定） |
 | `GET /rules/{id}/versions/` | 版本历史列表（倒序，含快照/变更字段/操作人） |
 | `POST /rules/{id}/versions/rollback/` | 回滚到指定版本（body `{version_no}`，fail-loud 409/400/404） |

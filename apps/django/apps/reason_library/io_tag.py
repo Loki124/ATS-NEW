@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+import csv
 import io
 from typing import Dict, List
 
@@ -135,5 +136,7 @@ def parse_tag_rows(upload: UploadedFile) -> List[Dict[str, str]]:
             required=TAG_REQUIRED_HEADERS,
             columns=TAG_HEADERS,
         )
-    except ExcelParseError as exc:
+    except (ExcelParseError, UnicodeDecodeError, csv.Error) as exc:
+        # 编码回退前裸抛的 UnicodeDecodeError, 以及 csv 解析期不固定的
+        # csv.Error 子类, 统一兜底为 TagFileParseError (契约: 前端按 40002 分支)
         raise TagFileParseError(f'文件解析失败: {exc}') from exc

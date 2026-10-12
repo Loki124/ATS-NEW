@@ -40,6 +40,7 @@ class BizCode:
     OPTIMISTIC_LOCK_FAILED = 41200    # PATCH / wizard save If-Match 不匹配
     SYSTEM_RULE_IMMUTABLE = 40310     # 系统预置规则不可删
     RULE_HAS_SCENE_REFS = 40910       # 规则被场景引用, 不可停用
+    RULE_DELETE_DISABLED = 40911      # 删除功能已下线: 已配置内容的规则不可删除, 仅空规则可回滚
     JSON_FORMAT_INVALID = 40011       # JSON 导入格式非法
 
     # === Scene (T07 / T12) ===
