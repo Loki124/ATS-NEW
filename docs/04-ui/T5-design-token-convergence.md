@@ -167,7 +167,7 @@ web/app/src/pages/settings/DataDashboard.vue
 | 1 | **JS 内联样式的颜色字符串** —— `statusColor()` 返回 `var(--c-info)` 等主色，用作 22px/600 统计数字 | 2.15–3.98:1 | `OfferList.vue`、`InvitationCenter.vue` | ✅ **本轮已修**（改 `-deep` 阶） |
 | 2 | `background: var(--brand)` + 文字前景 —— 实底应用选阶后的 `--brand-button` | 4.47:1 → 6.16:1 | 10 文件 12 处 | ✅ **本轮已修**（批量改） |
 | 3 | **Naive UI Badge 数字** —— error 底 `#EF4444` + 白字 | 3.76:1 → **5.62:1** | `App.vue` 的 `themeOverrides` | ✅ **已修**（2026-10-12）：`errorColor` `#EF4444` → `#C62828`；详见 §5.6 |
-| 4 | Naive placeholder / `n-empty__description` | 1.78:1 | Naive 默认色 | ⏸ 未修：WCAG 对 placeholder 无强制要求，但建议改善 |
+| 4 | 输入框占位符 `placeholderColor` | 1.78 → **5.41:1** | `App.vue` `common.placeholderColor` | ✅ **已修**（2026-10-12）：新增 `common.placeholderColor` 浅 `#5B6B84` / 暗 `#93A0B5` |
 | 5 | 侧边栏激活项 `itemTextColorActive: 'var(--brand)'` 等 15 处 | 源码待修（见下方注 1） | `Layout.vue:321-359` | ⏸ 未修：Naive menu `themeOverrides`，需与 #3 一并处理 |
 | 6 | 浅色 `--ink-faint` 压 `--g1` | 4.34:1（差 0.16） | `tokens.css` | ✅ **本轮已修**（见下方注 2） |
 
@@ -175,6 +175,8 @@ web/app/src/pages/settings/DataDashboard.vue
 
 **注 2（#6 处置，2026-10-12）**：`#64748B` → `#5B6B84`，**白底 4.76→5.41:1、压 `--g1` 4.34→4.94:1、压 `--g2` 4.55→5.17:1**。取值留有余量而非卡线 4.5，且视觉上仍属辅助灰档。
 同值同角色的 `--g5`（37 处，含 `AnnouncementList/Detail` 作 `color:`）与 6 个遗留别名 `--n-350/380/400/440/450/500`（50 处）一并对齐，否则只改 `--ink-faint` 会留下 87 处同样的不达标。
+
+**注 3（#4 范围澄清，2026-10-12）**：原 #4 把"输入框占位符"和"`n-empty__description`"并列为同一问题，**二者其实是两个不同键**：输入框占位符走 `common.placeholderColor`（本轮已修）；空态描述走 `Empty.textColor = textColorDisabled`（Naive 默认 `rgba(0,0,0,.25)` ≈ 2.4:1 on 白），**本轮未覆盖**。空态仅在列表为空时出现，影响面小，留作后续 Naive 主题二次专项。
 运行时复核：`--ink-faint` 直用样本实测 **5.41:1**，三页（`/settings/metrics`、`/candidates`、`/announcements`）截图目视无破损。
 
 **⚠️ 复核方法提醒**：`color: var(--brand)` 的**静态扫描结果为 0 不代表 #5 已修** —— #5 是 `themeOverrides` 里的 JS 字符串，不是 CSS 声明，两者只能分别查。
