@@ -13,7 +13,6 @@ from django.conf import settings
 from django.http import StreamingHttpResponse
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission
 from apps.core.role_v2_query import is_super_admin
 
