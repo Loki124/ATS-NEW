@@ -25,7 +25,17 @@ LAUNCH_DIR="$HOME/Library/LaunchAgents"
 LOG_DIR="$PROJECT_DIR/.run-logs"
 UID_NUM="$(id -u)"
 
-mkdir -p "$LAUNCH_DIR" "$LOG_DIR"
+# 运维看板已于 2026-10-12 从本项目独立出去，plist 必须指向面板目录而非本项目。
+# 可用环境变量覆盖（例如面板被搬到别处时）。
+OPS_PANEL_DIR="${OPS_PANEL_DIR:-/Users/loki/WorkBuddy/项目开发/本地运维看板}"
+
+if [ ! -f "$OPS_PANEL_DIR/ops_dashboard.py" ]; then
+  echo "错误：未找到运维面板 $OPS_PANEL_DIR/ops_dashboard.py" >&2
+  echo "请设置 OPS_PANEL_DIR 指向面板目录后重试" >&2
+  exit 1
+fi
+
+mkdir -p "$LAUNCH_DIR" "$LOG_DIR" "$OPS_PANEL_DIR/logs"
 
 FE="$LAUNCH_DIR/com.ats.dev.fe.plist"
 BE="$LAUNCH_DIR/com.ats.dev.be.plist"
@@ -176,7 +186,9 @@ NODE_BIN="$(ls -d "$HOME/.workbuddy/binaries/node/versions"/*/bin 2>/dev/null | 
 # 注意：macOS BSD sed 的 -i 必须带扩展名（-i.bak 形式最稳）；toybox/GNU sed 也兼容。
 # 之前 "-i''" 紧贴写法在部分 macOS sed 上会把 plist 路径误判为脚本命令而报
 # "extra characters at the end of l command"，故改用 -i.bak 并随后清理 .bak。
-sed -i.bak "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$FE" "$BE" "$CELERY" "$DASH"
+sed -i.bak "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$FE" "$BE" "$CELERY"
+# 看板 plist 用面板目录占位符（2026-10-12 起面板已独立出本项目）
+sed -i.bak "s|OPS_PANEL_DIR_PLACEHOLDER|$OPS_PANEL_DIR|g" "$DASH"
 sed -i.bak "s|NODE_BIN_PLACEHOLDER|$NODE_BIN|g" "$FE"
 rm -f "$FE.bak" "$BE.bak" "$CELERY.bak" "$DASH.bak"
 
@@ -196,10 +208,10 @@ cat > "$DASH" <<'PLIST_EOF'
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/python3</string>
-    <string>PROJECT_DIR_PLACEHOLDER/scripts/ops_dashboard.py</string>
+    <string>OPS_PANEL_DIR_PLACEHOLDER/ops_dashboard.py</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>PROJECT_DIR_PLACEHOLDER</string>
+  <string>OPS_PANEL_DIR_PLACEHOLDER</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
@@ -207,9 +219,9 @@ cat > "$DASH" <<'PLIST_EOF'
   <key>ThrottleInterval</key>
   <integer>5</integer>
   <key>StandardOutPath</key>
-  <string>PROJECT_DIR_PLACEHOLDER/.run-logs/ops-dashboard-stdout.log</string>
+  <string>OPS_PANEL_DIR_PLACEHOLDER/logs/ops-dashboard-stdout.log</string>
   <key>StandardErrorPath</key>
-  <string>PROJECT_DIR_PLACEHOLDER/.run-logs/ops-dashboard-stderr.log</string>
+  <string>OPS_PANEL_DIR_PLACEHOLDER/logs/ops-dashboard-stderr.log</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>

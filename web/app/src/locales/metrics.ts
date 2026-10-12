@@ -665,7 +665,7 @@ export const METRICS_EN: Record<string, string> = {
   'metrics.tpl.checkValuePlaceholder': 'Check value',
   'metrics.tpl.checkValueDomainInvalid': '— Value domain is invalid, fix it first —',
   'metrics.tpl.checkValueNoSegment': '— Add a value segment first —',
-  'metrics.tpl.regexPlaceholder': 'Regular expression, e.g. ^前端',
+  'metrics.tpl.regexPlaceholder': 'Regular expression, e.g. ^frontend',
   'metrics.tpl.regexRequired': 'Enter a regular expression',
   'metrics.tpl.regexInvalid': 'Invalid regular expression — check brackets and escapes',
   'metrics.rule.dataSource': 'Data Source',

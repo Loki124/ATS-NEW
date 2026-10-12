@@ -83,7 +83,12 @@ celery_healthy() { kill -0 "$PID" 2>/dev/null; }
 # （旧逻辑只 kill head -1，多孤儿并发时会残留 → 新进程 “port already in use”）
 free_port() {
   local holders h
-  holders="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | grep -v -x "$PID")"
+  # PID 在 while 循环【首次迭代】时尚未赋值（它在子进程 fork 之后才设置），
+  # 而脚本开了 set -u —— 直接写 "$PID" 会抛 unbound variable 并让整条
+  # grep 短路，于是 holders 为空、占着端口的孤儿一个都杀不掉，
+  # 新进程必然 "port already in use" 启动即崩。
+  # 用 ${PID:-} 让首次迭代退化为「不过滤、全部回收」，这正是启动前清场该有的语义。
+  holders="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | grep -v -x "${PID:-}")"
   if [[ -n "$holders" ]]; then
     for h in $holders; do
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] killing orphan pid $h holding :$PORT" >> "$LOG_DIR/$SERVICE-wrapper.log"

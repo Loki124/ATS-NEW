@@ -27,12 +27,22 @@ function toNested(flat: Record<string, string>): Record<string, any> {
     const parts = key.split('.')
     let node = root
     for (let i = 0; i < parts.length - 1; i++) {
-      if (typeof node[parts[i]] !== 'object' || node[parts[i]] === null) {
+      const existing = node[parts[i]]
+      if (typeof existing !== 'object' || existing === null) {
+        // 开发期守卫：叶子 key（如 a.b）同时又是分组前缀（如 a.b.c）时会互吞，
+        // vue-i18n 取到对象而非字符串时只会原样回显 key。发现即提示重命名。
+        if (import.meta.env.DEV && typeof existing === 'string') {
+          console.warn(`[i18n] key 前缀冲突: "${parts.slice(0, i + 1).join('.')}" 既是文案又是分组前缀，其文案将被覆盖，请重命名该叶子 key`)
+        }
         node[parts[i]] = {}
       }
       node = node[parts[i]]
     }
-    node[parts[parts.length - 1]] = value
+    const leaf = parts[parts.length - 1]
+    if (import.meta.env.DEV && typeof node[leaf] === 'object' && node[leaf] !== null) {
+      console.warn(`[i18n] key 前缀冲突: "${key}" 覆盖了已存在的分组 "${key}.*"，其子文案将丢失，请重命名该叶子 key`)
+    }
+    node[leaf] = value
   }
   return root
 }
