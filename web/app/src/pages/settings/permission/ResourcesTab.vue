@@ -27,6 +27,14 @@
         :disabled="subModuleOptions.length === 0"
         class="filter-select filter-select-sub"
       />
+      <n-select
+        v-model:value="resourceTypeFilter"
+        :options="resourceTypeOptions"
+        :placeholder="t('pages.settings.permission.ResourcesTab.s22')"
+        clearable
+        class="filter-select"
+        @update:value="onFilterChange"
+      />
       <n-button type="primary" :loading="loading" @click="load">{{ t('pages.settings.permission.ResourcesTab.s3') }}</n-button>
     </div>
 
@@ -91,6 +99,7 @@ const loading = ref(false)
 const search = ref('')
 const moduleFilter = ref<string | null>(null)
 const subModuleFilter = ref<string | null>(null)
+const resourceTypeFilter = ref<ResourceType | null>(null)
 const data = ref<PermissionResource[]>([])
 const loadError = ref('')
 
@@ -170,6 +179,7 @@ const filteredData = computed(() => {
   const kw = search.value.trim().toLowerCase()
   const rows = data.value.filter((r) => {
     if (moduleFilter.value && r.module !== moduleFilter.value) return false
+    if (resourceTypeFilter.value && r.resourceType !== resourceTypeFilter.value) return false
     if (subModuleFilter.value) {
       const parts = r.resourceCode.split(':')
       if (parts.length < 4 || parts[2] !== subModuleFilter.value) return false
@@ -246,7 +256,6 @@ const columns = [
       return h('span', { title: row.resourceCode.split(':')[2] }, label)
     },
   },
-  { title: '状态', key: 'status', width: 80, render: (row: PermissionResource) => row.status === 1 ? '启用' : '禁用' },
 ]
 
 /**

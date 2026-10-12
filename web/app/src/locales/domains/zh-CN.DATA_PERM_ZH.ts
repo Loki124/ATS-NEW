@@ -2147,6 +2147,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   // 子模块（settings 等模块内部的二级/三级分栏，如 个人信息 / 制度公告 / 校招管控）
   'pages.settings.permission.ResourcesTab.s20': "按子模块筛选",
   'pages.settings.permission.ResourcesTab.s21': "子模块",
+  'pages.settings.permission.ResourcesTab.s22': "按类型筛选",
   'pages.settings.permission.RolesTab.s1': "搜索 身份编码/名称",
   'pages.settings.permission.RolesTab.s2': "全部状态",
   'pages.settings.permission.RolesTab.s3': "全部来源",

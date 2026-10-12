@@ -2413,6 +2413,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   // Sub-module: second/third-level sections inside a module (e.g. settings)
   'pages.settings.permission.ResourcesTab.s20': "Filter by sub-module",
   'pages.settings.permission.ResourcesTab.s21': "Sub-module",
+  'pages.settings.permission.ResourcesTab.s22': "Filter by Type",
   'pages.settings.permission.ResourcesTab.s2': "Filter by Module",
   'pages.settings.permission.ResourcesTab.s3': "Refresh",
   'pages.settings.permission.RolesTab.s1': "Search identity code/name",
