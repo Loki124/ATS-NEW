@@ -118,6 +118,11 @@ class DemandViewSet(BaseModelViewSet):
             requirements=vd.get('requirements', ''),
             priority=vd.get('priority', 'P1'),
             demand_type=vd.get('demand_type', 'SOCIAL'),
+            # 2026-10-12 字段结构对齐规范: 透传新增预置列
+            talent_level=vd.get('talent_level', ''),
+            talent_nature=vd.get('talent_nature', ''),
+            date_range=vd.get('date_range') or [],
+            sharers=vd.get('sharers') or [],
             # 写入守卫: recruit_type 由请求上下文(中间件按 X-Recruit-Type 注入)权威决定,
             # 覆盖模型列默认值。否则新建需求恒落 'social', 在 campus 系统下被读侧分区过滤掉,
             # 表现为"创建成功但列表不显示"。

@@ -355,8 +355,25 @@
                   <n-select
                     v-else-if="item.binding.kind === 'select'"
                     v-model:value="formData[item.binding.prop]"
-                    :options="editBindingOptions(item.field.fieldKey)"
+                    :options="editBindingOptions(item.field)"
                     style="width: 100%"
+                  />
+                  <n-select
+                    v-else-if="item.binding.kind === 'multiselect'"
+                    v-model:value="formData[item.binding.prop]"
+                    :options="editBindingOptions(item.field)"
+                    multiple
+                    :placeholder="item.field.placeholder || '请选择'"
+                    style="width: 100%"
+                  />
+                  <n-date-picker
+                    v-else-if="item.binding.kind === 'daterange'"
+                    :value="formDateRangeValue(item.binding.prop)"
+                    type="daterange"
+                    clearable
+                    style="width: 100%"
+                    :is-date-disabled="dateDisabled(item.field) || undefined"
+                    @update:value="(v: number | [number, number] | null) => onFormDateRangeInput(item.binding.prop, v)"
                   />
                   <n-input
                     v-else-if="item.binding.kind === 'textarea'"
@@ -491,6 +508,8 @@ const formValues = reactive<Record<string, any>>({})
 // 模型映射字段: field_key → 在 demand 详情对象上的属性名(camelCase, 经后端渲染)。
 // jd/requirements 由固定「描述信息」区块承载, 不在此映射。
 // jd/requirements 已纳入系统字段注册表(0022 种子), 值存 Demand 模型列, 经此映射取值。
+// 2026-10-12 字段结构对齐规范: talent_level/talent_nature/date_range/sharers
+// 为新增预置模型列(demand 迁移 0006/0007), 同样经此映射取值。
 const MODEL_ATTR_MAP: Record<string, string> = {
   headcount: 'headcount',
   priority: 'priority',
@@ -498,6 +517,10 @@ const MODEL_ATTR_MAP: Record<string, string> = {
   position_title: 'positionTitle',
   jd: 'jd',
   requirements: 'requirements',
+  talent_level: 'talentLevel',
+  talent_nature: 'talentNature',
+  date_range: 'dateRange',
+  sharers: 'sharers',
 }
 
 // 系统字段取值特例 (非简单属性映射): 部门/HR 取序列化后的 *Name
@@ -513,7 +536,9 @@ const SYSTEM_VALUE_GETTERS: Record<string, (d: any) => any> = {
 // 编辑表单: field_key → formData 属性绑定 (模型字段复用既有 formData 结构)。
 // jd/requirements 已纳入系统字段注册表(0022 种子, 2026-09-28 兵哥),
 // 随 editSections 走表单设置驱动; 值存 Demand 模型列, 经 binding 回填/收集。
-const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number' | 'select' | 'department' | 'textarea' }> = {
+// 2026-10-12 字段结构对齐规范: 新增 talent_level(文本) / talent_nature(下拉) /
+// date_range(日期范围, kind=daterange) / sharers(多选人员, kind=multiselect)。
+const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number' | 'select' | 'department' | 'textarea' | 'daterange' | 'multiselect' }> = {
   title: { prop: 'name', kind: 'text' },
   department: { prop: 'departmentId', kind: 'department' },
   demand_type: { prop: 'demandType', kind: 'select' },
@@ -523,9 +548,14 @@ const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number'
   level: { prop: 'jobLevel', kind: 'text' },
   jd: { prop: 'description', kind: 'textarea' },
   requirements: { prop: 'requirements', kind: 'textarea' },
+  talent_level: { prop: 'talentLevel', kind: 'text' },
+  talent_nature: { prop: 'talentNature', kind: 'select' },
+  date_range: { prop: 'dateRange', kind: 'daterange' },
+  sharers: { prop: 'sharers', kind: 'multiselect' },
 }
-// 编辑表单不渲染的系统字段: 编号(只读标识) / 状态(流程管控) / 负责HR(流程指派)
-const EDIT_SKIP_KEYS = new Set(['code', 'state', 'hr'])
+// 编辑表单不渲染的系统字段: 编号(只读标识) / 状态(流程管控) / 负责HR(流程指派) /
+// 审批状态(流程派生, 由 submit/approve 动作推进, 2026-10-12)
+const EDIT_SKIP_KEYS = new Set(['code', 'state', 'hr', 'approval_status'])
 
 const loading = ref(false)
 const demands = ref<any[]>([])
@@ -558,7 +588,12 @@ const formData = ref<any>({
   positionSeries: '',
   jobLevel: '',
   description: '',
-  requirements: ''
+  requirements: '',
+  // 2026-10-12 字段结构对齐规范: 新增预置列 (dateRange 为 [start, end] ISO 串数组或 null)
+  talentLevel: '',
+  talentNature: '',
+  dateRange: null,
+  sharers: [],
 })
 
 const statusFilterOptions = [
@@ -650,7 +685,7 @@ const dynamicFormFields = computed(() =>
 // 跨列字段（富文本 / 多行文本 / 日期范围 / 地址）
 const WIDE_TYPES = ['RICH_TEXT', 'MULTILINE_TEXT', 'DATE_RANGE', 'ADDRESS']
 
-// --- 类型判断 (与 DynamicFieldEntry.vue 对齐) ---
+// --- 类型判断 (与动态字段字段类型对齐) ---
 const NUMBER_TYPES = ['NUMBER']
 const OPTION_TYPES = ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT']
 const DATE_TYPES = ['DATE', 'DATE_RANGE']
@@ -667,12 +702,15 @@ function selectOptions(f: FieldDefinition): { label: string; value: any }[] {
   }))
 }
 
-// 编辑表单中「模型映射 + 选项类」字段(需求类型 / 优先级)的下拉项
-function editBindingOptions(key: string): { label: string; value: any }[] {
+// 编辑表单中「模型映射 + 选项类」字段的下拉项。
+// demand_type / priority 用既有本地选项(带本地化标签); 其余(talent_nature 静态选项 /
+// sharers 内部用户 options_source 解析回填)直接取字段注册表 options — 序列化层已把
+// options_source={type:internal_user} 解析为 {value: 用户id, label: 姓名}。
+function editBindingOptions(f: FieldDefinition): { label: string; value: any }[] {
   // demandTypeOptions 是 computed，需取 .value；priorityOptions 是普通数组
-  if (key === 'demand_type') return demandTypeOptions.value
-  if (key === 'priority') return priorityOptions
-  return []
+  if (f.fieldKey === 'demand_type') return demandTypeOptions.value
+  if (f.fieldKey === 'priority') return priorityOptions
+  return selectOptions(f)
 }
 
 // 日期选择器受控: ISO 字符串 <-> 时间戳
@@ -689,6 +727,22 @@ function dateValue(f: FieldDefinition): number | [number, number] | null {
 function onDateInput(f: FieldDefinition, v: number | [number, number] | null) {
   if (v == null) { formValues[f.fieldKey] = null; return }
   formValues[f.fieldKey] = Array.isArray(v)
+    ? [new Date(v[0]).toISOString(), new Date(v[1]).toISOString()]
+    : new Date(v).toISOString()
+}
+
+// 模型绑定字段的日期范围 (date_range, 2026-10-12 字段结构对齐规范):
+// formData[prop] 存 [start, end] ISO 串数组(与后端 Demand.date_range JSONField 对齐),
+// n-date-picker 受控值需转时间戳; 单值形态兜底按单日期处理。
+function formDateRangeValue(prop: string): [number, number] | null {
+  const v = formData.value[prop]
+  if (!Array.isArray(v) || v.length !== 2) return null
+  const a = Date.parse(v[0]); const b = Date.parse(v[1])
+  return (isNaN(a) || isNaN(b)) ? null : [a, b]
+}
+function onFormDateRangeInput(prop: string, v: number | [number, number] | null) {
+  if (v == null) { formData.value[prop] = null; return }
+  formData.value[prop] = Array.isArray(v)
     ? [new Date(v[0]).toISOString(), new Date(v[1]).toISOString()]
     : new Date(v).toISOString()
 }
@@ -1114,7 +1168,11 @@ const handleCreate = () => {
     positionSeries: '',
     jobLevel: '',
     description: '',
-    requirements: ''
+    requirements: '',
+    talentLevel: '',
+    talentNature: '',
+    dateRange: null,
+    sharers: [],
   }
   resetFormValues()
   modalVisible.value = true
@@ -1147,6 +1205,11 @@ const handleEdit = async (item: any) => {
     jobLevel: d.level ?? '',
     description: d.jd ?? '',
     requirements: d.requirements ?? '',
+    // 2026-10-12 字段结构对齐规范: 新增预置列回填 (dateRange 容错非数组)
+    talentLevel: d.talentLevel ?? d.talent_level ?? '',
+    talentNature: d.talentNature ?? d.talent_nature ?? '',
+    dateRange: Array.isArray(d.dateRange) ? d.dateRange : (Array.isArray(d.date_range) ? d.date_range : null),
+    sharers: Array.isArray(d.sharers) ? d.sharers : [],
   }
   resetFormValues()
   try {
@@ -1194,6 +1257,12 @@ const handleSave = async () => {
       priority: formData.value.priority,
       jd: formData.value.description || '',
       requirements: formData.value.requirements || '',
+      // 2026-10-12 字段结构对齐规范: 新增预置列(后端 DemandCreateSerializer 已收)。
+      // date_range/sharers 为 JSONField(default=list, 无 null), 空值送 [] 而非 null。
+      talent_level: formData.value.talentLevel || '',
+      talent_nature: formData.value.talentNature || '',
+      date_range: formData.value.dateRange || [],
+      sharers: formData.value.sharers || [],
     }
 
     let demandId = formData.value.id

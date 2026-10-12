@@ -39,6 +39,11 @@ class DemandCreateData:
     requirements: str = ''
     priority: str = 'P1'
     demand_type: str = 'SOCIAL'
+    # 2026-10-12 字段结构对齐规范: 新增预置列
+    talent_level: str = ''
+    talent_nature: str = ''
+    date_range: list | None = None
+    sharers: list | None = None
     recruit_type: str = 'social'
     actor: User | None = None
 
@@ -83,6 +88,11 @@ class DemandService:
             requirements=data.requirements,
             priority=data.priority,
             demand_type=data.demand_type,
+            # 2026-10-12 字段结构对齐规范: 新增预置列 (JSONField 空值归一为 [])
+            talent_level=data.talent_level,
+            talent_nature=data.talent_nature,
+            date_range=data.date_range or [],
+            sharers=data.sharers or [],
             recruit_type=data.recruit_type,
             state=DemandState.DRAFT,
             created_by=data.actor,
