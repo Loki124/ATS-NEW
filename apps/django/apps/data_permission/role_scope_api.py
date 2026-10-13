@@ -91,6 +91,13 @@ def _collect_template_drifts(modules: List[Dict]) -> Dict[str, List[Dict]]:
             ref = (g or {}).get('templateRef') or {}
             if isinstance(ref, dict) and ref.get('templateCode'):
                 codes.add(ref['templateCode'])
+        # v2: 写范围条件组同样可引用模板（快照语义同读范围）
+        wm = m.get('write') or {}
+        if wm.get('mode') == 'scope':
+            for g in (wm.get('groups') or []):
+                ref = (g or {}).get('templateRef') or {}
+                if isinstance(ref, dict) and ref.get('templateCode'):
+                    codes.add(ref['templateCode'])
     if not codes:
         return {}
 
@@ -101,26 +108,42 @@ def _collect_template_drifts(modules: List[Dict]) -> Dict[str, List[Dict]]:
 
     out: Dict[str, List[Dict]] = {}
     for m in modules:
-        if m.get('mode') != 'scope':
-            continue
-        drifts = summarize_drift(m.get('groups') or [], lookup)
+        drifts: List[Dict] = []
+        if m.get('mode') == 'scope':
+            drifts.extend(summarize_drift(m.get('groups') or [], lookup))
+        wm = m.get('write') or {}
+        if wm.get('mode') == 'scope':
+            drifts.extend(summarize_drift(wm.get('groups') or [], lookup))
         if drifts:
             out[m['moduleKey']] = drifts
     return out
 
 
 def build_modules_response(role) -> Dict:
-    """读某角色的全部模块数据权限配置 -> {roleId, roleCode, modules:[...]}。"""
+    """读某角色的全部模块数据权限配置 -> {roleId, roleCode, modules:[...]}。
+
+    v2：每模块返回 read 配置（mode/expr/groups，row_access=NULL 行）+ write 配置
+    （write: {mode, expr, groups, actions}，row_access=WRITE 行；无 WRITE 行时
+    write.mode='none' = 未配置写范围 = 沿用功能权限，前端显式展示该语义）。
+    """
     rules = DataPermissionRule.objects.filter(
         dimension_type='ROLE',
         dimension_value=role.role_code,
         level='ROW',
         entity__in=MODULE_ORDER,
     )
-    by_entity = {r.entity: r for r in rules}
+    read_by_entity: Dict[str, DataPermissionRule] = {}
+    write_by_entity: Dict[str, DataPermissionRule] = {}
+    for r in rules:
+        if r.row_access == 'WRITE':
+            write_by_entity[r.entity] = r
+        else:
+            read_by_entity[r.entity] = r
+
     modules = []
     for mk in MODULE_ORDER:
-        r = by_entity.get(mk)
+        # ---- 读范围（存量语义不变）----
+        r = read_by_entity.get(mk)
         if r is None or r.scope_type == 'ALL':
             mode = 'all'
             expr = ''
@@ -134,6 +157,24 @@ def build_modules_response(role) -> Dict:
             payload = r.scope_payload or {}
             expr = payload.get('expr', '')
             groups = payload.get('groups', [])
+
+        # ---- 写范围（v2）----
+        w = write_by_entity.get(mk)
+        if w is None or w.scope_type == 'NONE':
+            write_view: Dict = {'mode': 'none', 'expr': '', 'groups': [], 'actions': []}
+        elif w.scope_type == 'ALL':
+            write_view = {'mode': 'all', 'expr': '', 'groups': [], 'actions': list(w.actions or [])}
+        elif w.scope_type == 'OWNER':
+            write_view = {'mode': 'owner', 'expr': '', 'groups': [], 'actions': list(w.actions or [])}
+        else:  # CUSTOM
+            wp = w.scope_payload or {}
+            write_view = {
+                'mode': 'scope',
+                'expr': wp.get('expr', ''),
+                'groups': wp.get('groups', []),
+                'actions': list(w.actions or []),
+            }
+
         modules.append({
             'moduleKey': mk,
             'mode': mode,
@@ -141,6 +182,7 @@ def build_modules_response(role) -> Dict:
             'groups': groups,
             'featureGranted': True,  # 数据权限配置本身对超管开放；功能权限耦合后续可接 RolePermissionV2
             'templateDrifts': [],   # 由下方统一填充（避免逐模块查模板表）
+            'write': write_view,
         })
 
     drifts = _collect_template_drifts(modules)
@@ -148,6 +190,38 @@ def build_modules_response(role) -> Dict:
         m['templateDrifts'] = drifts.get(m['moduleKey'], [])
 
     return {'roleId': role.id, 'roleCode': role.role_code, 'modules': modules}
+
+
+# 写范围 mode -> RowScopeType（v2）。none 不建 WRITE 行。
+_WRITE_MODE_TO_SCOPE = {'all': 'ALL', 'owner': 'OWNER', 'scope': 'CUSTOM'}
+
+
+def _validate_write_block(mk: str, write: object) -> str | None:
+    """校验单模块 write 子结构。返回首个错误原因或 None。"""
+    if write is None:
+        return None  # 不带 write = 不配置写范围（向后兼容旧 payload）
+    if not isinstance(write, dict):
+        return f'模块 {mk} 的 write 必须是对象'
+    mode = write.get('mode', 'none')
+    if mode not in ('none', 'all', 'owner', 'scope'):
+        return f'模块 {mk} 的 write.mode 非法（应为 none/all/owner/scope）'
+    if mode == 'none':
+        return None
+    actions = write.get('actions')
+    # 配置了写范围（非 none）必须显式给出动作集合 —— 缺省拒绝是 fail-closed 的前提：
+    # 不允许「配了范围却忘了勾动作」这种被静默解释成全拒/全放的歧义配置。
+    if not isinstance(actions, list) or not actions:
+        return f'模块 {mk} 配置了写范围（mode={mode}）但未提供 actions'
+    from .action_registry import validate_write_actions
+    reason = validate_write_actions(actions)
+    if reason:
+        return f'模块 {mk}: {reason}'
+    if mode == 'scope':
+        payload = {'expr': write.get('expr', ''), 'groups': write.get('groups', [])}
+        reason = validate_scope_payload(payload, mk)
+        if reason:
+            return f'模块 {mk} 写范围: {reason}'
+    return None
 
 
 def validate_modules(modules: List[Dict]) -> str | None:
@@ -172,12 +246,20 @@ def validate_modules(modules: List[Dict]) -> str | None:
             reason = validate_scope_payload(payload, mk)
             if reason:
                 return reason
+        reason = _validate_write_block(mk, m.get('write'))
+        if reason:
+            return reason
     return None
 
 
 @transaction.atomic
 def upsert_modules(role, modules: List[Dict], user) -> Dict:
-    """先删后建：删除该角色全部 ROW 模块规则，再按 modules 重建。返回最新 modules 配置。"""
+    """先删后建：删除该角色全部 ROW 模块规则（含 WRITE 行），再按 modules 重建。
+
+    v2：每模块最多建两行 —— 读范围（row_access=NULL，与存量一致）+
+    写范围（row_access=WRITE，仅当 write.mode != 'none' 时）。
+    返回最新 modules 配置。
+    """
     DataPermissionRule.objects.filter(
         dimension_type='ROLE',
         dimension_value=role.role_code,
@@ -199,6 +281,28 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
             entity=mk,
             scope_type=scope_type,
             scope_payload=payload,
+            priority=0,
+            status=1,
+            created_by=created_by,
+        )
+        # ---- v2 写范围行 ----
+        write = m.get('write') or {}
+        w_mode = write.get('mode', 'none')
+        if w_mode == 'none':
+            continue
+        w_scope_type = _WRITE_MODE_TO_SCOPE[w_mode]
+        w_payload = None
+        if w_scope_type == 'CUSTOM':
+            w_payload = {'expr': write.get('expr', ''), 'groups': write.get('groups', [])}
+        DataPermissionRule.objects.create(
+            dimension_type='ROLE',
+            dimension_value=role.role_code,
+            level='ROW',
+            entity=mk,
+            scope_type=w_scope_type,
+            scope_payload=w_payload,
+            row_access='WRITE',
+            actions=list(write.get('actions') or []),
             priority=0,
             status=1,
             created_by=created_by,

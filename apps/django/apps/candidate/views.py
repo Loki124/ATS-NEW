@@ -45,10 +45,25 @@ from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.search import keyword_q
+
+# ============================================================
+# 权限 v2（2026-10-13）：FSM action_name -> 写动作 key 映射
+#
+# transition 端点的写范围守卫按此映射分派动作（未列出的流转默认 'transition'），
+# 使「可推进但不可淘汰 / 可推进但不可入库」可以分别配置
+# （docs/plan-read-write-action-permission.md §4）。
+# key 合法性由 action_map.ACTION_REGISTRY 保证（validate_action 早失败）；
+# 映射完整性由 tests/test_fsm_action_mapping.py 锁定——新增 FSM 动作若需独立
+# 动作粒度，必须显式登记，否则静默按 transition 判定。
+# ============================================================
+FSM_ACTION_TO_WRITE_ACTION = {
+    'move_to_talent_pool': 'talent_pool_add',   # 放入人才库
+    'mark_process_failed': 'eliminate',         # 淘汰（同时直接入淘汰库，见 transition 分支）
+}
 from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
-from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
+from apps.data_permission.enforcement import ensure_writable, filter_writable  # M07 写范围守卫 / v2 批量写范围
 
 from .models import (
     Candidate,
@@ -216,14 +231,22 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
     # ----------------------------------------------------------
     @action(detail=True, methods=['post'], url_path='transition')
     def transition(self, request, id=None):
-        """候选人状态机转换（M07：写范围守卫，仅写范围内可流转）"""
+        """候选人状态机转换（M07 写范围守卫 + v2 动作粒度）
+
+        v2（2026-10-13）：守卫动作按 FSM action_name 映射（FSM_ACTION_TO_WRITE_ACTION），
+        未映射的流转默认 'transition'。这使得「可推进但不可淘汰 / 可推进但不可入库」
+        可以分别配置（此前统一 action='transition' 粒度不够）。
+        """
         candidate = self.get_object()
-        # M07 写范围守卫：无 WRITE 规则时无额外限制；有则按范围校验
-        ensure_writable(request.user, 'candidate', candidate, action='transition')
         serializer = CandidateStateTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         action_name = data['action']
+
+        # v2 动作粒度守卫：必须在拿到 action_name 之后（映射后）才能判定；
+        # 无 WRITE 规则时 ensure_writable 内部 fail-open（沿用功能权限，行为不变）
+        write_action = FSM_ACTION_TO_WRITE_ACTION.get(action_name, 'transition')
+        ensure_writable(request.user, 'candidate', candidate, action=write_action)
 
         try:
             with transaction.atomic():
@@ -270,6 +293,17 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
                         candidate, reason=data.get('reason', ''),
                         actor=request.user,
                     )
+                    # 权限 v2（2026-10-13 兵哥拍板）：淘汰直接入「淘汰库」子库
+                    # （PoolType.ELIMINATED）。best-effort：入库失败不影响淘汰结果。
+                    try:
+                        from apps.talent_pool.services import send_candidate_to_eliminated_pool
+                        send_candidate_to_eliminated_pool(
+                            candidate,
+                            entry_reason=data.get('reason', '') or '淘汰',
+                            actor=request.user,
+                        )
+                    except Exception as e:  # noqa: BLE001 — 同步失败不影响主流程
+                        logger.warning('淘汰入淘汰库失败(candidate=%s): %s', candidate.id, e)
                 elif action_name == 'pause_process':
                     candidate = CandidateService.pause_process(
                         candidate, reason=data.get('reason', ''),
@@ -754,9 +788,19 @@ class CandidateBatchRecommendView(APIView):
 
         # 2026-10-08: 越权的 id 直接报失败, 不再写入推荐记录。
         invisible = set(assert_candidates_visible(request, candidate_ids))
+        # 权限 v2（2026-10-13）：转推动作纳入写范围守卫（action='recommend'）。
+        # 批量场景用 filter_writable 一次求可写集合（write_scope_q 为 None 时原样
+        # 返回 = 未配置写范围则不限制，fail-open 语义不变）。
+        writable_ids = set(
+            filter_writable(
+                request.user, 'candidate',
+                scoped_candidates(request).filter(id__in=candidate_ids),
+                action='recommend',
+            ).values_list('id', flat=True)
+        )
         results = []
         for cid in candidate_ids:
-            if cid in invisible:
+            if cid in invisible or cid not in writable_ids:
                 results.append({
                     'candidate_id': cid,
                     'success': False,
