@@ -44,14 +44,35 @@
         >
           <div class="cond-top">
             <span class="cond-idx">{{ ci + 1 }}</span>
+            <!--
+              条件类型：属性条件已下线（见 docs/EVAL_ARCH_指标行级过滤源_可行性评估.md
+              §2.3「context 右值三形态：静态 / 上下文变量 / 属性条件（下线保留代码）」）。
+
+              为什么不直接删掉 kind 字段：
+                - 后端 expr_compiler 仍按 kind 分派编译属性条件（存量快照仍能执行），
+                  前端必须能**读懂** kind='attribute' 的存量条件并原样回传，否则会
+                  在往返编辑中静默损坏已保存的规则；
+                - 权限系统里「看不见但仍在生效的规则」比「看不见且不能新建」更危险。
+
+              因此这里保留单选的只读呈现（仅关系维度一个选项时无需渲染切换器），
+              属性条件本体分支（attr-body）保留为存量只读渲染，新建入口不再暴露。
+            -->
             <n-radio-group
+              v-if="!isAttr(c)"
               :value="c.kind || 'relationship'"
               size="small"
-              @update:value="(k: 'relationship' | 'attribute') => onKindChange(c, k)"
             >
               <n-radio-button value="relationship">{{ t('dataperm.modal.condType.relationship') }}</n-radio-button>
-              <n-radio-button value="attribute">{{ t('dataperm.modal.condType.attribute') }}</n-radio-button>
             </n-radio-group>
+            <n-tag
+              v-else
+              size="small"
+              :bordered="false"
+              type="warning"
+              class="cond-deprecated"
+            >
+              {{ t('dataperm.modal.condType.attribute') }} · {{ t('dataperm.modal.deprecatedBadge') }}
+            </n-tag>
             <n-button
               size="tiny"
               tertiary
@@ -84,11 +105,11 @@
             <!-- 取值来源：仅 contextKeys 非空的维度支持动态取值（M03） -->
             <n-select
               v-if="supportsDynamic(c)"
-              :value="c.valueSource || 'static'"
+              :value="valueSourceValue(c)"
               :options="valueSourceOptions(c)"
               size="small"
               class="cond-src"
-              @update:value="(v: 'static' | 'dynamic') => onValueSourceChange(c, v)"
+              @update:value="(v: string) => onValueSourceChange(c, v)"
             />
             <!-- 包含关系：仅部门类维度有树语义（user/unit 维度动态条件无 relation） -->
             <n-select
@@ -125,36 +146,39 @@
             </n-tag>
           </div>
 
-          <!-- 属性条件（复用指标目录标量字段，右值=字面量；全中文下拉 / 数字步进器，禁手输） -->
-          <div v-else class="cond-body attr">
+          <!--
+            属性条件（已下线）—— **只读存量渲染**。
+
+            保留原因：expr_compiler 仍按 kind 分派编译属性条件，存量规则仍靠它执行；
+            前端必须能原样回传，不能在往返编辑中损坏已保存的规则。
+            全部控件 disabled：已下线的配置不允许再被修改（改了就等于变相"复活"该能力）。
+            新建入口见上方 cond-top —— 属性条件单选项已移除。
+          -->
+          <div v-else class="cond-body attr is-deprecated">
             <n-select
               :value="c.field"
               :options="attrFieldOptions"
               size="small"
-              filterable
-              clearable
+              disabled
               class="attr-field"
               :placeholder="t('dataperm.modal.fieldPlaceholder')"
-              @update:value="(v: string) => onAttrFieldChange(c, v)"
             />
             <n-select
               :value="c.operator"
               :options="attrOperatorOptions(c)"
               size="small"
+              disabled
               class="attr-op"
               :placeholder="t('dataperm.modal.attrOperatorPlaceholder')"
-              :disabled="!c.field"
-              @update:value="(v: string) => onAttrOperatorChange(c, v)"
             />
             <template v-if="attrValueMode(c) === 'enum-single'">
               <n-select
                 :value="attrSingleValueId(c)"
                 :options="attrEnumOptions(c)"
                 size="small"
-                filterable
+                disabled
                 class="attr-val"
                 :placeholder="t('dataperm.modal.attrValuePlaceholder')"
-                @update:value="(id: string | number | boolean) => onAttrEnumSingle(c, id)"
               />
             </template>
             <template v-else-if="attrValueMode(c) === 'enum-multi'">
@@ -163,35 +187,34 @@
                 :value="attrMultiValueIds(c)"
                 :options="attrEnumOptions(c)"
                 size="small"
-                filterable
+                disabled
                 class="attr-val"
                 :placeholder="t('dataperm.modal.attrValuePlaceholder')"
-                @update:value="(ids: Array<string | number | boolean>) => onAttrEnumMulti(c, ids)"
               />
             </template>
             <template v-else-if="attrValueMode(c) === 'num-single'">
               <n-input-number
                 :value="(c.value as number | null) ?? null"
                 size="small"
+                disabled
                 class="attr-val"
                 :placeholder="t('dataperm.modal.attrValuePlaceholder')"
-                @update:value="(n: number | null) => onAttrNumber(c, n)"
               />
             </template>
             <template v-else-if="attrValueMode(c) === 'num-range'">
               <n-input-number
                 :value="toNumberOrNull(c.meta?.min)"
                 size="small"
+                disabled
                 class="attr-val-sm"
                 :placeholder="t('dataperm.modal.rangeMin')"
-                @update:value="(n: number | null) => onAttrRangeMin(c, n)"
               />
               <n-input-number
                 :value="toNumberOrNull(c.meta?.max)"
                 size="small"
+                disabled
                 class="attr-val-sm"
                 :placeholder="t('dataperm.modal.rangeMax')"
-                @update:value="(n: number | null) => onAttrRangeMax(c, n)"
               />
             </template>
             <span v-else class="attr-no-val">{{ t('dataperm.modal.attrOperatorPlaceholder') }}</span>
@@ -320,7 +343,7 @@ import {
 import {
   newCondition, uid, validateExpr, previewOf,
   ATTR_NOVALUE_OPS, ATTR_LIST_OPS,
-  dynamicSourceOptions, DYNAMIC_RELATION_OPTIONS, DYNAMIC_RELATION_LABELS,
+  dynamicSourceOptions, resolveValueSource, DYNAMIC_RELATION_OPTIONS, DYNAMIC_RELATION_LABELS,
   type DimensionMeta, type Operator, type PermCondition, type PermConditionGroup, type AttributeField, type PermValue,
   type DynamicRelation,
 } from '@/composables/useRoleDataPerm'
@@ -459,6 +482,17 @@ function isDynamic(c: PermCondition): boolean {
   return c.valueSource === 'dynamic'
 }
 
+/**
+ * 取值来源下拉的当前绑定值。
+ *
+ * 必须与 valueSourceOptions 的选项 value **同构**（'static' 或某个 contextKey）：
+ * 若直接绑 `c.valueSource`（'static'|'dynamic'），动态态下 'dynamic' 匹配不到任何
+ * 选项，n-select 会显示空白，看起来像"没选上"。
+ */
+function valueSourceValue(c: PermCondition): string {
+  return c.valueSource === 'dynamic' ? (c.dynamicKey || 'static') : 'static'
+}
+
 /** 取值来源下拉：静态项 + 该维度可用的动态来源（contextKeys 驱动, M03）。 */
 function valueSourceOptions(c: PermCondition) {
   const meta = dimMetaOf(c.dimension || '')
@@ -561,94 +595,57 @@ function onDimensionChange(c: PermCondition, v: string) {
       c.dynamicKey = undefined
       c.relation = undefined
     } else {
-      onValueSourceChange(c, 'dynamic')
+      // 换维度后：旧来源若仍适用则保留，否则退回新维度的首个来源
+      const keys = dimMetaOf(v)?.contextKeys || []
+      const keep = keys.includes(c.dynamicKey as string) ? (c.dynamicKey as string) : keys[0]
+      onValueSourceChange(c, keep || 'static')
     }
   }
 }
 
-/** 切换取值来源：static ↔ dynamic，并清空另一侧的残留配置。 */
-function onValueSourceChange(c: PermCondition, v: 'static' | 'dynamic') {
+/**
+ * 切换取值来源。
+ *
+ * v 就是所选选项的 value：'static' 或该维度的某个 contextKey
+ * （currentUser.departments / currentUser.deptSubtree / currentUser.id /
+ *  currentUser.managedUnits）。
+ *
+ * 两个必须注意的点（均曾导致"动态来源选不中"）：
+ *  1. 判据是 `v !== 'static'` 而非 `v === 'dynamic'` —— 选项 value 从来不是
+ *     'dynamic'，早前按 'dynamic' 判定会让任何动态选项都落进 else 分支被改回静态。
+ *  2. dynamicKey 必须写 **用户实际选中的那个 key**；取 contextKeys[0] 会把
+ *     「我的负责部门及下级」静默降级成「我的负责部门」，界面与实际配置不一致。
+ */
+function onValueSourceChange(c: PermCondition, v: string) {
   const meta = dimMetaOf(c.dimension || '')
-  if (v === 'dynamic') {
-    c.valueSource = 'dynamic'
-    c.dynamicKey = (meta?.contextKeys?.[0] || 'currentUser.departments') as DynamicSourceKey
-    // 仅部门类维度有包含关系语义，其它维度动态条件无 relation
-    c.relation = meta?.valueType === 'department' ? 'contains' : undefined
-    c.operator = 'in' // 动态模式下 operator 不参与编译，留合法默认值
-    c.values = []     // 静态值不再使用，清掉避免误提交
-  } else {
-    c.valueSource = 'static'
-    c.dynamicKey = undefined
-    c.relation = undefined
-    c.operator = 'in'
-    c.values = [] // 切回静态需重新选值
-  }
+  const next = resolveValueSource(v, meta?.valueType)
+  c.valueSource = next.valueSource
+  c.dynamicKey = next.dynamicKey
+  c.relation = next.relation
+  c.operator = 'in' // 动态模式下 operator 不参与编译，留合法默认值
+  c.values = []     // 静态值不再使用，清掉避免误提交
 }
 
 function onValuesChange(c: PermCondition, ids: Array<string | number>) {
   c.values = ids.map((id) => ({ id, label: labelOf(c.dimension || '', id) }))
 }
 
-function onKindChange(c: PermCondition, kind: 'relationship' | 'attribute') {
-  if (kind === 'attribute') {
-    c.kind = 'attribute'
-    c.field = ''
-    c.fieldName = ''
-    c.operator = ''
-    c.value = undefined
-    c.meta = { min: null, max: null }
-    c.values = []
-    c.dimension = undefined
-  } else {
-    c.kind = 'relationship'
-    c.dimension = firstDim()
-    c.operator = 'in'
-    c.values = []
-    c.field = ''
-    c.fieldName = ''
-    c.value = undefined
-    c.meta = undefined
-  }
-}
-
-function onAttrFieldChange(c: PermCondition, sourcePath: string) {
-  const meta = props.attributeFields.find((f) => f.sourcePath === sourcePath)
-  c.field = sourcePath
-  c.fieldName = meta?.name || ''
-  c.operator = meta?.operators?.[0]?.value || ''
-  c.value = undefined
-  c.meta = { min: null, max: null }
-}
-
-function onAttrOperatorChange(c: PermCondition, op: string) {
-  c.operator = op
-  c.value = undefined
-  c.meta = { min: null, max: null }
-}
-
-function _attrEnumLabel(c: PermCondition, id: string | number | boolean): string {
-  return attrEnumOptions(c).find((o) => o.value === id)?.label ?? String(id)
-}
-
-function onAttrEnumSingle(c: PermCondition, id: string | number | boolean) {
-  c.value = { id, label: _attrEnumLabel(c, id) }
-}
-
-function onAttrEnumMulti(c: PermCondition, ids: Array<string | number | boolean>) {
-  c.value = ids.map((id) => ({ id, label: _attrEnumLabel(c, id) }))
-}
-
-function onAttrNumber(c: PermCondition, n: number | null) {
-  c.value = n ?? undefined
-}
-
-function onAttrRangeMin(c: PermCondition, n: number | null) {
-  c.meta = { min: n ?? null, max: c.meta?.max ?? null }
-}
-
-function onAttrRangeMax(c: PermCondition, n: number | null) {
-  c.meta = { min: c.meta?.min ?? null, max: n ?? null }
-}
+// ============================================================================
+// 属性条件编辑处理器 —— 已随「属性条件下线」一并移除（2026-10-13）。
+//
+// 原 onKindChange / onAttrFieldChange / onAttrOperatorChange /
+// onAttrEnumSingle / onAttrEnumMulti / onAttrNumber /
+// onAttrRangeMin / onAttrRangeMax 全部删除。
+//
+// 下线策略（对齐 docs/EVAL_ARCH_指标行级过滤源_可行性评估.md §2.3
+// 「context 右值三形态：静态 / 上下文变量 / 属性条件（下线保留代码）」）：
+//   - 停止**新建**属性条件：cond-top 的条件类型切换器只剩「关系维度」一项；
+//   - 存量属性条件仍可**读取与原样回传**（attr-body 只读渲染，控件全 disabled），
+//     因为后端 expr_compiler 仍按 kind 分派编译它，删掉前端读取能力会在往返编辑
+//     中静默损坏已保存的规则 —— 权限系统里这属于事故；
+//   - 后端 attribute_fields / expr_compiler 的属性分支与 filterable 红线全部保留，
+//     不做任何删除（filterable 是后端的性能护栏，与是否暴露 UI 无关）。
+// ============================================================================
 
 // ===== 实时校验 =====
 function intraError(g: PermConditionGroup): string | null {

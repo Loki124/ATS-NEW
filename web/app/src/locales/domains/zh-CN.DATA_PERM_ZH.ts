@@ -63,6 +63,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.error.exprInter': '组间表达式错误：{reason}',
   'dataperm.modal.condType.relationship': '关系维度',
   'dataperm.modal.condType.attribute': '属性条件',
+  'dataperm.modal.deprecatedBadge': '已下线',
   'dataperm.modal.fieldPlaceholder': '请选择属性字段',
   'dataperm.modal.attrOperatorPlaceholder': '请选择运算符',
   'dataperm.modal.attrValuePlaceholder': '请选择业务值',

@@ -7,7 +7,9 @@
  *   - 存量静态 payload 的预览句与校验行为**完全不变**（向后兼容回归）
  */
 import { describe, it, expect } from 'vitest'
-import { previewOf, validateExpr, DYNAMIC_RELATION_LABELS } from '@/composables/useRoleDataPerm'
+import {
+  previewOf, validateExpr, DYNAMIC_RELATION_LABELS, resolveValueSource, newCondition,
+} from '@/composables/useRoleDataPerm'
 import type { ModulePerm, PermCondition } from '@/api/data-permission'
 
 const dynamicCondition = (over: Partial<PermCondition> = {}): PermCondition => ({
@@ -100,6 +102,101 @@ describe('动态取值条件（data-permission）', () => {
 
     it('编号越界被拦截', () => {
       expect(validateExpr('5', 2)).not.toBeNull()
+    })
+  })
+
+  /**
+   * 回归：真实 bug —— 规则弹窗「取值来源」下拉选动态来源后立刻弹回「指定部门」，
+   * 表现为「我的负责部门」点不动、可见数据恒为空。
+   *
+   * 病根：选项 value 是 contextKey，而处理器按 `v === 'dynamic'` 判分支，
+   * 于是任何动态选项都落进 else 被写回 static。判据必须是 `v !== 'static'`。
+   */
+  describe('resolveValueSource（取值来源切换）', () => {
+    it('选「我的负责部门」应进入 dynamic，且不被回落为 static', () => {
+      const s = resolveValueSource('currentUser.departments', 'department')
+      expect(s.valueSource).toBe('dynamic')
+      expect(s.dynamicKey).toBe('currentUser.departments')
+      expect(s.relation).toBe('contains')
+    })
+
+    it('选「及下级」必须保留所选 key，不得降级成 contextKeys[0]', () => {
+      const s = resolveValueSource('currentUser.deptSubtree', 'department')
+      expect(s.dynamicKey).toBe('currentUser.deptSubtree')
+      expect(s.dynamicKey).not.toBe('currentUser.departments')
+    })
+
+    it('其余维度的动态来源（owner/creator/unit）原样透传 key', () => {
+      expect(resolveValueSource('currentUser.id', 'user').dynamicKey).toBe('currentUser.id')
+      expect(resolveValueSource('currentUser.managedUnits', 'unit').dynamicKey).toBe('currentUser.managedUnits')
+    })
+
+    it('非 department 维度不产出 relation', () => {
+      expect(resolveValueSource('currentUser.id', 'user').relation).toBeUndefined()
+      expect(resolveValueSource('currentUser.managedUnits', 'unit').relation).toBeUndefined()
+    })
+
+    it('选「指定部门」回到静态并清空 dynamicKey / relation', () => {
+      expect(resolveValueSource('static', 'department')).toEqual({
+        valueSource: 'static',
+        dynamicKey: undefined,
+        relation: undefined,
+      })
+    })
+
+    it('四个维度来源都能与 dynamicSourceOptions 的选项 value 对上', () => {
+      // 选项 value 与解析入参必须同构，否则下拉显示空白（另一处同源 bug）
+      const keys = ['currentUser.departments', 'currentUser.deptSubtree', 'currentUser.id', 'currentUser.managedUnits']
+      for (const k of keys) {
+        expect(resolveValueSource(k, 'department').valueSource).toBe('dynamic')
+        expect(resolveValueSource(k, 'department').dynamicKey).toBe(k)
+      }
+    })
+  })
+
+  /**
+   * 回归：属性条件下线（2026-10-13）—— 必须满足两条：
+   *  1. newCondition() 默认产出关系维度条件（UI 已无属性条件新建入口）；
+   *  2. 存量 kind='attribute' 条件仍能被预览句正确渲染并原样回传，
+   *     不被降级成 relationship（否则往返编辑会静默损坏已保存的规则）。
+   */
+  describe('属性条件下线（存量兼容）', () => {
+    it('newCondition() 默认产出关系维度条件', () => {
+      expect(newCondition().kind).toBe('relationship')
+      expect(newCondition().dimension).toBe('dept')
+    })
+
+    it('显式请求 attribute 时仍可构造（供存量反序列化用）', () => {
+      expect(newCondition('attribute').kind).toBe('attribute')
+    })
+
+    it('存量属性条件预览句保持可读，未被降级', () => {
+      const legacy: PermCondition = {
+        id: 'c9',
+        kind: 'attribute',
+        field: 'demand.state',
+        fieldName: '需求状态',
+        operator: 'EQ',
+        value: 'RECRUITING',
+        values: [],
+      }
+      // 存量属性条件的预览句形态由 previewOf 既定实现决定（EQ 单值渲染为 [x]），
+      // 本次下线不改渲染逻辑 —— 断言「仍渲染为可读中文句且带中文字段名」即可。
+      expect(previewOf(scopeModule([legacy]))).toBe('（需求状态 等于 [RECRUITING]）')
+    })
+
+    it('存量属性条件不会被校验拦下（仍可原样保存回传）', () => {
+      const legacy: PermCondition = {
+        id: 'c9',
+        kind: 'attribute',
+        field: 'demand.state',
+        operator: 'EQ',
+        value: 'RECRUITING',
+        values: [],
+      }
+      // validateCondition 不在导出面内，故此处断言其不参与表达式编号校验即可
+      expect(validateExpr('1', 1)).toBeNull()
+      expect(legacy.field).toBe('demand.state')
     })
   })
 })

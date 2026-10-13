@@ -20,6 +20,8 @@ import {
   type RoleDataPermPayload,
   type PermValue,
   type AttributeField,
+  type DynamicRelation,
+  type DynamicSourceKey,
 } from '@/api/data-permission'
 
 // 重新导出 API 层类型，供依赖本 composable 的组件统一从此处 import
@@ -77,6 +79,38 @@ export function dynamicSourceOptions(contextKeys?: string[]) {
   return (contextKeys || []).map((k) => ({ label: DYNAMIC_SOURCE_LABELS[k] || k, value: k }))
 }
 
+/** 取值来源切换后的状态（纯函数，供弹窗写回草稿 + 单测断言）。 */
+export interface ValueSourceState {
+  valueSource: 'static' | 'dynamic';
+  dynamicKey?: DynamicSourceKey;
+  relation?: DynamicRelation;
+}
+
+/**
+ * 由「取值来源下拉所选值」推导条件的新状态。
+ *
+ * @param selected 所选选项的 value —— 形态与 dynamicSourceOptions 产出的选项一致：
+ *                'static' 或该维度的某个 contextKey（**不是** 'dynamic'）。
+ * @param valueType 维度值类型；仅 'department' 具备 relation 包含关系语义。
+ *
+ * 纯函数，不改入参、不碰草稿 —— 调用方负责把结果写回 PermCondition。
+ */
+export function resolveValueSource(
+  selected: string,
+  valueType?: string,
+): ValueSourceState {
+  if (selected === 'static') {
+    return { valueSource: 'static' };
+  }
+  return {
+    valueSource: 'dynamic',
+    // 关键：写用户实际选中的那个 key。取 contextKeys[0] 会把
+    // 「我的负责部门及下级」静默降级成「我的负责部门」。
+    dynamicKey: selected as DynamicSourceKey,
+    relation: valueType === 'department' ? 'contains' : undefined,
+  };
+}
+
 /** 可选包含关系（UI 下拉用）。 */
 export const DYNAMIC_RELATION_OPTIONS = (
   Object.keys(DYNAMIC_RELATION_LABELS) as (keyof typeof DYNAMIC_RELATION_LABELS)[]
@@ -93,6 +127,10 @@ export function newCondition(
   kind: 'relationship' | 'attribute' = 'relationship',
   dimension = 'dept',
 ): PermCondition {
+  // 属性条件分支**仅供存量数据反序列化**使用，不再有 UI 调用方新建它
+  // （属性条件已下线，见 RuleConfigModal.vue 中的下线说明）。
+  // 保留此分支是为了让从后端读回的 kind='attribute' 条件能被原样保留并回传，
+  // 而不是被降级成 relationship 造成静默数据损坏。
   if (kind === 'attribute') {
     return {
       id: uid('c'),
