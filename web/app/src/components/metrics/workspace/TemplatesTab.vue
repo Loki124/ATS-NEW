@@ -59,6 +59,7 @@
           :row-props="tplRowProps"
           :scroll-x="900"
           :max-height="tableMaxHeight"
+          :scrollbar-props="{ trigger: 'none' }"
           size="small"
           class="ws-table"
         />

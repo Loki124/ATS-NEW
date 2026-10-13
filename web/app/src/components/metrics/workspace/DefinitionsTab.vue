@@ -55,6 +55,7 @@
           :row-props="defRowProps"
           :scroll-x="920"
           :max-height="tableMaxHeight"
+          :scrollbar-props="{ trigger: 'none' }"
           size="small"
           class="ws-table"
         />

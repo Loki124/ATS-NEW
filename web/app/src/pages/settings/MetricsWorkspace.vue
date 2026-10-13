@@ -205,6 +205,16 @@ onUnmounted(() => {
 .ws-table {
   width: 100%;
 }
+/* 指标管理表格滚动条常显（2026-10-13 兵哥反馈"滚动不到底"）
+ * 根因同批量操作弹窗：Naive data-table 内部 scrollbar 默认 trigger='hover'，
+ * 不悬停时滑块节点不在 DOM；叠加 glass.css 的 .n-scrollbar-rail 默认 opacity:0，
+ * 用户看不到滚动条、无法滚动到底。
+ * 修法：两个子 Tab 的表格都加 scrollbar-props={trigger:'none'} 让滑块常驻，
+ * 此处强制 rail 常显以覆盖 glass.css 悬停规范。 */
+.ws-table .n-scrollbar-rail--vertical,
+.ws-table .n-scrollbar-rail--horizontal {
+  opacity: 1 !important;
+}
 .ws-cell-name {
   font-weight: 600;
   color: var(--ink);
