@@ -25,6 +25,7 @@ from .serializers import (
     DemandUpgradeProcessSerializer,
 )
 from .services import DemandCreateData, DemandService
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 
 class DemandViewSet(BaseModelViewSet):
@@ -52,6 +53,8 @@ class DemandViewSet(BaseModelViewSet):
     ordering = ['-created_at']
     scope_field = 'department'
     scope_creator_field = 'requested_by'
+    # M02: 数据权限 CUSTOM 规则的模块 key (ViewSet 只声明类属性, 零逻辑).
+    data_perm_entity = 'demand'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -71,7 +74,7 @@ class DemandViewSet(BaseModelViewSet):
         qs = qs.filter(deleted_at__isnull=True)
         qs = qs.select_related('department', 'requested_by', 'hr', 'process')
         # IDOR scope 过滤 (Fix 1)
-        qs = self.scope_queryset(qs, entity='demand')
+        qs = self.scope_queryset(qs)
         return qs
 
     def perform_destroy(self, instance):
@@ -131,6 +134,7 @@ class DemandViewSet(BaseModelViewSet):
     def transition(self, request, pk=None):
         """状态机流转：submit/approve/reject/start_recruiting/pause/resume/complete/cancel"""
         instance = self.get_object()
+        ensure_writable(request.user, 'demand', instance, action='transition')
         serializer = DemandTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action_name = serializer.validated_data['action']

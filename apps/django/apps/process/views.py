@@ -33,7 +33,7 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.viewsets import EnvelopeAuditModelViewSet, EnvelopeModelViewSet
 from apps.core.permissions import HasProcessPermission
-from apps.core.permissions_v2 import V2Permission
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 
 # T01.2 (2026-08-04 寇豆码): HasProcessPermission / V2Permission 自身已校验登录, 显式
 # 移除裸 IsAuthenticated, 避免被全局 deny-by-default 拦截.
@@ -71,8 +71,36 @@ from .services.versioning import (
     is_process_referenced,
     list_process_versions,
 )
+from apps.data_permission.enforcement import (  # M07 写范围守卫
+    ensure_writable,
+    is_writable,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _writable_candidate_map(request, candidate_ids):
+    """按 id 取出本批**在当前用户可见范围内**的候选人 -> {id: Candidate}。
+
+    M07 长尾配套: 批量写入口(批量筛选 / 批量推荐)此前逐条 ``Candidate.objects.get(pk=)``
+    全表取, 绕过候选人行级范围 —— 「列表看不到, 换个接口就能改」。这里改为经
+    ``scoped_candidates``(读范围) 一次性取回, 调用方再逐条用 ``is_writable``
+    判写范围(可见 ≠ 可写)。
+
+    不在可见集合里的 id **不在返回值中**, 调用方按「取不到」处理 —— 与历史
+    ``Candidate.objects.get(pk=)`` 抛 DoesNotExist 的分支语义一致, 且不额外
+    暴露「该 id 存在但你无权查看」的信息(避免 id 探测)。
+
+    注: 写范围 Q 在调用方逐条 ``is_writable`` 判定, 不在这里 filter —— 因为批量
+    响应壳需要**逐条**回报成功/失败原因(而非整批 403)。
+    """
+    from apps.candidate.scope import scoped_candidates
+
+    ids = [i for i in candidate_ids if i is not None]
+    if not ids:
+        return {}
+    qs = scoped_candidates(request).filter(id__in=ids)
+    return {str(c.pk): c for c in qs}
 
 
 # ============================================================
@@ -120,6 +148,7 @@ class RecruitmentStageViewSet(EnvelopeModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """BR-003: 阶段被引用时不可删除"""
         instance = self.get_object()
+        ensure_writable(request.user, 'process_stage', instance, action='delete')
         if instance.is_builtin:
             raise PermissionDenied('预置阶段不可删除')
         if instance.is_referenced:
@@ -140,6 +169,7 @@ class RecruitmentStageViewSet(EnvelopeModelViewSet):
     @action(detail=True, methods=['post'], url_path='disable')
     def disable(self, request, pk=None):
         instance = self.get_object()
+        ensure_writable(request.user, 'process_stage', instance, action='edit')
         if instance.is_builtin:
             raise PermissionDenied('预置阶段不可停用')
         if instance.is_referenced:
@@ -161,6 +191,7 @@ class RecruitmentStageViewSet(EnvelopeModelViewSet):
     @action(detail=True, methods=['post'], url_path='enable')
     def enable(self, request, pk=None):
         instance = self.get_object()
+        ensure_writable(request.user, 'process_stage', instance, action='edit')
         instance.status = StageStatus.ENABLED
         instance.save(update_fields=['status', 'updated_at'])
         serializer = self.get_serializer(instance)
@@ -213,7 +244,7 @@ class RecruitmentStageViewSet(EnvelopeModelViewSet):
 # ============================================================
 # 流程（RecruitmentProcess）
 # ============================================================
-class RecruitmentProcessViewSet(EnvelopeModelViewSet):
+class RecruitmentProcessViewSet(ScopeQuerysetMixin, EnvelopeModelViewSet):
     """招聘流程 ViewSet
 
     list:           列表
@@ -242,6 +273,13 @@ class RecruitmentProcessViewSet(EnvelopeModelViewSet):
     queryset = RecruitmentProcess.objects.all()
     permission_classes = [V2Permission]
     permission_required = 'recruit:settings:recruitment-process:list'
+    # M02 (2026-10-12): 行级接入路径③收敛。原 get_queryset 内直调
+    # role_entity_scope_q, 绕过统一入口; 现声明类属性走 ScopeQuerysetMixin。
+    # 流程无部门字段可依 (field_map: process 仅 creator 维度), 历史上只叠加
+    # CUSTOM 规则、不按默认 scope 裁剪 —— apply_default_scope=False 显式保留
+    # 该语义, 避免收敛时把无 CUSTOM 配置用户的可见性从全量静默收窄为 SELF。
+    data_perm_entity = 'process'
+    apply_default_scope = False
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'is_template', 'template_code', 'is_enabled']
@@ -261,16 +299,9 @@ class RecruitmentProcessViewSet(EnvelopeModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
-        # 角色自定义数据范围（数据权限向导）：仅当有配置时收窄，无配置保持全量（与既有行为一致）。
-        # 流程无 recruit_type 硬分区、亦不按部门默认裁剪，故此处只叠加自定义范围。
-        user = getattr(self.request, 'user', None)
-        if user and getattr(user, 'is_authenticated', False):
-            from apps.core.role_v2_query import is_super_admin
-            if not is_super_admin(user):
-                from apps.data_permission.enforcement import role_entity_scope_q
-                custom_q = role_entity_scope_q(user, 'process')
-                if custom_q is not None:
-                    qs = qs.filter(custom_q)
+        # 角色自定义数据范围（数据权限向导）：仅当有配置时收窄，无配置保持全量
+        # (apply_default_scope=False: 流程不按部门/管理单元默认裁剪, 与原语义一致)。
+        qs = self.scope_queryset(qs, entity='process')
         # #9 (2026-10-09): stage_count 逐行用 obj.stage_links.count() 触发 N+1,
         # prefetch 一次取回、计数走缓存; created_by/updated_by 已 join 供嵌套 UserMinimalSerializer 用。
         return qs.select_related('created_by', 'updated_by').prefetch_related('stage_links')
@@ -322,6 +353,7 @@ class RecruitmentProcessViewSet(EnvelopeModelViewSet):
     @action(detail=True, methods=['post'], url_path='archive')
     def archive(self, request, pk=None):
         instance = self.get_object()
+        ensure_writable(request.user, 'process', instance, action='edit')
         # 产品 Q5：归档的作用域是整条 code 线，故「重复归档」的判据也必须是整条线——
         # 「该 code 下已无 ENABLED 行」。原判据只看当前这一行的 status：从一个历史版本
         # 行（多半已是 ARCHIVED）发起归档会被误判成重复归档而 409，而该线的最新版
@@ -419,32 +451,46 @@ class RecruitmentProcessViewSet(EnvelopeModelViewSet):
         if not candidate_ids:
             raise ValidationError('candidate_ids 不能为空')
 
-        from apps.candidate.models import Candidate
-
+        # M07 长尾: 原为 `Candidate.objects.get(pk=cid)` 逐条全表取 —— 完全绕过候选人
+        #   的行级范围, 等于「列表看不到, 换个接口就能改」。改为经 scoped_candidates
+        #   (读范围) + filter_writable_candidates (写范围, M07) 一次性取回本批候选人:
+        #     - 不在可见范围内的 -> CANDIDATE_NOT_FOUND (与历史「取不到就跳过」语义一致,
+        #       不额外暴露「存在但越权」信息, 避免 id 探测);
+        #     - 可见但不可写的  -> NO_WRITE_PERMISSION 明确回报, 前端可提示。
+        #   未配置任何 WRITE 规则时 filter_writable 原样返回(fail-open), 行为不变。
+        candidates = _writable_candidate_map(request, candidate_ids)
         results = []
         for cid in candidate_ids:
-            try:
-                cand = Candidate.objects.get(pk=cid)
-                screen_record = CandidateScreen.objects.create(
-                    process=process,
-                    candidate=cand,
-                    stage_id=stage_id or None,
-                    screen_result={'decision': decision, 'comment': comment},
-                    screened_by=request.user,
-                )
-                results.append({
-                    'candidate_id': cid,
-                    'success': True,
-                    'result': decision,
-                    'screen_id': screen_record.id,
-                })
-            except Candidate.DoesNotExist:
+            cand = candidates.get(cid)
+            if cand is None:
                 results.append({
                     'candidate_id': cid,
                     'success': False,
                     'result': None,
                     'error': 'CANDIDATE_NOT_FOUND',
                 })
+                continue
+            if not is_writable(request.user, 'candidate', cand, action='transition'):
+                results.append({
+                    'candidate_id': cid,
+                    'success': False,
+                    'result': None,
+                    'error': 'NO_WRITE_PERMISSION',
+                })
+                continue
+            screen_record = CandidateScreen.objects.create(
+                process=process,
+                candidate=cand,
+                stage_id=stage_id or None,
+                screen_result={'decision': decision, 'comment': comment},
+                screened_by=request.user,
+            )
+            results.append({
+                'candidate_id': cid,
+                'success': True,
+                'result': decision,
+                'screen_id': screen_record.id,
+            })
 
         return Response({
             'success': True,
@@ -479,30 +525,39 @@ class RecruitmentProcessViewSet(EnvelopeModelViewSet):
         if not candidate_ids:
             raise ValidationError('candidate_ids 不能为空')
 
-        from apps.candidate.models import Candidate
-
+        # M07 长尾: 同 batch_screen —— 原为 `Candidate.objects.get(pk=cid)` 全表取,
+        #   绕过候选人行级范围。经 scoped_candidates(读) + filter_writable(写) 取回本批。
+        candidates = _writable_candidate_map(request, candidate_ids)
         results = []
         for cid in candidate_ids:
-            try:
-                cand = Candidate.objects.get(pk=cid)
-                rec = CandidateRecommendation.objects.create(
-                    process=process,
-                    candidate=cand,
-                    reason=reason,
-                    recommender=request.user,
-                )
-                results.append({
-                    'candidate_id': cid,
-                    'success': True,
-                    'recommendation_id': rec.id,
-                })
-            except Candidate.DoesNotExist:
+            cand = candidates.get(cid)
+            if cand is None:
                 results.append({
                     'candidate_id': cid,
                     'success': False,
                     'recommendation_id': None,
                     'error': 'CANDIDATE_NOT_FOUND',
                 })
+                continue
+            if not is_writable(request.user, 'candidate', cand, action='transition'):
+                results.append({
+                    'candidate_id': cid,
+                    'success': False,
+                    'recommendation_id': None,
+                    'error': 'NO_WRITE_PERMISSION',
+                })
+                continue
+            rec = CandidateRecommendation.objects.create(
+                process=process,
+                candidate=cand,
+                reason=reason,
+                recommender=request.user,
+            )
+            results.append({
+                'candidate_id': cid,
+                'success': True,
+                'recommendation_id': rec.id,
+            })
 
         return Response({
             'success': True,

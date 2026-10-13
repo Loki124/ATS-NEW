@@ -25,12 +25,23 @@ ancestor 用 parent FK 在内存回溯，subtree 用 path 前缀匹配（与
 scope_resolver._subtree_ids_from_dept 保持同源语义）。两者都只全表加载一次
 id/path/parent_id 后在内存计算 —— 部门表量级很小（百至千行），
 换来 0 次 N+1 查询，且不依赖 path 字段格式是否规范。
+
+## M03 (2026-10-12) 扩展：用户 id 与管理单元 id 来源
+
+原有 dept 两键只能服务 dept 维度。ARCH §3 增加两类键，服务 owner/creator
+（标量用户 id）与 unit（复合管理单元）维度：
+  - currentUser.id           -> 用户 id 集合 {user.pk}（owner/creator 维度）
+  - currentUser.managedUnits -> 管理单元 id 集合（unit 维度；全角色并集口径，
+    与 scope_resolver.user_management_unit_ids 同源，不新造组织关系计算）
+值类型见 DYNAMIC_VALUE_TYPES；维度适配规则由 expr_compiler 的
+_compile_dynamic 按 value_type 分发。
 """
 from __future__ import annotations
 
 import logging
 
 from apps.core.models import Department
+from apps.core.scope_resolver import user_management_unit_ids
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +57,33 @@ class ContextResolveError(Exception):
 DYNAMIC_SOURCE_KEYS: frozenset[str] = frozenset({
     'currentUser.departments',   # 当前用户负责的部门（所属部门 ∪ 其任 leader 的部门）
     'currentUser.deptSubtree',   # 上述部门 + 其所有子部门
+    'currentUser.id',            # 当前登录用户 id（owner/creator 维度用）
+    'currentUser.managedUnits',  # 当前用户全角色并集的管理单元 id（unit 维度用）
 })
+
+# ---- 动态值来源 -> 值类型（决定编译器如何把集合映射到 ORM 条件）----
+#   dept : 部门 id 集合，支持 exact/in_subtree/contains/overlap 包含关系
+#   user : 用户 id 集合，标量 __in（owner/creator 维度）
+#   unit : 管理单元 id 集合，复合展开（unit 维度，见 expr_compiler._compile_unit_condition）
+# key 集合与上方 DYNAMIC_SOURCE_KEYS 一致：某 key 在本表中即视为已注册。
+DYNAMIC_VALUE_TYPES: dict[str, str] = {
+    'currentUser.departments': 'dept',
+    'currentUser.deptSubtree': 'dept',
+    'currentUser.id': 'user',
+    'currentUser.managedUnits': 'unit',
+}
+
+# ---- 值类型 -> 可配置维度（保存期校验与编译期分发共用的唯一规则来源）----
+#   dept : 仅 dept 维度（唯一支持 relation 树语义的维度）
+#   user : owner / creator 维度（标量 __in）
+#   unit : unit 复合维度（iter_unit_scopes 展开）
+# 修改本表须同步确认 expr_compiler._compile_dynamic 与 validate_scope_payload
+# 的行为 —— 两者均引用本表，不得各自硬编码（防「校验放行但编译拒绝」分叉）。
+DYNAMIC_DIMENSION_RULES: dict[str, frozenset[str]] = {
+    'dept': frozenset({'dept'}),
+    'user': frozenset({'owner', 'creator'}),
+    'unit': frozenset({'unit'}),
+}
 
 # ---- 业务字段集合与动态集合的包含关系 ----
 DYNAMIC_RELATIONS: frozenset[str] = frozenset({
@@ -80,8 +117,8 @@ def responsible_department_ids(user) -> set[str]:
     return {str(x) for x in Department.objects.filter(id__in=ids).values_list('id', flat=True)}
 
 
-def resolve_dynamic(key: str, user) -> set[str]:
-    """把动态值来源解析为「部门 id 字符串集合」。
+def resolve_dynamic(key: str, user) -> set:
+    """把动态值来源解析为对应值类型的 id 集合（部门 / 用户 / 管理单元）。
 
     失败一律抛 ContextResolveError（含来源未注册、DB 异常向上冒泡），
     由编译器转成 Q(pk__in=[]) —— 即 fail-closed，绝不静默放行。
@@ -89,6 +126,18 @@ def resolve_dynamic(key: str, user) -> set[str]:
     key = str(key or '')
     if key not in DYNAMIC_SOURCE_KEYS:
         raise ContextResolveError(f'未注册的动态值来源: {key!r}')
+    if user is None or not getattr(user, 'is_authenticated', False):
+        raise ContextResolveError('无登录用户上下文')
+
+    if key == 'currentUser.id':
+        pk = getattr(user, 'pk', None)
+        if pk is None:
+            raise ContextResolveError('登录用户无 pk')
+        return {pk}
+
+    if key == 'currentUser.managedUnits':
+        # 全角色并集口径, 与默认 scope 的 L1 同源 (scope_resolver 单一实现点)
+        return set(user_management_unit_ids(user))
 
     own = responsible_department_ids(user)
     if key == 'currentUser.departments':

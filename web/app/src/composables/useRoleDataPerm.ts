@@ -35,6 +35,7 @@ export const DIMENSION_LABELS: Record<string, string> = {
   dept: '部门',
   owner: '负责人',
   creator: '创建人',
+  unit: '管理单元',
   process: '招聘流程',
 };
 
@@ -54,6 +55,8 @@ export const ATTR_LIST_OPS = new Set(['IN', 'NOT_IN']);
 export const DYNAMIC_SOURCE_LABELS: Record<string, string> = {
   'currentUser.departments': '我的负责部门',
   'currentUser.deptSubtree': '我的负责部门及其下级',
+  'currentUser.id': '当前登录用户',
+  'currentUser.managedUnits': '我的管理单元',
 };
 
 /** 包含关系 -> 中文（与后端 context_resolvers.DYNAMIC_RELATIONS 对齐）。 */
@@ -64,11 +67,15 @@ export const DYNAMIC_RELATION_LABELS: Record<string, string> = {
   overlap: '包含或属于',
 };
 
-/** 可选动态来源（UI 下拉用）。当前仅部门维度支持。 */
-export const DYNAMIC_SOURCE_OPTIONS = [
-  { label: DYNAMIC_SOURCE_LABELS['currentUser.departments'], value: 'currentUser.departments' },
-  { label: DYNAMIC_SOURCE_LABELS['currentUser.deptSubtree'], value: 'currentUser.deptSubtree' },
-];
+/**
+ * 按维度的可用动态来源（contextKeys）生成「取值来源」下拉选项（M03）。
+ * dept 维度 -> 部门类来源；owner/creator -> currentUser.id；
+ * unit -> currentUser.managedUnits。contextKeys 为空/缺省 = 该维度
+ * 不支持动态取值（调用方不渲染切换器）。
+ */
+export function dynamicSourceOptions(contextKeys?: string[]) {
+  return (contextKeys || []).map((k) => ({ label: DYNAMIC_SOURCE_LABELS[k] || k, value: k }))
+}
 
 /** 可选包含关系（UI 下拉用）。 */
 export const DYNAMIC_RELATION_OPTIONS = (
@@ -267,8 +274,9 @@ function renderCondition(c: PermCondition): string {
   const dimLabel = DIMENSION_LABELS[dimKey] || dimKey;
   // 动态条件：值来自当前用户上下文，不是配置里选死的值
   if (c.valueSource === 'dynamic') {
-    const rel = DYNAMIC_RELATION_LABELS[c.relation || 'exact'] || '属于';
-    const src = DYNAMIC_SOURCE_LABELS[c.dynamicKey || ''] || '我的负责部门';
+    // 仅部门类维度有包含关系（relation）语义；user/unit 维度是「是」单义
+    const rel = c.relation ? (DYNAMIC_RELATION_LABELS[c.relation] || '属于') : '是';
+    const src = DYNAMIC_SOURCE_LABELS[c.dynamicKey || ''] || '当前用户';
     return `${dimLabel} ${rel} ${src}`;
   }
   const opLabel = c.operator === 'not_in' ? '不属于' : '属于';
@@ -330,7 +338,7 @@ function cloneModules(modules: ModulePerm[]): ModulePerm[] {
         kind: c.kind,
         dimension: c.dimension,
         operator: c.operator,
-        values: (c.values || []).map((v) => ({ id: v.id, label: v.label, stale: v.stale })),
+        values: (c.values || []).map((v) => ({ id: v.id, label: v.label, stale: v.stale, emptyShell: v.emptyShell })),
         valueSource: c.valueSource,
         dynamicKey: c.dynamicKey,
         relation: c.relation,
@@ -494,10 +502,20 @@ export function useRoleDataPerm(roleId: Ref<string>) {
               }
             }
           } else {
-            // 动态条件：不校验业务值（运行时注入），只校验来源已选
+            // 动态条件：不校验业务值（运行时注入），只校验来源已选且适应该维度
             if (c.valueSource === 'dynamic') {
               if (!c.dynamicKey) {
                 errs[m.moduleKey] = '请为动态条件选择取值来源';
+                bad.push(m.moduleKey);
+                groupBad = true;
+                break;
+              }
+              // 维度适配（与后端 DYNAMIC_DIMENSION_RULES 对齐的前置校验）：
+              // 来源必须出现在该维度的 contextKeys 里，否则后端保存期也会拒绝。
+              const dims = options.value.find((o) => o.moduleKey === m.moduleKey)?.dimensions || [];
+              const dim = dims.find((d) => d.key === c.dimension);
+              if (dim && dim.contextKeys && !dim.contextKeys.includes(c.dynamicKey)) {
+                errs[m.moduleKey] = `动态取值来源不适用于「${dim.label || c.dimension}」维度`;
                 bad.push(m.moduleKey);
                 groupBad = true;
                 break;

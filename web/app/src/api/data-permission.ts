@@ -24,16 +24,22 @@ export interface PermValue {
   id: string | number;
   label: string;
   stale?: boolean;
+  /** 管理单元空壳标记（M03 护栏一：无组织范围且无成员，选中也看不到数据；不阻断保存）。 */
+  emptyShell?: boolean;
 }
 
 /**
  * 动态取值来源（须与后端 context_resolvers.DYNAMIC_SOURCE_KEYS 保持一致）。
  * - currentUser.departments  当前用户负责的部门（所属部门 ∪ 其任 leader 的部门）
  * - currentUser.deptSubtree  上述部门 + 其所有子部门
+ * - currentUser.id           当前登录用户 id（owner/creator 维度, M03）
+ * - currentUser.managedUnits 当前用户全角色并集的管理单元 id（unit 维度, M03）
  */
 export type DynamicSourceKey =
   | 'currentUser.departments'
-  | 'currentUser.deptSubtree';
+  | 'currentUser.deptSubtree'
+  | 'currentUser.id'
+  | 'currentUser.managedUnits';
 
 /**
  * 业务字段与动态集合的包含关系（须与后端 context_resolvers.DYNAMIC_RELATIONS 一致）。
@@ -123,6 +129,11 @@ export interface DimensionMeta {
   label: string;
   valueType: string;
   options: PermValue[];
+  /**
+   * 该维度可用的动态值来源（valueSource='dynamic' 时的快捷主体，后端
+   * field_map.DIMENSION_META.contextKeys 透传）。空/缺省 = 不支持动态取值。
+   */
+  contextKeys?: string[];
 }
 
 export interface ModuleOption {

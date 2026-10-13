@@ -73,6 +73,7 @@ from .services import (
 )
 from .services.grab import GrabService, InvitationService
 from .services.soft_reject import SoftRejectService
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 logger = logging.getLogger(__name__)
 
@@ -180,6 +181,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     def advance(self, request, id=None):
         """推进到下一阶段"""
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='transition')
         serializer = ApplicationAdvanceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         v = serializer.validated_data
@@ -216,6 +218,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
         from apps.process.models import ProcessStageLink
 
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='transition')
         entry_condition_id = (request.data or {}).get('entryConditionId')
 
         # 找下一 link (跟 advance_application_to_next_stage 同款查询)
@@ -302,6 +305,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     def soft_reject(self, request, id=None):
         """软拒当前阶段（保留历史）"""
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='transition')
         serializer = ApplicationSoftRejectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -329,6 +333,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     def withdraw(self, request, id=None):
         """候选人主动撤回"""
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='transition')
         serializer = ApplicationWithdrawSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -350,6 +355,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     def pause(self, request, id=None):
         """暂停"""
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='transition')
         serializer = ApplicationPauseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -368,6 +374,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     def resume(self, request, id=None):
         """恢复"""
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='transition')
         try:
             application = ApplicationService.resume(
                 application, actor=request.user,
@@ -386,6 +393,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     def upgrade_version(self, request, id=None):
         """升版本（BR-104）"""
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='transition')
         try:
             application = ApplicationService.upgrade_workflow_version(
                 application, actor=request.user,
@@ -415,6 +423,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
         from apps.process.models import ProcessStageLink, RecruitmentProcess
 
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='transition')
         serializer = ApplicationChangeProcessSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         v = serializer.validated_data
@@ -456,6 +465,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     def grab(self, request, id=None):
         """抢单认领"""
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='claim')
         serializer = ApplicationGrabSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -474,6 +484,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
     def release(self, request, id=None):
         """释放抢单"""
         application = self.get_object()
+        ensure_writable(request.user, 'application', application, action='claim')
         serializer = ApplicationReleaseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:

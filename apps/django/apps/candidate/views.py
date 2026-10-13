@@ -33,7 +33,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.candidate.scope import assert_candidates_visible, scoped_candidates
+from apps.candidate.scope import (
+    assert_candidates_visible,
+    assert_candidates_writable,
+    scoped_candidates,
+)
 from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
@@ -42,7 +46,7 @@ from apps.common.search import keyword_q
 from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
-from apps.core.scope_resolver import scope_filter_q
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 from .models import (
     Candidate,
@@ -87,6 +91,8 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
     # 普通 HRBP+ 仍按 created_by 兜底.
     scope_field = 'referrer__department'
     scope_creator_field = 'created_by'
+    # M02: 数据权限 CUSTOM 规则的模块 key (ViewSet 只声明类属性, 零逻辑).
+    data_perm_entity = 'candidate'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -128,17 +134,10 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         if blacklisted is not None:
             qs = qs.filter(is_blacklisted=blacklisted.lower() == 'true')
         # IDOR: 按部门 scope + 创建人 二次过滤 (Fix 1)
-        # Tier 3: scope_resolver 现为行级数据范围唯一真相源;
-        # 直接由 resolve_scope 产出过滤 Q, 不再经 DataPermissionRule ROW 镜像.
-        sq = scope_filter_q(
-            self.request.user,
-            app_code='recruit',
-            scope_field=self.scope_field,
-            creator_field=self.scope_creator_field,
-            recruit_type=getattr(self.request, 'recruit_type', 'social'),
-            entity='candidate',
-        )
-        qs = qs.filter(sq)
+        # M02 (2026-10-12): 直调 scope_filter_q 收敛为 ScopeQuerysetMixin 唯一入口
+        # (与 demand/position 等 ViewSet 及导出口径 entity_scope_q 完全一致;
+        #  CUSTOM 替换 / 默认 scope 回退 / recruit_type 分区由 mixin 委托同一实现).
+        qs = self.scope_queryset(qs)
         return qs.order_by('-created_at')
 
     def create(self, request, *args, **kwargs):
@@ -156,9 +155,11 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         return success_response(out.data, status_code=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
-        """更新候选人基本信息"""
+        """更新候选人基本信息（M07：写范围守卫，仅写范围内可编辑）"""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        # M07 写范围守卫：无 WRITE 规则时无额外限制（沿用既有功能权限）；有则按范围校验
+        ensure_writable(request.user, 'candidate', instance, action='edit')
         serializer = CandidateUpdateSerializer(
             instance, data=request.data, partial=partial,
         )
@@ -173,8 +174,10 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
     # ----------------------------------------------------------
     @action(detail=True, methods=['post'], url_path='transition')
     def transition(self, request, id=None):
-        """候选人状态机转换"""
+        """候选人状态机转换（M07：写范围守卫，仅写范围内可流转）"""
         candidate = self.get_object()
+        # M07 写范围守卫：无 WRITE 规则时无额外限制；有则按范围校验
+        ensure_writable(request.user, 'candidate', candidate, action='transition')
         serializer = CandidateStateTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -310,8 +313,9 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
     # ----------------------------------------------------------
     @action(detail=True, methods=['post'], url_path='blacklist')
     def blacklist(self, request, id=None):
-        """加入黑名单"""
+        """加入黑名单（M07：写范围守卫）"""
         candidate = self.get_object()
+        ensure_writable(request.user, 'candidate', candidate, action='edit')
         reason = request.data.get('reason', '')
         old_blacklisted = candidate.is_blacklisted
         candidate.is_blacklisted = True
@@ -338,8 +342,9 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
 
     @action(detail=True, methods=['post'], url_path='unblacklist')
     def unblacklist(self, request, id=None):
-        """移出黑名单"""
+        """移出黑名单（M07：写范围守卫）"""
         candidate = self.get_object()
+        ensure_writable(request.user, 'candidate', candidate, action='edit')
         old_blacklisted = candidate.is_blacklisted
         candidate.is_blacklisted = False
         candidate.blacklist_reason = ''
@@ -382,6 +387,21 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
             )
             return Response(
                 {'error': f'无权访问候选人: {", ".join(invisible)}'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        # M07 长尾: 读范围 ≠ 写范围。可见但不可写(只读角色 / OWNER 范围外)的候选人
+        #   同样不能被合并 —— 合并会改数据, 必须再过一道写范围校验。
+        #   未配置 WRITE 规则时返回空列表(fail-open), 不影响既有行为。
+        unwritable = assert_candidates_writable(
+            request, [primary_id, *duplicate_ids], action='merge',
+        )
+        if unwritable:
+            logger.warning(
+                '拒绝越权合并(无写权限) user=%s 不可写候选人=%s',
+                request.user.id, unwritable,
+            )
+            return Response(
+                {'error': f'无写权限: {", ".join(unwritable)}'},
                 status=status.HTTP_403_FORBIDDEN,
             )
         result = CandidateService.merge_candidates(

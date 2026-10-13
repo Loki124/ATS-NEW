@@ -9,7 +9,6 @@ from rest_framework.permissions import SAFE_METHODS, BasePermission
 from .models_permission_v2 import PermissionResource
 from .permission_check import has_perm
 from .role_v2_query import is_super_admin
-from .scope_resolver import ALL_UNIT_SENTINEL, resolve_scope, unit_ids_to_dept_ids
 
 logger = logging.getLogger(__name__)
 
@@ -173,64 +172,61 @@ class ScopeQuerysetMixin:
 
     ViewSet 在 get_queryset() 末尾调用 self.scope_queryset(qs, scope_field='department_id').
     superuser bypass; resolve_scope 4 层堆栈; ManagementUnit.org_scope 转 dept_id 集合.
+
+    2026-10-12 M02: scope_queryset 委托 scope_filter_q 全语义（唯一真相源）。
+    此前本类是独立复刻版，与 scope_filter_q 存在三处口径分叉：
+      1. 默认 scope 只走 unit_ids_to_dept_ids（部门集合），缺失 iter_unit_scopes 的
+         成员 USER `created_by__in` OR 分支与 data_range AND 限制 —— 同一用户经
+         CandidateViewSet（scope_filter_q）可见的「管理单元 USER 成员创建的候选人」，
+         经 demand/position 等走本类的 ViewSet 看不到；
+      2. 不读 scope_creator_field，SELF 兜底硬编码 created_by，与 ENTITY_SCOPE 登记的
+         creator_field（demand=requested_by / referral=referrer / invitation=inviter）漂移；
+      3. resolve_scope 不传 app_code，绕过方案 A 的 per-app 范围优先语义。
+    现统一委托 scope_filter_q（recruit_type 分区 / CUSTOM 替换 / 默认 scope 回退
+    全部走同一实现），并补读 scope_creator_field。行为变更方向 = 向唯一真相源收敛：
+    单元 USER 成员数据可见性对齐、SELF 兜底字段与导出口径一致、per-app 范围生效。
     """
 
     scope_field: str = ''
+    # 创建人字段路径（SELF 兜底 / 管理单元成员 USER 分支使用）。此前本类不读该属性、
+    # 硬编码 created_by，导致 demand 等声明了 scope_creator_field 的 ViewSet 与实际
+    # 执行口径漂移；现由 scope_filter_q 统一消费。
+    scope_creator_field: str = 'created_by'
     # 招聘类型硬分区 (opt-in): 子类设 None 即不参与分区; 默认 'recruit_type'.
     # 仅当模型确有该字段时生效 (hasattr 守卫), 不影响未分区模型.
     recruit_type_field: str = 'recruit_type'
+    # 默认 scope（L1-L4）应用开关（2026-10-12 M02 收敛路径③时新增）。
+    #   True : CUSTOM 有配置则替换、无配置回退默认 scope（scope_filter_q 全语义）；
+    #   False: 只叠加 CUSTOM 规则，无配置原样返回 —— 供 process 这类「无部门字段
+    #          可依、历史上不按默认 scope 裁剪」的配置型实体显式声明，
+    #          避免收敛入口时静默把可见性从全量收窄为 SELF。
+    apply_default_scope: bool = True
 
     def scope_queryset(self, qs, scope_field: str = '', entity: str = ''):
+        from apps.core.scope_resolver import scope_filter_q
+
         user = self.request.user
-        # 硬系统分区: 对所有用户(含超管)生效, 先于行级 scope 应用.
-        # opt-in: 仅当模型确有 recruit_type 字段时过滤, 否则 no-op.
-        rt_field = self.recruit_type_field
-        if rt_field and hasattr(qs.model, rt_field):
-            qs = qs.filter(**{rt_field: getattr(self.request, 'recruit_type', 'social')})
-        if is_super_admin(user):
-            return qs
-        # 角色自定义范围（数据权限向导）优先于默认 scope：有配置则替换，无配置回退。
         entity = entity or getattr(self, 'data_perm_entity', '')
-        if entity:
+        # 硬系统分区: 仅当模型确有 recruit_type 字段时生效 (与 entity_scope_q 的
+        # hasattr 守卫一致); 否则 rt=None, scope_filter_q 内 no-op.
+        rt = getattr(self.request, 'recruit_type', 'social')
+        if not (self.recruit_type_field and hasattr(qs.model, self.recruit_type_field)):
+            rt = None
+        if not self.apply_default_scope:
+            # 只叠加 CUSTOM 规则 (role_entity_scope_q); 无配置 / 超管 -> 原样返回.
+            if is_super_admin(user) or not entity:
+                return qs
             from apps.data_permission.enforcement import role_entity_scope_q
             custom_q = role_entity_scope_q(user, entity)
-            if custom_q is not None:
-                return qs.filter(custom_q)
-        scope_field = scope_field or self.scope_field
-
-        scope = resolve_scope(user)
-        if scope.get('all'):
-            return qs
-
-        # R8 (2026-08-03): resolve_scope 的 DEPT / DEPT_AND_SUB 分支直接返回部门 id
-        # 集合 (Department.pk 是 CharField(32), 和 ManagementUnit 的 int 主键不是同一
-        # id 空间), 这里单独处理, 不要再过 ManagementUnit 那一层转换。
-        dept_ids = scope.get('department_ids') or []
-        if dept_ids:
-            if not scope_field:
-                # 没声明 scope_field 就无法按部门过滤, 保守退回 SELF
-                return qs.filter(created_by=user)
-            return qs.filter(**{f'{scope_field}__in': dept_ids})
-
-        unit_ids = scope.get('management_unit_ids', [])
-        if not unit_ids:
-            # SELF 兜底: 仅自己创建的
-            return qs.filter(created_by=user)
-
-        # 把 management_unit_ids 转 dept_id 集合 (复用 type-safe 解析, 避免 dict org_scope
-        # 把 key 当部门 id 泄漏进过滤条件). 整公司级单元(ALL sentinel) -> 可见全量.
-        try:
-            resolved = unit_ids_to_dept_ids(unit_ids)
-            if ALL_UNIT_SENTINEL in resolved:
-                return qs
-            unit_dept_ids = set(d for d in resolved if d != ALL_UNIT_SENTINEL)
-        except (OperationalError, ProgrammingError):
-            # V2 schema 未应用 → ManagementUnit 表可能缺列. fallback SELF.
-            return qs.filter(created_by=user)
-
-        if not unit_dept_ids:
-            return qs.filter(created_by=user)
-        return qs.filter(**{f'{scope_field}__in': unit_dept_ids})
+            return qs.filter(custom_q) if custom_q is not None else qs
+        return qs.filter(scope_filter_q(
+            user,
+            app_code='recruit',
+            scope_field=scope_field or self.scope_field,
+            creator_field=self.scope_creator_field,
+            recruit_type=rt,
+            entity=entity,
+        ))
 
     def _rt_field(self):
         """返回当前 ViewSet 应注入的招聘类型字段名 (opt-in).

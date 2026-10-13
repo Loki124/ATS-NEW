@@ -49,6 +49,10 @@ class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewS
     ordering = ['-created_at']
     scope_field = 'last_position__department'
     scope_creator_field = 'created_by'
+    # M02: 数据权限 CUSTOM 规则的模块 key (field_map 键为 'talent', 与
+    # ENTITY_SCOPE 的 'talent_pool' 是两个命名空间: 前者是数据权限实体 key,
+    # 后者是 ENTITY_SCOPE 登记键; ViewSet 只声明类属性, 零逻辑).
+    data_perm_entity = 'talent'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -61,7 +65,7 @@ class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewS
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
         qs = qs.select_related('candidate', 'last_position', 'last_stage')
-        qs = self.scope_queryset(qs, entity='talent')
+        qs = self.scope_queryset(qs)
         return qs
 
     def perform_create(self, serializer):

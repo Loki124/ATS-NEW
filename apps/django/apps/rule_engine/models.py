@@ -83,6 +83,17 @@ class ConditionType(models.TextChoices):
     CUSTOM = 'CUSTOM', '自定义'
 
 
+class ConditionValueType(models.TextChoices):
+    """条件值类型（M04：指标作为条件源）。
+
+    - FIELD：从 EvaluationContext 取字段实际值（既有行为，默认）。
+    - METRIC：左操作数为指标模板，委托 MetricEngine.evaluate_metric_condition 求值
+      （零重写，复用取值/比较/解析层），结果 pass 即命中。
+    """
+    FIELD = 'FIELD', '字段值'
+    METRIC = 'METRIC', '指标'
+
+
 class Priority(models.TextChoices):
     """优先级（§2.7）。P0 > P1 > P2。"""
     P0 = 'P0', 'P0-最高'
@@ -230,6 +241,18 @@ class Condition(FullAuditModel, UUIDModel):
         default=False, verbose_name='自动过滤停用人员',
     )
     meta_json = models.JSONField(default=dict, verbose_name='扩展（BETWEEN 的 min/max 等）')
+
+    # 2026-10-12 M04：指标作为条件源（委托 MetricEngine 求值，零重写）。
+    #   value_type 区分 FIELD(默认, 从 context 取字段值) / METRIC(从指标模板求值)；
+    #   metric_template 为可空外键，存量条件 NULL + value_type=FIELD 行为不变（双读兼容）。
+    value_type = models.CharField(
+        max_length=8, choices=ConditionValueType.choices,
+        default=ConditionValueType.FIELD, verbose_name='条件值类型',
+    )
+    metric_template = models.ForeignKey(
+        'metrics.MetricTemplate', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='conditions', verbose_name='指标模板',
+    )
 
     class Meta:
         db_table = 'rule_engine_conditions'

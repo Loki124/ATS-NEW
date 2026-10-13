@@ -124,18 +124,34 @@ class DynamicScopeTestCase(TestCase):
         q = compile_scope_q(_dynamic_payload(relation='bogus'), 'demand', user=self.zhang)
         self.assertEqual(list(q.children[0][1]), [], '未注册包含关系必须空集')
 
-    def test_non_dept_dimension_fails_closed(self):
-        q = compile_scope_q(_dynamic_payload(dimension='owner'), 'demand', user=self.zhang)
-        self.assertEqual(list(q.children[0][1]), [], '非部门维度不支持动态取值，必须空集')
+    def test_dimension_value_type_mismatch_fails_closed(self):
+        # M03：维度须与动态值类型适配。dept 维度配 user 值类型来源
+        # （currentUser.id）属于维度不适配 -> fail-closed（非空壳兜底）。
+        q = compile_scope_q(
+            _dynamic_payload(dimension='dept', dynamic_key='currentUser.id'), 'demand', user=self.zhang,
+        )
+        self.assertEqual(list(q.children[0][1]), [], '维度与值类型不适配必须空集')
+
+    def test_owner_dimension_accepts_current_user_id(self):
+        # M03 新行为：owner 维度 + currentUser.id 现合法，编译为 Q(hr_id__in=[user.pk])
+        q = compile_scope_q(
+            _dynamic_payload(dimension='owner', dynamic_key='currentUser.id'), 'demand', user=self.zhang,
+        )
+        s = str(q)
+        self.assertIn('hr_id', s)
+        self.assertIn(str(self.zhang.pk), s)
 
     # ---------- 保存期校验 ----------
     def test_validate_dynamic_condition_ok(self):
         self.assertIsNone(validate_scope_payload(_dynamic_payload(), 'demand'))
 
-    def test_validate_dynamic_rejects_non_dept_dimension(self):
-        reason = validate_scope_payload(_dynamic_payload(dimension='owner'), 'demand')
+    def test_validate_dynamic_rejects_dimension_value_type_mismatch(self):
+        # M03：dept 维度配 user 值类型来源（currentUser.id）属于维度不适配 -> 拒绝
+        reason = validate_scope_payload(
+            _dynamic_payload(dimension='dept', dynamic_key='currentUser.id'), 'demand',
+        )
         self.assertIsNotNone(reason)
-        self.assertIn('暂不支持动态取值', reason)
+        self.assertIn('不适用于维度', reason)
 
     def test_validate_dynamic_rejects_unregistered_source(self):
         reason = validate_scope_payload(_dynamic_payload(dynamic_key='nope'), 'demand')

@@ -27,10 +27,11 @@ from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
-from .attribute_fields import attribute_fields_for
+from .attribute_fields import SCENARIO_ROW_FILTER, attribute_fields_for
 from .context_resolvers import (
+    DYNAMIC_DIMENSION_RULES,
     DYNAMIC_RELATIONS,
-    DYNAMIC_SOURCE_KEYS,
+    DYNAMIC_VALUE_TYPES,
     ContextResolveError,
     resolve_dynamic,
     resolve_relation_dept_ids,
@@ -252,14 +253,14 @@ def _deny_all() -> Q:
 
 
 def _compile_dynamic_dept(cond: dict, field: str, dimension: str, *, user) -> Q:
-    """动态值来源条件 -> Q。
+    """部门类动态值来源条件 -> Q（dept 维度 + relation 包含关系）。
 
-    仅 dept 维度支持动态取值：部门有树语义，可定义「包含 / 属于」；
-    user / creator 等维度是标量（用户 id），套树语义会得到错误结果，
-    故非 dept 维度一律 fail-closed。
+    仅 dept 维度支持部门树语义（exact/in_subtree/contains/overlap）；
+    user / creator / unit 等维度不套树语义（标量或复合展开另有分发）。
+    维度适配规则 = context_resolvers.DYNAMIC_DIMENSION_RULES['dept']。
     """
-    if dimension != 'dept':
-        logger.warning('[expr_compiler] 维度 "%s" 暂不支持动态取值, fail-closed', dimension)
+    if dimension not in DYNAMIC_DIMENSION_RULES['dept']:
+        logger.warning('[expr_compiler] 维度 "%s" 暂不支持部门类动态取值, fail-closed', dimension)
         return _deny_all()
 
     try:
@@ -288,9 +289,132 @@ def _compile_dynamic_dept(cond: dict, field: str, dimension: str, *, user) -> Q:
     return Q(**{f'{field}__in': sorted(target_ids)})
 
 
+def _compile_dynamic_user(cond: dict, field: str, dimension: str, *, user) -> Q:
+    """用户类动态值来源条件 -> Q（owner/creator 维度, 标量 __in）。
+
+    典型配置: 「负责人 包含 当前登录用户」—— 运行时解析为 {user.pk},
+    编译为 Q(owner_path__in=[user.pk])。空集（未登录等）-> fail-closed。
+    维度适配规则 = context_resolvers.DYNAMIC_DIMENSION_RULES['user']。
+    """
+    if dimension not in DYNAMIC_DIMENSION_RULES['user']:
+        logger.warning('[expr_compiler] 维度 "%s" 暂不支持用户类动态取值, fail-closed', dimension)
+        return _deny_all()
+
+    try:
+        ids = resolve_dynamic(cond.get('dynamicKey'), user)
+    except ContextResolveError as e:
+        logger.warning('[expr_compiler] 动态值来源解析失败(%s), fail-closed: %s',
+                       cond.get('dynamicKey'), e)
+        return _deny_all()
+    except Exception:  # noqa: BLE001 — DB 异常等同样拒绝, 不可静默放行
+        logger.exception('[expr_compiler] 动态上下文解析异常, fail-closed')
+        return _deny_all()
+
+    if not ids:
+        logger.warning('[expr_compiler] 用户类动态值为空, fail-closed')
+        return _deny_all()
+    return Q(**{f'{field}__in': sorted(ids)})
+
+
+def _compile_dynamic(cond: dict, field: str, dimension: str, *, user) -> Q:
+    """动态值来源条件 -> Q（按值类型分发 + 维度适配, M03）。
+
+    - 来源未注册 / 维度不适配 -> fail-closed；
+    - dept 值类型 -> _compile_dynamic_dept（树语义 + relation）；
+    - user 值类型 -> _compile_dynamic_user（标量 __in）；
+    - unit 值类型由 _compile_unit_condition 处理（复合展开），不进本函数。
+    维度适配规则唯一来源 = context_resolvers.DYNAMIC_DIMENSION_RULES，
+    与保存期校验共用，防「校验放行但编译拒绝」的口径分叉。
+    """
+    key = str(cond.get('dynamicKey') or '')
+    value_type = DYNAMIC_VALUE_TYPES.get(key)
+    if value_type is None:
+        logger.warning('[expr_compiler] 未注册的动态值来源 "%s", fail-closed', key)
+        return _deny_all()
+    if dimension not in DYNAMIC_DIMENSION_RULES.get(value_type, frozenset()):
+        logger.warning('[expr_compiler] 值类型 "%s" 不适用于维度 "%s", fail-closed',
+                       value_type, dimension)
+        return _deny_all()
+    if value_type == 'dept':
+        return _compile_dynamic_dept(cond, field, dimension, user=user)
+    if value_type == 'user':
+        return _compile_dynamic_user(cond, field, dimension, user=user)
+    # unit 值类型不应到达此处（_compile_condition 已提前分发），防御性 fail-closed
+    logger.warning('[expr_compiler] 值类型 "%s" 无编译分发, fail-closed', value_type)
+    return _deny_all()
+
+
+def _compile_unit_condition(cond: dict, field_map: Dict[str, str | bool | None], *, user) -> Q | None:
+    """unit 复合维度 -> Q（M03, ARCH §3.3.2）。
+
+    管理单元是复合范围: 组织范围(org_scope + 成员 DEPT, 含子级展开) ∪ 人员范围
+    (成员 USER/PERSON)。展开唯一实现点 = scope_resolver.iter_unit_scopes，与默认
+    scope 的管理单元分支同构（Q(dept_path__in) | Q(creator_path__in)），
+    不引入第二套归属语义。
+
+    语义边界（明确决策）: CUSTOM 表达式中的 unit 维度 = 组织+成员展开后的命中，
+    **不含**单元内 data_range / person_data_range 的 AND 限制 —— 那是默认 scope
+    （管理单元作为行级基础范围）的专属语义，两套语义不混淆。
+
+    值形态:
+      静态: cond.values = [{id}] 管理单元 id 列表（引用语义, 单元后续变更自动生效）；
+      动态: cond.dynamicKey='currentUser.managedUnits'（运行时解析当前用户授权单元）。
+    空壳单元（无组织范围且无成员）-> Q(pk__in=[]) 不放行（fail-safe, 不兜底放宽）；
+    动态解析为空集（用户无任何管理单元授权）-> 同样不放行。
+    """
+    from apps.core.scope_resolver import iter_unit_scopes
+
+    dept_path = field_map.get('dept')
+    creator_path = field_map.get('creator')
+    if not dept_path and not creator_path:
+        return None  # 该实体无任何可展开路径 -> no-op（与未支持维度语义一致）
+
+    if str(cond.get('valueSource') or 'static') == 'dynamic':
+        key = str(cond.get('dynamicKey') or '')
+        if DYNAMIC_VALUE_TYPES.get(key) != 'unit':
+            logger.warning('[expr_compiler] unit 维度动态值来源 "%s" 未注册, fail-closed', key)
+            return _deny_all()
+        try:
+            unit_ids = sorted(resolve_dynamic(key, user))
+        except ContextResolveError as e:
+            logger.warning('[expr_compiler] 管理单元动态解析失败, fail-closed: %s', e)
+            return _deny_all()
+        except Exception:  # noqa: BLE001 — DB 异常等同样拒绝, 不可静默放行
+            logger.exception('[expr_compiler] 管理单元动态解析异常, fail-closed')
+            return _deny_all()
+        if not unit_ids:
+            logger.warning('[expr_compiler] 用户无管理单元授权, unit 动态条件 fail-closed')
+            return _deny_all()
+    else:
+        raw = cond.get('values') or ([] if cond.get('value') is None else [cond.get('value')])
+        unit_ids = [v.get('id') if isinstance(v, dict) else v for v in raw]
+        unit_ids = [v for v in unit_ids if v is not None and v != '']
+        if not unit_ids:
+            return None  # 静态无值 -> no-op（与静态关系维度语义一致）
+
+    q = Q()
+    for uid in unit_ids:
+        # org_dr / person_dr 刻意不用: CUSTOM 的 unit 维度不含单元内数据范围 AND 限制
+        # (默认 scope 专属语义, 见函数 docstring 语义边界)。
+        for dept_ids, user_ids, _org_dr, _person_dr, has_all in iter_unit_scopes(
+            [uid], app_code='recruit',
+        ):
+            if has_all:
+                return Q()  # 整公司哨兵 -> 恒真（OR 聚合中任一项全量即整体全量）
+            unit_q = Q()
+            if dept_ids and dept_path:
+                unit_q |= Q(**{f'{dept_path}__in': dept_ids})
+            if user_ids and creator_path:
+                unit_q |= Q(**{f'{creator_path}__in': user_ids})
+            if not unit_q.children:
+                unit_q = Q(pk__in=[])  # 空壳单元 -> 不放行
+            q |= unit_q
+    return q if q.children else Q(pk__in=[])
+
+
 def _compile_condition(
     cond: dict,
-    field_map: Dict[str, str | None],
+    field_map: Dict[str, str | bool | None],
     attribute_map: Dict[str, dict] | None = None,
     *,
     user=None,
@@ -301,7 +425,9 @@ def _compile_condition(
     - 属性条件（kind='attribute'）：field 为 source_path（如 demand.state），右值=字面量，
       经 _op_to_q 映射 UnifiedOperator。维度无真实字段 / 属性字段未注册 / 无业务值 -> None（no-op）。
     - 动态条件（valueSource='dynamic'）：运行时由 context_resolvers 注入当前用户上下文，
-      经 _compile_dynamic_dept 转 Q；异常一律 fail-closed（_deny_all）。
+      按值类型分发（dept 树语义 / user 标量 / unit 复合展开）；异常一律 fail-closed（_deny_all）。
+    - unit 复合维度（M03）：静态 unit_id 列表或动态 managedUnits，经 iter_unit_scopes
+      展开为「部门集合 ∪ 成员用户集合」（_compile_unit_condition）。
     """
     if not isinstance(cond, dict):
         return None
@@ -328,6 +454,12 @@ def _compile_condition(
     values = cond.get('values') or []
     if not values and cond.get('value') is not None:
         values = [cond['value']]
+
+    # unit 复合维度（M03）：不走单字段路径，专门经 iter_unit_scopes 展开。
+    # 必须在通用 field 校验之前 —— field_map 中 unit 的值是复合标记(True)而非 ORM 路径。
+    if dimension == 'unit':
+        return _compile_unit_condition(cond, field_map, user=user)
+
     field = field_map.get(dimension)
     if not field:
         return None
@@ -335,7 +467,7 @@ def _compile_condition(
     # 动态取值分支：值来自当前用户上下文，不读配置里的 values。
     # 注意必须在 field 校验之后 —— 维度无真实 ORM 字段时 no-op（不放行也不报错）。
     if str(cond.get('valueSource') or 'static') == 'dynamic':
-        return _compile_dynamic_dept(cond, field, dimension, user=user)
+        return _compile_dynamic(cond, field, dimension, user=user)
 
     if not values:
         return None
@@ -362,7 +494,10 @@ def _build_attribute_map(entity: str) -> Dict[str, dict]:
     """按实体构建 属性字段 sourcePath -> 元数据 映射，供属性条件编译/校验使用。
     查询失败（metrics 未装载等）-> 返回空 dict（属性条件降级为 no-op，不阻断整体）。"""
     try:
-        return {f['sourcePath']: f for f in attribute_fields_for(entity)}
+        return {
+            f['sourcePath']: f
+            for f in attribute_fields_for(entity, scenario=SCENARIO_ROW_FILTER)
+        }
     except Exception as e:  # noqa: BLE001 — 属性字段源异常降级为空，不影响关系维度编译
         logger.warning('[expr_compiler] 构建属性字段映射失败, 属性条件降级 no-op: %s', e)
         return {}
@@ -444,7 +579,10 @@ def validate_scope_payload(payload: dict, entity: str) -> str | None:
         return '请至少配置 1 个条件组'
     field_map = MODULE_DIMENSION_FIELDS.get(entity, {})
     try:
-        attribute_map = {f['sourcePath']: f for f in attribute_fields_for(entity)}
+        attribute_map = {
+            f['sourcePath']: f
+            for f in attribute_fields_for(entity, scenario=SCENARIO_ROW_FILTER)
+        }
     except Exception:  # noqa: BLE001 — 字段源异常时属性条件无法校验，按不支持处理
         attribute_map = {}
     total_conditions = 0
@@ -486,14 +624,23 @@ def validate_scope_payload(payload: dict, entity: str) -> str | None:
                 if dimension not in field_map or not field_map.get(dimension):
                     return f'条件组 {gi} 第 {ci} 条：维度 "{dimension}" 在该模块不支持'
                 # 动态取值：不校验业务值（运行时由当前用户上下文注入），
-                # 但必须校验来源与包含关系已注册，且仅 dept 维度支持。
+                # 但来源必须已注册、维度必须适配（M03：dept/user/unit 三值类型
+                # 各有维度适配规则，与编译期共用 DYNAMIC_DIMENSION_RULES，
+                # 防止校验放行但编译拒绝）；仅 dept 值类型有 relation 树语义需校验。
                 if str(c.get('valueSource') or 'static') == 'dynamic':
-                    if dimension != 'dept':
-                        return f'条件组 {gi} 第 {ci} 条：维度 "{dimension}" 暂不支持动态取值'
-                    if str(c.get('dynamicKey') or '') not in DYNAMIC_SOURCE_KEYS:
+                    key = str(c.get('dynamicKey') or '')
+                    value_type = DYNAMIC_VALUE_TYPES.get(key)
+                    if value_type is None:
                         return f'条件组 {gi} 第 {ci} 条：动态值来源 "{c.get("dynamicKey")}" 未注册'
-                    if str(c.get('relation') or 'exact') not in DYNAMIC_RELATIONS:
-                        return f'条件组 {gi} 第 {ci} 条：包含关系 "{c.get("relation")}" 非法'
+                    allowed_dims = DYNAMIC_DIMENSION_RULES.get(value_type, frozenset())
+                    if dimension not in allowed_dims:
+                        return (
+                            f'条件组 {gi} 第 {ci} 条：动态值来源 "{key}" 不适用于维度 "{dimension}"'
+                            f'（仅支持 {" / ".join(sorted(allowed_dims))}）'
+                        )
+                    if value_type == 'dept':
+                        if str(c.get('relation') or 'exact') not in DYNAMIC_RELATIONS:
+                            return f'条件组 {gi} 第 {ci} 条：包含关系 "{c.get("relation")}" 非法'
                 else:
                     values = c.get('values') or ([] if c.get('value') is None else [c.get('value')])
                     if not values:

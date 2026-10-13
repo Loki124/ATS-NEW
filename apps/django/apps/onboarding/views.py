@@ -16,6 +16,7 @@ from .serializers import (
     OnboardingListSerializer,
     OnboardingTransitionSerializer,
 )
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 
 class OnboardingViewSet(BaseModelViewSet):
@@ -55,6 +56,7 @@ class OnboardingViewSet(BaseModelViewSet):
     @action(detail=True, methods=['post'], url_path='transition')
     def transition(self, request, pk=None):
         instance = self.get_object()
+        ensure_writable(request.user, 'onboarding', instance, action='transition')
         serializer = OnboardingTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action_name = serializer.validated_data['action']

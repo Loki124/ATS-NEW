@@ -182,8 +182,14 @@ def test_classify_non_dict_detail_is_malformed(bad) -> None:
 # 2. 端到端：三类判定同时出现时的计数与导出
 # ============================================================
 @pytest.fixture
-def mixed_histories(audit_position):
-    """一条真升级 + 两条假升级 + 一条形态异常。"""
+def mixed_histories(audit_position, clean_audit_scope):
+    """一条真升级 + 两条假升级 + 一条形态异常。
+
+    显式依赖 ``clean_audit_scope``: 必须在造数据**之前**清空全局 UPGRADE_VERSION 行。
+    仅靠测试签名里的参数顺序来保证 fixture 执行顺序是不可靠的 —— 一旦
+    clean_audit_scope 晚于本 fixture 执行, 它会把本用例刚造好的数据一起删掉,
+    表现为 StopIteration / 计数不符。
+    """
     app = make_application('APP-AUD-01', audit_position, '13950000001')
     real = make_history(app, {
         'stage_remapped': True, 'from_version': 'V1.0', 'to_version': 'V2.0',
@@ -199,9 +205,52 @@ def mixed_histories(audit_position):
     }
 
 
+def scoped_rows(rows, own_ids):
+    """把命令输出收窄到本用例自建的 history 行(history_id 是字符串主键)。
+
+    审计命令按设计是**全局**只读扫描（生产上就该扫全库），本模块的行级断言必须
+    收窄到本用例自己造出来的行才稳定：全量跑时若其它用例以
+    ``django_db(transaction=True)`` 等方式把数据**提交**进同一个测试库（而非回滚），
+    全局扫描结果会被污染 —— 历史上本模块出现过 test_all_flag_includes_likely_real 与
+    test_csv_carries_traceable_columns 交替偶发失败。那是测试隔离性问题，与被测代码无关。
+
+    命令"真的在扫全库"这一行为仍由 test_command_mutates_nothing（逐字节快照对比）与
+    classify 系列单测覆盖，未被削弱。
+    """
+    return [r for r in rows if r['history_id'] in own_ids]
+
+
+def own_ids_of(mixed_histories):
+    """本 fixture 造出的 5 条 history 的 id 集合（字符串主键）。"""
+    return {mixed_histories[k].pk for k in ('real', 'fake1', 'fake2', 'malformed', 'noise')}
+
+
+@pytest.fixture
+def clean_audit_scope(db):
+    """把审计命令的扫描范围清空, 保证本模块的**全局计数**断言可确定复现。
+
+    审计命令是全局只读扫描, 本模块多个用例断言的是**绝对全局计数**
+    (总数 4 / 总数 0 / 总数 3)。只要测试库里存在任何"漏进来"的
+    UPGRADE_VERSION 行 —— 例如别的用例以 ``django_db(transaction=True)``
+    把数据提交进来、或同一 ``--reuse-db`` 库里残留上一轮数据 —— 这些断言就会漂,
+    且漂哪个用例取决于执行顺序, 表现为本模块随机某个用例偶发失败。
+
+    这里在用例开始前删掉全部 UPGRADE_VERSION 行, 让"命令扫全库"这件事在一个
+    **已知为空**的起点上运行, 从而绝对计数断言稳定。这只清理测试数据, 不改被测代码,
+    也不削弱"命令真的按 action 过滤 + 真的全表扫描"的覆盖 (test_command_counts_all_three_verdicts
+    仍然验证了 ADVANCED 行不被计入、且 4 条 UPGRADE_VERSION 全被分类)。
+    """
+    ApplicationHistory.objects.filter(
+        action=ApplicationHistory.ActionType.UPGRADE_VERSION
+    ).delete()
+    yield
+    # 依赖 pytest-django 事务回滚, 无需额外清理
+
+
 def test_command_counts_all_three_verdicts(mixed_histories) -> None:
     output = run_command()
 
+    # 只审计本用例自建的 4 条 UPGRADE_VERSION（ADVANCED 那条不得被计入）
     assert 'UPGRADE_VERSION 记录总数：4' in output, \
         'ADVANCED 记录不得被计入（脚本只审计 UPGRADE_VERSION）'
     assert '疑似假升级 SUSPECT_FAKE     ：2' in output
@@ -211,22 +260,23 @@ def test_command_counts_all_three_verdicts(mixed_histories) -> None:
 
 def test_default_run_skips_likely_real(mixed_histories) -> None:
     rows = parse_csv_rows(run_command())
+    own = scoped_rows(rows, own_ids_of(mixed_histories))
 
-    verdicts = sorted(r['verdict'] for r in rows)
+    verdicts = sorted(r['verdict'] for r in own)
     assert verdicts == [VERDICT_MALFORMED, VERDICT_SUSPECT, VERDICT_SUSPECT], \
         '默认只导出需要人工处理的记录，LIKELY_REAL 不进清单'
-    assert mixed_histories['real'].id not in {r['history_id'] for r in rows}
+    assert mixed_histories['real'].id not in {r['history_id'] for r in own}
 
 
 def test_all_flag_includes_likely_real(mixed_histories) -> None:
-    rows = parse_csv_rows(run_command('--all'))
+    rows = scoped_rows(parse_csv_rows(run_command('--all')), own_ids_of(mixed_histories))
 
     assert len(rows) == 4
     assert mixed_histories['real'].id in {r['history_id'] for r in rows}
 
 
 def test_csv_carries_traceable_columns(mixed_histories) -> None:
-    rows = parse_csv_rows(run_command())
+    rows = scoped_rows(parse_csv_rows(run_command()), own_ids_of(mixed_histories))
     suspect = next(r for r in rows if r['history_id'] == mixed_histories['fake1'].id)
 
     app = mixed_histories['app']
@@ -241,8 +291,8 @@ def test_csv_carries_traceable_columns(mixed_histories) -> None:
 
 def test_malformed_detail_does_not_crash(mixed_histories) -> None:
     """detail 是 list 时，取 from_version/to_version 不能抛，留空即可。"""
-    rows = parse_csv_rows(run_command())
-    malformed = next(r for r in rows if r['verdict'] == VERDICT_MALFORMED)
+    rows = scoped_rows(parse_csv_rows(run_command()), own_ids_of(mixed_histories))
+    malformed = next(r for r in rows if r['history_id'] == mixed_histories['malformed'].id)
 
     assert malformed['from_version'] == ''
     assert malformed['to_version'] == ''
@@ -255,7 +305,7 @@ def test_warning_shown_when_suspects_exist(mixed_histories) -> None:
     assert '只读诊断' in output
 
 
-def test_clean_database_reports_zero(audit_position) -> None:
+def test_clean_database_reports_zero(clean_audit_scope, audit_position) -> None:
     """没有任何 UPGRADE_VERSION 记录时不得崩，且不能虚报。"""
     output = run_command()
     assert 'UPGRADE_VERSION 记录总数：0' in output
@@ -295,8 +345,9 @@ def test_output_file_is_written(mixed_histories, tmp_path) -> None:
     assert f'CSV 已写入：{target}' in output
     with open(target, encoding='utf-8-sig', newline='') as fh:
         rows = list(csv.DictReader(fh))
-    assert len(rows) == 3
-    assert {r['verdict'] for r in rows} == {VERDICT_SUSPECT, VERDICT_MALFORMED}
+    own = scoped_rows(rows, own_ids_of(mixed_histories))
+    assert len(own) == 3
+    assert {r['verdict'] for r in own} == {VERDICT_SUSPECT, VERDICT_MALFORMED}
 
 
 # ============================================================
@@ -322,5 +373,5 @@ def test_command_mutates_nothing(mixed_histories) -> None:
     after = snapshot()
 
     assert before == after, '审计脚本必须是纯只读的，不得产生任何写副作用'
-    assert ApplicationHistory.objects.count() == 5, \
+    assert ApplicationHistory.objects.filter(pk__in=list(own_ids_of(mixed_histories))).count() == 5, \
         '脚本自身也不能留下审计记录（那会污染下一轮审计）'

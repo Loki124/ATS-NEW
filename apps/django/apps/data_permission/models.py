@@ -62,7 +62,20 @@ class RowScopeType(models.TextChoices):
     DEPT = 'DEPT', '仅本部门'
     DEPT_AND_SUB = 'DEPT_AND_SUB', '本部门及下属'
     SELF = 'SELF', '仅自己创建'
+    OWNER = 'OWNER', '仅负责人'  # M07 写范围: 仅记录负责人(referrer 等 owner 字段)可操作
     CUSTOM = 'CUSTOM', '自定义范围'
+
+
+class RowScopeAccess(models.TextChoices):
+    """行级范围访问类型（M07 读写分离）。
+
+    - READ：读范围（既有行为；存量规则 row_access=NULL 也视为读范围，向后兼容）。
+    - WRITE：写范围（仅作用于写入口守卫 ensure_writable / write_scope_q）。
+    二者互不干扰：读路径不读此字段（NULL 即读），写路径只认 WRITE。
+    """
+
+    READ = 'READ', '读范围'
+    WRITE = 'WRITE', '写范围'
 
 
 class ColumnPermission(models.TextChoices):
@@ -96,6 +109,14 @@ class DataPermissionRule(TimestampedModel):
     scope_payload = models.JSONField(
         null=True, blank=True, verbose_name='行级自定义范围',
         help_text='scope_type=CUSTOM 时生效: {"department_ids":[...]} 或 {"management_unit_ids":[...]}',
+    )
+    # 2026-10-12 M07：读写分离。row_access 区分读/写范围；存量规则为 NULL（视为读范围）。
+    # 写路径(write_scope_q/ensure_writable)只认 WRITE；读路径(role_entity_scope_q)忽略此字段，
+    # 因此存量读规则行为完全不变（双读兼容的对称设计）。
+    row_access = models.CharField(
+        max_length=8, choices=RowScopeAccess.choices, null=True, blank=True,
+        verbose_name='行级访问类型',
+        help_text='NULL/READ=读范围(默认); WRITE=写范围(仅作用于写入口守卫)',
     )
 
     # 列级字段

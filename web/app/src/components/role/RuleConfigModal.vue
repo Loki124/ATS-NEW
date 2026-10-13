@@ -81,18 +81,18 @@
               class="cond-op"
               @update:value="(v: Operator) => (c.operator = v)"
             />
-            <!-- 取值来源：仅部门维度支持动态取值（部门有树语义，能定义「包含 / 属于」） -->
+            <!-- 取值来源：仅 contextKeys 非空的维度支持动态取值（M03） -->
             <n-select
-              v-if="isDeptDim(c)"
+              v-if="supportsDynamic(c)"
               :value="c.valueSource || 'static'"
-              :options="valueSourceOptions"
+              :options="valueSourceOptions(c)"
               size="small"
               class="cond-src"
               @update:value="(v: 'static' | 'dynamic') => onValueSourceChange(c, v)"
             />
-            <!-- 包含关系：业务字段与「我的负责部门」的匹配方向 -->
+            <!-- 包含关系：仅部门类维度有树语义（user/unit 维度动态条件无 relation） -->
             <n-select
-              v-if="isDynamic(c)"
+              v-if="isDynamic(c) && hasDeptRelation(c)"
               :value="c.relation || 'exact'"
               :options="relationOptions"
               size="small"
@@ -320,7 +320,7 @@ import {
 import {
   newCondition, uid, validateExpr, previewOf,
   ATTR_NOVALUE_OPS, ATTR_LIST_OPS,
-  DYNAMIC_SOURCE_OPTIONS, DYNAMIC_RELATION_OPTIONS, DYNAMIC_RELATION_LABELS,
+  dynamicSourceOptions, DYNAMIC_RELATION_OPTIONS, DYNAMIC_RELATION_LABELS,
   type DimensionMeta, type Operator, type PermCondition, type PermConditionGroup, type AttributeField, type PermValue,
   type DynamicRelation,
 } from '@/composables/useRoleDataPerm'
@@ -409,7 +409,11 @@ function dimMetaOf(dimension: string) {
 
 function valueOptions(c: PermCondition) {
   const meta = dimMetaOf(c.dimension || '')
-  return (meta?.options || []).map((o) => ({ label: o.label, value: o.id }))
+  // 管理单元空壳标记（M03 护栏一）：无组织范围且无成员，选中也看不到数据，打后缀提示
+  return (meta?.options || []).map((o) => ({
+    label: o.emptyShell ? `${o.label}（无范围）` : o.label,
+    value: o.id,
+  }))
 }
 
 /** 当前维度下仍有效的已选值 id（排除孤儿值，供 n-select 回显）。 */
@@ -440,19 +444,30 @@ function isAttr(c: PermCondition): boolean {
   return c.kind === 'attribute'
 }
 
-/** 部门维度：唯一支持动态取值的维度（后端 context_resolvers 对非 dept 维度 fail-closed）。 */
-function isDeptDim(c: PermCondition): boolean {
-  return (c.dimension || '') === 'dept'
+/** 该维度是否支持动态取值（M03：后端 DIMENSION_META.contextKeys 非空即支持）。 */
+function supportsDynamic(c: PermCondition): boolean {
+  const meta = dimMetaOf(c.dimension || '')
+  return (meta?.contextKeys || []).length > 0
+}
+
+/** 仅部门类维度（valueType=department）有包含关系（relation）树语义。 */
+function hasDeptRelation(c: PermCondition): boolean {
+  return dimMetaOf(c.dimension || '')?.valueType === 'department'
 }
 
 function isDynamic(c: PermCondition): boolean {
   return c.valueSource === 'dynamic'
 }
 
-const valueSourceOptions = [
-  { label: '指定部门', value: 'static' },
-  ...DYNAMIC_SOURCE_OPTIONS,
-]
+/** 取值来源下拉：静态项 + 该维度可用的动态来源（contextKeys 驱动, M03）。 */
+function valueSourceOptions(c: PermCondition) {
+  const meta = dimMetaOf(c.dimension || '')
+  const dimLabel = meta?.label || ''
+  return [
+    { label: `指定${dimLabel}`, value: 'static' },
+    ...dynamicSourceOptions(meta?.contextKeys),
+  ]
+}
 
 const relationOptions = DYNAMIC_RELATION_OPTIONS
 
@@ -539,22 +554,28 @@ function clearAll() {
 function onDimensionChange(c: PermCondition, v: string) {
   c.dimension = v
   c.values = [] // 切换维度清空已选值（不同维度值域不可混用）
-  // 只有部门维度支持动态取值；切到其它维度时一并退回静态，避免留下无效配置
-  if (v !== 'dept' && c.valueSource === 'dynamic') {
-    c.valueSource = 'static'
-    c.dynamicKey = undefined
-    c.relation = undefined
+  // 新维度不支持动态取值时退回静态；仍支持则按新维度的可用来源重置（避免留下不适配的来源/关系）
+  if (c.valueSource === 'dynamic') {
+    if (!supportsDynamic(c)) {
+      c.valueSource = 'static'
+      c.dynamicKey = undefined
+      c.relation = undefined
+    } else {
+      onValueSourceChange(c, 'dynamic')
+    }
   }
 }
 
 /** 切换取值来源：static ↔ dynamic，并清空另一侧的残留配置。 */
 function onValueSourceChange(c: PermCondition, v: 'static' | 'dynamic') {
+  const meta = dimMetaOf(c.dimension || '')
   if (v === 'dynamic') {
     c.valueSource = 'dynamic'
-    c.dynamicKey = 'currentUser.departments' // 默认取「我的负责部门」
-    c.relation = 'contains'                  // 默认「包含」：需求部门是负责部门的父级
-    c.operator = 'in'                       // 动态模式下 operator 不参与编译，留合法默认值
-    c.values = []                            // 静态值不再使用，清掉避免误提交
+    c.dynamicKey = (meta?.contextKeys?.[0] || 'currentUser.departments') as DynamicSourceKey
+    // 仅部门类维度有包含关系语义，其它维度动态条件无 relation
+    c.relation = meta?.valueType === 'department' ? 'contains' : undefined
+    c.operator = 'in' // 动态模式下 operator 不参与编译，留合法默认值
+    c.values = []     // 静态值不再使用，清掉避免误提交
   } else {
     c.valueSource = 'static'
     c.dynamicKey = undefined
@@ -656,6 +677,12 @@ function conditionError(c: PermCondition): string | null {
     } else if (c.value == null || c.value === '') {
       return t('dataperm.error.emptyValue')
     }
+    return null
+  }
+  // 动态条件的值由运行时注入，不校验业务值；仅需取值来源已选（M03 修复：
+  // 此前缺少该分支，动态条件因 values 为空被误判为「请选择业务值」而无法确认）
+  if (c.valueSource === 'dynamic') {
+    if (!c.dynamicKey) return t('dataperm.error.emptyDynamicSource')
     return null
   }
   if ((c.values || []).length === 0) return t('dataperm.error.emptyValue')

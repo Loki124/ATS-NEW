@@ -12,7 +12,7 @@ from typing import Dict, List
 
 from django.db import transaction
 
-from .attribute_fields import attribute_fields_for
+from .attribute_fields import SCENARIO_ROW_FILTER, attribute_fields_for
 from .expr_compiler import validate_scope_payload
 from .field_map import (
     DIMENSION_META,
@@ -26,6 +26,7 @@ from .scope_templates import summarize_drift
 # 单模块选项上限（用户量可能大，前端用虚拟滚动；此处先截取得当数量）
 _USER_LIMIT = 1000
 _DEPT_LIMIT = 1000
+_UNIT_LIMIT = 500
 
 
 def _department_options() -> List[Dict]:
@@ -40,6 +41,33 @@ def _user_options() -> List[Dict]:
     from apps.core.models import User
     users = User.objects.all().order_by('id')[:_USER_LIMIT]
     return [{'id': u.id, 'label': u.full_name} for u in users]
+
+
+def _unit_options() -> List[Dict]:
+    """管理单元选项（unit 复合维度静态值域, M03）。
+
+    空壳检测（护栏一, 非阻断）：判定与编译期 expr_compiler._compile_unit_condition
+    同源 —— 以 iter_unit_scopes 的单单元展开为准，org_scope 展开 ∪ 成员展开
+    均为空（has_all 除外）即空壳，配了也看不到任何数据。此处仅打 emptyShell
+    标记供前端提示，**不阻断保存**：先建单元、后配范围是合法中间态。
+    """
+    from apps.core.models_permission_v2 import ManagementUnit
+    from apps.core.scope_resolver import iter_unit_scopes
+
+    units = list(
+        ManagementUnit.objects.filter(status=1)
+        .order_by('display_order', 'id')[:_UNIT_LIMIT]
+    )
+    options: List[Dict] = []
+    for u in units:
+        opt: Dict = {'id': u.id, 'label': u.unit_name, 'parentId': u.parent_id}
+        scopes = list(iter_unit_scopes([u.id], app_code='recruit'))
+        if scopes:
+            dept_ids, user_ids, _org_dr, _person_dr, has_all = scopes[0]
+            if not has_all and not dept_ids and not user_ids:
+                opt['emptyShell'] = True
+        options.append(opt)
+    return options
 
 
 def _collect_template_drifts(modules: List[Dict]) -> Dict[str, List[Dict]]:
@@ -179,9 +207,10 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
 
 
 def options_payload() -> Dict:
-    """模块 × 维度矩阵 + 维度值选项（部门/用户）。"""
+    """模块 × 维度矩阵 + 维度值选项（部门/用户/管理单元）。"""
     dept_options = _department_options()
     user_options = _user_options()
+    unit_options = _unit_options()
     modules = []
     for mk in MODULE_ORDER:
         dim_metas = []
@@ -191,6 +220,8 @@ def options_payload() -> Dict:
                 meta['options'] = dept_options
             elif meta['valueType'] == 'user':
                 meta['options'] = user_options
+            elif meta['valueType'] == 'unit':
+                meta['options'] = unit_options
             else:
                 meta['options'] = []
             dim_metas.append(meta)
@@ -198,6 +229,8 @@ def options_payload() -> Dict:
             'moduleKey': mk,
             'label': MODULE_LABELS[mk],
             'dimensions': dim_metas,
-            'attributeFields': attribute_fields_for(mk),
+            # ARCH §2.2: 数据权限向导目录走 row_filter 场景 —— 仅可下推标量
+            # (filterable=True); 派生指标与不可下推字段天然排除。
+            'attributeFields': attribute_fields_for(mk, scenario=SCENARIO_ROW_FILTER),
         })
     return {'modules': modules}

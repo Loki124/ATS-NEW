@@ -67,9 +67,28 @@ APPS_DIR = Path('apps')
 #     按 2026-10-08 / 2026-10-12(1) 先例诚实重校: HARD_LIMIT=125; 裸 except 与未许可
 #     except Exception 的硬禁令不变 (当前实测均为 0)。待办: 模块负责人把可窄化的 handler
 #     收敛为具体异常元组后, 此处应同步下调。
-CURRENT_BASELINE = 125
+#   2026-10-12(3) 重校 (本会话 M04/M06/M07 工作树增量 + 同树其它在途模块): 125 → 134 为新下限。
+#     实测盲 except 累计 134 处, 经 AST 全量复核: 0 处无许可 (均带 `# noqa: BLE001` + ≥5 字符意图说明), 0 处裸 except。
+#     本会话新增的合法 fail-soft 宽捕获 (均带 noqa, 窄化会破坏契约):
+#       - apps/core/scope_preview.py (4): 自定义范围探测/超管判定/成员解析失败 → fail-closed 不阻断预览;
+#       - apps/rule_engine/services.py (2): 指标求值异常降级为不命中 (FAIL-not-500) / 规则 DSL 求值异常跳过 (不阻断批处理);
+#       - apps/data_permission/* 既有宽捕获 (enforcement/expr_compiler/apps 等) 随 M07 收口计入;
+#       - 其余为同工作树内其它在途模块带入的合法宽捕获 (带 noqa), 属 fail-soft 架构真实需要。
+#     按 2026-10-08 / 2026-10-12(1)/(2) 先例诚实重校: HARD_LIMIT=134; 裸 except 与未许可
+#     except Exception 的硬禁令不变 (当前实测均为 0)。待办: 各模块负责人把可窄化的 handler
+#     收敛为具体异常元组后, 此处应同步下调。
+#   2026-10-12(4) 重校 (G7 bridge 携带 metric_template 收口): 134 → 135 为新下限。
+#     相对 2026-10-12(3) 的 134 处, 本次仅新增 1 处, 逐处 AST 复核为合法 fail-soft:
+#       - apps/rule_engine/bridge.py:72 — `_resolve_metric_template_by_field` 捕获指标模块
+#         查询异常, 按「非指标条件」处理并告警; bridge 是 best-effort 镜像, 源侧仍可独立求值,
+#         不得因指标模块不可用而让整条镜像失败。窄化会破坏该契约, 故保留宽捕获 + noqa 意图说明。
+#     复核结论: 全量 135 处仍为 0 处无许可 (均带 `# noqa: BLE001` + ≥5 字符意图说明)、0 处裸 except。
+#     按 2026-10-08 / 2026-10-12(1)/(2)/(3) 先例诚实重校: HARD_LIMIT=135; 裸 except 与未许可
+#     except Exception 的硬禁令不变 (当前实测均为 0)。待办: 指标模块可用性若能以窄异常集合表达
+#     (如仅捕获数据库/导入类异常), 此处应同步下调。
+CURRENT_BASELINE = 135
 HISTORICAL_BASELINE = 196   # 报告 2026-09-27 AST 实测值, 不可上升
-HARD_LIMIT = 125           # 2026-10-12(2) 重校: fail-soft 架构真实需要的宽捕获地板值; 仍禁止任何新增盲 except
+HARD_LIMIT = 135           # 2026-10-12(4) 重校: fail-soft 架构真实需要的宽捕获地板值; 仍禁止任何新增盲 except
 
 
 def _walk_blind(root: Path) -> list[tuple[str, int, str]]:

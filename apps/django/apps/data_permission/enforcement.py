@@ -18,7 +18,7 @@ from typing import List, Tuple
 from django.core.cache import cache
 
 from apps.data_permission.expr_compiler import compile_scope_q
-from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeType
+from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeAccess, RowScopeType
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,14 @@ _COLUMN_RULES_CACHE_TTL = 60
 
 # 权限严格度 (数值越大越严格)
 _SEVERITY = {'READ': 0, 'MASK': 1, 'NONE': 2}
+
+# M07：实体 -> 负责人(owner)字段路径。
+# 候选人的「负责人」即推荐人 referrer（Candidate 无独立 owner/locked_by 字段）；
+# 未登记实体回退 created_by（绝大多数模型以 created_by 标识创建人/负责人）。
+# 写范围 scope_type=OWNER 时据此生成 Q(<owner_field>=user.pk)。
+OWNER_FIELD_BY_ENTITY = {
+    'candidate': 'referrer',
+}
 
 
 def most_restrictive(a: str | None, b: str | None) -> str | None:
@@ -94,13 +102,26 @@ def column_permission_for(user, entity: str, field: str) -> str | None:
 
 
 def clear_column_cache(entity: str | None = None) -> None:
-    """规则变更后清列级缓存 (entity 为空时按已知实体全清)."""
+    """规则变更后清列级缓存 (entity 为空时清全部已登记实体).
+
+    2026-10-12 M02: 原实现硬编码 ('candidate','offer','application') 三 entity,
+    新增模块 (如 application 之外的 onboarding/invitation) 配了列级规则也会漏清缓存。
+    现改为权威集合派生: 库中 distinct entity (含 field_acl 侧实体) ∪ field_map
+    登记的全部模块 key —— 两侧取并集, 既不漏新增实体, 也不回归原有三实体。
+    """
     if entity:
         cache.delete(f'data_perm:col:{entity}')
-    else:
-        # 列级缓存 key 形如 data_perm:col:<entity>, 无法精准枚举则全清本前缀常见实体.
-        for ent in ('candidate', 'offer', 'application'):
-            cache.delete(f'data_perm:col:{ent}')
+        return
+    from .field_map import MODULE_DIMENSION_FIELDS
+
+    entities = set(MODULE_DIMENSION_FIELDS)
+    entities.update(
+        e for e in DataPermissionRule.objects.filter(level='COLUMN')
+        .values_list('entity', flat=True).distinct()
+        if e
+    )
+    for ent in entities:
+        cache.delete(f'data_perm:col:{ent}')
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +200,137 @@ def role_entity_scope_q(user, entity: str):
     return combined
 
 
+# ---------------------------------------------------------------------------
+# 写范围 enforcement（M07 读写分离）：对称镜像 role_entity_scope_q，但只认 WRITE 规则
+# ---------------------------------------------------------------------------
+
+def _owner_field_for(entity: str) -> str:
+    """返回实体对应的负责人字段路径（OWNER 写范围用）。"""
+    return OWNER_FIELD_BY_ENTITY.get(entity, 'created_by')
+
+
+def write_scope_q(user, entity: str, action: str | None = None):
+    """返回当前用户在某业务模块（entity）的「写范围」Q；无 WRITE 规则返回 None。
+
+    对称镜像 role_entity_scope_q，但仅过滤 level='ROW' AND row_access='WRITE' 的规则。
+    RBAC 并集语义与读路径一致（任一角色 ALL -> Q()；NONE -> Q(pk__in=[]) 在 OR 中 no-op；
+    CUSTOM -> 编译表达式并参与 OR）。
+
+    关键设计（opt-in 安全默认）：无 WRITE 规则时返回 None，调用方据 None 判定「无额外写限制」
+    —— 即不配置写规则 = 沿用既有功能权限（可见即可操作现状不变）。这避免 M07 上线即锁死
+    所有写入口（V3 风险：漏接导致动作不受限反过来等于 fail-open，此处同为 fail-open 但显式）。
+
+    超管直接返回 None（超管本就全量可写，且 UI 禁止为其配置）。
+    """
+    from django.db.models import Q
+
+    from apps.data_permission.action_map import validate_action
+
+    if action is not None:
+        # 早失败：调用方拼错动作名立即暴露，而非静默放行
+        validate_action(action)
+
+    if not (user and getattr(user, 'is_authenticated', False)):
+        return None
+
+    try:
+        from apps.core.role_v2_query import is_super_admin, user_role_codes
+    except ImportError:
+        logger.warning('导入 role_v2_query 失败, 写范围 no-op')
+        return None
+
+    if is_super_admin(user):
+        return None
+
+    try:
+        role_codes = list(user_role_codes(user))
+    except Exception:  # noqa: BLE001 — user_role_codes 计算失败 no-op, 不阻断写入口主路径
+        logger.warning('计算用户角色码失败, 写范围 no-op')
+        return None
+    if not role_codes:
+        return None
+
+    rules = DataPermissionRule.objects.filter(
+        dimension_type=DimensionType.ROLE,
+        dimension_value__in=role_codes,
+        level='ROW',
+        row_access=RowScopeAccess.WRITE,
+        status=1,
+        entity=entity,
+    )
+    if not rules.exists():
+        return None
+
+    qs: list = []
+    for r in rules:
+        if r.scope_type == RowScopeType.ALL:
+            return Q()  # 并集：任一角色 ALL -> 全量可写
+        if r.scope_type == RowScopeType.NONE:
+            qs.append(Q(pk__in=[]))  # OR 并集中 no-op
+            continue
+        if r.scope_type == RowScopeType.OWNER:
+            owner_field = _owner_field_for(entity)
+            qs.append(Q(**{owner_field: user.pk}))  # 仅负责人可写
+            continue
+        if r.scope_type == RowScopeType.CUSTOM and r.scope_payload:
+            try:
+                compiled = compile_scope_q(r.scope_payload, entity, user=user)
+            except Exception as e:  # noqa: BLE001 (ExprError 等, fail-safe no-op)
+                logger.warning('写范围自定义编译失败, 该规则 no-op: %s', e)
+                continue
+            if compiled is not None and compiled.children:
+                qs.append(compiled)
+            else:
+                qs.append(Q(pk__in=[]))
+        # DEPT / DEPT_AND_SUB / SELF 等旧 scope_type 在本新路径 no-op。
+
+    if not qs:
+        return None
+    combined = qs[0]
+    for nxt in qs[1:]:
+        combined = combined | nxt
+    return combined
+
+
+def is_writable(user, entity: str, instance, action: str | None = None) -> bool:
+    """当前用户能否写该实体实例（写范围守卫，opt-in fail-open）。
+
+    - 超管 -> True
+    - 无 WRITE 规则（write_scope_q 返回 None）-> True（沿用既有功能权限，不锁死写入口）
+    - 否则 -> 该实例是否在写范围 Q 内（按 pk 命中）
+    """
+    wq = write_scope_q(user, entity, action=action)
+    if wq is None:
+        return True
+    model = type(instance)
+    return model.objects.filter(wq, pk=instance.pk).exists()
+
+
+def ensure_writable(user, entity: str, instance, action: str | None = None) -> None:
+    """写范围守卫：不可写则抛 django PermissionDenied（DRF 自动转 403）。
+
+    写入口在 get_object() 之后调用即可闭合「可见即可操作」越权写缺口
+    （eval 文档 §4.1 风险 V3）。
+    """
+    from django.core.exceptions import PermissionDenied
+
+    if not is_writable(user, entity, instance, action=action):
+        raise PermissionDenied(
+            f'无写权限：用户对该 {entity} 记录无写访问（action={action}）'
+        )
+
+
+def filter_writable(user, entity: str, queryset, action: str | None = None):
+    """返回 queryset 中当前用户可写的子集（写范围 Q 作为 AND 约束）。
+
+    write_scope_q 为 None 时原样返回（无额外写限制）。
+    """
+    wq = write_scope_q(user, entity, action=action)
+    if wq is None:
+        return queryset
+    return queryset.filter(wq)
+
+
 class DataPermissionEnforcement:
     """统一入口 (委派到上方模块函数, 兼容 field_acl / candidate 的命名空间式调用).
 
@@ -189,3 +341,8 @@ class DataPermissionEnforcement:
     column_permission_for = staticmethod(column_permission_for)
     most_restrictive = staticmethod(most_restrictive)
     clear_column_cache = staticmethod(clear_column_cache)
+    # M07 写范围守卫
+    write_scope_q = staticmethod(write_scope_q)
+    is_writable = staticmethod(is_writable)
+    ensure_writable = staticmethod(ensure_writable)
+    filter_writable = staticmethod(filter_writable)

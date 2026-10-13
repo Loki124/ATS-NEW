@@ -12,6 +12,14 @@
   - 每个字段下发的运算符取自 UnifiedOperator 子集，并带中文标签（operators:[{value,label}]），
     前端直接渲染中文下拉，无需硬编码。
   - source_path 形如 entity.field 才纳（排除数组索引 / 嵌套 JSON 路径）。
+
+场景二分（ARCH「指标作为行级过滤源」§2.2 红线）：
+  - scenario='row_filter'（默认）：行级过滤场景（数据权限/列表筛选），仅下发
+    filterable=True 的原子指标 —— 派生指标与不可下推字段天然排除，
+    与「编译为 SQL WHERE」的执行模型对齐；
+  - scenario='evaluation'：点评估场景（rule_engine / 进入条件 METRIC 目录），
+    不下发 filterable 过滤（点评估运行时求值，无下推约束）。
+  两个场景由调用方按消费场景显式声明，防止行级过滤场景误纳计算型指标。
 """
 from __future__ import annotations
 
@@ -26,6 +34,10 @@ from django.db.models import (
     IntegerField,
 )
 from django_fsm import FSMField
+
+# 场景常量（ARCH §2.2）
+SCENARIO_ROW_FILTER = 'row_filter'    # 行级过滤：仅 filterable=True
+SCENARIO_EVALUATION = 'evaluation'    # 点评估：不受 filterable 约束
 
 # ---------- 实体 -> 模型类（懒加载，避免 import 环） ----------
 _ENTITY_MODEL_PATHS: dict[str, str | None] = {
@@ -88,11 +100,15 @@ def _resolve_model(entity: str):
     return getattr(mod, cls)
 
 
-def attribute_fields_for(entity: str) -> list[dict]:
+def attribute_fields_for(entity: str, scenario: str = SCENARIO_ROW_FILTER) -> list[dict]:
     """返回某实体可作为「属性条件」配置的字段清单（已按兵哥铁律过滤为可下拉/数字字段）。
 
+    scenario: 消费场景（ARCH §2.2 场景二分红线）。
+      'row_filter'（默认）：行级过滤场景，仅返回 filterable=True 的原子指标；
+      'evaluation'：点评估场景，不过滤 filterable。
+
     结构：[{sourcePath, name(中文), dataType('number'|'enum'|'boolean'),
-            enumValues:[{value,label}], operators:[{value,label}]}, ...]
+            enumValues:[{value,label}], operators:[{value,label}], filterable}, ...]
     """
     # 2026-10-09 全量迁移：字段注册表仍以原子指标（AtomicMetric）为源，保证「按模型字段路径
     # 过滤数据库行」的属性条件不丢选项；同时为每个字段附上引用它的指标模板 id（templateId /
@@ -100,11 +116,19 @@ def attribute_fields_for(entity: str) -> list[dict]:
     # 求值是两套机制），故不改为存模板 id。
     from apps.metrics.models import AtomicMetric, MetricTemplate
 
-    metrics = list(
-        AtomicMetric.objects.filter(
-            source_path__startswith=f'{entity}.', status='enabled', deleted_at__isnull=True,
-        )
-    )
+    metric_filter = {
+        'source_path__startswith': f'{entity}.',
+        'status': 'enabled',
+        'deleted_at__isnull': True,
+    }
+    # ARCH §2.2: 行级过滤场景只放行可下推标量（filterable=True）；
+    # 点评估场景运行时求值，无下推约束，全部放行。
+    if scenario == SCENARIO_ROW_FILTER:
+        metric_filter['filterable'] = True
+    elif scenario != SCENARIO_EVALUATION:
+        raise ValueError(f'未知场景 {scenario!r}（应为 row_filter / evaluation）')
+
+    metrics = list(AtomicMetric.objects.filter(**metric_filter))
     model = _resolve_model(entity)
     out: list[dict] = []
 
@@ -174,6 +198,8 @@ def attribute_fields_for(entity: str) -> list[dict]:
             'operators': operator_options(category),
             'templateId': str(tpl.id) if tpl else None,
             'metricKind': tpl.metric_kind if tpl else None,
+            # ARCH §2.2: 下推能力元数据随目录下发, 前端可据此标注「〔仅点评估〕」
+            'filterable': m.filterable,
         })
 
     return out

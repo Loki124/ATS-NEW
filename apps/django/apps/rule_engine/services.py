@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 from .models import (
     Action,
     Condition,
+    ConditionValueType,
     EvaluateResult,
     Rule,
     RuleExecutionLog,
@@ -162,6 +163,21 @@ class ConditionEvaluator:
         per_condition: List[Dict[str, Any]] = []
 
         for cond in rule.ordered_conditions:
+            if self._is_metric_condition(cond):
+                matched, metric_detail = self._evaluate_metric(cond, context)
+                seq_results[cond.seq] = matched
+                per_condition.append({
+                    'seq': cond.seq,
+                    'condition_type': cond.condition_type,
+                    'field': cond.field,
+                    'operator': cond.operator,
+                    'expected': metric_detail.get('expected'),
+                    'actual': metric_detail.get('actual'),
+                    'matched': matched,
+                    'metric_template': metric_detail.get('template_name'),
+                    'metric_error': metric_detail.get('error'),
+                })
+                continue
             actual = self._resolve_value(cond, context)
             matched = self._compare(cond, actual)
             seq_results[cond.seq] = matched
@@ -219,6 +235,44 @@ class ConditionEvaluator:
         if field_name in _KNOWN_ID_FIELDS:
             return getattr(context, field_name, None)
         return context.extra.get(field_name)
+
+    @staticmethod
+    def _is_metric_condition(cond: Condition) -> bool:
+        """M04：value_type=METRIC 或显式挂了指标模板 -> 走指标求值分支。"""
+        if getattr(cond, 'value_type', None) == ConditionValueType.METRIC:
+            return True
+        return bool(getattr(cond, 'metric_template_id', None))
+
+    def _evaluate_metric(self, cond: Condition, context: EvaluationContext):
+        """M04：委托 MetricEngine.evaluate_metric_condition 求值（零重写）。
+
+        Returns:
+            (matched: bool, detail: dict) —— detail 透传 MetricEngine 的统一契约
+            （pass / actual / expected / template_name / error / degraded）。
+        任何异常降级为不命中（绝不 500），与 MetricEngine 的 FAIL-not-500 原则对齐。
+        """
+        from apps.metrics.services.metric_engine import MetricEngine
+
+        metric_context = {
+            'candidate_id': getattr(context, 'candidate_id', None),
+            'demand_id': getattr(context, 'demand_id', None),
+            'position_id': getattr(context, 'position_id', None),
+        }
+        try:
+            result = MetricEngine.evaluate_metric_condition(
+                template_id=str(cond.metric_template_id),
+                context=metric_context,
+                operator=cond.operator,
+                value=cond.value,
+                meta=cond.meta_json or {},
+            )
+        except Exception as e:  # noqa: BLE001 — 指标求值异常降级为不命中, 绝不 500
+            logger.warning(
+                'ConditionEvaluator._evaluate_metric 异常 seq=%s template=%s: %s',
+                cond.seq, cond.metric_template_id, e, exc_info=True,
+            )
+            return False, {'pass': False, 'error': str(e), 'degraded': True}
+        return bool(result.get('pass')), result
 
     def _expected_repr(self, cond: Condition):
         if cond.operator in (UnifiedOperator.BETWEEN,):

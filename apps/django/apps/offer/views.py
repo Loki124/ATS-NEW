@@ -18,6 +18,7 @@ from .serializers import (
     OfferListSerializer,
     OfferTransitionSerializer,
 )
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 
 class OfferViewSet(BaseModelViewSet):
@@ -70,6 +71,7 @@ class OfferViewSet(BaseModelViewSet):
     @action(detail=True, methods=['post'], url_path='transition')
     def transition(self, request, pk=None):
         instance = self.get_object()
+        ensure_writable(request.user, 'offer', instance, action='transition')
         serializer = OfferTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action_name = serializer.validated_data['action']

@@ -111,6 +111,18 @@ class AtomicMetric(FullAuditModel, UUIDModel):
     )
     # 自动生成标记：由动态字段新增触发（区别于人工录入），便于追溯与隔离
     auto_generated = models.BooleanField(default=False, verbose_name='自动生成')
+    # 可下推过滤（ARCH「指标作为行级过滤源」§2 红线元数据）：
+    #   True  —— 标量字段，可编译为 SQL WHERE 进入行级过滤场景
+    #            （数据权限 / 进入条件 / 列表筛选）；
+    #   False —— 仅可进入点评估场景（rule_engine TCA / 评分卡 / 阈值告警，
+    #            运行时求值）。派生指标（DerivedMetric）计算型本质决定一律
+    #            视为 False，由消费方硬约束，不在 DerivedMetric 上加字段。
+    # 回填规则见 migration 0031：关系字段 / JSON 路径 / 无对应模型字段 -> False。
+    filterable = models.BooleanField(
+        default=True, verbose_name='可下推过滤',
+        help_text='True：可进入行级过滤场景（编译为 SQL WHERE）；'
+                  'False：仅可进入点评估场景（运行时求值）',
+    )
 
     class Meta:
         db_table = 'metrics_atomic_metric'

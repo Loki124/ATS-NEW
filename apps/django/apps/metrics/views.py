@@ -183,8 +183,17 @@ class MetricTemplateViewSet(ExportMixin, EnvelopeWriteMixin, viewsets.ModelViewS
         用 all_objects 取（默认 objects 已过滤软删，取不到已删行）。清掉 deleted_at 并
         记录 updated_by。前端 8s 撤销 action 调此端点即可原样恢复，而非新建一个全新 id
         （旧 createMetricTemplate(restorePayload) 会生成新 id，导致规则引用悬空）。
+
+        2026-10-13：原实现用 ``all_objects.get(id=pk)`` 且**不捕获 DoesNotExist** ——
+        对不存在的 pk 会抛未处理异常(500)而非 404。改为 .filter().first() 显式 404，
+        与同模块 DataPermTemplateViewSet.restore 的处理保持一致。
         """
-        obj = MetricTemplate.all_objects.get(id=kwargs['pk'])
+        obj = MetricTemplate.all_objects.filter(id=kwargs['pk']).first()
+        if obj is None:
+            return Response(
+                {'success': False, 'code': 'not_found', 'message': '模板不存在'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         obj.deleted_at = None
         obj.updated_by = request.user
         obj.save(update_fields=['deleted_at', 'updated_by', 'updated_at'])

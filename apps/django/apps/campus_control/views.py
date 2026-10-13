@@ -162,7 +162,10 @@ class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
         """R-106 撤销：恢复已软删维度。"""
-        instance = self.queryset.model.objects.get(pk=pk)
+        # M07 长尾: 原为 self.queryset.model.objects.get(pk=pk) —— 直接走默认
+        # manager, 绕过 ViewSet 的 queryset 解析(含任何范围过滤)。改用
+        # get_object() 复用 queryset 语义; 未配置写范围时行为不变 (fail-open)。
+        instance = self.get_object()
         instance.restore()
         return Response({'success': True, 'id': str(instance.id)})
 
@@ -227,7 +230,10 @@ class ControlIndicatorViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
         """R-106 撤销：恢复已软删指标。"""
-        instance = self.queryset.model.objects.get(pk=pk)
+        # M07 长尾: 原为 self.queryset.model.objects.get(pk=pk) —— 直接走默认
+        # manager, 绕过 ViewSet 的 queryset 解析(含任何范围过滤)。改用
+        # get_object() 复用 queryset 语义; 未配置写范围时行为不变 (fail-open)。
+        instance = self.get_object()
         instance.restore()
         return Response({'success': True, 'id': str(instance.id)})
 
@@ -331,7 +337,10 @@ class ControlRuleViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelView
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
         """R-106 撤销：恢复已软删规则。"""
-        instance = self.queryset.model.objects.get(pk=pk)
+        # M07 长尾: 原为 self.queryset.model.objects.get(pk=pk) —— 直接走默认
+        # manager, 绕过 ViewSet 的 queryset 解析(含任何范围过滤)。改用
+        # get_object() 复用 queryset 语义; 未配置写范围时行为不变 (fail-open)。
+        instance = self.get_object()
         instance.restore()
         return Response({'success': True, 'id': str(instance.id)})
 
@@ -514,7 +523,10 @@ class PersonViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
         """R-106 撤销：恢复已软删人员。"""
-        instance = self.queryset.model.objects.get(pk=pk)
+        # M07 长尾: 原为 self.queryset.model.objects.get(pk=pk) —— 直接走默认
+        # manager, 绕过 ViewSet 的 queryset 解析(含任何范围过滤)。改用
+        # get_object() 复用 queryset 语义; 未配置写范围时行为不变 (fail-open)。
+        instance = self.get_object()
         instance.restore()
         return Response({'success': True, 'id': str(instance.id)})
 

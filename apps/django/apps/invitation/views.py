@@ -16,6 +16,7 @@ from .serializers import (
     InvitationListSerializer,
     InvitationTransitionSerializer,
 )
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 
 class InvitationViewSet(BaseModelViewSet):
@@ -56,6 +57,7 @@ class InvitationViewSet(BaseModelViewSet):
     @action(detail=True, methods=['post'], url_path='transition')
     def transition(self, request, pk=None):
         instance = self.get_object()
+        ensure_writable(request.user, 'invitation', instance, action='transition')
         serializer = InvitationTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action_name = serializer.validated_data['action']
@@ -103,6 +105,10 @@ class InvitationViewSet(BaseModelViewSet):
         """抢单 - 把邀约分配给当前用户"""
         from django.utils import timezone
         instance = self.get_object()
+        # M07 写范围守卫: 抢单是**抢占资源**动作 —— 任何对可见邀约都能抢, 等于把
+        # 抢单池的分配权对全公司开放(此前只靠功能权限码 recruit:invitation:edit,
+        # 可见即可抢)。与 ApplicationViewSet.grab 同口径: 可见 ≠ 可写。
+        ensure_writable(request.user, 'invitation', instance, action='claim')
         if not instance.is_grab_pool:
             raise ValidationError('该邀约不是抢单池模式')
         if instance.state != 'INVITING':

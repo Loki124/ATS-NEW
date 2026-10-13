@@ -89,6 +89,17 @@ def test_restore_action_brings_back_same_id(auth_client, super_user):
     assert row.updated_by_id == super_user.id
 
 
+def test_restore_nonexistent_returns_404_not_500(auth_client):
+    """POST restore 不存在的 pk -> 404（而非未捕获 DoesNotExist 的 500）。
+
+    2026-10-13 修复：原实现是 ``all_objects.get(id=pk)`` 且不捕获 DoesNotExist，
+    对不存在的 id 会抛未处理异常。属真实缺陷 —— 前端 8s 撤销若遇到已被硬删/跨环境
+    的 id，会拿到 500 而非可处理的 404。
+    """
+    resp = auth_client.post(f'{BASE}templates/does-not-exist-pk/restore/')
+    assert resp.status_code == 404, resp.content
+
+
 def test_soft_delete_preserves_rule_reference(auth_client):
     """规则 conditions 存该模板 id；软删 + restore 后模板行仍在、id 不变 → 引用有效。"""
     tpl = _make_template()

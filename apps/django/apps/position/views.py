@@ -18,6 +18,7 @@ from .serializers import (
     PositionListSerializer,
     PositionTransitionSerializer,
 )
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 
 class PositionViewSet(BaseModelViewSet):
@@ -33,6 +34,8 @@ class PositionViewSet(BaseModelViewSet):
     ordering = ['-created_at']
     scope_field = 'department'
     scope_creator_field = 'created_by'
+    # M02: 数据权限 CUSTOM 规则的模块 key (ViewSet 只声明类属性, 零逻辑).
+    data_perm_entity = 'position'
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -50,7 +53,7 @@ class PositionViewSet(BaseModelViewSet):
         qs = qs.filter(deleted_at__isnull=True)
         qs = qs.select_related('department', 'hiring_manager', 'owner', 'process')
         # IDOR scope 过滤 (Fix 1)
-        qs = self.scope_queryset(qs, entity='position')
+        qs = self.scope_queryset(qs)
         return qs
 
     def perform_create(self, serializer):
@@ -78,6 +81,7 @@ class PositionViewSet(BaseModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        ensure_writable(request.user, 'position', instance, action='edit')
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -92,6 +96,7 @@ class PositionViewSet(BaseModelViewSet):
     def transition(self, request, pk=None):
         """状态机流转：submit_publish/publish/start_recruiting/pause/resume/close"""
         instance = self.get_object()
+        ensure_writable(request.user, 'position', instance, action='transition')
         serializer = PositionTransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action_name = serializer.validated_data['action']

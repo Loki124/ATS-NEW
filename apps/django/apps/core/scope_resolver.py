@@ -9,6 +9,32 @@ from .models_permission_v2 import RoleV2, TenantConfig, UserRoleV2
 logger = logging.getLogger(__name__)
 
 
+def user_management_unit_ids(user) -> list:
+    """当前用户**全角色并集**的管理单元 id (M03 单一实现点).
+
+    口径与 resolve_scope L1 一致: UserRoleV2.management_unit_ids 多角色取并集。
+    数据权限上下文变量 (currentUser.managedUnits) 与默认 scope 共用本函数,
+    避免「我的管理单元」两处解析漂移。
+    V2 schema 未应用等异常 -> 返回 [] (调用方按空授权处理, 不放行)。
+    """
+    if not (user and getattr(user, 'is_authenticated', False)):
+        return []
+    try:
+        user_roles = list(UserRoleV2.objects.filter(user_id=user.pk))
+    except (OperationalError, ProgrammingError) as e:
+        logger.warning('[user_management_unit_ids] user_roles 查询失败, 返回空: %s', e)
+        return []
+    out: list = []
+    for ur in user_roles:
+        try:
+            units = ur.management_unit_ids
+        except (AttributeError, TypeError):  # V2 字段缺失兜底 None (迁移期向前兼容)
+            units = None
+        if units:
+            out.extend(units or [])
+    return list(set(out))
+
+
 def resolve_scope(user, resource_code: str = None, app_code: str = None) -> dict:
     """返回下列三种形态之一:
 

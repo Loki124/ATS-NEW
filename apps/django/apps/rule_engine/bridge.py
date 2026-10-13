@@ -25,6 +25,7 @@ from .models import (
     Condition,
     ConditionLogic,
     ConditionType,
+    ConditionValueType,
     EvaluateResult,
     Priority,
     Rule,
@@ -45,6 +46,49 @@ AUTOMATION_LEGACY_MODEL = 'automation.AutomationRule'
 ENTRY_CONDITION_SOURCE_APP = 'entry_condition'
 ENTRY_CONDITION_LEGACY_MODEL = 'entry_condition.EntryConditionRule'
 TIME_LIMIT_SOURCE_APP = 'time_limit'
+
+
+def _resolve_metric_template_by_field(field: Any):
+    """若 field 命中一个未软删的指标模板，返回该模板；否则 None（G7）。
+
+    entry_condition 把「指标模板 id」直接存在 ``ConditionItem.field`` 里
+    （见 ``entry_condition.services._resolve_metric_template``），并用
+    ``condition_type=METRIC`` 标记。镜像到统一表时若不把这个语义带过去，
+    统一侧 ``ConditionEvaluator`` 会把 field 当普通字段名解析，
+    导致「镜像出来的规则与源规则求值结果不一致」—— 这就是 G7 缺口。
+
+    这里复用同一套判定（按主键查 MetricTemplate，不做字符串形态猜测），
+    保证镜像侧与源侧对「这条是不是指标条件」的认知完全一致。
+
+    解析失败一律视为「不是指标条件」：镜像不得因指标模块异常而整体失败
+    （bridge 是 best-effort 镜像，源侧仍可独立求值）。
+    """
+    if not isinstance(field, str) or not field:
+        return None
+    from apps.metrics.models import MetricTemplate
+
+    try:
+        return MetricTemplate.objects.filter(pk=field, deleted_at__isnull=True).first()
+    except Exception:  # noqa: BLE001 — 指标模块不可用时按非指标条件处理, 不阻断镜像
+        logger.warning('G7: 解析指标模板失败, 按 FIELD 镜像 field=%r', field)
+        return None
+
+
+def _condition_metric_fields(item: Any) -> dict[str, Any]:
+    """由源条件项推导统一 Condition 的 METRIC 相关字段（G7）。
+
+    返回可直接摊进 ``Condition.objects.create(...)`` 的 kwargs：
+    - 命中指标模板 -> ``value_type=METRIC`` + ``metric_template=<模板>``
+    - 未命中 -> ``value_type=FIELD`` + ``metric_template=None``（存量行为，零变化）
+
+    判定口径与源侧 ``entry_condition.services._get_actual_value`` 一致：
+    **只要 field 命中指标模板即视为指标条件**，不额外要求 condition_type=METRIC ——
+    因为源侧在 2026-10-09 全量迁移后已是这个口径（field 命中模板优先于 type 分支）。
+    """
+    template = _resolve_metric_template_by_field(getattr(item, 'field', None))
+    if template is None:
+        return {'value_type': ConditionValueType.FIELD, 'metric_template': None}
+    return {'value_type': ConditionValueType.METRIC, 'metric_template': template}
 TIME_LIMIT_LEGACY_MODEL = 'time_limit.TimeLimitRule'
 
 # campus_control / mou 在统一表中的来源标记（Phase 4，2026-09-01）
@@ -284,6 +328,8 @@ def sync_entry_condition_rule_to_unified(rule: Any) -> Rule:
     )
 
     # 条件项：仅搬运未软删的项，删后重建（seq = item_seq，与 expression 引用一致）
+    # G7：同时携带指标语义（value_type / metric_template），否则源侧走 MetricEngine
+    # 求值的指标条件，镜像后会被统一侧当普通字段名解析，导致镜像与源求值不一致。
     unified.conditions.all().delete()
     for item in rule.items.filter(deleted_at__isnull=True).order_by('item_seq'):
         Condition.objects.create(
@@ -296,6 +342,7 @@ def sync_entry_condition_rule_to_unified(rule: Any) -> Rule:
             stage_name=item.stage_name or None,
             stage_statuses=item.stage_statuses,
             auto_filter_inactive_users=item.auto_filter_inactive_users,
+            **_condition_metric_fields(item),
         )
 
     # 动作项：固定 1 条 ALLOW；reject_message 冗余存入 params_json
