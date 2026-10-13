@@ -2540,7 +2540,6 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.demand.DemandList.s82': "Approval",
   'pages.demand.DemandList.s83': "Actions",
   'pages.demand.DemandList.s84': "Department",
-}
   'pages.settings.DynamicFieldManager.s318': "Batch Operations",
   'pages.settings.DynamicFieldManager.s319': "Selected {n} / {total} total",
   'pages.settings.DynamicFieldManager.s320': "Batch Change Field Type",
@@ -2563,3 +2562,4 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.DynamicFieldManager.s337': "Failed: {reasons}",
   'pages.settings.DynamicFieldManager.s338': "The current list has filters applied",
   'pages.settings.DynamicFieldManager.s339': "Current Group",
+}

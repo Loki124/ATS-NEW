@@ -2542,7 +2542,6 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.demand.DemandList.s82': "审批",
   'pages.demand.DemandList.s83': "操作",
   'pages.demand.DemandList.s84': "需求部门",
-}
   'pages.settings.DynamicFieldManager.s318': "批量操作",
   'pages.settings.DynamicFieldManager.s319': "已选 {n} / 共 {total} 条",
   'pages.settings.DynamicFieldManager.s320': "批量修改字段类型",
@@ -2565,3 +2564,4 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.DynamicFieldManager.s337': "失败：{reasons}",
   'pages.settings.DynamicFieldManager.s338': "当前列表已应用筛选条件",
   'pages.settings.DynamicFieldManager.s339': "当前分组",
+}
