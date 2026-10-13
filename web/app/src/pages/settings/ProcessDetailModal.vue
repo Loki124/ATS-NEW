@@ -819,21 +819,27 @@ function buildEditForm(): EditForm {
 //   任一接口失败不影响编辑态其余功能 (测试未 mock 这些接口, 必须静默失败).
 async function loadScopeOptions() {
   scopeOptionsLoaded.value = false
-  const [deptRes, posRes, userRes] = await Promise.allSettled([
-    api.get('/departments/'),
-    api.get('/positions', { params: { status: 'ACTIVE' } }),
-    listUsers(),
-  ])
-  if (deptRes.status === 'fulfilled') {
-    deptOptions.value = extractList(deptRes.value).map((d: any) => ({ label: d.name, value: String(d.id) }))
+  try {
+    const [deptRes, posRes, userRes] = await Promise.allSettled([
+      api.get('/departments/'),
+      api.get('/positions', { params: { status: 'ACTIVE' } }),
+      listUsers(),
+    ])
+    if (deptRes.status === 'fulfilled') {
+      deptOptions.value = extractList(deptRes.value).map((d: any) => ({ label: d.name, value: String(d.id) }))
+    }
+    if (posRes.status === 'fulfilled') {
+      positionOptions.value = extractList(posRes.value).map((p: any) => ({ label: p.name || p.title, value: String(p.id) }))
+    }
+    if (userRes.status === 'fulfilled') {
+      userOptions.value = extractList(userRes.value).map((u: any) => ({ label: u.realName || u.username, value: String(u.id) }))
+    }
+    scopeOptionsLoaded.value = true
+  } catch {
+    // 任一接口失败不影响编辑态其余功能。除 Promise  rejection（已由 allSettled 收敛）外，
+    // 这里也兜住「同步抛错」——如 api 单例因循环依赖在个别初始化顺序下尚未就绪时
+    // api.get(...) 会在数组求值期抛 TypeError，逃逸 allSettled → 变成 unhandledRejection。
   }
-  if (posRes.status === 'fulfilled') {
-    positionOptions.value = extractList(posRes.value).map((p: any) => ({ label: p.name || p.title, value: String(p.id) }))
-  }
-  if (userRes.status === 'fulfilled') {
-    userOptions.value = extractList(userRes.value).map((u: any) => ({ label: u.realName || u.username, value: String(u.id) }))
-  }
-  scopeOptionsLoaded.value = true
 }
 
 // 兼容 {success,data:[...]} 与 [...] 两种返回形态

@@ -274,8 +274,13 @@ function renderCondition(c: PermCondition): string {
   const dimLabel = DIMENSION_LABELS[dimKey] || dimKey;
   // 动态条件：值来自当前用户上下文，不是配置里选死的值
   if (c.valueSource === 'dynamic') {
-    // 仅部门类维度有包含关系（relation）语义；user/unit 维度是「是」单义
-    const rel = c.relation ? (DYNAMIC_RELATION_LABELS[c.relation] || '属于') : '是';
+    // 仅部门类维度有包含关系（relation）语义；user/unit 维度是「是」单义。
+    // 缺省 relation 退化为 exact（与存量 operator='in' → 「属于」语义一致）。
+    const rel = c.relation
+      ? (DYNAMIC_RELATION_LABELS[c.relation] || '属于')
+      : c.dimension === 'dept'
+        ? '属于'
+        : '是';
     const src = DYNAMIC_SOURCE_LABELS[c.dynamicKey || ''] || '当前用户';
     return `${dimLabel} ${rel} ${src}`;
   }

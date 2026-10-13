@@ -12,6 +12,12 @@ vi.mock('naive-ui', () => ({
   },
   NButton: { name: 'NButton', template: '<button><slot /></button>' },
   useDialog: () => ({ warning: vi.fn() }),
+  // 本文件用「全量」vi.mock 覆盖 naive-ui（不走 setup.ts 的 importOriginal），
+  // 而 src/utils/request.ts 在 import 期调用 createDiscreteApi(['message'])，
+  // 缺此导出会导致整个 import 链（store→dashboard→request）崩溃，须一并 stub。
+  createDiscreteApi: () => ({
+    message: { error: vi.fn(), warning: vi.fn(), success: vi.fn(), info: vi.fn(), loading: vi.fn() },
+  }),
 }))
 vi.mock('@/api/addCandidate', () => ({ replaceFile: vi.fn() }))
 
