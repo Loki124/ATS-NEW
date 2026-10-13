@@ -54,7 +54,10 @@
                 </div>
                 <div class="dp-field">
                   <span class="dp-flabel">{{ t('pages.settings.ProcessDetailModal.s7') }}</span>
-                  <n-switch :value="editForm?.status === 'ACTIVE'" @update:value="(v) => (editForm && (editForm.status = v ? 'ACTIVE' : 'INACTIVE'))" />
+                  <!-- 2026-10-13: 开关改绑 isEnabled (语义精确匹配模型 is_enabled 布尔字段)。
+                       旧代码绑 status==='ACTIVE' 是另一代 schema 漂移: 后端 status 只认
+                       ENABLED/ARCHIVED (BR-106), 开关恒显示 OFF 且切换后 PUT 必 400。 -->
+                  <n-switch :value="editForm?.isEnabled ?? false" @update:value="(v) => (editForm && (editForm.isEnabled = v))" />
                 </div>
                 <div class="dp-field span-full">
                   <label class="dp-flabel">{{ t('pages.settings.ProcessDetailModal.s8') }}</label>
@@ -431,7 +434,6 @@ import {
   listProcessLinks,
   copyProcess,
   updateProcess,
-  updateProcessStatus,
   createProcess,
   listStages,
   addProcessLink,
@@ -520,7 +522,11 @@ interface EditForm {
   validateResumeScore: boolean
   failPrompt: string
   applicableMode: 'ALL' | 'ANY'
-  status: 'ACTIVE' | 'INACTIVE'
+  // 2026-10-13: 对齐后端 STATUS_CHOICES (BR-106: ENABLED/ARCHIVED, 无停用态)。
+  //   status 仅作展示/快照用途, 后端已 read_only, 保存不再发送。
+  status: 'ENABLED' | 'ARCHIVED'
+  // 「是否启用」开关绑定位: 精确匹配模型 is_enabled 布尔字段 (可写)。
+  isEnabled: boolean
   applicableIndicators: ScopeIndicator[]
   stages: EditStage[]
 }
@@ -744,7 +750,8 @@ function buildEmptyEditForm(): EditForm {
     validateResumeScore: false,
     failPrompt: '',
     applicableMode: 'ALL',
-    status: 'ACTIVE',
+    status: 'ENABLED',
+    isEnabled: true,
     applicableIndicators: indicators,
     stages,
   }
@@ -809,7 +816,9 @@ function buildEditForm(): EditForm {
     validateResumeScore: d.validateResumeScore ?? true,
     failPrompt: d.failPrompt || '',
     applicableMode: (d.applicableMode as 'ALL' | 'ANY') || 'ALL',
-    status: (d.status as 'ACTIVE' | 'INACTIVE') || 'ACTIVE',
+    status: (d.status as 'ENABLED' | 'ARCHIVED') || 'ENABLED',
+    // 后端 drf-camel-case 把 is_enabled 输出为 isEnabled; 旧数据缺省按启用展示
+    isEnabled: (d.isEnabled ?? true),
     applicableIndicators: indicators,
     stages,
   }
@@ -1244,19 +1253,23 @@ async function handleSave() {
       } catch {
         /* 非阻断：拉取失败则下方仍按业务阶段 add, 起止若撞唯一约束由后端 400 兜底 */
       }
-      // 新建默认 ACTIVE; createProcess payload 不含 status, 停用需走专用状态接口落库
-      if (form.status === 'INACTIVE') {
-        try { await updateProcessStatus(currentProcessId, 'INACTIVE') } catch { /* 非阻断 */ }
-      }
+      // 2026-10-13: 新建路径不再发 status / 不调 updateProcessStatus——
+      //   ① 后端 ProcessWithStagesCreateSerializer fields 不含 status/is_enabled,
+      //      新建流程恒 status=ENABLED / is_enabled=True (BR-106: 无停用态, 只能归档);
+      //   ② 旧代码 form.status==='INACTIVE' 时调的 updateProcessStatus 打的是
+      //      PUT /processes/{id}/status/ —— 该 action 不存在, 必 404 (被 try/catch 吞掉)。
+      //   弹窗开关值(isEnabled)在创建态不落库, 属已知缺口, 见交付说明。
     } else {
       // ===== 更新流程路径 =====
+      // 2026-10-13: 删 status (后端 read_only, 发了也被忽略), 增 isEnabled——
+      //   「是否启用」开关语义对齐模型 is_enabled 布尔字段 (models.py:211, 可写)。
       await updateProcess(props.processId, {
         name: form.name,
         description: form.description,
         validateResumeScore: form.validateResumeScore,
         failPrompt: form.failPrompt,
         applicableMode: form.applicableMode,
-        status: form.status,
+        isEnabled: form.isEnabled,
         applicableScope: applicableScope as any,
       })
 

@@ -22,7 +22,15 @@ export interface RecruitmentProcess {
   code: string;
   name: string;
   description?: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  // 2026-10-13: 对齐后端 RecruitmentProcess.STATUS_CHOICES (models.py:182, BR-106:
+  //   流程无停用态, 只能归档)。旧 'ACTIVE'|'INACTIVE' 是另一代 schema 的漂移——
+  //   FE 曾把它发去 PUT /processes/{id}/ 触发 400("ACTIVE 不是合法选项")。
+  //   status 现为后端 read_only, 变更只能走 archive action / clone_version;
+  //   弹窗「是否启用」开关应对齐 isEnabled(布尔), 勿再绑 status。
+  status: 'ENABLED' | 'ARCHIVED';
+  // 2026-10-13: 后端 is_enabled (models.py:211, 可写, filterset/versioning 在用),
+  //   drf-camel-case 输出为 isEnabled。
+  isEnabled?: boolean;
   // 适用范围
   applicableDepartments?: string[];
   applicablePositionLevels?: string[];
@@ -191,9 +199,14 @@ export const getProcess = (id: string) =>
   api.get(`/processes/${id}/`).then((r) => unwrap(r)) as unknown as Promise<RecruitmentProcess & { stages: RecruitmentStage[]; autoRules: AutoArchiveRule[] }>;
 
 // 2026-06-17: 加上 applicableScope (4 指标数组). 旧的 applicableDepartments/Levels/UserIds/Jobs 字段保留兼容.
+// 2026-10-13: createProcess **不发** isEnabled —— 后端 ProcessWithStagesCreateSerializer
+//   (serializers.py:681) 的 fields 不含 is_enabled, 传入会被静默丢弃; 新建流程恒
+//   is_enabled=True (BR-106: 无停用态, 只能归档)。待后端 create 契约补该字段后再传。
 export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; failPrompt?: string; applicableMode?: 'ALL' | 'ANY'; applicableDepartments?: string[]; applicablePositionLevels?: string[]; applicableUserIds?: string[]; applicableJobs?: string[]; applicableScope?: { mode: 'ALL' | 'ANY'; indicators: { key: 'department' | 'level' | 'position' | 'user'; mode: 'include' | 'exclude'; values: string[] }[] } }) =>
   api.post<ApiEnvelope<RecruitmentProcess>>('/processes/', payload).then((r) => r.data.data);
 
+// 2026-10-13: payload 为 Partial<RecruitmentProcess> —— status 已为 'ENABLED'|'ARCHIVED'
+//   且后端 read_only (发了也被忽略, 不会 400); isEnabled 可写, 弹窗开关值走这里落库。
 export const updateProcess = (id: string, payload: Partial<RecruitmentProcess>) =>
   api.put<ApiEnvelope<RecruitmentProcess>>(`/processes/${id}/`, payload).then((r) => r.data.data);
 
@@ -203,7 +216,13 @@ export const deleteProcess = (id: string) =>
 export const copyProcess = (id: string, payload: { newName?: string; createdBy?: string }) =>
   api.post<ApiEnvelope<RecruitmentProcess>>(`/processes/${id}/copy/`, payload).then((r) => r.data.data);
 
-export const updateProcessStatus = (id: string, status: 'ACTIVE' | 'INACTIVE') =>
+/**
+ * @deprecated 2026-10-13 起废弃: PUT /processes/{id}/status/ 该 action 不存在
+ * (views.py 只有 archive / clone-version / versions / batch-screen / batch-recommend),
+ * 调用必 404; 且 BR-106 状态变更只能走 archive。全仓已无调用方
+ * (ProcessDetailModal 新建分支的 try/catch 兜底调用已删), 待后续版本直接删除。
+ */
+export const updateProcessStatus = (id: string, status: 'ENABLED' | 'ARCHIVED') =>
   api.put<ApiEnvelope<RecruitmentProcess>>(`/processes/${id}/status/`, { status }).then((r) => r.data.data);
 
 // ===== 阶段 =====

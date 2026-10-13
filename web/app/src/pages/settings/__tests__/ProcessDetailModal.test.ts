@@ -44,13 +44,13 @@ vi.mock('../../../api/recruitment-process', () => ({
 
 import ProcessDetailModal from '../ProcessDetailModal.vue'
 
-// 复用现有 PROCESS 形态 (status='ACTIVE', 匹配 recruitment-process.ts:36 类型)
+// 复用现有 PROCESS 形态 (status='ENABLED', 匹配 recruitment-process.ts 的 ENABLED/ARCHIVED 契约)
 const PROCESS: RecruitmentProcess = {
   id: 'p1',
   code: 'P001',
   name: '一级总及以上流程',
   description: 'test',
-  status: 'ACTIVE',
+  status: 'ENABLED',
   applicableDepartments: ['技术部', '产品部'],
   applicableMode: 'ALL',
   validateResumeScore: true,
