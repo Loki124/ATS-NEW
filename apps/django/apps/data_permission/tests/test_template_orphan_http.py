@@ -10,7 +10,9 @@ from rest_framework import status
 
 from apps.core.models import Department, User
 from apps.data_permission.models import (
-    DataPermissionRule, DataPermTemplate, RowScopeType,
+    DataPermissionRule,
+    DataPermTemplate,
+    RowScopeType,
 )
 from apps.data_permission.scope_templates import build_template_ref, instantiate
 

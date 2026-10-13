@@ -38,7 +38,10 @@ from rest_framework.test import APIClient
 from apps.candidate.models import Candidate
 from apps.core.models import Department, User
 from apps.core.models_permission_v2 import (
-    PermissionResource, RolePermissionV2, RoleV2, UserRoleV2,
+    PermissionResource,
+    RolePermissionV2,
+    RoleV2,
+    UserRoleV2,
 )
 from apps.data_permission.models import DataPermissionRule, RowScopeAccess, RowScopeType
 from apps.process.models import CandidateRecommendation, CandidateScreen, RecruitmentProcess

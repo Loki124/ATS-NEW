@@ -6,8 +6,8 @@ API 层自动转 camelCase (前端契约: dimensionType / dimensionValue / scope
 from rest_framework import serializers
 
 from .expr_compiler import validate_scope_payload
-from .field_map import MODULE_ORDER, supported_dimensions
-from .models import DataPermTemplate, DataPermissionRule, RowScopeType
+from .field_map import MODULE_ORDER
+from .models import DataPermissionRule, DataPermTemplate, RowScopeType
 from .scope_templates import TemplateBindError, instantiate, unbound_placeholders
 
 

@@ -12,7 +12,9 @@ from django.test import TestCase
 from apps.data_permission.expr_compiler import compile_scope_q
 from apps.data_permission.models import DataPermissionRule, DataPermTemplate, RowScopeType
 from apps.data_permission.scope_templates import (
-    apply_orphan_flag, build_template_ref, instantiate,
+    apply_orphan_flag,
+    build_template_ref,
+    instantiate,
 )
 
 

@@ -258,6 +258,12 @@ class RoleViewSet(viewsets.ModelViewSet):
                         status=http_status.HTTP_400_BAD_REQUEST,
                     )
                 data = upsert_modules(role, modules, request.user)
+                # 权限 v2 决策④：规则保存写审计（配置变更留痕；失败不阻断，见 _audit_config_change）
+                from apps.data_permission.views import _audit_config_change
+                _audit_config_change(
+                    request.user, 'dp_rule', role.role_code, 'UPDATE', None,
+                    {'modules': modules}, request,
+                )
                 return Response({'success': True, 'data': data})
         # GET
         role = self.get_object()
