@@ -73,13 +73,13 @@ logger = logging.getLogger(__name__)
 
 class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """候选人 ViewSet — 增加部门 scope 过滤防 IDOR"""
+    # 注意: applications 预取不在此声明, 改由 get_queryset() 按 action 分发 ——
+    # retrieve 用带 select_related/stage_links 的富 Prefetch, 其余 action 用普通
+    # 'applications'。同名 lookup 两条不同 queryset 并存会触发 Django
+    # "lookup was already seen with a different queryset" ValueError,
+    # 且被 DRF get_object_or_404 吞成 Http404 (retrieve 假 404)。
     queryset = Candidate.objects.filter(deleted_at__isnull=True).select_related(
         'source_channel', 'referrer',
-    ).prefetch_related(
-        # #9 (2026-10-09): CandidateListSerializer.get_application_count 逐行查
-        # obj.applications, 列表 N 行 -> N 次计数查询。prefetch 一次取回,
-        # 序列化器里的 .filter(deleted_at__isnull=True).count() 走缓存不落库。
-        'applications',
     )
     permission_classes = [V2Permission]
     permission_required = 'recruit:candidate:list'
@@ -114,6 +114,11 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
                     .order_by('-created_at'),
                 )
             )
+        else:
+            # #9 (2026-10-09): CandidateListSerializer.get_application_count 逐行查
+            # obj.applications, 列表 N 行 -> N 次计数查询。prefetch 一次取回,
+            # 序列化器里的 .filter(deleted_at__isnull=True).count() 走缓存不落库。
+            qs = qs.prefetch_related('applications')
         # 状态筛选
         state = self.request.query_params.get('state')
         if state:
