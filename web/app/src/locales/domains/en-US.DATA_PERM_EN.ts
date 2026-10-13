@@ -63,6 +63,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.error.exprInter': 'Inter-group expression error: {reason}',
   'dataperm.modal.condType.relationship': 'Relationship',
   'dataperm.modal.condType.attribute': 'Attribute',
+  'dataperm.modal.deprecatedBadge': 'Deprecated',
   'dataperm.modal.fieldPlaceholder': 'Select attribute field',
   'dataperm.modal.attrOperatorPlaceholder': 'Select operator',
   'dataperm.modal.attrValuePlaceholder': 'Select value',
