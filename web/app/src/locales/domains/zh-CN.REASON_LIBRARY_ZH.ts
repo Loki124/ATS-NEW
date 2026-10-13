@@ -91,6 +91,12 @@ export const REASON_LIBRARY_ZH: Record<string, string> = {
   'reasonLibrary.tags.toggle.enable': '启用',
   'reasonLibrary.tags.toggle.disable': '停用',
   'reasonLibrary.tags.toggle.systemImmutable': '系统预置不可停用',
+  'reasonLibrary.riskConfirm.title': '停用风险确认',
+  'reasonLibrary.riskConfirm.tagContent': '停用后该原因标签将不再对终端用户可选。已绑定该标签的规则分类将保留绑定关系，但用户在「选择原因」弹窗中无法再选取此标签，相关招聘环节将缺失该原因选项。',
+  'reasonLibrary.riskConfirm.ruleContent': '停用后该场景规则将立即对终端用户失效。其覆盖的「场景 × 招聘类型」组合将退回无规则状态（由预置默认规则兜底或无可选项），可能影响相关招聘环节的原因采集与流程。',
+  'reasonLibrary.riskConfirm.acknowledge': '我已知晓停用后的业务影响，确认执行停用',
+  'reasonLibrary.riskConfirm.confirm': '确认停用',
+  'reasonLibrary.riskConfirm.cancel': '取消',
 
   // ===== Rules 列表 =====
   'reasonLibrary.rules.search.placeholder': '搜索规则名称...',

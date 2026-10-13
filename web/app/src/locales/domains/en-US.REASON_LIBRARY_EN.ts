@@ -108,6 +108,12 @@ export const REASON_LIBRARY_EN: Record<string, string> = {
   'reasonLibrary.tags.toggle.enable': 'Enable',
   'reasonLibrary.tags.toggle.disable': 'Disable',
   'reasonLibrary.tags.toggle.systemImmutable': 'System tag cannot be disabled',
+  'reasonLibrary.riskConfirm.title': 'Disable Risk Confirmation',
+  'reasonLibrary.riskConfirm.tagContent': 'Once disabled, this reason tag will no longer be selectable by end users. The tag stays bound to its rule categories, but users will not be able to pick it in the "Select Reason" dialog, leaving related recruiting steps without this reason option.',
+  'reasonLibrary.riskConfirm.ruleContent': 'Once disabled, this scene rule stops taking effect for end users immediately. The covered "scene × recruit type" combinations fall back to no rule (handled by the preset default rule or no options), which may affect reason capture and process flow in related recruiting steps.',
+  'reasonLibrary.riskConfirm.acknowledge': 'I understand the business impact of disabling and confirm',
+  'reasonLibrary.riskConfirm.confirm': 'Confirm Disable',
+  'reasonLibrary.riskConfirm.cancel': 'Cancel',
 
   // ===== Rules list =====
   'reasonLibrary.rules.search.placeholder': 'Search rule name...',

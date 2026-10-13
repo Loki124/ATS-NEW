@@ -93,6 +93,19 @@
         :rule-id="editingRuleId"
         @saved="onWizardSaved"
       />
+
+      <!-- 停用二次风险确认 -->
+      <RiskConfirmModal
+        :show="riskConfirmShow"
+        :title="t('reasonLibrary.riskConfirm.title')"
+        :risk-content="t('reasonLibrary.riskConfirm.ruleContent')"
+        :confirm-text="t('reasonLibrary.riskConfirm.confirm')"
+        :cancel-text="t('reasonLibrary.riskConfirm.cancel')"
+        :acknowledge-text="t('reasonLibrary.riskConfirm.acknowledge')"
+        :loading="riskConfirmLoading"
+        @confirm="onRiskConfirm"
+        @cancel="onRiskCancel"
+      />
     </div>
   </div>
 </template>
@@ -115,6 +128,7 @@ import { BIZ_CODE } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 import ReasonRuleWizard from '../../../components/reason-library/ReasonRuleWizard.vue'
+import RiskConfirmModal from '../../../components/reason-library/RiskConfirmModal.vue'
 
 const message = useMessage()
 
@@ -224,6 +238,17 @@ async function toggleEnabled(rule: SceneRuleListItem) {
     message.warning(t('reasonLibrary.rules.toggle.systemImmutable'))
     return
   }
+  // 停用需要二次风险确认: 先弹出确认框, 由 onRiskConfirm 真正执行
+  if (rule.enabled) {
+    pendingRule.value = rule
+    riskConfirmShow.value = true
+    return
+  }
+  // 启用无风险, 直接执行
+  await doToggle(rule)
+}
+
+async function doToggle(rule: SceneRuleListItem) {
   try {
     await updateRule(rule.id, { enabled: !rule.enabled })
     message.success(rule.enabled ? t('reasonLibrary.rules.toggle.disable') + ' ✓' : t('reasonLibrary.rules.toggle.enable') + ' ✓')
@@ -241,6 +266,30 @@ async function toggleEnabled(rule: SceneRuleListItem) {
       message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
     }
   }
+}
+
+// 停用二次风险确认状态
+const riskConfirmShow = ref(false)
+const riskConfirmLoading = ref(false)
+const pendingRule = ref<SceneRuleListItem | null>(null)
+
+function onRiskConfirm() {
+  if (!pendingRule.value) return
+  const rule = pendingRule.value
+  riskConfirmLoading.value = true
+  doToggle(rule)
+    .catch(() => { /* 错误已在 doToggle 内 toast */ })
+    .finally(() => {
+      riskConfirmLoading.value = false
+      riskConfirmShow.value = false
+      pendingRule.value = null
+    })
+}
+
+function onRiskCancel() {
+  if (riskConfirmLoading.value) return
+  riskConfirmShow.value = false
+  pendingRule.value = null
 }
 
 function onWizardSaved() {

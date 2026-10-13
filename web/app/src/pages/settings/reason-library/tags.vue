@@ -117,6 +117,19 @@
         v-model:show="importShow"
         @imported="onImported"
       />
+
+      <!-- 停用二次风险确认 -->
+      <RiskConfirmModal
+        :show="riskConfirmShow"
+        :title="t('reasonLibrary.riskConfirm.title')"
+        :risk-content="t('reasonLibrary.riskConfirm.tagContent')"
+        :confirm-text="t('reasonLibrary.riskConfirm.confirm')"
+        :cancel-text="t('reasonLibrary.riskConfirm.cancel')"
+        :acknowledge-text="t('reasonLibrary.riskConfirm.acknowledge')"
+        :loading="riskConfirmLoading"
+        @confirm="onRiskConfirm"
+        @cancel="onRiskCancel"
+      />
     </div>
   </div>
 </template>
@@ -140,6 +153,7 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 import ReasonTagModal from '../../../components/reason-library/ReasonTagModal.vue'
 import ReasonTagImportModal from '../../../components/reason-library/ReasonTagImportModal.vue'
+import RiskConfirmModal from '../../../components/reason-library/RiskConfirmModal.vue'
 
 const message = useMessage()
 
@@ -261,6 +275,17 @@ async function toggleEnabled(tag: ReasonTag) {
     message.warning(t('reasonLibrary.tags.toggle.systemImmutable'))
     return
   }
+  // 停用需要二次风险确认: 先弹出确认框, 由 onRiskConfirm 真正执行
+  if (tag.enabled) {
+    pendingTag.value = tag
+    riskConfirmShow.value = true
+    return
+  }
+  // 启用无风险, 直接执行
+  await doToggle(tag)
+}
+
+async function doToggle(tag: ReasonTag) {
   try {
     await updateTag(tag.id, { enabled: !tag.enabled })
     message.success(tag.enabled ? t('reasonLibrary.tags.toggle.disable') + ' ✓' : t('reasonLibrary.tags.toggle.enable') + ' ✓')
@@ -273,6 +298,30 @@ async function toggleEnabled(tag: ReasonTag) {
       message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
     }
   }
+}
+
+// 停用二次风险确认状态
+const riskConfirmShow = ref(false)
+const riskConfirmLoading = ref(false)
+const pendingTag = ref<ReasonTag | null>(null)
+
+function onRiskConfirm() {
+  if (!pendingTag.value) return
+  const tag = pendingTag.value
+  riskConfirmLoading.value = true
+  doToggle(tag)
+    .catch(() => { /* 错误已在 doToggle 内 toast */ })
+    .finally(() => {
+      riskConfirmLoading.value = false
+      riskConfirmShow.value = false
+      pendingTag.value = null
+    })
+}
+
+function onRiskCancel() {
+  if (riskConfirmLoading.value) return
+  riskConfirmShow.value = false
+  pendingTag.value = null
 }
 
 function onSaved() {
