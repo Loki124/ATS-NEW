@@ -22,13 +22,18 @@ import {
   type AttributeField,
   type DynamicRelation,
   type DynamicSourceKey,
+  type WriteMode,
+  type WritePerm,
+  type ActionDictItem,
+  type ActionPreset,
 } from '@/api/data-permission'
 
 // 重新导出 API 层类型，供依赖本 composable 的组件统一从此处 import
 export type {
   DataPermMode, ModulePerm, ModuleOption, PermCondition, PermConditionGroup,
   RoleDataPermPayload, Operator, DimensionMeta, PermValue, AttributeField,
-  DynamicRelation, DynamicSourceKey,
+  DynamicRelation, DynamicSourceKey, WriteMode, WritePerm,
+  ActionDictItem, ActionPreset,
 } from '@/api/data-permission';
 
 export const MODULE_KEYS = ['demand', 'process', 'position', 'candidate', 'talent'] as const;
@@ -373,25 +378,57 @@ function cloneModules(modules: ModulePerm[]): ModulePerm[] {
     // 模板状态偏差由后端计算，随草稿一起带过去供 ModulePermCard 渲染标记。
     // 不参与 serialize() 脏检查 —— 它是服务端派生的展示信息，不是用户编辑内容。
     templateDrifts: (m.templateDrifts || []).map((d) => ({ ...d })),
-    groups: m.groups.map((g) => ({
-      id: g.id,
-      expr: g.expr,
-      conditions: g.conditions.map((c) => ({
-        id: c.id,
-        kind: c.kind,
-        dimension: c.dimension,
-        operator: c.operator,
-        values: (c.values || []).map((v) => ({ id: v.id, label: v.label, stale: v.stale, emptyShell: v.emptyShell })),
-        valueSource: c.valueSource,
-        dynamicKey: c.dynamicKey,
-        relation: c.relation,
-        field: c.field,
-        fieldName: c.fieldName,
-        value: c.value,
-        meta: c.meta ? { min: c.meta.min ?? null, max: c.meta.max ?? null } : undefined,
-      })),
-    })),
+    groups: m.groups.map(cloneGroup),
+    // v2 写范围深拷贝（脏检查/保存链路必须带上，否则配置丢失）
+    write: m.write
+      ? {
+          mode: m.write.mode,
+          expr: m.write.expr,
+          groups: (m.write.groups || []).map(cloneGroup),
+          actions: [...(m.write.actions || [])],
+        }
+      : undefined,
   }));
+}
+
+function cloneGroup(g: PermConditionGroup): PermConditionGroup {
+  return {
+    id: g.id,
+    expr: g.expr,
+    conditions: g.conditions.map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      dimension: c.dimension,
+      operator: c.operator,
+      values: (c.values || []).map((v) => ({ id: v.id, label: v.label, stale: v.stale, emptyShell: v.emptyShell })),
+      valueSource: c.valueSource,
+      dynamicKey: c.dynamicKey,
+      relation: c.relation,
+      field: c.field,
+      fieldName: c.fieldName,
+      value: c.value,
+      meta: c.meta ? { min: c.meta.min ?? null, max: c.meta.max ?? null } : undefined,
+    })),
+  };
+}
+
+function serializeGroup(g: PermConditionGroup) {
+  return {
+    expr: g.expr,
+    conditions: g.conditions.map((c) => ({
+      kind: c.kind,
+      dimension: c.dimension,
+      operator: c.operator,
+      values: (c.values || []).map((v) => ({ id: v.id, label: v.label })),
+      valueSource: c.valueSource,
+      dynamicKey: c.dynamicKey,
+      relation: c.relation,
+      field: c.field,
+      fieldName: c.fieldName,
+      value: c.value,
+      meta: c.meta,
+    })),
+  };
 }
 
 function serialize(modules: ModulePerm[]): string {
@@ -400,22 +437,15 @@ function serialize(modules: ModulePerm[]): string {
       moduleKey: m.moduleKey,
       mode: m.mode,
       expr: m.expr,
-      groups: m.groups.map((g) => ({
-        expr: g.expr,
-        conditions: g.conditions.map((c) => ({
-          kind: c.kind,
-          dimension: c.dimension,
-          operator: c.operator,
-          values: (c.values || []).map((v) => ({ id: v.id, label: v.label })),
-          valueSource: c.valueSource,
-          dynamicKey: c.dynamicKey,
-          relation: c.relation,
-          field: c.field,
-          fieldName: c.fieldName,
-          value: c.value,
-          meta: c.meta,
-        })),
-      })),
+      groups: m.groups.map(serializeGroup),
+      write: m.write
+        ? {
+            mode: m.write.mode,
+            expr: m.write.expr,
+            groups: (m.write.groups || []).map(serializeGroup),
+            actions: m.write.actions,
+          }
+        : undefined,
     })),
   );
 }
@@ -424,6 +454,9 @@ export function useRoleDataPerm(roleId: Ref<string>) {
   const saved = ref<ModulePerm[]>([]);
   const draft = ref<ModulePerm[]>([]);
   const options = ref<ModuleOption[]>([]);
+  /** 可配置动作字典（v2，options 下发；ModulePermCard 动作勾选/预设包下拉的数据源） */
+  const actionRegistry = ref<ActionDictItem[]>([]);
+  const presetPackages = ref<ActionPreset[]>([]);
   const loading = ref(false);
   const saving = ref(false);
   const errors = ref<Record<string, string>>({});
@@ -440,15 +473,23 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     try {
       const [data, opts] = await Promise.all([
         getRoleDataPerm(roleId.value),
-        getRoleDataPermOptions(roleId.value).catch(() => [] as ModuleOption[]),
+        getRoleDataPermOptions(roleId.value).catch(() => ({
+          modules: [] as ModuleOption[],
+          actionRegistry: [] as ActionDictItem[],
+          presetPackages: [] as ActionPreset[],
+        })),
       ]);
-      options.value = opts;
+      options.value = opts.modules;
+      actionRegistry.value = opts.actionRegistry || [];
+      presetPackages.value = opts.presetPackages || [];
+      const EMPTY_WRITE = { mode: 'none' as const, expr: '', groups: [], actions: [] };
       const modules = data.modules && data.modules.length ? data.modules : MODULE_KEYS.map((k) => ({
         moduleKey: k,
         mode: 'all' as DataPermMode,
         expr: '',
         groups: [],
         featureGranted: true,
+        write: { ...EMPTY_WRITE },
       }));
       // 统一补齐 5 模块顺序（以 MODULE_KEYS 为准）
       const ordered = MODULE_KEYS.map(
@@ -458,6 +499,7 @@ export function useRoleDataPerm(roleId: Ref<string>) {
           expr: '',
           groups: [],
           featureGranted: true,
+          write: { ...EMPTY_WRITE },
         },
       );
       saved.value = cloneModules(ordered);
@@ -482,11 +524,59 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     m.groups = groups;
   }
 
+  // ===== v2 写范围（write 子结构）=====
+
+  function writeOf(key: string): WritePerm | undefined {
+    const m = moduleOf(key);
+    if (!m) return undefined;
+    if (!m.write) m.write = { mode: 'none', expr: '', groups: [], actions: [] };
+    return m.write;
+  }
+
+  function setWriteMode(key: string, mode: WriteMode): void {
+    const w = writeOf(key);
+    if (!w) return;
+    w.mode = mode;
+    if (mode === 'scope' && w.groups.length === 0) {
+      w.groups = [newGroup()];
+    }
+  }
+
+  function setWriteGroups(key: string, groups: PermConditionGroup[]): void {
+    const w = writeOf(key);
+    if (!w) return;
+    w.groups = groups;
+  }
+
+  function setWriteActions(key: string, actions: string[]): void {
+    const w = writeOf(key);
+    if (!w) return;
+    w.actions = actions;
+  }
+
   /** 返回校验不合法的 moduleKey 列表（同时写入 errors）。 */
   function validate(): string[] {
     const bad: string[] = [];
     const errs: Record<string, string> = {};
     for (const m of draft.value) {
+      // v2 写范围校验（独立于读范围 mode / featureGranted）：
+      // fail-closed 语义下「配了范围不勾动作」= 拒绝一切写动作，必须显式拦截让管理员知情
+      const w = m.write;
+      if (w && w.mode !== 'none') {
+        if ((w.actions || []).length === 0) {
+          errs[m.moduleKey] = '配置了写范围但未勾选任何动作（未勾选的动作将被一律拒绝）';
+          bad.push(m.moduleKey);
+          continue;
+        }
+        if (w.mode === 'scope') {
+          const totalW = (w.groups || []).reduce((acc, g) => acc + g.conditions.length, 0);
+          if (totalW === 0) {
+            errs[m.moduleKey] = '写范围自定义条件请至少配置 1 条';
+            bad.push(m.moduleKey);
+            continue;
+          }
+        }
+      }
       if (m.mode !== 'scope' || !m.featureGranted) continue;
       const total = m.groups.reduce((acc, g) => acc + g.conditions.length, 0);
       if (total === 0) {
@@ -623,6 +713,8 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     saved,
     draft,
     options,
+    actionRegistry,
+    presetPackages,
     loading,
     saving,
     errors,
@@ -631,6 +723,9 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     moduleOf,
     setMode,
     setGroups,
+    setWriteMode,
+    setWriteGroups,
+    setWriteActions,
     validate,
     submit,
     reset,

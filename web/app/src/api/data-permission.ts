@@ -117,6 +117,44 @@ export interface ModulePerm {
    * 靠这个字段提醒管理员「你引用的模板变了」。
    */
   templateDrifts?: TemplateDrift[];
+  /**
+   * 写范围（权限 v2）。undefined/缺省视为 { mode:'none' } = 未配置写范围 =
+   * 沿用既有功能权限（opt-in fail-open 语义，与后端一致）。
+   * actions 为空数组 = 拒绝一切写动作（合法但需前端二次确认）；
+   * 后端动作级 fail-closed：配置写范围后未勾选的动作一律拒绝。
+   */
+  write?: WritePerm;
+}
+
+/** 写范围模式。none=不限制(现状)；all=全部可写；owner=仅负责人；scope=自定义条件组。 */
+export type WriteMode = 'none' | 'all' | 'owner' | 'scope';
+
+export interface WritePerm {
+  mode: WriteMode;
+  expr: string;
+  groups: PermConditionGroup[];
+  /** 允许的写动作 key 集合（来自 actionRegistry，DB 可配置）。mode!=none 时必填非空。 */
+  actions: string[];
+}
+
+/** 动作字典条目（/data-permissions/actions/，DB 可配置，勿在前端硬编码清单）。 */
+export interface ActionDictItem {
+  key: string;
+  label: string;
+  category: 'read' | 'write' | 'destructive';
+  destructive: boolean;
+  enabled: boolean;
+  is_system: boolean;
+  sort_order: number;
+}
+
+/** 动作预设包（key 为存储契约，后端以数组形态下发避免 camelCase 转换破坏）。 */
+export interface ActionPreset {
+  key: string;
+  label: string;
+  actionKeys: string[];
+  /** 系统预设包不可删不可改 key（后端护栏，管理页用） */
+  is_system?: boolean;
 }
 
 export interface RoleDataPermPayload {
@@ -148,7 +186,12 @@ export interface ModuleOption {
 export async function getRoleDataPerm(roleId: string): Promise<{ modules: ModulePerm[]; roleCode: string }> {
   const res = await api.get(`/roles/${roleId}/data-permissions/`);
   const data = res.data?.data || { roleId, roleCode: '', modules: [] };
-  return { modules: data.modules || [], roleCode: data.roleCode || '' };
+  const modules: ModulePerm[] = (data.modules || []).map((m: any) => ({
+    ...m,
+    // 写范围兜底：后端老版本/未配置时补默认 none，消费方无需判空
+    write: m.write || { mode: 'none', expr: '', groups: [], actions: [] },
+  }));
+  return { modules, roleCode: data.roleCode || '' };
 }
 
 export async function saveRoleDataPerm(
@@ -160,10 +203,21 @@ export async function saveRoleDataPerm(
   return { modules: data.modules || [] };
 }
 
-export async function getRoleDataPermOptions(roleId: string): Promise<ModuleOption[]> {
+/** options 接口完整响应（v2：含可配置动作字典与预设包，前端禁止硬编码动作清单） */
+export interface DataPermOptionsResponse {
+  modules: ModuleOption[];
+  actionRegistry: ActionDictItem[];
+  presetPackages: ActionPreset[];
+}
+
+export async function getRoleDataPermOptions(roleId: string): Promise<DataPermOptionsResponse> {
   const res = await api.get(`/roles/${roleId}/data-permissions/options/`);
-  const data = res.data?.data || { modules: [] };
-  return data.modules || [];
+  const data = res.data?.data || {};
+  return {
+    modules: data.modules || [],
+    actionRegistry: data.actionRegistry || [],
+    presetPackages: data.presetPackages || [],
+  };
 }
 
 // ===== 数据权限模板（可复用规则预设） =====
@@ -221,6 +275,58 @@ export async function listScopeTemplates(moduleKey: string): Promise<ScopeTempla
   });
   const data = res.data?.data;
   return Array.isArray(data) ? data : (data?.results || []);
+}
+
+// ===== 动作字典 / 预设包（权限 v2：DB 可配置，管理接口仅超管） =====
+
+/** 动作清单（含停用，管理页用；配置页应过滤 enabled 且 category∈write/destructive） */
+export async function listActions(): Promise<ActionDictItem[]> {
+  const res = await api.get('/data-permissions/actions/');
+  return res.data?.data || [];
+}
+
+export async function createAction(body: {
+  key: string; label: string; category: string; destructive?: boolean; sort_order?: number;
+}): Promise<void> {
+  await api.post('/data-permissions/actions/', body);
+}
+
+export async function updateAction(
+  key: string,
+  body: { label?: string; enabled?: boolean; sort_order?: number },
+): Promise<void> {
+  await api.patch(`/data-permissions/actions/${key}/`, body);
+}
+
+export async function deleteAction(key: string): Promise<void> {
+  await api.delete(`/data-permissions/actions/${key}/`);
+}
+
+export async function listActionPresets(): Promise<ActionPreset[]> {
+  const res = await api.get('/data-permissions/action-presets/');
+  const data = res.data?.data;
+  // 兼容两种形态：数组（标准）与映射（老后端）；映射键会被 camelCase 破坏，仅作兜底
+  if (Array.isArray(data)) return data;
+  return Object.entries(data || {}).map(([key, actionKeys]) => ({
+    key, label: key, actionKeys: actionKeys as string[],
+  }));
+}
+
+export async function createActionPreset(body: {
+  key: string; label: string; actionKeys: string[];
+}): Promise<void> {
+  await api.post('/data-permissions/action-presets/', body);
+}
+
+export async function updateActionPreset(
+  key: string,
+  body: { label?: string; actionKeys?: string[] },
+): Promise<void> {
+  await api.patch(`/data-permissions/action-presets/${key}/`, body);
+}
+
+export async function deleteActionPreset(key: string): Promise<void> {
+  await api.delete(`/data-permissions/action-presets/${key}/`);
 }
 
 /**
