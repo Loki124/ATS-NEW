@@ -2499,6 +2499,8 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.candidate.CandidateDetail.s251': "公共人才库",
   'pages.candidate.CandidateDetail.s252': "流程暂停",
   'pages.candidate.CandidateDetail.s253': "来源",
+  'pages.candidate.CandidateDetail.s254': "展开 {n} 条",
+  'pages.candidate.CandidateDetail.s255': "收起",
   'pages.candidate.CandidateDetail.s205': "锁定人",
   'pages.candidate.CandidateDetail.s206': "应聘渠道",
   'pages.candidate.CandidateDetail.s207': "简历来源",

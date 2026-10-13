@@ -61,6 +61,34 @@ def existing_field(db) -> DynamicField:
     )
 
 
+@pytest.fixture
+def field_module(db):
+    """回归用例用的字段模块。"""
+    from apps.dynamic_field.models import FieldModule
+    return FieldModule.objects.create(resource=RESOURCE, code='reg_mod', name='回归模块', order_index=10)
+
+
+@pytest.fixture
+def field_group(field_module):
+    """回归用例用的字段分组。"""
+    from apps.dynamic_field.models import FieldGroup
+    return FieldGroup.objects.create(module=field_module, code='reg_grp', name='回归分组', order_index=10)
+
+
+@pytest.fixture
+def grouped_field(db, field_group) -> DynamicField:
+    """预置一条**已归属分组**的字段(模拟用户已设好的分组)。"""
+    return DynamicField.objects.create(
+        resource=RESOURCE,
+        field_key='grouped_field',
+        label='已分组字段',
+        field_type=DynamicField.FieldType.TEXT,
+        order_index=0,
+        group=field_group,
+        group_name=field_group.name,
+    )
+
+
 # --- 场景 A: 新建 ------------------------------------------------------------
 
 
@@ -198,6 +226,39 @@ class TestUpdate:
         assert resp.status_code == 200, resp.content
         existing_field.refresh_from_db()
         assert existing_field.resource == RESOURCE
+
+    def test_patch_without_group_id_keeps_existing_group(self, client, grouped_field, field_group):
+        """回归(兵哥 2026-10-13 分组全丢): PATCH 只改 label 时,
+
+        不能把已设置好的 group_id / group_name 静默置空(否则字段掉回「未分组」)。
+        原实现 ``_apply_module_group`` 无条件 pop('group_id') 并置 None,
+        任何不含 group_id 的部分更新都会清空分组。
+        """
+        resp = client.patch(
+            detail_url(grouped_field.id),
+            {'label': '只改标签不碰分组'},
+            format='json',
+        )
+
+        assert resp.status_code == 200, resp.content
+        grouped_field.refresh_from_db()
+        assert grouped_field.label == '只改标签不碰分组'
+        # 关键回归点: 分组归属必须保持
+        assert grouped_field.group_id == field_group.id
+        assert grouped_field.group_name == field_group.name
+
+    def test_patch_explicit_null_group_id_clears_group(self, client, grouped_field, field_group):
+        """显式传 groupId=null 才是「移入未分组」; 与「不传」语义不同。"""
+        resp = client.patch(
+            detail_url(grouped_field.id),
+            {'label': '改标签并清空分组', 'groupId': None},
+            format='json',
+        )
+
+        assert resp.status_code == 200, resp.content
+        grouped_field.refresh_from_db()
+        assert grouped_field.group_id is None
+        assert grouped_field.group_name == ''
 
 
 # --- 场景 C: 读取 / 删除 ------------------------------------------------------

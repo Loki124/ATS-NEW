@@ -866,6 +866,8 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
             if not field_key:
                 errors += 1
                 continue
+            module_declared = 'module_id' in rec or 'module_code' in rec
+            group_declared = 'group_id' in rec or 'group_code' in rec
             module_id = rec.pop('module_id', None)
             group_id = rec.pop('group_id', None)
             module_code = rec.pop('module_code', None)
@@ -876,8 +878,12 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
             if not group_id and group_code and module_id:
                 g = FieldGroup.objects.filter(module_id=module_id, code=group_code, deleted_at__isnull=True).first()
                 group_id = g.id if g else None
-            rec['module_id'] = module_id
-            rec['group_id'] = group_id
+            # 2026-10-13 修复(分组全丢): 导入文件未声明模块/分组列时跳过覆盖, 保留库中归属。
+            # 原实现无条件 rec['group_id']=None → 缺列的导入把存量字段分组全部清空(掉回「未分组」)。
+            if module_declared:
+                rec['module_id'] = module_id
+            if group_declared:
+                rec['group_id'] = group_id
 
             opts = rec.get('options')
             if isinstance(opts, str):

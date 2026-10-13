@@ -127,19 +127,54 @@
               </div>
             </n-tab-pane>
 
-            <!-- 操作记录（真实操作历史） -->
+            <!-- 操作记录（真实操作历史：字段级追踪 + 哈希链完整性校验） -->
             <n-tab-pane name="history">
               <template #tab>
                 <span><n-icon :component="TimeOutline" />{{ t('pages.candidate.CandidateDetail.s50') }}</span>
               </template>
               <div class="history-section">
-                <n-timeline v-if="histories.length > 0">
-                  <n-timeline-item v-for="h in histories" :key="h.id" type="info">
-                    <div>
-                      <n-tag type="info" :bordered="false" size="small">{{ h.action }}</n-tag>
-                      <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">{{ formatTime(h.createdAt) }}</n-text>
-                      <div style="margin-top: 4px"><n-text :depth="2">{{ typeof h.detail === 'string' ? h.detail : JSON.stringify(h.detail || '') }}</n-text></div>
-                      <div style="margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--fs-12)">{{ h.operatorName }}</div>
+                <div class="history-toolbar">
+                  <n-button size="small" :loading="verifying" @click="handleVerifyHistories">
+                    <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
+                    {{ t('pages.candidate.CandidateDetail.s225') }}
+                  </n-button>
+                  <n-tag v-if="verifyResult" :type="verifyResult.ok ? 'success' : 'error'" :bordered="false" size="small">
+                    {{ verifyResult.ok
+                      ? t('pages.candidate.CandidateDetail.s226', { n: verifyResult.checked })
+                      : t('pages.candidate.CandidateDetail.s227', { seq: verifyResult.brokenAt }) }}
+                  </n-tag>
+                </div>
+                <n-timeline v-if="histories.length > 0" class="history-timeline">
+                  <n-timeline-item v-for="h in histories" :key="h.id" :type="actionTagType(h.action)">
+                    <div class="history-card">
+                      <div class="history-head">
+                        <n-tag :type="actionTagType(h.action)" :bordered="false" size="small">{{ actionLabel(h) }}</n-tag>
+                        <span class="history-seq">#{{ h.seq }}</span>
+                        <span class="history-time">{{ formatTime(h.createdAt) }}</span>
+                        <span class="history-operator">{{ h.operatorName || '—' }}</span>
+                      </div>
+                      <!-- 字段级 diff（信息更新 / 简历字段更新 / 简历上传替换） -->
+                      <div v-if="historyChanges(h).length > 0" class="diff-table">
+                        <div v-for="c in visibleChanges(h)" :key="c.field" class="diff-row">
+                          <span class="diff-label">{{ changeLabel(c) }}</span>
+                          <span class="diff-old">{{ fmtVal(c.old, 48) }}</span>
+                          <span class="diff-arrow">→</span>
+                          <span class="diff-new">{{ fmtVal(c.new, 48) }}</span>
+                        </div>
+                        <n-button
+                          v-if="historyChanges(h).length > HISTORY_COLLAPSE"
+                          quaternary type="primary" size="tiny" class="diff-toggle"
+                          @click="toggleExpand(h.id)"
+                        >
+                          {{ isExpanded(h.id)
+                            ? t('pages.candidate.CandidateDetail.s255')
+                            : t('pages.candidate.CandidateDetail.s254', { n: historyChanges(h).length - HISTORY_COLLAPSE }) }}
+                        </n-button>
+                      </div>
+                      <!-- 阶段/状态/解析等非 diff 动作 -->
+                      <div v-else class="history-lines">
+                        <div v-for="(line, i) in historyLines(h)" :key="i" class="history-line">{{ line }}</div>
+                      </div>
                     </div>
                   </n-timeline-item>
                 </n-timeline>
@@ -506,7 +541,7 @@ import {
   ExpandOutline,
   ContractOutline,
 } from '@vicons/ionicons5'
-import { getCandidate, listCandidates } from '../../api/candidate'
+import { getCandidate, listCandidates, verifyCandidateHistories } from '../../api/candidate'
 import { fetchConfig, defaultConfig, type StandardResumeConfig } from '../../api/standard-resume'
 import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fields'
 import { listFields, type FieldDefinition } from '../../api/dynamic-field'
@@ -789,22 +824,63 @@ function fmtVal(v: any, max = 60): string {
   } else {
     s = String(v)
   }
+  if (s.trim() === '') return '—'
   return s.length > max ? `${s.slice(0, max)}…` : s
 }
+
+/** 空值归一化（对齐后端 audit.norm_empty）：null / '' / [] / {} 视为同义空 */
+function normEmptyFE(v: any): unknown {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'string' && v.trim() === '') return null
+  if (Array.isArray(v) && v.length === 0) return null
+  if (typeof v === 'object' && Object.keys(v).length === 0) return null
+  return v
+}
+
+/** 字段级 diff 提取（信息更新 / 简历字段更新 / 简历上传替换），并过滤 null↔'' 假变更 */
+function historyChanges(h: any): any[] {
+  const action = h?.action
+  if (action !== 'INFO_UPDATED' && action !== 'RESUME_FIELDS_UPDATED' && action !== 'RESUME_UPLOADED') return []
+  const changes = Array.isArray(h?.detail?.changes) ? h.detail.changes : []
+  return changes.filter((c: any) => normEmptyFE(c?.old) !== normEmptyFE(c?.new))
+}
+
+/** diff 行中文标签：后端 label → 动态字段定义 label → FIELD_LABEL_I18N 译文 → 裸 fieldKey */
+function changeLabel(c: any): string {
+  if (c?.label) return String(c.label)
+  const fk = String(c?.field ?? '')
+  const def = fieldDefMap.value[fk]
+  if (def?.label) return def.label
+  const i18nKey = FIELD_LABEL_I18N[fk]
+  if (i18nKey) return t(`pages.candidate.CandidateDetail.${i18nKey}`)
+  return fk
+}
+
+// 长列表折叠：默认展示前 N 条，可展开全部（单次批量保存可能 30+ 字段）
+const HISTORY_COLLAPSE = 6
+const expandedHistory = ref<Set<string>>(new Set())
+function isExpanded(id: string | undefined): boolean {
+  return expandedHistory.value.has(id ?? '')
+}
+function toggleExpand(id: string | undefined) {
+  const key = id ?? ''
+  const next = new Set(expandedHistory.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  expandedHistory.value = next
+}
+function visibleChanges(h: any): any[] {
+  const all = historyChanges(h)
+  return isExpanded(h?.id) ? all : all.slice(0, HISTORY_COLLAPSE)
+}
+
 function historyLines(h: any): string[] {
   const d = h?.detail || {}
   const action = h?.action
   const lines: string[] = []
   if (action === 'INFO_UPDATED' || action === 'RESUME_FIELDS_UPDATED' || action === 'RESUME_UPLOADED') {
-    const changes = Array.isArray(d.changes) ? d.changes : []
-    if (changes.length === 0) {
-      lines.push(t('pages.candidate.CandidateDetail.s228'))
-    } else {
-      for (const c of changes) {
-        const label = c?.label ?? c?.field ?? ''
-        lines.push(`${label}：${fmtVal(c?.old)} → ${fmtVal(c?.new)}`)
-      }
-    }
+    // diff 动作由模板 diff-table 渲染；过滤后无真实变更时提示
+    lines.push(t('pages.candidate.CandidateDetail.s228'))
   } else if (action === 'STAGE_CHANGED') {
     lines.push(`${fmtVal(d.from_stage, 40)} → ${fmtVal(d.to_stage, 40)}`)
     if (d.position) lines.push(`${t('pages.candidate.CandidateDetail.s204')}：${d.position}`)
@@ -1241,9 +1317,41 @@ const handleSendNotification = () => {
 /* ===== 操作记录 ===== */
 .history-section { padding: var(--space-2) 0; }
 .history-toolbar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
-.history-detail { margin-top: var(--space-1); display: flex; flex-direction: column; gap: 2px; }
-.history-line { font-size: var(--fs-12); color: var(--ink); line-height: 1.5; word-break: break-all; }
-.history-operator { margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--fs-12); }
+.history-timeline :deep(.n-timeline-item-content) { min-width: 0; }
+.history-card {
+  background: var(--surface-1, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--line-soft, rgba(0, 0, 0, 0.06));
+  border-radius: var(--radius-2, 8px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+}
+.history-head { display: flex; align-items: center; gap: var(--space-2, 8px); flex-wrap: wrap; }
+.history-seq { color: var(--ink-faint, var(--ink-soft)); font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+.history-time { color: var(--ink-soft); font-size: var(--fs-12); }
+.history-operator { margin-left: auto; color: var(--ink-soft); font-size: var(--fs-12); }
+.history-lines { margin-top: var(--space-2, 8px); display: flex; flex-direction: column; gap: 2px; }
+.history-line { font-size: var(--fs-12); color: var(--ink); line-height: 1.6; word-break: break-all; }
+.diff-table { margin-top: var(--space-2, 8px); display: flex; flex-direction: column; }
+.diff-row {
+  display: grid;
+  grid-template-columns: minmax(72px, max-content) 1fr 18px 1fr;
+  align-items: baseline;
+  gap: var(--space-2, 8px);
+  padding: 3px 0;
+  font-size: var(--fs-12);
+  line-height: 1.55;
+}
+.diff-row + .diff-row { border-top: 1px dashed var(--line-soft, rgba(0, 0, 0, 0.05)); }
+.diff-label { color: var(--ink-soft); white-space: nowrap; }
+.diff-label::after { content: '：'; }
+.diff-old {
+  color: var(--ink-faint, var(--ink-soft));
+  text-decoration: line-through;
+  text-decoration-color: rgba(207, 68, 68, 0.45);
+  word-break: break-all;
+}
+.diff-arrow { color: var(--brand, #4f6ef2); text-align: center; }
+.diff-new { color: var(--ink); font-weight: 500; word-break: break-all; }
+.diff-toggle { align-self: flex-start; margin-top: 2px; }
 
 /* ===== 右侧操作栏卡片 ===== */
 .rail-card { background: var(--glass-bg-card); border: 1px solid var(--border-hairline); border-radius: 16px; padding: var(--space-4); }

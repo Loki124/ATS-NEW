@@ -1926,6 +1926,8 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.candidate.CandidateDetail.s251': "Talent pool",
   'pages.candidate.CandidateDetail.s252': "Process paused",
   'pages.candidate.CandidateDetail.s253': "Source",
+  'pages.candidate.CandidateDetail.s254': "Show {n} more",
+  'pages.candidate.CandidateDetail.s255': "Collapse",
   'pages.candidate.CandidateDetail.s205': "Locked By",
   'pages.candidate.CandidateDetail.s206': "Channel",
   'pages.candidate.CandidateDetail.s207': "Resume Source",
