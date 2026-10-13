@@ -224,3 +224,40 @@ def test_put_applicable_scope_null_expression_does_not_500(auth_client) -> None:
         f'expression=null 应 200（按空表达式跳过校验）, 实得 {resp.status_code}: {body_of(resp)}'
         ' —— validate_applicable_scope 对 null expression 抛异常了？'
     )
+
+
+# ============================================================
+# 3. create 契约：is_enabled 落库（2026-10-13 补缺口）
+# ============================================================
+def post_process(client, payload: dict):
+    """打 POST /api/v1/processes/（FE createProcess 同款 camelCase JSON）。"""
+    return client.post('/api/v1/processes/', data=payload, format='json')
+
+
+def test_create_process_honors_is_enabled_false(auth_client) -> None:
+    """新建带 isEnabled=False 必须落库 is_enabled=False（不再是摆设）。
+
+    修复前：``ProcessWithStagesCreateSerializer`` fields 不含 is_enabled 且
+    create() 硬编码 is_enabled=True → FE 开关值被静默丢弃, 刷新后恒启用。
+    """
+    resp = post_process(auth_client, {
+        'name': 'PUT契约回归-新建停用',
+        'isEnabled': False,
+    })
+
+    assert resp.status_code == 201, f'应 201, 实得 {resp.status_code}: {body_of(resp)}'
+    process = RecruitmentProcess.objects.get(name='PUT契约回归-新建停用')
+    assert process.is_enabled is False, (
+        f'is_enabled 未按载荷落库: {process.is_enabled} —— create 契约没接 is_enabled？'
+    )
+    # BR-106: status 仍恒 ENABLED（is_enabled 与 status 是两个维度）
+    assert process.status == 'ENABLED'
+
+
+def test_create_process_defaults_is_enabled_true(auth_client) -> None:
+    """回归护栏：新建不传 isEnabled 时默认 True（字段 default 行为不变）。"""
+    resp = post_process(auth_client, {'name': 'PUT契约回归-新建默认启用'})
+
+    assert resp.status_code == 201, f'应 201, 实得 {resp.status_code}: {body_of(resp)}'
+    process = RecruitmentProcess.objects.get(name='PUT契约回归-新建默认启用')
+    assert process.is_enabled is True, '缺省 is_enabled 应为 True'

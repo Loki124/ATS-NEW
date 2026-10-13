@@ -520,7 +520,8 @@ interface EditForm {
   name: string
   description: string
   validateResumeScore: boolean
-  failPrompt: string
+  // 2026-10-13: failPrompt 僵尸字段已删 —— 后端无此模型字段、模板无输入框,
+  //   恒为 '' 的假装支持, 详见 recruitment-process.ts 接口注释。
   applicableMode: 'ALL' | 'ANY'
   // 2026-10-13: 对齐后端 STATUS_CHOICES (BR-106: ENABLED/ARCHIVED, 无停用态)。
   //   status 仅作展示/快照用途, 后端已 read_only, 保存不再发送。
@@ -748,7 +749,6 @@ function buildEmptyEditForm(): EditForm {
     name: '',
     description: '',
     validateResumeScore: false,
-    failPrompt: '',
     applicableMode: 'ALL',
     status: 'ENABLED',
     isEnabled: true,
@@ -814,8 +814,10 @@ function buildEditForm(): EditForm {
     name: d.name || '',
     description: d.description || '',
     validateResumeScore: d.validateResumeScore ?? true,
-    failPrompt: d.failPrompt || '',
-    applicableMode: (d.applicableMode as 'ALL' | 'ANY') || 'ALL',
+    // 2026-10-13: mode 从 applicableScope.mode 读 —— 后端 detail 响应不含顶层
+    //   applicableMode 键, 旧代码读 d.applicableMode 恒 undefined → 编辑流程时
+    //   mode 被静默重置 'ALL' (原选 'ANY' 遭篡改)。
+    applicableMode: (d.applicableScope?.mode as 'ALL' | 'ANY') || 'ALL',
     status: (d.status as 'ENABLED' | 'ARCHIVED') || 'ENABLED',
     // 后端 drf-camel-case 把 is_enabled 输出为 isEnabled; 旧数据缺省按启用展示
     isEnabled: (d.isEnabled ?? true),
@@ -1228,8 +1230,9 @@ async function handleSave() {
         name: form.name,
         description: form.description,
         validateResumeScore: form.validateResumeScore,
-        failPrompt: form.failPrompt,
-        applicableMode: form.applicableMode,
+        // 2026-10-13: isEnabled 经此落库 (后端 create 契约已补 is_enabled 字段);
+        //   mode 走下方 applicableScope.mode, 顶层 applicableMode/failPrompt 死键已删。
+        isEnabled: form.isEnabled,
         applicableScope: applicableScope as any,
       })
       currentProcessId = created?.id
@@ -1253,22 +1256,22 @@ async function handleSave() {
       } catch {
         /* 非阻断：拉取失败则下方仍按业务阶段 add, 起止若撞唯一约束由后端 400 兜底 */
       }
-      // 2026-10-13: 新建路径不再发 status / 不调 updateProcessStatus——
-      //   ① 后端 ProcessWithStagesCreateSerializer fields 不含 status/is_enabled,
-      //      新建流程恒 status=ENABLED / is_enabled=True (BR-106: 无停用态, 只能归档);
-      //   ② 旧代码 form.status==='INACTIVE' 时调的 updateProcessStatus 打的是
+      // 2026-10-13: 新建路径不再调 updateProcessStatus——
+      //   ① status 后端 read_only, 新建恒 status=ENABLED (BR-106: 无停用态, 只能归档);
+      //      旧代码 form.status==='INACTIVE' 时调的 updateProcessStatus 打的是
       //      PUT /processes/{id}/status/ —— 该 action 不存在, 必 404 (被 try/catch 吞掉)。
-      //   弹窗开关值(isEnabled)在创建态不落库, 属已知缺口, 见交付说明。
+      //   ② is_enabled 已由上方 createProcess 的 isEnabled 落库 (后端 create 契约
+      //      2026-10-13 补了 is_enabled 字段), 创建态开关值不再是摆设。
     } else {
       // ===== 更新流程路径 =====
       // 2026-10-13: 删 status (后端 read_only, 发了也被忽略), 增 isEnabled——
       //   「是否启用」开关语义对齐模型 is_enabled 布尔字段 (models.py:211, 可写)。
+      //   同批清理: failPrompt (后端无此字段的僵尸键) / applicableMode 顶层死键
+      //   (mode 权威在 applicableScope.mode, 顶层键发了也被静默丢弃)。
       await updateProcess(props.processId, {
         name: form.name,
         description: form.description,
         validateResumeScore: form.validateResumeScore,
-        failPrompt: form.failPrompt,
-        applicableMode: form.applicableMode,
         isEnabled: form.isEnabled,
         applicableScope: applicableScope as any,
       })

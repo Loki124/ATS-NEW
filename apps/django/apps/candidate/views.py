@@ -25,6 +25,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -33,6 +34,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.application.models import Application
 from apps.candidate.scope import assert_candidates_visible, scoped_candidates
 from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
@@ -99,6 +101,19 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # 详情序列化器读取 applications[].position/process/current_stage/grabbed_by
+        # 及 process.stage_links（「当前阶段」步骤条），逐行懒查会 N+1；
+        # retrieve 为单对象，用一次 Prefetch 连同关联模型取回。
+        if self.action == 'retrieve':
+            qs = qs.prefetch_related(
+                Prefetch(
+                    'applications',
+                    queryset=Application.objects.filter(deleted_at__isnull=True)
+                    .select_related('position', 'process', 'current_stage', 'grabbed_by')
+                    .prefetch_related('process__stage_links__stage')
+                    .order_by('-created_at'),
+                )
+            )
         # 状态筛选
         state = self.request.query_params.get('state')
         if state:

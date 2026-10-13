@@ -81,6 +81,10 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
         source='source_channel.name', read_only=True, default='',
     )
     referrer_name = serializers.CharField(source='referrer.username', read_only=True, default='')
+    # 锁定人：优先招聘官（候选人级负责人），为空时由前端回退到投递记录认领人
+    recruiter_name = serializers.CharField(source='recruiter.username', read_only=True, default='')
+    # 简历来源：由真实入库形态推导（摩卡同步 / 附件上传 / 手动录入），非虚构枚举
+    resume_source = serializers.SerializerMethodField()
     histories = CandidateHistorySerializer(many=True, read_only=True)
     applications = serializers.SerializerMethodField()
     soft_reject_stats = serializers.SerializerMethodField()
@@ -94,6 +98,7 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
             'expected_salary', 'resume_file_url', 'resume_text',
             'source_channel', 'source_channel_name',
             'referrer', 'referrer_name', 'referral_type',
+            'recruiter', 'recruiter_name', 'resume_source',
             'resume_score', 'tags', 'current_state', 'state_display',
             'is_blacklisted', 'blacklist_reason',
             'moka_candidate_id', 'extra',
@@ -102,17 +107,48 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
         ]
         read_only_fields = ['code', 'current_state', 'created_at', 'updated_at']
 
+    def get_resume_source(self, obj) -> str:
+        """简历来源（按真实数据推导，禁止虚构）：
+
+        - moka_candidate_id 有值 → 第三方（摩卡）同步入库
+        - resume_file_url 有值 → 附件上传
+        - 其余 → 手动录入
+        """
+        if obj.moka_candidate_id:
+            return '摩卡同步'
+        if obj.resume_file_url:
+            return '附件上传'
+        return '手动录入'
+
     def get_applications(self, obj):
+        # retrieve 路径已 Prefetch（含 deleted_at 过滤 + -created_at 排序），直接走缓存，
+        # 避免 position/process/current_stage/grabbed_by/stage_links 逐行 N+1；
+        # create/update 等无预取路径回落过滤查询，保证软删记录不泄漏。
+        apps = (getattr(obj, '_prefetched_objects_cache', {}) or {}).get('applications')
+        if apps is None:
+            apps = obj.applications.filter(deleted_at__isnull=True).order_by('-created_at')
         return [
             {
                 'id': app.id,
                 'code': app.code,
                 'position_title': app.position.title if app.position else None,
+                # 所属流程（应聘职位对应的招聘流程）与流程版本
+                'process_name': app.process.name if app.process else None,
+                'workflow_version': app.workflow_version or '',
                 'state': app.state,
                 'current_stage': app.current_stage.name if app.current_stage else None,
+                # 锁定人兜底：抢单/认领人（候选人级招聘官为空时展示）
+                'grabbed_by_name': app.grabbed_by.username if app.grabbed_by else '',
+                # 流程阶段有序列表（按 order 升序），供前端渲染「当前阶段」步骤条
+                'stage_list': [
+                    link.display_name
+                    for link in (
+                        app.process.stage_links.all() if app.process else []
+                    )
+                ],
                 'created_at': app.created_at.isoformat(),
             }
-            for app in obj.applications.filter(deleted_at__isnull=True).order_by('-created_at')[:20]
+            for app in apps[:20]
         ]
 
     def get_soft_reject_stats(self, obj):

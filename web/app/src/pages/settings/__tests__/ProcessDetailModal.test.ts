@@ -52,9 +52,7 @@ const PROCESS: RecruitmentProcess = {
   description: 'test',
   status: 'ENABLED',
   applicableDepartments: ['技术部', '产品部'],
-  applicableMode: 'ALL',
   validateResumeScore: true,
-  failPrompt: '请先完成初评',
   createdAt: '2026-06-01T00:00:00Z',
   updatedAt: '2026-06-10T00:00:00Z',
 }

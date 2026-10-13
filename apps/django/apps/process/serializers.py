@@ -711,6 +711,11 @@ class ProcessWithStagesCreateSerializer(serializers.Serializer):
     template_code = serializers.CharField(required=False, allow_blank=True, max_length=50)
     applicable_scope = serializers.JSONField(required=False, default=dict)
     validate_resume_score = serializers.BooleanField(default=True)
+    # 2026-10-13: 补 is_enabled 写入契约 —— 旧代码 fields 不含该字段且 create() 里
+    #   is_enabled=True 硬编码, 导致 FE ProcessDetailModal「是否启用」开关在新建态
+    #   永远是摆设(发了也被静默丢弃, 刷新后恒为启用)。模型 models.py:211 本就有该
+    #   可写布尔字段(filterset/versioning 在用), update 端点早已支持, create 补齐。
+    is_enabled = serializers.BooleanField(default=True)
     stage_links = NestedStageLinkInputSerializer(many=True, required=False, default=list,
                                                 help_text='可选 — FE 也可后续 addProcessLink 单独补')
 
@@ -739,10 +744,16 @@ class ProcessWithStagesCreateSerializer(serializers.Serializer):
             next_num = (int(last[1:]) + 1) if last and last[1:].isdigit() else 1
             validated_data['code'] = f'W{next_num:03d}'
 
+        # 2026-10-13: is_enabled 从 validated_data 取出(FE 可传 isEnabled=false 建停用态流程)。
+        #   必须先 pop 再进 create() —— 写在 create(**validated_data, is_enabled=validated_data.pop(...))
+        #   里没用: CPython 对 **d 的展开先于关键字表达式求值, **d 展开时 is_enabled 还在
+        #   dict 里 → TypeError "got multiple values for keyword argument"(实测踩过)。
+        #   status 仍硬编码 ENABLED (BR-106: 无停用态, 只能归档)。
+        is_enabled = validated_data.pop('is_enabled', True)
         process = RecruitmentProcess.objects.create(
             **validated_data,
             current_version='V1.0',
-            is_enabled=True,
+            is_enabled=is_enabled,
             status='ENABLED',
             created_by=actor,
             updated_by=actor,

@@ -846,7 +846,6 @@
             size="small"
             striped
             :max-height="380"
-            :scrollbar-props="{ nativeScrollbar: true }"
           />
           <!-- 第一步: 选择批量动作 -->
           <n-space v-if="!batchAction" justify="end">

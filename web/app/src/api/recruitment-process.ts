@@ -32,17 +32,23 @@ export interface RecruitmentProcess {
   //   drf-camel-case 输出为 isEnabled。
   isEnabled?: boolean;
   // 适用范围
+  // 2026-10-13: applicableMode 已从本接口删除 —— 后端响应从不含该顶层键
+  //   (mode 的权威存储在 applicableScope.mode, 见下方 applicableScope 类型);
+  //   旧代码 buildEditForm 读 d.applicableMode 恒得 undefined → 编辑流程时 mode
+  //   被静默重置为 'ALL' (用户原选 ANY 会被篡改), 现统一改读 applicableScope.mode。
+  //   applicableDepartments/Levels/UserIds/Jobs 保留: ProcessDetailModal 的
+  //   findIndicator 仍在用它们做老数据兼容读取 (读侧活代码, 非死键)。
   applicableDepartments?: string[];
   applicablePositionLevels?: string[];
   applicableUserIds?: string[];
   applicableJobs?: string[];
-  applicableMode: 'ALL' | 'ANY';
   // 2026-06-17: 新 4 指标 (含值 + 包含/不包含 + 多值), BE 存到 applicable_scope JSONField
   applicableScope?: { mode: 'ALL' | 'ANY'; indicators: { key: 'department' | 'level' | 'position' | 'user'; mode: 'include' | 'exclude'; values: string[] }[] };
   // 简历评分开关
   validateResumeScore: boolean;
-  // 流转异常提示
-  failPrompt?: string;
+  // 2026-10-13: failPrompt (「流转异常提示」) 已从本接口删除 —— 后端模型/序列化器
+  //   从未有该字段 (全仓 grep 零命中), 前端亦无输入框 (模板无控件、i18n 无文案),
+  //   是恒为 '' 的僵尸字段; 继续在 payload 里发送属于假装支持, 予以移除。
   createdAt: string;
   updatedAt: string;
   _count?: { links: number; stageRules: number };
@@ -199,10 +205,10 @@ export const getProcess = (id: string) =>
   api.get(`/processes/${id}/`).then((r) => unwrap(r)) as unknown as Promise<RecruitmentProcess & { stages: RecruitmentStage[]; autoRules: AutoArchiveRule[] }>;
 
 // 2026-06-17: 加上 applicableScope (4 指标数组). 旧的 applicableDepartments/Levels/UserIds/Jobs 字段保留兼容.
-// 2026-10-13: createProcess **不发** isEnabled —— 后端 ProcessWithStagesCreateSerializer
-//   (serializers.py:681) 的 fields 不含 is_enabled, 传入会被静默丢弃; 新建流程恒
-//   is_enabled=True (BR-106: 无停用态, 只能归档)。待后端 create 契约补该字段后再传。
-export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; failPrompt?: string; applicableMode?: 'ALL' | 'ANY'; applicableDepartments?: string[]; applicablePositionLevels?: string[]; applicableUserIds?: string[]; applicableJobs?: string[]; applicableScope?: { mode: 'ALL' | 'ANY'; indicators: { key: 'department' | 'level' | 'position' | 'user'; mode: 'include' | 'exclude'; values: string[] }[] } }) =>
+// 2026-10-13: createProcess 传 isEnabled —— 后端 ProcessWithStagesCreateSerializer
+//   已补 is_enabled 字段(默认 True), FE「是否启用」开关值经此落库;
+//   mode 走 applicableScope.mode, 顶层 applicableMode 死键已删。
+export const createProcess = (payload: { name: string; description?: string; createdBy?: string; validateResumeScore?: boolean; isEnabled?: boolean; applicableDepartments?: string[]; applicablePositionLevels?: string[]; applicableUserIds?: string[]; applicableJobs?: string[]; applicableScope?: { mode: 'ALL' | 'ANY'; indicators: { key: 'department' | 'level' | 'position' | 'user'; mode: 'include' | 'exclude'; values: string[] }[] } }) =>
   api.post<ApiEnvelope<RecruitmentProcess>>('/processes/', payload).then((r) => r.data.data);
 
 // 2026-10-13: payload 为 Partial<RecruitmentProcess> —— status 已为 'ENABLED'|'ARCHIVED'
