@@ -65,6 +65,10 @@ import {
   type MetricTemplate,
   type OptionItem,
 } from '@/api/metrics'
+// 实体引用型值域的下拉数据源（复用现成接口，不新建端点）
+import { listUsers } from '@/api/users'
+import { listRoles } from '@/api/role-v2'
+import { listManagementUnits } from '@/api/management-unit'
 import * as MF from '@/utils/metricsFormat'
 
 export type MetricsWorkspaceApi = ReturnType<typeof useMetricsWorkspace>
@@ -693,14 +697,31 @@ export function useMetricsWorkspace() {
 
   const isDateOutput = computed<boolean>(() => selectedTemplateDefinition.value?.returnType === 'date')
 
+  // 🔴 实体引用型出参（2026-10-13）：person / department。
+  // 后端按 source_path 反查动态字段 field_type 得来（views.py 的 _entity_kinds）。
+  // 这类字段虽 returnType==='string'，但对应具体对象 → 走「实体值域」配置，
+  // 不能沿用自由文本分支（那边值域整块隐藏，用户报告"人员字段没有值域可配"）。
+  const entityKind = computed<'person' | 'department' | ''>(() => {
+    const k = (selectedTemplateDefinition.value?.entityKind || '') as 'person' | 'department' | ''
+    return k === 'person' || k === 'department' ? k : ''
+  })
+  const isEntityOutput = computed<boolean>(() => !!entityKind.value)
+  const isPersonOutput = computed<boolean>(() => entityKind.value === 'person')
+  const isDeptOutput = computed<boolean>(() => entityKind.value === 'department')
+
   const isEnumOutput = computed<boolean>(
     () => selectedTemplateDefinition.value?.returnType === 'string' && !!selectedTemplateDefinition.value?.isEnum,
   )
+  // 实体引用型不是自由文本：isTextOutput 必须排除它，否则值域区被隐藏（本次要修的核心症状）
   const isTextOutput = computed<boolean>(
-    () => selectedTemplateDefinition.value?.returnType === 'string' && !selectedTemplateDefinition.value?.isEnum,
+    () =>
+      selectedTemplateDefinition.value?.returnType === 'string' &&
+      !selectedTemplateDefinition.value?.isEnum &&
+      !entityKind.value,
   )
+  // 🔴 必须排除实体引用型：否则人员/部门会掉进数值分支，被渲染成 min/max/步长分段输入框
   const isNumberOutput = computed<boolean>(
-    () => !isDateOutput.value && !isEnumOutput.value && !isTextOutput.value,
+    () => !isDateOutput.value && !isEnumOutput.value && !isTextOutput.value && !isEntityOutput.value,
   )
   const showValueDomain = computed<boolean>(() => !!selectedTemplateDefinition.value && !isTextOutput.value)
 
@@ -919,6 +940,170 @@ export function useMetricsWorkspace() {
     return issues
   })
 
+  // ================================================================
+  // 🔴 实体引用型值域（2026-10-13）：人员 / 部门
+  //   数据结构 {kind, selector, <id 字段>: [], multiple}，
+  //   与既有 segments 分段体系**并列互不影响**（kind 存在才走本分支）。
+  //   下拉数据源复用现成接口：用户 / 身份(RoleV2) / 管理单元。
+  // ================================================================
+  const entityUsers = ref<{ id: string; name: string; label: string }[]>([])
+  const entityIdentities = ref<{ id: string; name: string; label: string }[]>([])
+  const entityUnits = ref<{ id: string; name: string; label: string }[]>([])
+  const entityOptionsLoading = ref(false)
+  /** 懒加载标记：切换到实体型指标时才拉取，避免每次进模板弹窗都请求三份列表 */
+  const entityOptionsLoaded = ref(false)
+
+  function toEntityOptions(rows: any[], nameKeys: string[]): { id: string; name: string; label: string }[] {
+    const seen = new Set<string>()
+    const out: { id: string; name: string; label: string }[] = []
+    for (const r of rows || []) {
+      if (!r) continue
+      const id = String(r.id ?? r.pk ?? r.value ?? '').trim()
+      if (!id || seen.has(id)) continue
+      let name = ''
+      for (const k of nameKeys) {
+        const v = r[k]
+        if (v !== undefined && v !== null && String(v).trim()) { name = String(v).trim(); break }
+      }
+      if (!name) continue
+      seen.add(id)
+      out.push({ id, name, label: name })
+    }
+    return out
+  }
+
+  async function ensureEntityOptions() {
+    if (entityOptionsLoaded.value || entityOptionsLoading.value) return
+    entityOptionsLoading.value = true
+    try {
+      // 三者相互独立，单个失败不影响其余（fail-soft：下拉空即可，不阻断配置）
+      const [u, r, m] = await Promise.allSettled([
+        listUsers(),
+        listRoles(),
+        listManagementUnits(),
+      ])
+      if (u.status === 'fulfilled') entityUsers.value = toEntityOptions(u.value as any[], ['fullName', 'realName', 'name', 'username', 'employeeId'])
+      if (r.status === 'fulfilled') {
+        const data: any = (r as any).value
+        const rows = Array.isArray(data) ? data : (data?.items || data?.results || [])
+        entityIdentities.value = toEntityOptions(rows, ['roleName', 'name'])
+      }
+      if (m.status === 'fulfilled') {
+        const data: any = (m as any).value
+        const rows = Array.isArray(data) ? data : (data?.items || data?.results || [])
+        entityUnits.value = toEntityOptions(rows, ['unitName', 'name', 'fullName'])
+      }
+      entityOptionsLoaded.value = true
+    } finally {
+      entityOptionsLoading.value = false
+    }
+  }
+
+  /** 当前实体值域（保证 kind/selector 键存在） */
+  const entityDomain = computed<any>(() => {
+    const vd = tplForm.value.valueDomain
+    if (!vd || typeof vd !== 'object') return { kind: entityKind.value, selector: '', multiple: true }
+    return vd
+  })
+
+  /** 可选的选取方式（人员 / 部门各自不同） */
+  const entitySelectorOptions = computed<{ label: string; value: string }[]>(() => {
+    if (isDeptOutput.value) {
+      return [
+        { label: t('metrics.tpl.entitySpecifiedDept'), value: 'specified' },
+        { label: t('metrics.tpl.entityCurrentUserDept'), value: 'current_user_dept' },
+      ]
+    }
+    return [
+      { label: t('metrics.tpl.entitySpecifiedUser'), value: 'specified' },
+      { label: t('metrics.tpl.entitySpecifiedIdentity'), value: 'identity' },
+      { label: t('metrics.tpl.entityCurrentUser'), value: 'current_user' },
+    ]
+  })
+
+  const entityDefaultSelector = computed<string>(
+    () => entitySelectorOptions.value[0]?.value || 'specified',
+  )
+
+  /** 当前 selector 对应的 id 字段名 */
+  const ENTITY_ID_FIELD: Record<string, Record<string, string>> = {
+    person: { specified: 'userIds', identity: 'identityIds', current_user: 'userIds' },
+    department: { specified: 'unitIds', current_user_dept: 'unitIds' },
+  }
+  const entityIdField = computed<string>(
+    () => ENTITY_ID_FIELD[entityKind.value]?.[String(entityDomain.value.selector || '')] || 'userIds',
+  )
+
+  /** 该selector 是否需要额外的下拉选择框（当前登录人 → 不需要） */
+  const entityNeedsPicker = computed<boolean>(
+    () => isEntityOutput.value && !!String(entityDomain.value.selector || '') && entityDomain.value.selector !== 'current_user' && entityDomain.value.selector !== 'current_user_dept',
+  )
+
+  /** 按 selector 给出正确的候选下拉（人员 / 身份 / 部门） */
+  const entityPickerOptions = computed<{ label: string; value: string }[]>(() => {
+    const sel = String(entityDomain.value.selector || '')
+    const src = sel === 'identity' ? entityIdentities.value : isDeptOutput.value ? entityUnits.value : entityUsers.value
+    return src.map((x) => ({ label: x.label, value: x.id }))
+  })
+
+  /** 当前选中的 id 列表（供 n-select v-model 双绑） */
+  const entitySelectedIds = computed<string[]>({
+    get() {
+      const v = entityDomain.value[entityIdField.value]
+      return Array.isArray(v) ? (v as string[]) : []
+    },
+    set(next: string[]) {
+      tplForm.value.valueDomain[entityIdField.value] = next || []
+    },
+  })
+
+  /**
+   * 切换选取方式 —— **必须清理互斥字段**（用户要求 5）：
+   * 从「指定身份」切到「当前登录人」时，若不清 identityIds 会残留脏配置；
+   * 切到「指定人员」同理要清 identityIds / unitIds。
+   * 同时清空不再适用的候选下拉缓存语义（缓存本身保留，避免重新请求）。
+   */
+  function setEntitySelector(next: string) {
+    const vd = tplForm.value.valueDomain
+    vd.kind = entityKind.value
+    vd.selector = next
+    vd.multiple = vd.multiple ?? true
+    // 无条件清空全部候选 id 字段：任何切换都重新选，避免跨 selector 残留
+    vd.userIds = []
+    vd.identityIds = []
+    vd.unitIds = []
+  }
+
+  /** 实体值域校验：指定类必须至少选一个；非指定类必须清空（与后端 _validate_entity_value_domain 对齐） */
+  const entityDomainIssue = computed<string>(() => {
+    if (!isEntityOutput.value) return ''
+    const sel = String(entityDomain.value.selector || '')
+    if (!sel) return t('metrics.tpl.entitySelectorRequired')
+    if (!entityNeedsPicker.value) return ''
+    const ids = entitySelectedIds.value.filter((x) => String(x).trim())
+    if (!ids.length) {
+      return sel === 'identity'
+        ? t('metrics.tpl.entityIdentityRequired')
+        : isDeptOutput.value
+          ? t('metrics.tpl.entityDeptRequired')
+          : t('metrics.tpl.entityUserRequired')
+    }
+    return ''
+  })
+
+  /** 配置预览的校验值回填（用户要求 2） */
+  const entityPreviewValue = computed<string>(() => {
+    if (!isEntityOutput.value) return ''
+    const sel = String(entityDomain.value.selector || '')
+    if (sel === 'current_user') return t('metrics.tpl.entityCurrentUser')
+    if (sel === 'current_user_dept') return t('metrics.tpl.entityCurrentUserDept')
+    const ids = entitySelectedIds.value
+    if (!ids.length) return ''
+    const src = sel === 'identity' ? entityIdentities.value : isDeptOutput.value ? entityUnits.value : entityUsers.value
+    const map = new Map(src.map((x) => [x.id, x.name]))
+    return ids.map((id) => map.get(id) || id).join('、')
+  })
+
   const domainSegmentIssues = computed<(string | null)[]>(() => {
     if (isDateOutput.value) return dateSegmentIssues.value
     if (!isNumberOutput.value) return []
@@ -1021,6 +1206,9 @@ export function useMetricsWorkspace() {
   const previewNeedsTextInput = computed<boolean>(() => isTextOutput.value && !previewNeedsNoValue.value)
   const previewNeedsMultiEnum = computed<boolean>(() => isEnumOutput.value && MULTI_VALUE_OPERATORS.includes(previewOpSelected.value))
   const previewNeedsEnumPicker = computed<boolean>(() => isEnumOutput.value && !previewNeedsNoValue.value)
+  // 🔴 实体引用型预览（人员/部门）：校验值直接回填所选对象名/当前登录人，
+  //   不需要用户再手输（用户要求 2：配置需在"配置预览"的校验值中生效）。
+  const previewNeedsEntityValue = computed<boolean>(() => isEntityOutput.value && !previewNeedsNoValue.value)
   const previewEnumValue = ref<string[]>([])
 
   const previewTextValue = ref('')
@@ -1086,6 +1274,18 @@ export function useMetricsWorkspace() {
     if ((isDateOutput.value && hasNumeric) || (isNumberOutput.value && hasDate) || (isEnumOutput.value || isTextOutput.value)) {
       tplForm.value.valueDomain = { segments: [] }
     }
+    // 🔴 实体引用型：切换到人员/部门指标时，用 kind 结构重置值域（默认取第一个选取方式）
+    if (isEntityOutput.value) {
+      tplForm.value.valueDomain = {
+        kind: entityKind.value,
+        selector: entityDefaultSelector.value,
+        multiple: true,
+        userIds: [],
+        identityIds: [],
+        unitIds: [],
+      }
+      void ensureEntityOptions()
+    }
     if (isEnumOutput.value) {
       tplForm.value.paramEnums = [...(d?.enumValues || [])]
     } else {
@@ -1116,6 +1316,29 @@ export function useMetricsWorkspace() {
     showTemplateModal.value = true
   }
 
+  /**
+   * 值域回填归一（2026-10-13）：
+   *   - 带 kind → 实体引用型（人员/部门），保留 kind/selector 与对应 id 数组，
+   *     其余互斥字段补空数组（避免 UI 读到 undefined）。
+   *   - 不带 kind → 历史值域，原样回填 segments（数值/日期两条逻辑零改动）。
+   * 之所以在载入时就分流，是为避免"实体值域"里的 segments 残留干扰既有分支。
+   */
+  function normalizeValueDomain(domain: any, _metricKind?: string | null, _metricId?: string | null) {
+    const d = domain && typeof domain === 'object' ? domain : {}
+    const kind = d.kind === 'person' || d.kind === 'department' ? d.kind : ''
+    if (kind) {
+      return {
+        kind,
+        selector: String(d.selector || ''),
+        multiple: d.multiple ?? true,
+        userIds: Array.isArray(d.userIds) ? [...d.userIds] : [],
+        identityIds: Array.isArray(d.identityIds) ? [...d.identityIds] : [],
+        unitIds: Array.isArray(d.unitIds) ? [...d.unitIds] : [],
+      }
+    }
+    return { segments: (d.segments || []).map((s: any) => ({ ...s })) }
+  }
+
   function openTemplateEdit(row: MetricTemplate) {
     templateEditId.value = row.id
     const cfg = row.paramConfig || {}
@@ -1140,7 +1363,7 @@ export function useMetricsWorkspace() {
         allOption: !!cfg.allOption,
         allText: cfg.allText ?? '全部工作经历',
       },
-      valueDomain: { segments: (domain.segments || []).map((s: any) => ({ ...s })) },
+      valueDomain: normalizeValueDomain(domain, row.metricKind, row.atomicMetric || row.derivedMetric),
       paramEnums: row.paramEnums || [],
       paramAllowNull: !!row.paramAllowNull,
       description: row.description || '',
@@ -1149,11 +1372,29 @@ export function useMetricsWorkspace() {
     if (isTextOutput.value) {
       tplForm.value.operators = tplForm.value.operators.filter((op: string) => !SET_OPERATORS.includes(op))
       tplForm.value.valueDomain = { segments: [] }
-    } else if (!isEnumOutput.value) {
+    } else if (isEnumOutput.value) {
+      tplForm.value.paramEnums = []
+    } else if (isEntityOutput.value) {
+      // 🔴 实体引用型：入参枚举无意义；值域必须是 kind 结构（历史脏数据兜底重置）
+      tplForm.value.paramEnums = []
+      if (tplForm.value.valueDomain.kind !== entityKind.value) {
+        tplForm.value.valueDomain = {
+          kind: entityKind.value,
+          selector: entityDefaultSelector.value,
+          multiple: true,
+          userIds: [],
+          identityIds: [],
+          unitIds: [],
+        }
+      }
+    } else {
       tplForm.value.paramEnums = []
     }
     if (isDateOutput.value && !tplForm.value.unit) {
       tplForm.value.unit = DATE_GRANULARITY_DEFAULT
+    }
+    if (isEntityOutput.value) {
+      void ensureEntityOptions()
     }
     showTemplateModal.value = true
   }
@@ -1165,6 +1406,29 @@ export function useMetricsWorkspace() {
   }
   function removeSegment(idx: number) {
     tplForm.value.valueDomain.segments.splice(idx, 1)
+  }
+
+  /**
+   * 保存前的值域归一（2026-10-13）：
+   *   - 实体引用型：只落 kind / selector / multiple 与**当前 selector 对应**的 id 数组，
+   *     其余互斥字段一律不下发（后端会拒绝「当前登录人 + 带 id 列表」的组合）。
+   *   - 其余类型：原样返回，数值/日期 segments 结构完全不受影响。
+   */
+  function buildSaveValueDomain() {
+    if (!isEntityOutput.value) return tplForm.value.valueDomain
+    const sel = String(tplForm.value.valueDomain.selector || entityDefaultSelector.value)
+    const field = ENTITY_ID_FIELD[entityKind.value]?.[sel] || 'userIds'
+    const picked = Array.isArray(tplForm.value.valueDomain[field])
+      ? tplForm.value.valueDomain[field].filter((x: unknown) => String(x ?? '').trim())
+      : []
+    const isAuto = sel === 'current_user' || sel === 'current_user_dept'
+    return {
+      kind: entityKind.value,
+      selector: sel,
+      multiple: tplForm.value.valueDomain.multiple ?? true,
+      // 当前登录人取值由运行时决定 → 必须为空数组
+      [field]: isAuto ? [] : picked,
+    }
   }
 
   async function submitTemplate() {
@@ -1193,6 +1457,10 @@ export function useMetricsWorkspace() {
       message.warning(enumCandidateIssue.value)
       return
     }
+    if (entityDomainIssue.value) {
+      message.warning(entityDomainIssue.value)
+      return
+    }
     if (domainErrorText.value) {
       message.warning(domainErrorText.value)
       return
@@ -1210,7 +1478,7 @@ export function useMetricsWorkspace() {
         paramUnit: tplForm.value.paramUnit,
         calcParams: tplForm.value.calcParams,
         paramConfig: tplForm.value.paramConfig,
-        valueDomain: isEnumOutput.value || isTextOutput.value ? { segments: [] } : tplForm.value.valueDomain,
+        valueDomain: isEnumOutput.value || isTextOutput.value ? { segments: [] } : buildSaveValueDomain(),
         paramEnums: isEnumOutput.value ? tplForm.value.paramEnums : [],
         paramAllowNull: tplForm.value.paramAllowNull,
         description: tplForm.value.description,
@@ -1581,6 +1849,22 @@ export function useMetricsWorkspace() {
     isEnumOutput,
     isTextOutput,
     isNumberOutput,
+    // 🔴 实体引用型（人员/部门）——供值域配置区与预览使用
+    entityKind,
+    isEntityOutput,
+    isPersonOutput,
+    isDeptOutput,
+    entitySelectorOptions,
+    entityDefaultSelector,
+    entityDomain,
+    entityNeedsPicker,
+    entityPickerOptions,
+    entitySelectedIds,
+    entityDomainIssue,
+    entityPreviewValue,
+    entityOptionsLoading,
+    setEntitySelector,
+    ensureEntityOptions,
     showValueDomain,
     operatorDisabledForFreetext,
     enumCandidateOptions,
@@ -1623,6 +1907,7 @@ export function useMetricsWorkspace() {
     previewNeedsTextInput,
     previewNeedsMultiEnum,
     previewNeedsEnumPicker,
+    previewNeedsEntityValue,
     previewEnumValue,
     previewTextValue,
     previewRegexIssue,

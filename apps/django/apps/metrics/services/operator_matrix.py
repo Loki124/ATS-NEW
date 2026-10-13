@@ -93,8 +93,8 @@ _FIELD_TYPE_MAP: Dict[str, Dict[str, object]] = {
     'ID_CARD': {'metricType': 'string', 'isEnum': False, 'label': '身份证'},
     'BANK_CARD': {'metricType': 'string', 'isEnum': False, 'label': '银行卡'},
     'RICH_TEXT': {'metricType': 'string', 'isEnum': False, 'label': '富文本'},
-    'PERSON': {'metricType': 'string', 'isEnum': False, 'label': '人员'},
-    'DEPARTMENT': {'metricType': 'string', 'isEnum': False, 'label': '部门'},
+    'PERSON': {'metricType': 'string', 'isEnum': False, 'label': '人员', 'entityKind': 'person'},
+    'DEPARTMENT': {'metricType': 'string', 'isEnum': False, 'label': '部门', 'entityKind': 'department'},
     'REGION': {'metricType': 'string', 'isEnum': False, 'label': '行政区划'},
     'COMPOSITE': {'metricType': 'string', 'isEnum': False, 'label': '组合字段'},
     'ATTACHMENT': {'metricType': 'string', 'isEnum': False, 'label': '附件'},
@@ -112,15 +112,25 @@ _FIELD_TYPE_MAP: Dict[str, Dict[str, object]] = {
 def field_type_capability(field_type: str) -> Dict[str, object]:
     """动态字段类型 → 指标映射 + 运算符白名单。
 
-    返回：{metricType, isEnum, returnTypeLabel, operators:[...]}
+    返回：{metricType, isEnum, returnTypeLabel, operators:[...], entityKind?}
     未知类型兜底为 string（但绝不返回引擎不支持的运算符）。
+
+    🔴 2026-10-13 (兵哥) 实体引用型字段：PERSON / DEPARTMENT 虽以字符串（工号/姓名/部门名）
+       输出，但实际对应具体对象。历史映射把二者当普通 string + isEnum=False → 前端归入
+       「自由文本」分支，值域配置整块被隐藏（用户报告"人员类字段没有值域可配"）。
+       故额外输出 entityKind 供前端分流，走「实体值域」配置（指定人员/指定身份/当前登录人）。
+       该键对非实体类型**不出现**，保证既有序列化输出与判定逻辑零影响。
     """
     info = _FIELD_TYPE_MAP.get(field_type, {'metricType': 'string', 'isEnum': False, 'label': '文本'})
     metric_type = info['metricType']  # type: ignore[assignment]
     is_enum = bool(info['isEnum'])  # type: ignore[arg-type]
-    return {
+    cap: Dict[str, object] = {
         'metricType': metric_type,
         'isEnum': is_enum,
         'returnTypeLabel': info['label'],  # type: ignore[typeddict-item]
         'operators': operators_for(metric_type, is_enum),
     }
+    entity_kind = info.get('entityKind')
+    if entity_kind:
+        cap['entityKind'] = entity_kind
+    return cap

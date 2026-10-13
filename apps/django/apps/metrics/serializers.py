@@ -358,11 +358,66 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
             return
         if not isinstance(domain, dict):
             raise serializers.ValidationError('值域配置必须是对象')
+        # 🔴 2026-10-13 (兵哥) 实体引用型值域：人员 / 部门型出参虽以字符串输出，
+        # 但对应具体对象，值域语义是「限定为哪些对象」而非数值刻度，
+        # 故用顶层 kind 标记 + selector 指定选取方式，独立于 segments 分段。
+        # 该键不存在时（即所有历史模板）继续走下方原有拦截逻辑 → 零行为变化。
+        kind = domain.get('kind')
+        if kind:
+            MetricTemplateSerializer._validate_entity_value_domain(domain, str(kind))
+            return
         segments = domain.get('segments')
         if segments:
             raise serializers.ValidationError(
                 '字符串型出参不接受数值分段的值域配置：字符串不是可枚举刻度，请清空值域'
             )
+
+    # 实体值域的合法取值：kind → {selector: (对应 id 字段, 是否必填)}
+    #   person     指定人员=指定 user；指定身份=指定身份(role)；当前登录人=无需选择
+    #   department 指定部门=指定管理单元；当前登录人所在部门=无需选择
+    _ENTITY_DOMAIN_SPEC = {
+        'person': {
+            'specified': ('userIds', True),
+            'identity': ('identityIds', True),
+            'current_user': ('userIds', False),
+        },
+        'department': {
+            'specified': ('unitIds', True),
+            'current_user_dept': ('unitIds', False),
+        },
+    }
+
+    @staticmethod
+    def _validate_entity_value_domain(domain, kind):
+        """实体引用型值域校验（人员 / 部门）。
+
+        结构：{kind, selector, <id 字段>: [..], multiple}
+        约束：selector 必须在该kind 的白名单内；指定类必须选中至少一个对象；
+        非指定类（当前登录人/所在部门）必须清空 id 数组，避免残留脏配置。
+        """
+        spec = MetricTemplateSerializer._ENTITY_DOMAIN_SPEC.get(kind)
+        if spec is None:
+            raise serializers.ValidationError(f'未知的值域类型: {kind}')
+        selector = domain.get('selector')
+        if selector not in spec:
+            raise serializers.ValidationError(
+                f'值域类型 {kind} 不支持的选择方式: {selector}'
+            )
+        id_field, required = spec[selector]
+        ids = domain.get(id_field)
+        if ids is not None and not isinstance(ids, list):
+            raise serializers.ValidationError(f'值域 {id_field} 必须是数组')
+        cleaned = [str(x).strip() for x in (ids or []) if str(x or '').strip()]
+        if required and not cleaned:
+            raise serializers.ValidationError('请至少选择一个对象')
+        # 非指定类不应带 id 列表（切状态时清空），此处兜底强制为空，避免语义歧义
+        if not required and cleaned:
+            raise serializers.ValidationError(
+                '当前登录人取值由运行时决定，无需指定具体对象'
+            )
+        multiple = domain.get('multiple')
+        if multiple is not None and not isinstance(multiple, bool):
+            raise serializers.ValidationError('值域 multiple 必须是布尔值')
 
     @staticmethod
     def _validate_value_domain(domain, data_type='number', is_enum=False):

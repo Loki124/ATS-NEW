@@ -92,6 +92,23 @@ export interface MetricTemplateDateBound {
 
 export interface MetricTemplateValueDomain {
   segments?: MetricTemplateValueSegment[]
+  /**
+   * 🔴 值域类型标签（2026-10-13，实体引用型）：
+   *   'person' | 'department' —— 该类出参虽以字符串输出，实际对应具体对象，
+   *   值域语义是「限定为哪些对象」，用 selector 指定选取方式（与 segments 分段体系并列，互不影响）。
+   *   **历史模板无此键** → 前端一律走原有数值/日期/枚举逻辑，零行为变化。
+   */
+  kind?: 'person' | 'department' | string
+  /** 选取方式：person=指定人员/指定身份/当前登录人；department=指定部门/当前登录人所在部门 */
+  selector?: string
+  /** 指定人员：选中的用户 id 列表 */
+  userIds?: string[]
+  /** 指定身份：选中的身份（角色）id 列表，取自身份管理 */
+  identityIds?: string[]
+  /** 指定部门：选中的管理单元 id 列表 */
+  unitIds?: string[]
+  /** 是否允许多选（默认 true） */
+  multiple?: boolean
 }
 
 export interface MetricTemplate {
@@ -537,6 +554,12 @@ export interface MetricDefinition {
   paramUnits?: string[]
   /** 是否枚举型（下拉 / 列表字段） */
   isEnum?: boolean
+  /**
+   * 🔴 实体引用型标记（2026-10-13）：person=人员 / department=部门。
+   * 该类字段虽以字符串（工号/姓名/部门名）输出，实际对应具体对象，
+   * 模板层可配「实体值域」限定为哪些对象。非实体类型该字段为空字符串 → 前端走老逻辑。
+   */
+  entityKind?: string
   /** 入参类型：discrete=离散 / continuous=连续（PRD 指标定义列） */
   paramType?: 'discrete' | 'continuous'
   /** 所属业务板块（由动态字段反查，如「工作经历」「候选人信息」）；无对应动态字段时为空 */

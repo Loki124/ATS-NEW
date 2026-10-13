@@ -638,6 +638,11 @@ onMounted(() => {
 /* 枚举型值域 = 候选值清单（纵向标签 + 多选），与数值分段的横向行不同构 */
 .tpl-enum-block { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--g1); border-radius: var(--radius-sm); }
 .tpl-enum-select { width: 100%; }
+/* 🔴 实体引用型值域配置块（人员 / 部门）：视觉沿用枚举块，保持弹窗内一致性 */
+.tpl-entity-block { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--g1); border-radius: var(--radius-sm); }
+.tpl-entity-pick-lbl { margin-top: var(--space-1); }
+.tpl-entity-picker { width: 100%; }
+.pv-entity { display: inline-flex; min-width: 0; width: 100%; }
 .tpl-hint { color: var(--ink-faint); font-size: var(--fs-12); line-height: 1.6; }
 .tpl-hint-block { display: flex; align-items: flex-start; gap: var(--space-1); }
 .tpl-field-error { display: flex; align-items: center; gap: var(--space-1); color: var(--c-error-deep); font-size: var(--fs-12); line-height: 1.6; }

@@ -173,8 +173,48 @@
             <span>{{ t('metrics.tpl.legacyNumericDomain') }}</span>
           </div>
           <div class="tpl-segments">
+            <!-- 🔴 实体引用型值域（人员 / 部门）：值域语义是「限定为哪些对象」，
+                 与下方数值/日期分段体系互斥，由valueDomain.kind 显式分流。 -->
+            <template v-if="isEntityOutput">
+              <div class="tpl-entity-block">
+                <label class="tpl-seg-lbl" for="tpl-entity-selector">{{ t('metrics.tpl.entitySelectorLabel') }}</label>
+                <n-select
+                  id="tpl-entity-selector"
+                   :value="entityDomain.selector || ''"
+                  :options="entitySelectorOptions"
+                  :placeholder="t('metrics.tpl.entitySelectorPlaceholder')"
+                  :disabled="entityOptionsLoading"
+                  @update:value="setEntitySelector"
+                />
+                <!-- 指定人员 / 指定身份 / 指定部门才渲染额外下拉；当前登录人不渲染 -->
+                <template v-if="entityNeedsPicker">
+                  <label class="tpl-seg-lbl tpl-entity-pick-lbl" for="tpl-entity-picker">
+                    {{ entityDomain.selector === 'identity'
+                      ? t('metrics.tpl.entityIdentityLabel')
+                      : isDeptOutput ? t('metrics.tpl.entityDeptLabel') : t('metrics.tpl.entityUserLabel') }}
+                  </label>
+                  <n-select
+                    id="tpl-entity-picker"
+                    v-model:value="entitySelectedIds"
+                    multiple
+                    filterable
+                    clearable
+                    :options="entityPickerOptions"
+                    :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
+                    :loading="entityOptionsLoading"
+                    :status="entityDomainIssue ? 'error' : undefined"
+                    class="tpl-entity-picker"
+                  />
+                </template>
+                <p v-if="entityDomainIssue" class="tpl-field-error">
+                  <n-icon :component="AlertCircleOutline" :size="14" aria-hidden="true" />
+                  <span>{{ entityDomainIssue }}</span>
+                </p>
+                <p v-else class="tpl-hint">{{ t('metrics.tpl.entityHint') }}</p>
+              </div>
+            </template>
             <!-- 枚举型出参：值域 = 候选值清单。data_type 仍是 string，靠 isEnum 分流。 -->
-            <template v-if="isEnumOutput">
+            <template v-else-if="isEnumOutput">
               <div class="tpl-enum-block">
                 <label class="tpl-seg-lbl" for="tpl-enum-candidates">{{ t('metrics.tpl.enumCandidateLabel') }}</label>
                 <n-select
@@ -262,15 +302,16 @@
                 </n-button>
               </div>
             </template>
-            <n-button v-if="!isEnumOutput" size="small" dashed class="tpl-add-seg" @click="addSegment">
+            <!-- 🔴 实体引用型不使用分段体系：隐藏「添加段」与数值域汇总 -->
+            <n-button v-if="!isEnumOutput && !isEntityOutput" size="small" dashed class="tpl-add-seg" @click="addSegment">
               <template #icon><n-icon :component="AddOutline" /></template>
               {{ t('metrics.tpl.addSegment') }}
             </n-button>
-            <div v-if="!isEnumOutput && domainErrorText" class="domain-error">
+            <div v-if="!isEnumOutput && !isEntityOutput && domainErrorText" class="domain-error">
               <n-icon :component="AlertCircleOutline" :size="14" aria-hidden="true" />
               <span>{{ domainErrorText }}</span>
             </div>
-            <div v-else-if="!isEnumOutput && domainValueCount" class="domain-summary">
+            <div v-else-if="!isEnumOutput && !isEntityOutput && domainValueCount" class="domain-summary">
               <span class="ds-tag">{{ domainSummaryTag }}</span>
               <span class="ds-vals">{{ domainSummaryText }}</span>
             </div>
@@ -317,6 +358,17 @@
             :aria-label="t('metrics.tpl.checkValuePlaceholder')"
             class="pv-select"
           />
+          <!-- 🔴 实体引用型（人员/部门）：校验值直接回填所选对象名 / 当前登录人，
+               体现「值域配置在预览中生效」，无需用户再手输 -->
+          <span v-else-if="previewNeedsEntityValue" class="pv-entity">
+            <n-input
+              :value="entityPreviewValue || t('metrics.tpl.entityPreviewPlaceholder')"
+              readonly
+              :placeholder="t('metrics.tpl.entityPreviewPlaceholder')"
+              :aria-label="t('metrics.tpl.entityPreviewPlaceholder')"
+              class="pv-input"
+            />
+          </span>
           <!-- 自由文本型：单行输入（无穷域无法从下拉枚举），正则匹配即时校验表达式合法性 -->
           <span v-else-if="previewNeedsTextInput" class="pv-text">
             <n-input
@@ -397,6 +449,18 @@ const {
   domainSummaryText,
   domainSegmentIssues,
   isTextOutput,
+  // 🔴 实体引用型（人员/部门）值域
+  isEntityOutput,
+  isDeptOutput,
+  entitySelectorOptions,
+  entityDomain,
+  entityNeedsPicker,
+  entityPickerOptions,
+  entitySelectedIds,
+  entityDomainIssue,
+  entityOptionsLoading,
+  setEntitySelector,
+  entityPreviewValue,
   previewMetricSelected,
   previewMetricItemOptions,
   previewParamSelected,
@@ -404,6 +468,7 @@ const {
   previewOpSelected,
   previewOpOptions,
   previewNeedsNoValue,
+  previewNeedsEntityValue,
   previewNeedsRangeValue,
   previewRangeLower,
   previewCheckValueOptions,
