@@ -88,6 +88,27 @@ class Demand(FullAuditModel):
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='提交时间')
     approved_at = models.DateTimeField(null=True, blank=True, verbose_name='审批通过时间')
 
+    # === 2026-10-12 字段结构对齐《需求字段规范》: 新增预置字段对应的模型列 ===
+    talent_level = models.CharField(max_length=50, blank=True, default='', verbose_name='人才层级')
+    # 职位性质 — 全职/兼职/实习/外包 (与 demand_type 社招/校招 语义不同, 独立列)。
+    talent_nature = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[('FULLTIME', '全职'), ('PARTTIME', '兼职'), ('INTERN', '实习'), ('OUTSOURCE', '外包')],
+        verbose_name='职位性质',
+    )
+    # 需求起止日期 — 日期范围, JSON 存 [start, end] ISO 字符串(空 list = 未填),
+    #   与动态字段 DATE_RANGE 表示一致(前端 n-date-picker daterange round-trip)。
+    date_range = models.JSONField(default=list, blank=True, verbose_name='需求起止日期')
+    # 需求共享人 — 多选人员, JSON 存用户 id 列表(空 list = 未选)。
+    sharers = models.JSONField(default=list, blank=True, verbose_name='需求共享人')
+    # 审批状态 — 与「需求状态(state)」区分: 审批工作流状态。缺省空串时详情序列化器
+    #   按 state 派生(未提交/待审批/已通过/已驳回), 避免与 FSM 状态漂移。
+    approval_status = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[('NONE', '未提交'), ('PENDING', '待审批'), ('APPROVED', '已通过'), ('REJECTED', '已驳回')],
+        verbose_name='审批状态',
+    )
+
     class Meta:
         db_table = 'demands'
         verbose_name = '招聘需求'

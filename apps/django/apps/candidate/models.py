@@ -1,5 +1,5 @@
 """Candidate Models (PRD v4 §14.3)"""
-from django.db import models
+from django.db import models, transaction
 from django_fsm import FSMField, FSMModelMixin, transition
 from nanoid import generate as nanoid_generate
 
@@ -7,6 +7,8 @@ from apps.campus_control.constants import MAJORS, SCHOOLS
 from apps.common.encryption import EncryptedCharField
 from apps.common.models import FullAuditModel, SoftDeleteManager, SoftDeleteModel, TimestampedModel
 from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
+
+from .audit import AuditImmutabilityError, compute_row_hash
 
 
 def gen_id():
@@ -35,6 +37,11 @@ class Candidate(FSMModelMixin, FullAuditModel):
       未来用 AES-SIV 等 deterministic encryption 可全加密, 当前方案是 trade-off
     """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    # 候选人编号：C + 8 位流水号 (C00000001..)，save() 自动补号，规则对齐 campus_control.Person.code
+    code = models.CharField(
+        max_length=20, unique=True, blank=True, db_index=True,
+        verbose_name='候选人编号', help_text='C+8位流水号, save() 未传时自动补号',
+    )
     # 招聘类型硬分区 (social/campus): 社会/校园招聘数据相互隔离, 历史数据默认 social.
     recruit_type = models.CharField(
         max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
@@ -178,6 +185,26 @@ class Candidate(FSMModelMixin, FullAuditModel):
         phone_hash/email_hash 同构.
         """
         from apps.common.encryption import hash_for_search
+        # 2026-10-12: 候选人编号自动补号 (C+8位流水号)。未传 code 时事务内锁定末行取
+        # 最大序号 +1，避免并发撞 unique 约束 (规则与 campus_control.Person.save 一致)。
+        assigned_code = False
+        if not self.code:
+            with transaction.atomic():
+                last = (
+                    Candidate.objects
+                    .select_for_update()
+                    .filter(code__startswith='C')
+                    .order_by('-code')
+                    .first()
+                )
+                seq = 0
+                if last and last.code and last.code.startswith('C'):
+                    try:
+                        seq = int(last.code[1:9])
+                    except (ValueError, IndexError):
+                        seq = 0
+                self.code = f'C{seq + 1:08d}'
+            assigned_code = True
         # 计算 hash (无论是否变化, 简单起见都重算; 候选人 save 不频繁)
         new_phone_hash = hash_for_search(self.phone) if self.phone else ''
         new_email_hash = hash_for_search(self.email) if self.email else ''
@@ -214,8 +241,25 @@ class Candidate(FSMModelMixin, FullAuditModel):
                 update_fields.add('email_hash')
             if 'id_card_no' in update_fields:
                 update_fields.add('id_card_hash')
+            # 本次 save 内补号的 code 必须一并写入, 否则编号只留在内存、DB 仍为空
+            if assigned_code:
+                update_fields.add('code')
             kwargs['update_fields'] = frozenset(update_fields)
         super().save(*args, **kwargs)
+
+    def get_current_state_display(self):
+        """current_state 的中文展示名。
+
+        ``current_state`` 是 ``FSMField`` 且未声明 ``choices``，Django 不会
+        自动生成 ``get_<field>_display``；而 List/Detail 两个序列化器的
+        ``state_display`` 均以 ``source='get_current_state_display'`` 取值，
+        缺该方法时该字段解析抛 AttributeError 被静默丢弃 → 前端拿不到状态/流程阶段。
+        这里显式从 ``CandidateState`` 枚举取 label，保证 ``state_display`` 正常出参。
+        """
+        try:
+            return CandidateState(self.current_state).label
+        except ValueError:
+            return self.current_state or ''
 
     # === 状态机转换 ===
     @transition(field=current_state, source=CandidateState.APPLIED, target=CandidateState.IN_PROCESS)
@@ -329,7 +373,13 @@ class CandidateTag(SoftDeleteModel):
     objects = SoftDeleteManager()
     all_objects = models.Manager()
 class CandidateHistory(FullAuditModel):
-    """候选人操作历史 - 自动审计"""
+    """候选人操作历史 - 自动审计（不可篡改：哈希链 + 禁改删）
+
+    - ``seq``：每候选人内单调递增序号；``prev_hash`` 指向上条的 ``row_hash``，串成哈希链。
+    - ``save()`` 在 INSERT 时自动补 seq/哈希；对既有行 UPDATE 或 ``delete()`` 抛
+      ``AuditImmutabilityError``（软删亦走 ``save()``，同样被拦）。
+    - ``row_hash`` 刻意不含 ``created_at``（auto_now_add 会覆盖，纳入会致哈希与落库值不一致）。
+    """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     candidate = models.ForeignKey(
         Candidate, on_delete=models.CASCADE,
@@ -337,12 +387,47 @@ class CandidateHistory(FullAuditModel):
     )
     action = models.CharField(max_length=64, verbose_name='操作')
     detail = models.JSONField(default=dict, blank=True, verbose_name='详情')
+    seq = models.PositiveIntegerField(default=0, db_index=True, verbose_name='序号')
+    prev_hash = models.CharField(max_length=64, blank=True, default='', verbose_name='上一行哈希')
+    row_hash = models.CharField(max_length=64, blank=True, default='', db_index=True, verbose_name='行哈希')
 
     class Meta:
         db_table = 'candidate_histories'
         verbose_name = '候选人历史'
         verbose_name_plural = verbose_name
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        # 不可篡改：既有行禁止 UPDATE（软删 restore 亦走 save，一并拦截）
+        if self.pk and not self._state.adding:
+            raise AuditImmutabilityError(
+                f'CandidateHistory 行不可修改/删除（不可篡改审计）: id={self.pk}'
+            )
+        if self._state.adding:
+            # INSERT：在事务内取该候选人当前最大 seq 行（select_for_update 串行化并发插入），
+            # 续接哈希链。sqlite 测试库忽略 FOR UPDATE（无锁但不报错）。
+            with transaction.atomic():
+                last = (
+                    CandidateHistory.objects
+                    .filter(candidate_id=self.candidate_id)
+                    .select_for_update()
+                    .order_by('-seq', '-created_at')
+                    .first()
+                )
+                self.seq = (last.seq + 1) if last else 1
+                self.prev_hash = (last.row_hash or '') if last else ''
+                self.row_hash = compute_row_hash(
+                    self.candidate_id, self.seq, self.action, self.detail,
+                    self.created_by_id, self.prev_hash,
+                )
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise AuditImmutabilityError(
+            f'CandidateHistory 行不可删除（不可篡改审计）: id={self.pk}'
+        )
 
 
 class CandidateFieldValue(TimestampedModel):

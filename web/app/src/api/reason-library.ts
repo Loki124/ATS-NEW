@@ -321,6 +321,8 @@ export function toWizardSavePayload(rule: WizardPayload): WizardSavePayload {
     recruit_types: rule.recruitTypes && rule.recruitTypes.length ? rule.recruitTypes : ['social'],
     max_selectable_tags: rule.maxSelectableTags ?? 5,
     modal_title: rule.modalTitle ?? '',
+    tip: rule.tip ?? '',
+    default_talent_pool: rule.defaultTalentPool ?? '',
     categories,
   }
 }

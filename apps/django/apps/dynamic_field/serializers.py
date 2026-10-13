@@ -203,21 +203,25 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
         把字段的分组清空后冗余列仍留旧值, 列表回退显示
         ``row.group?.name || row.groupName`` 会展示已移除的分组名。
         现改为: 分组清空时同步清空 ``group_name``, 保持两者一致。
+
+        2026-10-13 修复(兵哥: 分组全丢): 仅当调用方**显式传入** module_id / group_id
+        时才改动归属, 否则保持原值。原实现无条件 pop + 置 None, 导致任何只带
+        visibility_permission / status / order_index 的部分更新(PATCH)都把
+        group_id / module_id 静默置空 → 字段掉回「未分组」。
+        与 FieldGroupSerializer.update / FieldLinkageRuleSerializer.update 同款守卫。
         """
-        module_id = validated_data.pop('module_id', None) or None
-        group_id = validated_data.pop('group_id', None) or None
-        validated_data['module_id'] = module_id
-        validated_data['group_id'] = group_id
-        # 同步 group_name (兼容旧列表列显示)
-        if group_id:
-            grp = FieldGroup.objects.filter(id=group_id, deleted_at__isnull=True).first()
-            if grp:
-                validated_data['group_name'] = grp.name
+        if 'module_id' in validated_data:
+            validated_data['module_id'] = validated_data.pop('module_id') or None
+        if 'group_id' in validated_data:
+            group_id = validated_data.pop('group_id') or None
+            validated_data['group_id'] = group_id
+            # 同步 group_name (兼容旧列表列显示)
+            if group_id:
+                grp = FieldGroup.objects.filter(id=group_id, deleted_at__isnull=True).first()
+                validated_data['group_name'] = grp.name if grp else ''
             else:
+                # 分组被清空 → 冗余列一并清空, 避免残留旧分组名
                 validated_data['group_name'] = ''
-        else:
-            # 分组被清空 → 冗余列一并清空, 避免残留旧分组名
-            validated_data['group_name'] = ''
         return validated_data
 
     def create(self, validated_data: dict):

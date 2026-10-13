@@ -151,6 +151,107 @@ def _raw_attach_v2_role(user, role):
             )
 
 
+# 缓存所有 ViewSet 声明的 resource_code 集合 (进程内计算一次即可, 重 seed 时直接复用,
+# 避免每次空表都重新 import 全量 .views 模块, 见 pytest_runtest_setup 的惰性重 seed).
+_ROLE_PERMISSION_RESOURCE_CODES = None
+
+
+def _collect_resource_codes():
+    """扫描全部 apps 的 .views 模块, 收集所有 ViewSet 声明的 permission_required
+    / permission_required_map 资源码 (含 V2Permission 按 action 派生的 :create/:edit/:delete).
+
+    结果进程内缓存, 因为 app 注册表在测试进程内不变.
+    """
+    global _ROLE_PERMISSION_RESOURCE_CODES
+    if _ROLE_PERMISSION_RESOURCE_CODES is not None:
+        return _ROLE_PERMISSION_RESOURCE_CODES
+    from django.apps import apps
+    resource_codes = set()
+    for app_config in apps.get_app_configs():
+        try:
+            module = __import__(app_config.name + '.views', fromlist=[''])
+        except ImportError:
+            continue
+        for attr_name in dir(module):
+            cls = getattr(module, attr_name, None)
+            if cls is None:
+                continue
+            # 只声明 permission_required_map 的视图 (写操作显式授权、读操作留空) 也必须采到.
+            declared = getattr(cls, 'permission_required', None)
+            mapping = getattr(cls, 'permission_required_map', None)
+            if declared is None and not mapping:
+                continue
+            if isinstance(declared, str):
+                resource_codes.add(declared)
+                # V2Permission 按 action 派生写权限码 (:create/:edit/:delete).
+                # 测试库里 PermissionResource 未 seed, 派生码若存在就会要求 HR 持有,
+                # 故此处一并授予, 让 fixture 语义等价于「该资源的所有操作都放行」.
+                base = declared.rsplit(':', 1)[0]
+                resource_codes.update(
+                    f'{base}:{s}' for s in ('create', 'edit', 'delete')
+                )
+            elif isinstance(declared, (list, tuple)):
+                resource_codes.update(declared)
+            # 显式 action 覆盖表里的码也必须授予 (值支持 str 或 list/tuple).
+            if isinstance(mapping, dict):
+                for v in mapping.values():
+                    if isinstance(v, (list, tuple)):
+                        resource_codes.update(v)
+                    else:
+                        resource_codes.add(v)
+    _ROLE_PERMISSION_RESOURCE_CODES = resource_codes
+    return resource_codes
+
+
+def _seed_role_permissions(connection):
+    """把 HR / HRBP / SUPER_ADMIN 三个角色对所有 resource_code 的授权写入 role_permission.
+
+    调用方需保证调用前 role_permission 为空 (避免重复行); 这里不重复检查, 由调用处
+    `COUNT(*) == 0` 守卫.
+    """
+    from django.utils import timezone
+    resource_codes = _collect_resource_codes()
+    now = timezone.now()
+    seeded = 0
+    with connection.cursor() as c:
+        for role_code in ('SUPER_ADMIN', 'HRBP', 'HR'):
+            for rc in resource_codes:
+                c.execute(
+                    """INSERT INTO role_permission
+                       (role_code, resource_code, system_code, created_at)
+                       VALUES (%s, %s, 'recruit', %s)""",
+                    [role_code, rc, now],
+                )
+                seeded += 1
+    print(f'[conftest] seeded {seeded} role_permission rows for {len(resource_codes)} resources')
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_runtest_setup(item):
+    """惰性重 seed role_permission, 修复 test_migration_0005 等使用
+    django_db_serialized_rollback 的用例把会话级 seed 的 role_permission 清空、
+    导致后续依赖权限的用例 403 的问题.
+
+    机制: TransactionTestCase 的 serialized_rollback 在 _fixture_setup (setup 阶段)
+    用 loaddata 把 DB 重载到 django_db_setup 时拍的快照 (此时 _ensure_v2_schema 尚未
+    seed, role_permission 为空); 非 transaction 用例靠事务回滚不会清空它, 但 migration
+    类用例会在 setup 与 teardown 两处把它清零 (loaddata / flush).
+    本 hook 用 trylast 保证在默认 pytest_runtest_setup 之后运行 —— 默认 hook 会调用
+    _setupstate.setup → _django_db_helper._pre_setup → loaddata 清零, 本 hook 在其后
+    才执行, 因此每个测试体执行前 role_permission 一定已就绪. 仅在为空时才写入, 正常
+    用例零额外开销 (一次 COUNT 查询).
+    """
+    from django.db import connection as _conn
+    try:
+        with _conn.cursor() as c:
+            c.execute("SELECT COUNT(*) FROM role_permission")
+            if c.fetchone()[0] == 0:
+                _seed_role_permissions(_conn)
+    except Exception:
+        # 无 DB 连接的纯单测直接跳过, 不影响.
+        pass
+
+
 @pytest.fixture(autouse=True, scope='session')
 def _ensure_v2_schema(django_db_setup, django_db_blocker):
     """session 级 autouse: 测试 DB 初始化完后, 强制补 V2 schema + seed 权限表.
@@ -163,7 +264,6 @@ def _ensure_v2_schema(django_db_setup, django_db_blocker):
     报错 (NotSupportedError). 同时 T01.1 把 0004_v2_apply_schema 加进迁移图,
     pytest-django 自然会 apply, 不需要这里手动 migrate.
     """
-    from django.utils import timezone
     with django_db_blocker.unblock():
         _ensure_v2_schema_on_sqlite()
         # 2026-08-03 T01.1 (寇豆码): 不再在 session 起始 seed permission_resources /
@@ -173,62 +273,12 @@ def _ensure_v2_schema(django_db_setup, django_db_blocker):
         # (test_sync_resources_persists_codes / test_sync_resources_rejects_invalid_codes)
         # 暂时仍依赖 QUARANTINE 隔离 (RT-2 验收将由 T01.2/T05 解决).
         # ---- seed role_permission: HR/HRBP/SUPER_ADMIN 都有 recruit:domain:list 权限 ----
+        # 复用 _seed_role_permissions (仅在为空时写入); 空表后的惰性重 seed 由
+        # pytest_runtest_setup hook 负责 (应对 serialized_rollback 回滚).
         with connection.cursor() as c:
             c.execute("SELECT COUNT(*) FROM role_permission")
             if c.fetchone()[0] == 0:
-                # 扫描所有 ViewSet 用了 permission_required = 'recruit:domain:list' 的 resource_code
-                from django.apps import apps
-                resource_codes = set()
-                for app_config in apps.get_app_configs():
-                    try:
-                        module = __import__(app_config.name + '.views', fromlist=[''])
-                        for attr_name in dir(module):
-                            cls = getattr(module, attr_name, None)
-                            if cls is None:
-                                continue
-                            # 2026-10-08: 只声明了 permission_required_map 的视图
-                            # (写操作显式授权、读操作留空) 也必须采到, 否则写用例 403。
-                            declared = getattr(cls, 'permission_required', None)
-                            mapping = getattr(cls, 'permission_required_map', None)
-                            if declared is None and not mapping:
-                                continue
-                            if isinstance(declared, str):
-                                resource_codes.add(declared)
-                                # 2026-10-08: V2Permission 现在按 action 派生写权限码
-                                # (:create/:edit/:delete)。测试库里 PermissionResource
-                                # 未 seed, 派生码若存在就会要求 HR 持有, 故此处一并授予,
-                                # 让 fixture 语义等价于「该资源的所有操作都放行」。
-                                base = declared.rsplit(':', 1)[0]
-                                resource_codes.update(
-                                    f'{base}:{s}'
-                                    for s in ('create', 'edit', 'delete')
-                                )
-                            elif isinstance(declared, (list, tuple)):
-                                resource_codes.update(declared)
-                            # 显式 action 覆盖表里的码也必须授予, 否则写用例 403。
-                            # 2026-10-10 G1: 值支持 str 或 list/tuple（任一命中语义,
-                            # 如 offer/demand transition 的 approve|edit）, 需展平。
-                            if isinstance(mapping, dict):
-                                for v in mapping.values():
-                                    if isinstance(v, (list, tuple)):
-                                        resource_codes.update(v)
-                                    else:
-                                        resource_codes.add(v)
-                    except ImportError:
-                        pass
-                # 给 HR/HRBP/SUPER_ADMIN 三个角色都授权
-                now = timezone.now()
-                seeded = 0
-                for role_code in ('SUPER_ADMIN', 'HRBP', 'HR'):
-                    for rc in resource_codes:
-                        c.execute(
-                            """INSERT INTO role_permission
-                               (role_code, resource_code, system_code, created_at)
-                               VALUES (%s, %s, 'recruit', %s)""",
-                            [role_code, rc, now],
-                        )
-                        seeded += 1
-                print(f'[conftest] seeded {seeded} role_permission rows for {len(resource_codes)} resources')
+                _seed_role_permissions(connection)
             # 注: roles.default_data_scope_type=ALL 在 _create_role_v2 里设, 这里不再 UPDATE
             # (因为 session fixture 跑得比 function fixtures 早, 当时 roles 表还是空的)
 

@@ -25,6 +25,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -33,6 +34,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.application.models import Application
 from apps.candidate.scope import (
     assert_candidates_visible,
     assert_candidates_writable,
@@ -69,19 +71,30 @@ from .serializers import (
 )
 from .services import CandidateService
 from .models import Candidate
+from .audit import (
+    CANDIDATE_UPDATABLE_FIELDS,
+    RESUME_FILE_FIELDS,
+    compute_row_hash,
+    diff_fields,
+    jsonable,
+    norm_empty,
+    record_info_update,
+    record_resume_fields_update,
+    record_resume_uploaded,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     """候选人 ViewSet — 增加部门 scope 过滤防 IDOR"""
+    # 注意: applications 预取不在此声明, 改由 get_queryset() 按 action 分发 ——
+    # retrieve 用带 select_related/stage_links 的富 Prefetch, 其余 action 用普通
+    # 'applications'。同名 lookup 两条不同 queryset 并存会触发 Django
+    # "lookup was already seen with a different queryset" ValueError,
+    # 且被 DRF get_object_or_404 吞成 Http404 (retrieve 假 404)。
     queryset = Candidate.objects.filter(deleted_at__isnull=True).select_related(
         'source_channel', 'referrer',
-    ).prefetch_related(
-        # #9 (2026-10-09): CandidateListSerializer.get_application_count 逐行查
-        # obj.applications, 列表 N 行 -> N 次计数查询。prefetch 一次取回,
-        # 序列化器里的 .filter(deleted_at__isnull=True).count() 走缓存不落库。
-        'applications',
     )
     permission_classes = [V2Permission]
     permission_required = 'recruit:candidate:list'
@@ -105,6 +118,24 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # 详情序列化器读取 applications[].position/process/current_stage/grabbed_by
+        # 及 process.stage_links（「当前阶段」步骤条），逐行懒查会 N+1；
+        # retrieve 为单对象，用一次 Prefetch 连同关联模型取回。
+        if self.action == 'retrieve':
+            qs = qs.prefetch_related(
+                Prefetch(
+                    'applications',
+                    queryset=Application.objects.filter(deleted_at__isnull=True)
+                    .select_related('position', 'process', 'current_stage', 'grabbed_by')
+                    .prefetch_related('process__stage_links__stage')
+                    .order_by('-created_at'),
+                )
+            )
+        else:
+            # #9 (2026-10-09): CandidateListSerializer.get_application_count 逐行查
+            # obj.applications, 列表 N 行 -> N 次计数查询。prefetch 一次取回,
+            # 序列化器里的 .filter(deleted_at__isnull=True).count() 走缓存不落库。
+            qs = qs.prefetch_related('applications')
         # 状态筛选
         state = self.request.query_params.get('state')
         if state:
@@ -155,16 +186,27 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         return success_response(out.data, status_code=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
-        """更新候选人基本信息（M07：写范围守卫，仅写范围内可编辑）"""
+        """更新候选人基本信息（M07 写范围守卫 + 字段级变更审计）"""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         # M07 写范围守卫：无 WRITE 规则时无额外限制（沿用既有功能权限）；有则按范围校验
         ensure_writable(request.user, 'candidate', instance, action='edit')
+        # 字段级变更审计：保存前取旧快照
+        old_snapshot = {f: getattr(instance, f, None) for f in CANDIDATE_UPDATABLE_FIELDS}
         serializer = CandidateUpdateSerializer(
             instance, data=request.data, partial=partial,
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # 字段级 diff → 审计（简历文件/文本单列 RESUME_UPLOADED，其余 INFO_UPDATED）
+        new_snapshot = {f: getattr(instance, f, None) for f in CANDIDATE_UPDATABLE_FIELDS}
+        changes = diff_fields(old_snapshot, new_snapshot, CANDIDATE_UPDATABLE_FIELDS)
+        info_changes = [c for c in changes if c['field'] not in RESUME_FILE_FIELDS]
+        resume_changes = [c for c in changes if c['field'] in RESUME_FILE_FIELDS]
+        if info_changes:
+            record_info_update(instance, info_changes, actor=request.user)
+        if resume_changes:
+            record_resume_uploaded(instance, resume_changes, actor=request.user)
         return success_response(
             CandidateDetailSerializer(instance, context=self.get_serializer_context()).data,
         )
@@ -256,9 +298,19 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
     # ----------------------------------------------------------
     @action(detail=True, methods=['get'], url_path='histories')
     def histories(self, request, id=None):
-        """候选人操作历史"""
+        """候选人操作历史（时间倒序；支持 action / date_from / date_to 筛选）"""
         candidate = self.get_object()
         histories = candidate.histories.filter(deleted_at__isnull=True)
+        action = request.query_params.get('action')
+        if action:
+            histories = histories.filter(action=action)
+        date_from = request.query_params.get('date_from')
+        if date_from:
+            histories = histories.filter(created_at__date__gte=date_from)
+        date_to = request.query_params.get('date_to')
+        if date_to:
+            histories = histories.filter(created_at__date__lte=date_to)
+        histories = histories.order_by('-created_at', '-seq')
         # 分页
         page = self.paginate_queryset(histories)
         if page is not None:
@@ -266,6 +318,35 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
             return self.get_paginated_response(serializer.data)
         serializer = CandidateHistorySerializer(histories, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='histories/verify')
+    def histories_verify(self, request, id=None):
+        """校验操作历史哈希链完整性（不可篡改检测）。
+
+        逐行重算 row_hash，并核对 prev_hash 链接与 seq 连续性；任一行被改/删/插
+        都会在此暴露。返回 {ok, checked, broken_at}。
+        """
+        candidate = self.get_object()
+        rows = list(candidate.histories.filter(deleted_at__isnull=True).order_by('seq'))
+        prev = ''
+        expected_seq = 1
+        broken_at = None
+        for h in rows:
+            if h.seq != expected_seq or h.prev_hash != prev:
+                broken_at = h.seq
+                break
+            recomputed = compute_row_hash(
+                candidate.id, h.seq, h.action, h.detail, h.created_by_id, h.prev_hash,
+            )
+            if recomputed != h.row_hash:
+                broken_at = h.seq
+                break
+            prev = h.row_hash
+            expected_seq += 1
+        return Response({
+            'success': True,
+            'data': {'ok': broken_at is None, 'checked': len(rows), 'broken_at': broken_at},
+        })
 
     # ----------------------------------------------------------
     # 申请列表
@@ -606,6 +687,8 @@ class CandidateResumeFieldsView(APIView):
                 {'success': False, 'message': 'values 必须为对象 {fieldKey: value}'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # 旧值快照（一次查全量，仅比对本次提交的 key；per-key upsert 语义）
+        existing = {v.field_key: v.value for v in CandidateFieldValue.objects.filter(candidate_id=pk)}
         saved = {}
         for fk, val in incoming.items():
             if not fk:
@@ -614,6 +697,18 @@ class CandidateResumeFieldsView(APIView):
                 candidate_id=pk, field_key=fk, defaults={'value': val},
             )
             saved[fk] = obj.value
+        # 字段级 before→after diff → 审计（label 由前端按 field_key 解析）
+        # norm_empty 空值归一化: 编辑简历表单会把未填字段以空串一并提交,
+        # 库中原值为 NULL; 不归一化会把几十个「null→''」假变更全部记入审计。
+        changes = [
+            {'field': fk, 'old': jsonable(existing.get(fk)), 'new': jsonable(new_val)}
+            for fk, new_val in saved.items()
+            if norm_empty(jsonable(existing.get(fk))) != norm_empty(jsonable(new_val))
+        ]
+        if changes:
+            candidate = Candidate.objects.filter(pk=pk).first()
+            if candidate is not None:
+                record_resume_fields_update(candidate, changes, actor=request.user)
         return Response({'success': True, 'data': saved})
 
 

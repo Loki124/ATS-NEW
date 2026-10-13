@@ -92,8 +92,6 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
 
   // ===== 其他 =====
   { prefix: '/settings/code-tables', code: 'recruit:settings:code-tables:menu:view' },
-  { prefix: '/settings/dynamic-fields', code: 'recruit:settings:dynamic-fields:menu:view' },
-  { prefix: '/settings/scraped-resumes', code: 'recruit:settings:scraped-resumes:menu:view' },
   { prefix: '/settings/data-dashboard', code: 'recruit:settings:data-dashboard:menu:view' },
   { prefix: '/settings/external', code: 'recruit:settings:external:menu:view' },
   { prefix: '/settings/rule-engine', code: 'recruit:settings:rule-engine:menu:view' },

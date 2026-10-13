@@ -492,6 +492,11 @@ class RecruitmentProcessListSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
             'created_by', 'updated_by',
         ]
+        # 2026-10-13: status 入 read_only 与 RecruitmentProcessSerializer 对齐 ——
+        #   本类当前仅 views.py get_serializer_class 的 list(GET) 分支使用, 无写入路径,
+        #   加它是为了防止未来被接到写动作时重新打开"经序列化器篡改状态"的口子
+        #   (BR-106: 状态变更只能走 archive action / clone_version)。
+        read_only_fields = ['status']
 
     def get_stage_count(self, obj):
         return obj.stage_links.count()
@@ -515,6 +520,12 @@ class RecruitmentProcessSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'code', 'current_version',
+            # BR-106: 流程无停用态, 只能归档; 状态变更只能走 archive action / clone_version。
+            # 2026-10-13: status 曾是可写字段, DRF 生成的 ChoiceField 只认
+            # ENABLED/ARCHIVED, 而 FE ProcessDetailModal 发旧 schema 的 'ACTIVE'/'INACTIVE'
+            # → 线上编辑流程 PUT 必 400("ACTIVE 不是合法选项")。移入 read_only 后
+            # update 端点不再接受 status 写入, 该类(及继承它的 DetailSerializer)同步生效。
+            'status',
             'stage_count', 'reference_count',
             'created_at', 'updated_at', 'created_by', 'updated_by',
         ]
@@ -528,13 +539,25 @@ class RecruitmentProcessSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_applicable_scope(self, value):
-        """适用范围条件表达式校验"""
+        """适用范围条件表达式校验
+
+        2026-10-13: 兼容前端形态 ``{mode, expression, indicators: [...]}``——
+        旧代码只读 ``value['items']``, 而 FE ProcessDetailModal 发的是 ``indicators``
+        (另一代 schema), 有指标时 expression 自动生成为非空(如 "1 OR 2"),
+        导致 items=[] → validate_syntax 编号越界 → 线上编辑 PUT 必 400。
+        权威 items 结构见 apps/django/seeds/03_social_tech_template.json
+        (``{items:[{field,op,value}], expression}``), 此处回退顺序保证旧结构不破。
+        """
         if not value:
             return value
-        items = value.get('items', [])
+        items = value.get('items') or value.get('indicators') or []
         if not isinstance(items, list):
             raise serializers.ValidationError('applicable_scope.items 必须是数组')
-        expression = value.get('expression', '').strip()
+        # 2026-10-13: or '' 兜底 null —— 旧代码 value.get('expression', '') 在 payload
+        #   显式发 expression:null 时取到 None, .strip() 抛 AttributeError → 500
+        #   (QA 独立复现实证: body {"code":"internal_error"})。FE 恒发 trim 后字符串
+        #   故此前不触发, 但同函数正在被本次修复触碰, 顺手堵掉。
+        expression = (value.get('expression') or '').strip()
         if expression:
             from .expressions import validate_syntax
             result = validate_syntax(expression, len(items))
@@ -688,6 +711,11 @@ class ProcessWithStagesCreateSerializer(serializers.Serializer):
     template_code = serializers.CharField(required=False, allow_blank=True, max_length=50)
     applicable_scope = serializers.JSONField(required=False, default=dict)
     validate_resume_score = serializers.BooleanField(default=True)
+    # 2026-10-13: 补 is_enabled 写入契约 —— 旧代码 fields 不含该字段且 create() 里
+    #   is_enabled=True 硬编码, 导致 FE ProcessDetailModal「是否启用」开关在新建态
+    #   永远是摆设(发了也被静默丢弃, 刷新后恒为启用)。模型 models.py:211 本就有该
+    #   可写布尔字段(filterset/versioning 在用), update 端点早已支持, create 补齐。
+    is_enabled = serializers.BooleanField(default=True)
     stage_links = NestedStageLinkInputSerializer(many=True, required=False, default=list,
                                                 help_text='可选 — FE 也可后续 addProcessLink 单独补')
 
@@ -716,10 +744,16 @@ class ProcessWithStagesCreateSerializer(serializers.Serializer):
             next_num = (int(last[1:]) + 1) if last and last[1:].isdigit() else 1
             validated_data['code'] = f'W{next_num:03d}'
 
+        # 2026-10-13: is_enabled 从 validated_data 取出(FE 可传 isEnabled=false 建停用态流程)。
+        #   必须先 pop 再进 create() —— 写在 create(**validated_data, is_enabled=validated_data.pop(...))
+        #   里没用: CPython 对 **d 的展开先于关键字表达式求值, **d 展开时 is_enabled 还在
+        #   dict 里 → TypeError "got multiple values for keyword argument"(实测踩过)。
+        #   status 仍硬编码 ENABLED (BR-106: 无停用态, 只能归档)。
+        is_enabled = validated_data.pop('is_enabled', True)
         process = RecruitmentProcess.objects.create(
             **validated_data,
             current_version='V1.0',
-            is_enabled=True,
+            is_enabled=is_enabled,
             status='ENABLED',
             created_by=actor,
             updated_by=actor,

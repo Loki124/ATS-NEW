@@ -41,6 +41,58 @@
         <n-icon class="rl-sim-modal__close" :component="CloseOutline" :size="18" />
       </div>
       <div class="rl-sim-modal__body">
+    <!-- ============ 模块零: 自定义提示 (配置人员可编辑, 终端用户在选择原因弹窗中可见) ============ -->
+    <div class="rl-preview-module rl-hint-module">
+      <div class="rl-mod-head">
+        <h3>{{ t('reasonLibrary.wizard.preview.tipTitle') }}</h3>
+        <button
+          v-if="!tipEditing"
+          type="button"
+          class="rl-hint-edit-btn"
+          :class="{ visible: hoverTip }"
+          :title="t('reasonLibrary.wizard.preview.tipEdit')"
+          @click="startEditTip"
+        >
+          <n-icon :component="CreateOutline" :size="15" />
+        </button>
+      </div>
+      <n-input
+        v-if="tipEditing"
+        ref="tipInputRef"
+        v-model:value="tipModel"
+        type="textarea"
+        class="rl-hint-input"
+        :autosize="{ minRows: 2, maxRows: 4 }"
+        :placeholder="t('reasonLibrary.wizard.preview.tipPlaceholder')"
+        @blur="stopEditTip"
+      />
+      <div
+        v-else
+        class="rl-hint-view"
+        :class="{ 'is-placeholder': isTipPlaceholder }"
+        @click="startEditTip"
+      >
+        {{ displayTip }}
+      </div>
+    </div>
+
+    <!-- ============ 模块零·五: 人才库 (配置人员为该规则预设默认子库) ============ -->
+    <div class="rl-preview-module">
+      <div class="rl-mod-head">
+        <h3>{{ t('reasonLibrary.wizard.preview.talentPoolTitle') }}</h3>
+      </div>
+      <n-select
+        :value="wizard?.defaultTalentPool ?? ''"
+        :options="talentPoolOptions"
+        :placeholder="t('reasonLibrary.wizard.preview.talentPoolPlaceholder')"
+        clearable
+        size="medium"
+        class="rl-talent-select"
+        @update:value="(v: string | null) => emit('update:default-talent-pool', v ?? '')"
+      />
+      <p class="rl-talent-hint">{{ t('reasonLibrary.wizard.preview.talentPoolHint') }}</p>
+    </div>
+
     <!-- ============ 模块一: 原因标签 (合并单元格式卡片网格, 零表格元素) ============ -->
     <div class="rl-preview-module">
       <div class="rl-mod-head">
@@ -232,9 +284,11 @@
  * 数据来源: wizard.categories + wizard.allTags + wizard.maxSelectableTags (仅读模拟)。
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { NButton, NIcon, NInput, NModal, NSpace } from 'naive-ui'
+import { NButton, NIcon, NInput, NModal, NSpace, NSelect } from 'naive-ui'
+import type { SelectOption } from 'naive-ui'
 import { SettingsOutline, CloseOutline, CreateOutline } from '@vicons/ionicons5'
 import type { ReasonTag, RuleCategory, WizardPayload } from '../../../types/reason-library'
+import { TALENT_POOL_OPTIONS } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
@@ -247,7 +301,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:color', p: { catId: string; color: string }): void
   (e: 'update:modal-title', v: string): void
+  (e: 'update:tip', v: string): void
+  (e: 'update:default-talent-pool', v: string): void
 }>()
+
+/** 人才库 6 子库选项 (n-select 直接消费 {label,value}); 映射为 SelectMixedOption[] */
+const talentPoolOptions: SelectOption[] = TALENT_POOL_OPTIONS.map((o) => ({
+  label: o.label,
+  value: o.value,
+}))
 
 /**
  * 模拟弹窗标题（默认「选择原因」）。
@@ -273,6 +335,26 @@ function startEdit() {
 }
 function stopEdit() {
   titleEditing.value = false
+}
+
+/** 自定义提示: 配置人员可内联编辑, 模拟终端用户在选择原因弹窗中看到的横幅 */
+const tipModel = computed<string>({
+  get: () => props.wizard?.tip ?? '',
+  set: (v: string) => emit('update:tip', v),
+})
+const tipEditing = ref(false)
+const hoverTip = ref(false)
+const tipInputRef = ref<InstanceType<typeof NInput> | null>(null)
+const displayTip = computed(() =>
+  props.wizard?.tip?.trim() || t('reasonLibrary.wizard.preview.tipEmpty'),
+)
+const isTipPlaceholder = computed(() => !props.wizard?.tip?.trim())
+function startEditTip() {
+  tipEditing.value = true
+  nextTick(() => tipInputRef.value?.focus())
+}
+function stopEditTip() {
+  tipEditing.value = false
 }
 
 /** 预设调色板 — 满足「自定义其他颜色进行覆盖」的主要入口 */
@@ -1003,4 +1085,50 @@ function rowStyle(row: TagRow) {
   transition: all var(--duration-fast) var(--ease-out);
 }
 .rl-color-reset:hover { border-color: var(--brand); color: var(--brand-fg); }
+
+/* === 模块零: 自定义提示 (配置人员编辑 / 终端用户可见横幅) === */
+.rl-hint-module { position: relative; }
+.rl-hint-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.rl-hint-edit-btn.visible { opacity: 1; }
+.rl-hint-edit-btn:hover { color: var(--brand-fg); background: var(--brand-tint); }
+.rl-hint-view {
+  font-size: var(--fs-13);
+  line-height: 1.6;
+  color: var(--ink);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-hairline);
+  background: var(--brand-tint, rgba(32, 128, 240, .06));
+  cursor: text;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 38px;
+}
+.rl-hint-view.is-placeholder { color: var(--ink-faint); border-style: dashed; background: transparent; }
+.rl-hint-input { width: 100%; }
+
+/* === 模块零·五: 人才库下拉 === */
+.rl-talent-select { max-width: 320px; }
+.rl-talent-hint {
+  margin: 6px 0 0;
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
+  line-height: 1.5;
+}
 </style>

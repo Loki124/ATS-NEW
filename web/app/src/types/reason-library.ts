@@ -57,6 +57,24 @@ export const RECRUIT_TYPE_OPTIONS: ReadonlyArray<RecruitTypeOption> = [
   { value: 'campus', label: '校园招聘' },
 ]
 
+/**
+ * 人才库 6 子库 (与后端 apps/talent_pool/views.POOL_DEFINITIONS 保持一致)。
+ * 原因规则预览里「人才库」下拉的选项来源; 配置人员为该规则预设默认人才子库。
+ */
+export interface TalentPoolOption {
+  value: string
+  label: string
+}
+export const TALENT_POOL_OPTIONS: ReadonlyArray<TalentPoolOption> = [
+  { value: 'PASSIVE', label: '被动人才库' },
+  { value: 'ACTIVE', label: '主动人才库' },
+  { value: 'HIRED', label: '已入职人才库' },
+  { value: 'REJECTED', label: '未通过人才库' },
+  { value: 'BLACKLIST', label: '黑名单人才库' },
+  { value: 'GENERAL', label: '总人才库' },
+]
+
+
 /** (场景,类型) 显式成对 — 规则应用范围的最小单元 (后端 RuleSceneAssignment 逐行存储) */
 export interface SceneRecruitPair {
   scene: SceneKey
@@ -162,6 +180,10 @@ export interface SceneRule {
   maxSelectableTags: number
   /** 终端用户选择原因弹窗的标题文案 (空=使用默认「选择原因」) */
   modalTitle?: string
+  /** 自定义提示文案 (配置人员编辑、终端用户在选择原因弹窗中可见; 空=不展示) */
+  tip?: string
+  /** 该规则预设的默认人才子库 key (空=不预设); 取值见 TALENT_POOL_OPTIONS */
+  defaultTalentPool?: string
   /** 完整嵌套分类树 (含末级 tags) */
   categories: RuleCategory[]
   /** 列表接口附加的统计字段 (后端 _count 或 @property) */
@@ -252,6 +274,10 @@ export interface WizardPayload {
   maxSelectableTags: number
   /** 模拟弹窗标题 (默认「选择原因」; 保存进规则 modal_title) */
   modalTitle?: string
+  /** 自定义提示文案 (配置人员编辑、终端用户可见; 保存进规则 tip) */
+  tip?: string
+  /** 该规则预设的默认人才子库 key (保存进规则 default_talent_pool) */
+  defaultTalentPool?: string
   categories: RuleCategory[]
   updatedAt?: string
 }
@@ -292,6 +318,10 @@ export interface WizardSavePayload {
   max_selectable_tags: number
   /** 终端用户选择原因弹窗的标题文案 (空=默认「选择原因」) */
   modal_title?: string
+  /** 自定义提示文案 (配置人员编辑、终端用户可见; 空=不展示) */
+  tip?: string
+  /** 该规则预设的默认人才子库 key (空=不预设); 取值见后端 TALENT_POOL_KEYS */
+  default_talent_pool?: string
   categories: WizardSaveCategory[]
   /** 可选乐观锁: 仅 ENABLE_OPTIMISTIC_LOCK=true 时携带 (对应 payload.updatedAt) */
   expected_updated_at?: string

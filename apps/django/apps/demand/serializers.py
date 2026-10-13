@@ -36,10 +36,28 @@ class DemandListSerializer(serializers.ModelSerializer):
 
 
 class DemandDetailSerializer(DemandListSerializer):
+    # 2026-10-12 审批状态: 模型列缺省空串时按 FSM state 派生, 避免与状态机漂移。
+    approval_status = serializers.SerializerMethodField()
+
     class Meta(DemandListSerializer.Meta):
         fields = DemandListSerializer.Meta.fields + [
-            'jd', 'requirements', 'updated_at',
+            'jd', 'requirements',
+            # 2026-10-12 字段结构对齐规范: 新增预置列
+            'talent_level', 'talent_nature', 'date_range', 'sharers', 'approval_status',
+            'updated_at',
         ]
+
+    #: state → 派生审批状态 (approval_status 列空时兜底)
+    _STATE_TO_APPROVAL = {
+        'DRAFT': 'NONE', 'PENDING': 'PENDING', 'APPROVED': 'APPROVED',
+        'RECRUITING': 'APPROVED', 'PAUSED': 'APPROVED', 'COMPLETED': 'APPROVED',
+        'REJECTED': 'REJECTED', 'CANCELLED': 'REJECTED',
+    }
+
+    def get_approval_status(self, obj) -> str:
+        if obj.approval_status:
+            return obj.approval_status
+        return self._STATE_TO_APPROVAL.get(obj.state, 'NONE')
 
 
 class DemandCreateSerializer(serializers.ModelSerializer):
@@ -50,6 +68,8 @@ class DemandCreateSerializer(serializers.ModelSerializer):
             'headcount', 'level', 'position_title',
             'process', 'process_version',
             'jd', 'requirements', 'priority', 'demand_type',
+            # 2026-10-12 字段结构对齐规范: 新增可写预置列
+            'talent_level', 'talent_nature', 'date_range', 'sharers',
         ]
 
     def __init__(self, *args, **kwargs):

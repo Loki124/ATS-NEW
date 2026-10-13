@@ -28,7 +28,7 @@
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
-import { HandLeftOutline, DocumentTextOutline, LinkOutline, GlobeOutline, BarChartOutline, ConstructOutline } from '@vicons/ionicons5'
+import { HandLeftOutline, DocumentTextOutline, LinkOutline, BarChartOutline, ConstructOutline } from '@vicons/ionicons5'
 const { t } = useI18n()
 
 const route = useRoute()
@@ -36,7 +36,6 @@ const META_MAP: Record<string, any> = {
   '/settings/onboarding': { iconComp: HandLeftOutline, title: t('pages.settings.Placeholder.s4'), description: t('pages.settings.Placeholder.s5'), eta: '2026-Q4', issue: 'ATS-142', owner: t('pages.settings.Placeholder.s18'), pr: '#438' },
   '/settings/approval':   { iconComp: DocumentTextOutline, title: t('pages.settings.Placeholder.s7'), description: t('pages.settings.Placeholder.s8'), eta: '2026-Q4', issue: 'ATS-143', owner: t('pages.settings.Placeholder.s18'), pr: '#439' },
   '/settings/external':   { iconComp: LinkOutline, title: t('pages.settings.Placeholder.s9'), description: t('pages.settings.Placeholder.s10'), eta: t('pages.settings.Placeholder.s11'), issue: '—', owner: '—', pr: '—' },
-  '/settings/public':     { iconComp: GlobeOutline, title: t('pages.settings.Placeholder.s12'), description: t('pages.settings.Placeholder.s13'), eta: t('pages.settings.Placeholder.s11'), issue: '—', owner: '—', pr: '—' },
   '/report':              { iconComp: BarChartOutline, title: t('pages.settings.Placeholder.s14'), description: t('pages.settings.Placeholder.s15'), eta: t('pages.settings.Placeholder.s16'), issue: 'ATS-201', owner: '—', pr: '—' },
 }
 const meta = computed(() => {

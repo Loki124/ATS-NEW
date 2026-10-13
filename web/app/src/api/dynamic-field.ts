@@ -224,11 +224,18 @@ export const getField = (resource: string, id: string) =>
  * fieldKey 与已有记录相同 → 撞后端 unique_together → IntegrityError → HTTP 500。
  * 现按 `body.id` 是否存在区分:
  *   - 无 id → POST  /dynamic-fields/{resource}/fields/        (新建, 201)
- *   - 有 id → PUT   /dynamic-fields/{resource}/fields/{id}/   (编辑, 200)
+ *   - 有 id → PATCH /dynamic-fields/{resource}/fields/{id}/   (编辑, 200)
+ *
+ * 2026-10-12 修复 (PUT → PATCH): 后端 DynamicFieldSerializer 未把 label/field_key
+ * 声明为非必填 (模型侧无 blank=True), 实测 PUT 携带**部分属性**(如仅
+ * {id, visibilityPermission})会被 serializer 校验拦截 → 400
+ * 「fieldKey/label: 该字段是必填项」——即「字段权限保存」「停用/启用」两个入口
+ * 实际不可用。PATCH (partial_update) 跳过必填校验, 完整 payload 行为与 PUT 一致,
+ * 故统一改用 PATCH (与 updateFieldOrder 等项目内其它部分更新调用一致)。
  */
 export const upsertField = (resource: string, body: Partial<FieldDefinition>) =>
   (body.id
-    ? api.put(`/dynamic-fields/${resource}/fields/${body.id}/`, body)
+    ? api.patch(`/dynamic-fields/${resource}/fields/${body.id}/`, body)
     : api.post(`/dynamic-fields/${resource}/fields/`, body)
   ).then((r) => normalizeField(r.data.data as FieldDefinition));
 
@@ -238,6 +245,47 @@ export const deleteField = (resource: string, id: string) =>
 /** 后端 reorder 端点只挂了 POST, 这里必须用 POST, 否则 405 */
 export const reorderFields = (resource: string, orderedIds: string[]) =>
   api.post(`/dynamic-fields/${resource}/fields/reorder/`, { orderedIds }).then((r) => r.data);
+
+/** 批量修改(batch-update)单条跳过/失败明细 — 后端如实返回, 不把跳过/失败计入成功 */
+export interface BatchUpdateFieldIssue {
+  id: string;
+  label: string;
+  reason: string;
+}
+
+/** 批量修改(batch-update)结果信封 (后端 success_response.data) */
+export interface BatchUpdateFieldsResult {
+  requested: number;
+  updated: string[];
+  updatedCount: number;
+  skipped: BatchUpdateFieldIssue[];
+  failed: BatchUpdateFieldIssue[];
+}
+
+/**
+ * 批量修改字段的「字段类型(fieldType)」与「字段分组(groupId)」两项属性。
+ *
+ * 2026-10-12 (兵哥) 所有字段管理 → 批量操作:
+ *   - ids: 字段 id 列表 (非空, 单次上限 200);
+ *   - fieldType / groupId 至少传一项, 都传则同时生效;
+ *   - groupId 传 null/'' 表示移到「未分组」(保留原模块);
+ *   - 系统锁定字段(编号/名称/状态)改字段类型会被后端逐条跳过并在 skipped 说明原因;
+ *   - 逐条独立更新, 单条失败(如改为组合字段缺子字段)在 failed 说明原因。
+ *
+ * Args:
+ *  resource: 资源类型 (Candidate / Position / ...)
+ *  body: { ids, fieldType?, groupId? }
+ *
+ * Returns:
+ *  Promise<BatchUpdateFieldsResult> 含 updated/skipped/failed 明细
+ */
+export const batchUpdateFields = (
+  resource: string,
+  body: { ids: string[]; fieldType?: FieldType; groupId?: string | null },
+) =>
+  api
+    .post(`/dynamic-fields/${resource}/fields/batch-update/`, body)
+    .then((r) => r.data.data as BatchUpdateFieldsResult);
 
 /**
  * 单字段 order_index 写入。

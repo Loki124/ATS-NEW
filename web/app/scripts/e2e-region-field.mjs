@@ -41,10 +41,10 @@ async function main() {
   const cdp = await ctx.newCDPSession(page);
   await cdp.send('Network.clearBrowserCache');
   await cdp.send('Network.clearBrowserCookies');
-  await page.goto(BASE + '/settings/dynamic-fields', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/settings/candidate-dynamic-fields', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(2500);
 
-  // 2) 进入字段定义页 (overview 模式默认有 4 Tab, 第一个就是「字段定义」)
+  // 2) 进入字段定义页 (embedded 模式默认 3 Tab: 字段定义/分组/联动规则, 第一个就是「字段定义」)
   // (已在上一步 goto + reload 完成)
   await page.waitForTimeout(500);
   // 等到列表渲染
@@ -52,7 +52,7 @@ async function main() {
 
   // dev 改完 dynamic-field.ts 后, 该页之前 import 的 FIELD_TYPE_OPTIONS 是旧版。
   // 强制 goto 一次并 reload 清掉 ESM 缓存
-  await page.goto(BASE + '/settings/dynamic-fields', { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/settings/candidate-dynamic-fields', { waitUntil: 'networkidle' });
   await page.waitForTimeout(1500);
   await page.waitForSelector('text=新建字段', { timeout: 10000 });
 
