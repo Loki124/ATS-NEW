@@ -118,6 +118,15 @@ class DataPermissionRule(TimestampedModel):
         verbose_name='行级访问类型',
         help_text='NULL/READ=读范围(默认); WRITE=写范围(仅作用于写入口守卫)',
     )
+    # 2026-10-13 权限 v2：动作粒度。仅 row_access=WRITE 时有意义：允许的写动作 key 集合
+    # （key 见 DataPermissionAction 字典表）；NULL=全部动作放行（双读兼容，同 row_access 设计）。
+    # 执行链按「动作级 fail-closed」判定：配置写范围后未列出的动作一律拒绝 ——
+    # 见 enforcement.write_scope_q 与 docs/plan-read-write-action-permission.md §3.4。
+    actions = models.JSONField(
+        null=True, blank=True,
+        verbose_name='允许的写动作集合',
+        help_text="仅 row_access=WRITE 有效：['edit','transition']；NULL=全部动作放行",
+    )
 
     # 列级字段
     entity = models.CharField(max_length=64, null=True, blank=True, db_index=True, verbose_name='实体')
@@ -228,3 +237,78 @@ class DataPermTemplate(FullAuditModel, UUIDModel):
         if not self.code:
             self.code = _next_template_code()
         super().save(*args, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# 可配置动作字典（权限 v2，2026-10-13）
+#
+# 为什么从 ACTION_REGISTRY 代码常量升级为 DB 表：
+#   兵哥需求「功能权限要在后续自定义配置，而不是一次性写死」——动作清单本身要可增删改
+#   （如后续加「人工群发通知」），不该每加一个动作都改代码发版。
+#   ACTION_REGISTRY 降级为「种子定义 + DB 读失败兜底」，见 action_map.sync_seed()。
+#
+# 护栏（防误操作破坏执行链）：
+#   - is_system=True：不可删、key 不可改（业务代码 ensure_writable(action='xxx') 引用它），
+#     仅可改 label / 停用；
+#   - 自建动作 key 强制 custom_ 前缀（CUSTOM_KEY_PREFIX）；
+#   - 被 WRITE 规则 actions 引用的动作不可删（保存时校验，见 action_registry）。
+# ---------------------------------------------------------------------------
+class ActionCategory(models.TextChoices):
+    """动作归类：驱动预设包与 UI 分组。"""
+    READ = 'read', '读'
+    WRITE = 'write', '写'
+    DESTRUCTIVE = 'destructive', '破坏性'
+
+
+class DataPermissionAction(models.Model):
+    """写动作字典条目。
+
+    key 是稳定契约：业务代码 ensure_writable(user, entity, obj, action=key) 引用它，
+    因此系统动作的 key 一经发布不可变更（只可改 label / enabled）。
+    停用（enabled=False）= 执行时该动作一律拒绝（安全方向，见 write_scope_q）。
+    """
+
+    CUSTOM_KEY_PREFIX = 'custom_'
+
+    key = models.CharField(max_length=32, primary_key=True, verbose_name='动作key')
+    label = models.CharField(max_length=32, verbose_name='名称')
+    category = models.CharField(
+        max_length=16, choices=ActionCategory.choices,
+        default=ActionCategory.WRITE, verbose_name='归类',
+    )
+    destructive = models.BooleanField(default=False, verbose_name='破坏性动作')
+    enabled = models.BooleanField(default=True, verbose_name='启用')
+    is_system = models.BooleanField(default=False, verbose_name='系统内置')
+    sort_order = models.IntegerField(default=0, verbose_name='排序')
+
+    class Meta:
+        db_table = 'data_permission_actions'
+        verbose_name = '数据权限动作'
+        verbose_name_plural = '数据权限动作'
+        ordering = ['sort_order', 'key']
+
+    def __str__(self):
+        return f'{self.key}({self.label})'
+
+
+class DataPermissionActionPreset(models.Model):
+    """动作预设包：一组动作 key 的命名组合（如 owner_restricted = 查看+编辑）。
+
+    规则配置 UI 选预设包一键填充 actions，避免动作 × 维度笛卡尔积爆炸；
+    预设包本身同样可配置（管理员自建组合）。
+    """
+
+    key = models.CharField(max_length=32, primary_key=True, verbose_name='预设key')
+    label = models.CharField(max_length=32, verbose_name='名称')
+    action_keys = models.JSONField(default=list, verbose_name='动作key集合')
+    is_system = models.BooleanField(default=False, verbose_name='系统内置')
+    sort_order = models.IntegerField(default=0, verbose_name='排序')
+
+    class Meta:
+        db_table = 'data_permission_action_presets'
+        verbose_name = '数据权限动作预设包'
+        verbose_name_plural = '数据权限动作预设包'
+        ordering = ['sort_order', 'key']
+
+    def __str__(self):
+        return f'{self.key}({self.label})'

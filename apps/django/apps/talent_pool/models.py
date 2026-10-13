@@ -23,6 +23,9 @@ class TalentPoolEntry(FullAuditModel):
 
     # 2026-09-26: 6 子库（PRD G32）。前端 TalentPool.vue 按此划分 tab 与跨池移动。
     #   PASSIVE/ACTIVE/HIRED/REJECTED/BLACKLIST/GENERAL —— 每个条目归属唯一子库。
+    # 2026-10-13: 新增第 7 子库 ELIMINATED（淘汰库，权限 v2 兵哥拍板）——
+    #   点击「淘汰」后候选人 FSM 淘汰流转 + 直接入淘汰库（pool_type=ELIMINATED）。
+    #   纯枚举扩展无 DDL；跨池移动/统计按既有 pool_type 路径自动兼容。
     class PoolType(models.TextChoices):
         PASSIVE = 'PASSIVE', '被动人才库'
         ACTIVE = 'ACTIVE', '主动人才库'
@@ -30,6 +33,7 @@ class TalentPoolEntry(FullAuditModel):
         REJECTED = 'REJECTED', '未通过人才库'
         BLACKLIST = 'BLACKLIST', '黑名单人才库'
         GENERAL = 'GENERAL', '总人才库'
+        ELIMINATED = 'ELIMINATED', '淘汰库'
 
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     # 招聘类型硬分区 (social/campus): 社会/校园招聘数据相互隔离, 历史数据默认 social.

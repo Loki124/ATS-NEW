@@ -26,6 +26,8 @@ from .serializers import (
 )
 
 # 2026-09-26: 6 子库定义（前端 TalentPool.vue tab 契约）。顺序即默认激活子库（首项 PASSIVE）。
+# 2026-10-13: 新增第 7 子库 ELIMINATED（淘汰库，权限 v2 兵哥拍板）——点击「淘汰」后
+#   候选人 FSM 淘汰流转 + 直接入本库（send_candidate_to_eliminated_pool）。
 POOL_DEFINITIONS = [
     ('PASSIVE', '被动人才库', '暂未主动接触、储备中的人才'),
     ('ACTIVE', '主动人才库', '正在沟通或推进中的人才'),
@@ -33,6 +35,7 @@ POOL_DEFINITIONS = [
     ('REJECTED', '未通过人才库', '本流程未通过的人才'),
     ('BLACKLIST', '黑名单人才库', '列入黑名单、不可再触达的人才'),
     ('GENERAL', '总人才库', '全部人才的总览'),
+    ('ELIMINATED', '淘汰库', '已被淘汰的人才（点击「淘汰」直接进入）'),
 ]
 
 
@@ -188,6 +191,10 @@ class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewS
             candidate = Candidate.objects.get(pk=candidate_id)
         except Candidate.DoesNotExist:
             return Response({'success': False, 'message': '候选人不存在'}, status=status.HTTP_404_NOT_FOUND)
+        # 权限 v2（2026-10-13）：入库动作纳入写范围守卫。目标子库为淘汰库时用
+        # 独立动作 'talent_pool_add'（与 candidate FSM 的 move_to_talent_pool 同动作）。
+        from apps.data_permission.enforcement import ensure_writable
+        ensure_writable(request.user, 'candidate', candidate, action='talent_pool_add')
         user = request.user if getattr(request.user, 'is_authenticated', False) else None
         # 同子库已存在条目 → 复用，不再新建（避免重复入池）
         existing = TalentPoolEntry.objects.filter(candidate=candidate, pool_type=pool).first()

@@ -20,6 +20,7 @@ from django.utils import timezone
 from apps.candidate.models import Candidate, CandidateState
 from apps.common.exceptions import NotFound
 from apps.core.models import User
+from apps.reason_library.models import RecruitType
 
 from .models import TalentPoolEntry
 
@@ -248,3 +249,37 @@ def move_candidate_to_pool(
 
 def search_pool(**kwargs) -> List[TalentPoolEntry]:
     return TalentPoolService.search_pool(**kwargs)
+
+
+def send_candidate_to_eliminated_pool(
+    candidate: 'Candidate', entry_reason: str = '', actor: User | None = None,
+) -> TalentPoolEntry:
+    """把候选人放入「淘汰库」（PoolType.ELIMINATED，权限 v2 兵哥拍板）。
+
+    与 move_candidate_to_pool 的区别：**不触发候选人 FSM** —— 淘汰候选人的 FSM 流转
+    由调用方（candidate transition 的 mark_process_failed）已完成，本函数只负责
+    人才库条目落位；若复用 move_candidate_to_pool 会把候选人状态改写回 TALENT_POOL，
+    与「已淘汰」语义冲突。
+
+    同一候选人在库条目唯一（is_active 且未删）：已存在则改写 pool_type 为 ELIMINATED
+    （跨库移动语义），否则新建。调用方 best-effort 调用（入库失败不影响淘汰本身）。
+    """
+    entry, _ = TalentPoolEntry.objects.get_or_create(
+        candidate=candidate,
+        is_active=True,
+        deleted_at__isnull=True,
+        defaults={
+            'pool_type': TalentPoolEntry.PoolType.ELIMINATED.value,
+            'source': TalentPoolEntry.EntrySource.REJECTED,
+            'source_detail': entry_reason or '淘汰',
+            'recruit_type': getattr(candidate, 'recruit_type', RecruitType.SOCIAL.value),
+            'created_by': getattr(actor, 'pk', None),
+            'updated_by': getattr(actor, 'pk', None),
+        },
+    )
+    if entry.pool_type != TalentPoolEntry.PoolType.ELIMINATED.value:
+        entry.pool_type = TalentPoolEntry.PoolType.ELIMINATED.value
+        entry.source_detail = entry_reason or '淘汰'
+        entry.updated_by = getattr(actor, 'pk', None)
+        entry.save(update_fields=['pool_type', 'source_detail', 'updated_by', 'updated_at'])
+    return entry

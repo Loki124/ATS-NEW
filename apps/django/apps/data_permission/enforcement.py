@@ -18,7 +18,12 @@ from typing import List, Tuple
 from django.core.cache import cache
 
 from apps.data_permission.expr_compiler import compile_scope_q
-from apps.data_permission.models import DataPermissionRule, DimensionType, RowScopeAccess, RowScopeType
+from apps.data_permission.models import (
+    DataPermissionRule,
+    DimensionType,
+    RowScopeAccess,
+    RowScopeType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -214,20 +219,27 @@ def write_scope_q(user, entity: str, action: str | None = None):
 
     对称镜像 role_entity_scope_q，但仅过滤 level='ROW' AND row_access='WRITE' 的规则。
     RBAC 并集语义与读路径一致（任一角色 ALL -> Q()；NONE -> Q(pk__in=[]) 在 OR 中 no-op；
-    CUSTOM -> 编译表达式并参与 OR）。
+    CUSTOM -> 编译表达式并参与 OR；OWNER -> 负责人字段命中）。
 
     关键设计（opt-in 安全默认）：无 WRITE 规则时返回 None，调用方据 None 判定「无额外写限制」
     —— 即不配置写规则 = 沿用既有功能权限（可见即可操作现状不变）。这避免 M07 上线即锁死
-    所有写入口（V3 风险：漏接导致动作不受限反过来等于 fail-open，此处同为 fail-open 但显式）。
+    所有写入口。超管直接返回 None。
 
-    超管直接返回 None（超管本就全量可写，且 UI 禁止为其配置）。
+    v2 动作级 fail-closed（2026-10-13，docs/plan-read-write-action-permission.md §3.4）：
+    配置了写范围之后，语义从 fail-open 切换为 fail-closed ——
+      1. 停用动作（动作字典 enabled=False）一律拒绝（Q(pk__in=[])）；
+      2. 只有 `actions` 授权了当前动作的规则才**贡献范围**（actions=NULL 授权全部）；
+         没有任何规则授权该动作 -> 一律拒绝，**绝不回落到功能权限**。
+      否则会出现反向放大漏洞：只配 ['edit'] 后 delete 因"无规则包含它"而被 fail-open 放行。
+    字典/规则不可读时兜底为种子全集（fail-open），不因基础设施故障扩大拒绝面。
     """
     from django.db.models import Q
 
+    from apps.data_permission import action_registry
     from apps.data_permission.action_map import validate_action
 
     if action is not None:
-        # 早失败：调用方拼错动作名立即暴露，而非静默放行
+        # 早失败：调用方拼错动作名立即暴露，而非静默放行（代码层契约，与字典无关）
         validate_action(action)
 
     if not (user and getattr(user, 'is_authenticated', False)):
@@ -250,19 +262,36 @@ def write_scope_q(user, entity: str, action: str | None = None):
     if not role_codes:
         return None
 
-    rules = DataPermissionRule.objects.filter(
+    rules = list(DataPermissionRule.objects.filter(
         dimension_type=DimensionType.ROLE,
         dimension_value__in=role_codes,
         level='ROW',
         row_access=RowScopeAccess.WRITE,
         status=1,
         entity=entity,
-    )
-    if not rules.exists():
+    ))
+    if not rules:
         return None
 
+    # ---- v2 动作级 fail-closed ----
+    # 1) 停用动作一律拒绝（字典不可读时 is_action_enabled 兜底为种子全集，不误拒）
+    if action is not None and not action_registry.is_action_enabled(action):
+        logger.info('写范围拒绝(动作已停用): entity=%s action=%s', entity, action)
+        return Q(pk__in=[])
+
+    # 2) 只有授权了当前动作的规则才贡献范围：
+    #    actions=NULL 授权全部；否则 action 必须出现在该规则的 actions 里。
+    #    任何规则都未授权该动作 -> 一律拒绝（不许回落功能权限）。
+    authorized = [
+        r for r in rules
+        if r.actions is None or (action is not None and action in r.actions)
+    ]
+    if action is not None and not authorized:
+        logger.info('写范围拒绝(动作未授权): entity=%s action=%s', entity, action)
+        return Q(pk__in=[])
+
     qs: list = []
-    for r in rules:
+    for r in authorized:
         if r.scope_type == RowScopeType.ALL:
             return Q()  # 并集：任一角色 ALL -> 全量可写
         if r.scope_type == RowScopeType.NONE:

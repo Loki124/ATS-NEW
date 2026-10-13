@@ -81,6 +81,10 @@ PERMISSION_V2_BOOTSTRAP_DISABLED = True
 #   —— 表现为 batch-screen 等用例**依赖执行顺序**偶发失败。
 V2_PERM_CODES_CACHE_TTL = 0
 
+# 2026-10-13 (权限 v2): 同理关闭动作字典缓存。test_write_actions 里会停用动作
+#   （delete/merge），TTL 缓存会让后续用例读到"已停用"的脏状态产生顺序依赖。
+DP_ACTION_DICT_CACHE_TTL = 0
+
 # 更快邮件
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
