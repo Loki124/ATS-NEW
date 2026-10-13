@@ -233,8 +233,6 @@ export const APP_UI_ZH: Record<string, string> = {
   'pages.interview.InterviewList.s1': "面试管理",
   'pages.invitation.InvitationCenter.s1': "邀约中心",
   'pages.notification.NotificationList.s1': "消息通知",
-  'pages.offer.BackgroundCheckPanel.s1': "背调记录",
-  'pages.offer.OfferList.s1': "Offer 管理",
   'pages.onboarding.OnboardingList.s1': "待入职管理",
   'pages.position.PositionList.s1': "职位管理",
   'pages.referral.AddReferralModal.s1': "新增推荐",

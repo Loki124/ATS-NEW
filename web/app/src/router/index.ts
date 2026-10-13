@@ -81,11 +81,9 @@ const routes: RouteRecordRaw[] = [
         name: 'Interviews',
         component: () => import(/* webpackChunkName: "list-interview" */ '../pages/interview/InterviewList.vue')
       },
-      {
-        path: 'offers',
-        name: 'Offers',
-        component: () => import(/* webpackChunkName: "list-offer" */ '../pages/offer/OfferList.vue')
-      },
+      // 2026-10-14: 「Offer管理」模块移除 —— Offer 功能并入候选人详情页 Offer 页签。
+      // 保留旧深链重定向（对标既有 metric-library → /settings/metrics 做法），避免历史链接 404。
+      { path: 'offers', redirect: '/candidates' },
       {
         path: 'onboardings',
         name: 'Onboardings',

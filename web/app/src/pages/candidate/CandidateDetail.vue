@@ -181,6 +181,14 @@
                 <n-empty v-else :description="t('pages.candidate.CandidateDetail.s7')" style="margin: 24px 0" />
               </div>
             </n-tab-pane>
+
+            <!-- Offer（2026-10-14：原「Offer管理」模块并入候选人管理，按 candidate 过滤） -->
+            <n-tab-pane name="offer">
+              <template #tab>
+                <span><n-icon :component="GiftOutline" />{{ t('pages.candidate.CandidateDetail.s256') }}</span>
+              </template>
+              <CandidateOfferPanel :candidate-id="String(route.params.id || '')" />
+            </n-tab-pane>
           </n-tabs>
         </n-card>
       </div>
@@ -540,12 +548,14 @@ import {
   LockClosedOutline,
   ExpandOutline,
   ContractOutline,
+  GiftOutline,
 } from '@vicons/ionicons5'
 import { getCandidate, listCandidates, verifyCandidateHistories } from '../../api/candidate'
 import { fetchConfig, defaultConfig, type StandardResumeConfig } from '../../api/standard-resume'
 import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fields'
 import { listFields, type FieldDefinition } from '../../api/dynamic-field'
 import InitiateBackgroundCheckModal from './InitiateBackgroundCheckModal.vue'
+import CandidateOfferPanel from '../../components/candidate/CandidateOfferPanel.vue'
 import { listBackgroundCheckOrders } from '../../api/integration'
 
 const router = useRouter()
