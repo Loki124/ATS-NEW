@@ -47,6 +47,23 @@ def jsonable(value):
         return str(value)
 
 
+def norm_empty(value):
+    """空值归一化：None / 空串(含纯空白) / 空数组 / 空对象 视为同义空 → 统一归 None。
+
+    2026-10-13 修复(兵哥: 操作记录全是噪声)：编辑简历表单会把**未填字段以空串**
+    一并提交，库中原值为 NULL。逐字段直接比对会把几十个「null→''」的未填字段
+    全部记成变更，单次保存产生 30+ 条假变更，审计完全不可读。归一化后仅真实
+    内容变化才记 diff。
+    """
+    if value is None:
+        return None
+    if isinstance(value, str) and value.strip() == '':
+        return None
+    if isinstance(value, (list, dict)) and len(value) == 0:
+        return None
+    return value
+
+
 # 模型列中文标签（基本信息更新 diff 的 label 来源）
 FIELD_LABELS = {
     'name': '姓名', 'phone': '手机号', 'email': '邮箱', 'gender': '性别',
@@ -62,11 +79,14 @@ FIELD_LABELS = {
 
 
 def diff_fields(old_snapshot: dict, new_snapshot: dict, fields) -> list:
-    """逐字段比对，返回 ``[{field, label, old, new}]``（仅含发生变化的字段）。"""
+    """逐字段比对，返回 ``[{field, label, old, new}]``（仅含发生变化的字段）。
+
+    比对前先做 ``norm_empty`` 空值归一化：null↔'' 不算变更。
+    """
     changes = []
     for f in fields:
-        old = jsonable((old_snapshot or {}).get(f))
-        new = jsonable((new_snapshot or {}).get(f))
+        old = norm_empty(jsonable((old_snapshot or {}).get(f)))
+        new = norm_empty(jsonable((new_snapshot or {}).get(f)))
         if old != new:
             changes.append({'field': f, 'label': FIELD_LABELS.get(f, f), 'old': old, 'new': new})
     return changes

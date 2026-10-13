@@ -73,6 +73,7 @@ from .audit import (
     compute_row_hash,
     diff_fields,
     jsonable,
+    norm_empty,
     record_info_update,
     record_resume_fields_update,
     record_resume_uploaded,
@@ -676,10 +677,12 @@ class CandidateResumeFieldsView(APIView):
             )
             saved[fk] = obj.value
         # 字段级 before→after diff → 审计（label 由前端按 field_key 解析）
+        # norm_empty 空值归一化: 编辑简历表单会把未填字段以空串一并提交,
+        # 库中原值为 NULL; 不归一化会把几十个「null→''」假变更全部记入审计。
         changes = [
             {'field': fk, 'old': jsonable(existing.get(fk)), 'new': jsonable(new_val)}
             for fk, new_val in saved.items()
-            if jsonable(existing.get(fk)) != jsonable(new_val)
+            if norm_empty(jsonable(existing.get(fk))) != norm_empty(jsonable(new_val))
         ]
         if changes:
             candidate = Candidate.objects.filter(pk=pk).first()
