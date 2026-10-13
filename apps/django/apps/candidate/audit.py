@@ -175,3 +175,37 @@ def record_reason_tagged(candidate, detail: dict, actor=None):
     tags:[{tag_id, rule_version}] / note，供审计溯源与 BI 按规则版本维度消费。
     """
     return _create(candidate, 'REASON_TAGGED', detail or {}, actor)
+
+
+def _user_ref(user):
+    """用户 → 审计可读引用 {id, name}；空 → None。"""
+    if user is None:
+        return None
+    name = (
+        getattr(user, 'full_name', None)
+        or getattr(user, 'username', None)
+        or getattr(user, 'name', None)
+    )
+    return {'id': str(getattr(user, 'pk', None)), 'name': name}
+
+
+def record_lock_change(candidate, *, from_user, to_user, reason: str, actor=None, kind: str = 'FORMAL'):
+    """简历锁定人变更（正式 / 临时）—— 由锁定引擎 :mod:`apps.candidate.lock_engine` 调用。
+
+    PRD：正式锁定人由规则自动流转、不可手动变更，因此**每一次**变更都必须可追溯
+    「为什么换人」—— ``detail.reason`` 落决策原因码（``LockReason.*``），
+    配合哈希链构成不可篡改的锁定权流转记录。
+
+    ``kind``: ``FORMAL``（正式锁定人）/ ``TEMP``（72h 临时锁定）。
+    两端都为空（无意义变更）时不落审计，避免噪声。
+    """
+    if from_user is None and to_user is None:
+        return None
+    detail = {
+        'kind': kind,
+        'reason': reason,
+        'from': _user_ref(from_user),
+        'to': _user_ref(to_user),
+        'source': 'lock_engine',
+    }
+    return _create(candidate, 'LOCK_CHANGED', detail, actor)
