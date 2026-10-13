@@ -1462,18 +1462,6 @@ export function useMetricsWorkspace() {
     }
   }
 
-  // ===== 兜底：JS 计算表格可用高度 =====
-  const tableMaxHeight = ref(480)
-  function updateTableMaxHeight() {
-    const wrap = document.querySelector('.metrics-ws .ws-table-wrap') as HTMLElement | null
-    if (wrap) {
-      const top = wrap.getBoundingClientRect().top
-      tableMaxHeight.value = Math.max(240, window.innerHeight - top - 24)
-    } else {
-      tableMaxHeight.value = Math.max(240, window.innerHeight - 240)
-    }
-  }
-
   return {
     t,
     activeTab,
@@ -1663,7 +1651,5 @@ export function useMetricsWorkspace() {
     onAffectedConfirm,
     onAffectedCancel,
     load,
-    tableMaxHeight,
-    updateTableMaxHeight,
   }
 }

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="ws-tab-pane-body">
     <div class="ws-tab-header">
       <div class="ws-tab-bar">
         <div class="ws-toolbar ws-toolbar-grow">
@@ -58,7 +58,7 @@
           :data="pagedTemplates"
           :row-props="tplRowProps"
           :scroll-x="900"
-          :max-height="tableMaxHeight"
+          flex-height
           :scrollbar-props="{ trigger: 'none' }"
           size="small"
           class="ws-table"
@@ -108,7 +108,6 @@ const {
   pagedTemplates,
   tplColumns,
   tplRowProps,
-  tableMaxHeight,
   tplPage,
   tplPageSize,
 } = ws

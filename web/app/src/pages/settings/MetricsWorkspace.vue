@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, provide } from 'vue'
+import { onMounted, provide } from 'vue'
 import { METRICS_WORKSPACE_KEY, useMetricsWorkspace } from '@/composables/useMetricsWorkspace'
 import DefinitionsTab from '@/components/metrics/workspace/DefinitionsTab.vue'
 import TemplatesTab from '@/components/metrics/workspace/TemplatesTab.vue'
@@ -47,15 +47,12 @@ import TemplateVersionHistoryDrawer from '@/components/metrics/workspace/Templat
 const ws = useMetricsWorkspace()
 provide(METRICS_WORKSPACE_KEY, ws)
 
-const { t, activeTab, load, updateTableMaxHeight } = ws
+const { t, activeTab, load } = ws
 
+// 表格高度不再由 JS 测高决定（改用 naive-ui flex-height + CSS flex 链收敛），
+// 故不再需要 resize 监听与 updateTableMaxHeight 调用。
 onMounted(() => {
   load()
-  updateTableMaxHeight()
-  window.addEventListener('resize', updateTableMaxHeight)
-})
-onUnmounted(() => {
-  window.removeEventListener('resize', updateTableMaxHeight)
 })
 </script>
 
@@ -131,6 +128,20 @@ onUnmounted(() => {
 .metrics-ws {
   gap: 0 !important;
 }
+/* 两个 Tab 组件的根节点（.ws-tab-pane-body）：必须与 .ws-table-wrap 的 flex 链连通。
+   🔴 2026-10-13 兵哥反馈"数据没显示全 + 分页条不显示"的根因：
+     ① 此根节点原是无样式的裸 <div>（display:block）→ .ws-table-wrap 的 flex:1 完全失效，
+        按内容自然高度撑开（实测 711px）；
+     ② 旧 updateTableMaxHeight 用 window.innerHeight 硬算 max-height（`innerHeight - top - 24`），
+        既没扣掉分页条(40px)也没扣表头，把 .ws-pager 顶到 y=917（视口仅 900）→ 分页条渲染在可视区外。
+     修法：改用 naive-ui 原生 flex-height（高度交给 CSS flex 链收敛）+ 此处补齐根节点 flex 列，
+        不再依赖任何 JS 测高。 */
+.ws-tab-pane-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .metrics-ws .n-tabs {
   display: flex !important;
   flex-direction: column !important;
@@ -145,6 +156,14 @@ onUnmounted(() => {
 }
 .ws-tab-header {
   flex-shrink: 0;
+}
+/* 🔴 flex-height 的必要配套：n-data-table 自身必须参与 flex 链并可收缩。
+   缺这条时 flex-height 找不到确定高度 → 退化为只渲表头（实测 table.h=41、body 空白），
+   即「数据被吃」的典型症状。min-height:0 必写：flex 子项默认 min-height:auto 会撑爆。 */
+.ws-spin > .n-data-table,
+.ws-spin .n-data-table {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .ws-table-wrap {
   display: flex;
