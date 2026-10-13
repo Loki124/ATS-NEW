@@ -25,7 +25,6 @@ const SETTINGS_PAGES = [
   { url: '/settings/field-acl', label: '字段权限' },
   { url: '/settings/school-library', label: '院校库' },
   { url: '/settings/company-library', label: '公司库' },
-  { url: '/settings/dynamic-fields', label: '动态字段' },
 ];
 
 test.describe('Settings 菜单可达性 (P1-B + P3-F 全覆盖)', () => {

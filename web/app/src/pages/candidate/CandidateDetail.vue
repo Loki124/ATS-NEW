@@ -1,6 +1,6 @@
 <template>
   <div class="candidate-detail-page">
-    <!-- 顶部导航 -->
+    <!-- 顶部导航（仅返回 + 标题；操作按钮移至右侧操作栏） -->
     <div class="page-header">
       <n-space>
         <n-button class="back-btn" @click="goBack">
@@ -9,236 +9,189 @@
         </n-button>
         <n-h4 style="margin: 0; font-weight: 700">{{ t('pages.candidate.CandidateDetail.s2') }}</n-h4>
       </n-space>
-
-      <n-space>
-        <n-button type="primary" class="send-btn" @click="openNotificationModal">
-          <template #icon><n-icon :component="PaperPlaneOutline" /></template>
-          {{ t('pages.candidate.CandidateDetail.s3') }}
-        </n-button>
-        <n-button type="warning" class="bg-btn" @click="bgModalVisible = true">
-          <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
-          {{ t('pages.candidate.InitiateBgCheck.title') }}
-        </n-button>
-        <n-button type="warning" secondary class="bg-btn" @click="openSupplementBg">
-          <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
-          {{ t('pages.candidate.InitiateBgCheck.titleSupplement') }}
-        </n-button>
-      </n-space>
     </div>
 
-    <!-- 候选人基本信息卡片 -->
-    <n-card class="info-card">
-      <div class="flex items-center">
-        <div class="mr-6">
-          <n-avatar :size="80" round class="candidate-avatar">
-            {{ candidateData.name[0] }}
-          </n-avatar>
-        </div>
-        <div class="flex-1">
-          <div class="candidate-header">
-            <div class="candidate-main">
-              <n-h3 style="margin: 0 0 8px 0">
-                {{ candidateData.name }}
-                <n-tag :type="candidateData.status === 'interview' ? 'warning' : 'success'" :bordered="false" style="margin-left: 12px">
-                  {{ candidateData.status === 'interview' ? t('pages.candidate.CandidateDetail.s99') : t('pages.candidate.CandidateDetail.s100') }}
-                </n-tag>
-              </n-h3>
-              <n-space size="large" style="margin-bottom: 12px">
-                <span class="contact-info">
-                  <n-icon :component="CallOutline" style="margin-right: 4px" /> {{ candidateData.phone }}
-                </span>
-                <span class="contact-info">
-                  <n-icon :component="MailOutline" style="margin-right: 4px" /> {{ candidateData.email }}
-                </span>
-              </n-space>
-              <n-space wrap>
-                <n-tag class="position-tag" :bordered="false">{{ candidateData.position }}</n-tag>
-                <n-tag class="channel-tag" :bordered="false">{{ t('pages.candidate.CandidateDetail.s4') }}</n-tag>
-              </n-space>
-            </div>
-            <div class="candidate-meta">
-              <div>HRBP：{{ candidateData.hrbp }}</div>
-              <div>{{ t('pages.candidate.CandidateDetail.s5') }}{{ candidateData.hiringManager }}</div>
-            </div>
+    <!-- 候选人身份条：头像 + 姓名 + 编号 + 状态 + 应聘职位 + 关键信息 -->
+    <n-card class="identity-card">
+      <div class="identity-row">
+        <n-avatar :size="64" round class="candidate-avatar">
+          {{ candidateData.name[0] }}
+        </n-avatar>
+        <div class="identity-main">
+          <div class="identity-name-row">
+            <span class="identity-name">{{ candidateData.name }}</span>
+            <span v-if="candidateData.code" class="identity-code">{{ candidateData.code }}</span>
+            <n-tag v-if="candidateData.stateDisplay" type="info" :bordered="false" size="small">
+              {{ candidateData.stateDisplay }}
+            </n-tag>
+            <n-tag v-if="appliedPosition" class="position-tag" :bordered="false" size="small">
+              {{ appliedPosition }}
+            </n-tag>
+          </div>
+          <div class="identity-meta-row">
+            <span v-if="genderAgeText" class="meta-chip">{{ genderAgeText }}</span>
+            <span v-if="candidateDetail?.highest_education" class="meta-chip">{{ candidateDetail.highest_education }}</span>
+            <span v-if="candidateData.phone !== '—'" class="meta-chip"><n-icon :component="CallOutline" /> {{ candidateData.phone }}</span>
+            <span v-if="candidateData.email !== '—'" class="meta-chip"><n-icon :component="MailOutline" /> {{ candidateData.email }}</span>
           </div>
         </div>
       </div>
     </n-card>
 
-    <!-- Tab 区域 -->
-    <n-card class="tabs-card">
-      <n-tabs v-model:value="activeTab">
-        <!-- 基本信息 -->
-        <n-tab-pane name="info">
-          <template #tab>
-            <span><n-icon :component="PersonOutline" />{{ t('pages.candidate.CandidateDetail.s6') }}</span>
-          </template>
-          <div class="info-section">
-            <n-grid :cols="2" :x-gap="24" :y-gap="16" responsive="screen">
-              <n-grid-item v-for="f in displayFields" :key="f.fieldKey">
-                <div class="info-row">
-                  <div class="info-label">{{ f.label }}</div>
-                  <div class="info-value">{{ f.value }}</div>
-                </div>
-              </n-grid-item>
-              <n-grid-item v-if="displayFields.length === 0 && !loading">
-                <n-empty :description="t('pages.candidate.CandidateDetail.s7')" />
-              </n-grid-item>
-            </n-grid>
-            <n-spin v-if="loading" style="margin-top: 16px" />
-          </div>
-        </n-tab-pane>
+    <!-- 主体：左主内容区 + 右操作栏 -->
+    <div class="detail-layout">
+      <div class="main-col">
+        <n-card class="tabs-card">
+          <n-tabs v-model:value="activeTab" type="line" animated>
+            <!-- 档案信息（基本信息 + 简历信息整合，按业务板块分组） -->
+            <n-tab-pane name="profile">
+              <template #tab>
+                <span><n-icon :component="PersonOutline" />{{ t('pages.candidate.CandidateDetail.s183') }}</span>
+              </template>
+              <div class="profile-section">
+                <n-spin v-if="loading" style="margin: 24px 0" />
+                <template v-else>
+                  <div v-for="group in profileGroups" :key="group.code" class="profile-group">
+                    <div class="section-title">{{ group.title }}</div>
+                    <div class="field-grid">
+                      <div v-for="f in group.fields" :key="f.fieldKey" class="field-cell">
+                        <div class="field-label">{{ f.label }}</div>
+                        <div class="field-value" :class="{ empty: f.value === '—' }">{{ f.value }}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <n-empty
+                    v-if="profileGroups.length === 0"
+                    :description="t('pages.candidate.CandidateDetail.s7')"
+                    style="margin: 24px 0"
+                  />
 
-        <!-- 招聘流程 -->
-        <n-tab-pane name="process">
-          <template #tab>
-            <span><n-icon :component="CalendarOutline" />{{ t('pages.candidate.CandidateDetail.s8') }}</span>
-          </template>
-          <div class="process-section">
-            <div class="timeline-section">
-              <n-h5 style="margin-bottom: 16px">{{ t('pages.candidate.CandidateDetail.s9') }}</n-h5>
-              <n-timeline>
-                <n-timeline-item type="success" :content="t('pages.candidate.CandidateDetail.s10')" time="2026-04-20" line-type="success" />
-                <n-timeline-item type="success" :content="t('pages.candidate.CandidateDetail.s11')" time="2026-04-21" line-type="success" />
-                <n-timeline-item type="success" :content="t('pages.candidate.CandidateDetail.s12')" time="2026-04-22" line-type="success" />
-                <n-timeline-item type="success" :content="t('pages.candidate.CandidateDetail.s13')" time="2026-04-23" line-type="success" />
-                <n-timeline-item type="info" :content="t('pages.candidate.CandidateDetail.s14')" time="2026-04-25" line-type="info" />
-                <n-timeline-item :content="t('pages.candidate.CandidateDetail.s15')" time="-" line-type="default" />
-                <n-timeline-item :content="t('pages.candidate.CandidateDetail.s16')" time="-" line-type="default" />
-              </n-timeline>
-            </div>
-            <n-divider style="margin: 24px 0" />
-            <div class="interview-section">
-              <n-h5 style="margin-bottom: 16px">{{ t('pages.candidate.CandidateDetail.s17') }}</n-h5>
-              <div class="interview-table">
-                <div class="interview-header grid grid-cols-12 gap-2">
-                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s18') }}</div>
-                  <div class="col-span-4">{{ t('pages.candidate.CandidateDetail.s19') }}</div>
-                  <div class="col-span-4">{{ t('pages.candidate.CandidateDetail.s20') }}</div>
-                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s21') }}</div>
-                  <div class="col-span-7">{{ t('pages.candidate.CandidateDetail.s22') }}</div>
-                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s23') }}</div>
-                </div>
-                <div class="interview-row grid grid-cols-12 gap-2 items-center">
-                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s24') }}</div>
-                  <div class="col-span-4">2026-04-25 14:00</div>
-                  <div class="col-span-4">{{ t('pages.candidate.CandidateDetail.s25') }}</div>
-                  <div class="col-span-3"><n-tag type="success" :bordered="false">{{ t('pages.candidate.CandidateDetail.s26') }}</n-tag></div>
-                  <div class="col-span-7" style="color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s27') }}</div>
-                  <div class="col-span-3"><n-button text type="primary" size="small">{{ t('pages.candidate.CandidateDetail.s28') }}</n-button></div>
-                </div>
-                <div class="interview-row grid grid-cols-12 gap-2 items-center">
-                  <div class="col-span-3">{{ t('pages.candidate.CandidateDetail.s29') }}</div>
-                  <div class="col-span-4">2026-04-21 10:00</div>
-                  <div class="col-span-4">HR</div>
-                  <div class="col-span-3"><n-tag type="success" :bordered="false">{{ t('pages.candidate.CandidateDetail.s30') }}</n-tag></div>
-                  <div class="col-span-7" style="color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s31') }}</div>
-                  <div class="col-span-3"><n-button text type="primary" size="small">{{ t('pages.candidate.CandidateDetail.s32') }}</n-button></div>
-                </div>
+                  <!-- 简历附件（原「简历信息」Tab 整合入档案） -->
+                  <div class="profile-group">
+                    <div class="section-title">{{ t('pages.candidate.CandidateDetail.s198') }}</div>
+                    <div class="resume-actions">
+                      <n-button
+                        v-if="resumeFileUrl"
+                        type="primary"
+                        class="download-btn"
+                        @click="handleDownloadResume"
+                      >
+                        <template #icon><n-icon :component="DownloadOutline" /></template>
+                        {{ t('pages.candidate.CandidateDetail.s34') }}
+                      </n-button>
+                      <n-button
+                        v-permission="'recruit:candidate:edit'"
+                        @click="openEditResumeModal"
+                      >
+                        {{ t('pages.candidate.CandidateDetail.s201') }}
+                      </n-button>
+                      <n-button @click="openUploadResumeModal">
+                        <template #icon><n-icon :component="CloudUploadOutline" /></template>
+                        {{ t('pages.candidate.CandidateDetail.s49') }}
+                      </n-button>
+                    </div>
+                    <n-text v-if="!resumeFileUrl" :depth="3" style="font-size: var(--fs-12)">
+                      {{ t('pages.candidate.CandidateDetail.s48') }}
+                    </n-text>
+                  </div>
+                </template>
               </div>
-            </div>
-          </div>
-        </n-tab-pane>
+            </n-tab-pane>
 
-        <!-- 简历信息 -->
-        <n-tab-pane name="resume">
-          <template #tab>
-            <span><n-icon :component="DocumentTextOutline" />{{ t('pages.candidate.CandidateDetail.s33') }}</span>
-          </template>
-          <div class="resume-section">
-            <div v-if="resumeData.url" class="resume-content">
-              <div class="resume-toolbar">
-                <n-space>
-                  <n-button type="primary" class="download-btn" @click="handleDownloadResume">
-                    <template #icon><n-icon :component="DownloadOutline" /></template>
-                    {{ t('pages.candidate.CandidateDetail.s34') }}
-                  </n-button>
-                  <n-button v-permission="'recruit:candidate:edit'" @click="openEditResumeModal">{{ t('pages.candidate.CandidateDetail.s35') }}</n-button>
-                </n-space>
+            <!-- 操作记录（真实操作历史） -->
+            <n-tab-pane name="history">
+              <template #tab>
+                <span><n-icon :component="TimeOutline" />{{ t('pages.candidate.CandidateDetail.s50') }}</span>
+              </template>
+              <div class="history-section">
+                <n-timeline v-if="histories.length > 0">
+                  <n-timeline-item v-for="h in histories" :key="h.id" type="info">
+                    <div>
+                      <n-tag type="info" :bordered="false" size="small">{{ h.action }}</n-tag>
+                      <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">{{ formatTime(h.createdAt) }}</n-text>
+                      <div style="margin-top: 4px"><n-text :depth="2">{{ h.detail }}</n-text></div>
+                      <div style="margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--fs-12)">{{ h.operatorName }}</div>
+                    </div>
+                  </n-timeline-item>
+                </n-timeline>
+                <n-empty v-else :description="t('pages.candidate.CandidateDetail.s7')" style="margin: 24px 0" />
               </div>
-              <div class="resume-preview">
-                <n-h5>{{ t('pages.candidate.CandidateDetail.s36') }}</n-h5>
-                <div class="resume-info">
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s37') }}</span><span class="field-value">{{ resumeData.name }}</span></div>
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s38') }}</span><span class="field-value">{{ resumeData.phone }}</span></div>
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s39') }}</span><span class="field-value">{{ resumeData.email }}</span></div>
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s40') }}</span><span class="field-value">{{ resumeData.education }}</span></div>
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s41') }}</span><span class="field-value">{{ resumeData.school }}</span></div>
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s42') }}</span><span class="field-value">{{ resumeData.workYears }}{{ t('pages.candidate.CandidateDetail.s43') }}</span></div>
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s44') }}</span><span class="field-value">{{ resumeData.currentCompany }}</span></div>
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s45') }}</span><span class="field-value">{{ resumeData.expectedSalary }}</span></div>
-                  <div class="resume-field"><span class="field-label">{{ t('pages.candidate.CandidateDetail.s46') }}</span><span class="field-value">{{ resumeData.source }}</span></div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="empty-state text-center">
-              <n-icon :component="DocumentTextOutline" :size="64" color="var(--brand)" />
-              <n-h4 style="margin-top: 16px">{{ t('pages.candidate.CandidateDetail.s47') }}</n-h4>
-              <n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s48') }}</n-text>
-              <div style="margin-top: 24px">
-                <n-space>
-                  <n-button type="primary" @click="openUploadResumeModal">
-                    <template #icon><n-icon :component="CloudUploadOutline" /></template>
-                    {{ t('pages.candidate.CandidateDetail.s49') }}
-                  </n-button>
-                </n-space>
-              </div>
-            </div>
-          </div>
-        </n-tab-pane>
+            </n-tab-pane>
+          </n-tabs>
+        </n-card>
+      </div>
 
-        <!-- 操作记录 -->
-        <n-tab-pane name="history">
-          <template #tab>
-            <span><n-icon :component="TimeOutline" />{{ t('pages.candidate.CandidateDetail.s50') }}</span>
-          </template>
-          <div class="history-section">
-            <n-timeline>
-              <n-timeline-item>
-                <div>
-                  <n-tag type="info" :bordered="false">{{ t('pages.candidate.CandidateDetail.s51') }}</n-tag>
-                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-27 10:30</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s52') }}</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s53') }}</div>
-                </div>
-              </n-timeline-item>
-              <n-timeline-item>
-                <div>
-                  <n-tag type="success" :bordered="false">{{ t('pages.candidate.CandidateDetail.s54') }}</n-tag>
-                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-25 14:00</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s55') }}</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s56') }}</div>
-                </div>
-              </n-timeline-item>
-              <n-timeline-item>
-                <div>
-                  <n-tag type="info" :bordered="false">{{ t('pages.candidate.CandidateDetail.s57') }}</n-tag>
-                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-23 16:00</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s58') }}</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s59') }}</div>
-                </div>
-              </n-timeline-item>
-              <n-timeline-item>
-                <div>
-                  <n-tag type="success" :bordered="false">{{ t('pages.candidate.CandidateDetail.s60') }}</n-tag>
-                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-22 11:00</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s61') }}</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s62') }}</div>
-                </div>
-              </n-timeline-item>
-              <n-timeline-item>
-                <div>
-                  <n-tag type="info" :bordered="false">{{ t('pages.candidate.CandidateDetail.s63') }}</n-tag>
-                  <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">2026-04-20 09:00</n-text>
-                  <div style="margin-top: 4px"><n-text :depth="3">{{ t('pages.candidate.CandidateDetail.s64') }}</n-text></div>
-                  <div style="margin-top: var(--space-1); color: var(--ink-soft)">{{ t('pages.candidate.CandidateDetail.s65') }}</div>
-                </div>
-              </n-timeline-item>
-            </n-timeline>
+      <!-- 右侧操作栏 -->
+      <div class="rail-col">
+        <!-- 当前阶段 -->
+        <div class="rail-card">
+          <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s191') }}</div>
+          <div class="stage-value">
+            <n-tag type="warning" :bordered="false">{{ currentStage || candidateData.stateDisplay || '—' }}</n-tag>
           </div>
-        </n-tab-pane>
-      </n-tabs>
-    </n-card>
+          <div v-if="appliedPosition" class="rail-sub">{{ t('pages.candidate.CandidateDetail.s204') }}：{{ appliedPosition }}</div>
+          <div v-if="candidateData.stateDisplay && currentStage" class="rail-sub">{{ candidateData.stateDisplay }}</div>
+          <div v-if="createdAtText" class="rail-sub">{{ createdAtText }}</div>
+        </div>
+
+        <!-- 操作 -->
+        <div class="rail-card">
+          <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s192') }}</div>
+          <n-space vertical :size="8">
+            <n-button type="primary" block @click="openNotificationModal">
+              <template #icon><n-icon :component="PaperPlaneOutline" /></template>
+              {{ t('pages.candidate.CandidateDetail.s3') }}
+            </n-button>
+            <n-button type="warning" block @click="bgModalVisible = true">
+              <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
+              {{ t('pages.candidate.InitiateBgCheck.title') }}
+            </n-button>
+            <n-button type="warning" secondary block @click="openSupplementBg">
+              <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
+              {{ t('pages.candidate.InitiateBgCheck.titleSupplement') }}
+            </n-button>
+          </n-space>
+        </div>
+
+        <!-- 简历标签 -->
+        <div class="rail-card">
+          <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s193') }}</div>
+          <n-space v-if="candidateTags.length > 0" :size="6">
+            <n-tag v-for="(tag, i) in candidateTags" :key="i" :bordered="false" size="small">{{ tag }}</n-tag>
+          </n-space>
+          <n-text v-else :depth="3" style="font-size: var(--fs-12)">{{ t('pages.candidate.CandidateDetail.s199') }}</n-text>
+        </div>
+
+        <!-- 添加备注 -->
+        <div class="rail-card">
+          <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s194') }}</div>
+          <n-input
+            v-model:value="noteContent"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('pages.candidate.CandidateDetail.s195')"
+          />
+          <n-button size="small" style="margin-top: 8px" @click="handleSaveNote">
+            {{ t('pages.candidate.CandidateDetail.s196') }}
+          </n-button>
+        </div>
+
+        <!-- 应聘记录 -->
+        <div class="rail-card">
+          <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s197') }}</div>
+          <div v-if="applications.length > 0" class="application-list">
+            <div v-for="app in applications" :key="app.id" class="application-item">
+              <div class="application-position">{{ app.positionTitle || '—' }}</div>
+              <div class="application-meta">
+                <span v-if="app.currentStage">{{ app.currentStage }}</span>
+                <span v-if="app.createdAt">{{ formatTime(app.createdAt) }}</span>
+              </div>
+            </div>
+          </div>
+          <n-text v-else :depth="3" style="font-size: var(--fs-12)">{{ t('pages.candidate.CandidateDetail.s202') }}</n-text>
+        </div>
+      </div>
+    </div>
 
     <!-- 发送通知弹窗 -->
     <n-modal
@@ -262,8 +215,7 @@
           <div class="candidate-info">
             <div class="candidate-name-row">
               <span class="candidate-name">{{ candidateData.name }}</span>
-              <n-tag class="position-tag-sm" :bordered="false">{{ candidateData.position }}</n-tag>
-              <n-tag class="experience-tag" :bordered="false">{{ t('pages.candidate.CandidateDetail.s67') }}</n-tag>
+              <n-tag v-if="appliedPosition" class="position-tag-sm" :bordered="false">{{ appliedPosition }}</n-tag>
             </div>
             <div class="candidate-contact-row">
               <span><n-icon :component="CallOutline" /> {{ candidateData.phone }}</span>
@@ -388,7 +340,7 @@
       </template>
     </n-modal>
 
-    <!-- 编辑简历弹窗 (按标准简历配置驱动, 全部 enabled 字段可编辑) -->
+    <!-- 编辑档案弹窗 (按标准简历配置驱动, 全部 enabled 字段可编辑; 模型列字段只读) -->
     <n-modal
       v-model:show="editResumeModalVisible"
       preset="card"
@@ -470,7 +422,7 @@
     <InitiateBackgroundCheckModal
       v-model:show="bgModalVisible"
       :candidate="{ id: candidateData.id, name: candidateData.name, phone: candidateData.phone,
-                    idCardNo: candidateDetail?.id_card_no ?? '', email: candidateDetail?.email,
+                    idCardNo: pickDetail('id_card_no') || '', email: candidateDetail?.email,
                     position: appliedPosition, expectedOnboardingDate: '' }"
       :parent-order-id="bgParentOrderId"
     />
@@ -486,9 +438,7 @@ import {
   ChevronBackOutline,
   MailOutline,
   CallOutline,
-  CalendarOutline,
   PersonOutline,
-  DocumentTextOutline,
   TimeOutline,
   PaperPlaneOutline,
   ShieldCheckmarkOutline,
@@ -501,6 +451,7 @@ import {
 import { getCandidate } from '../../api/candidate'
 import { fetchConfig, defaultConfig, type StandardResumeConfig } from '../../api/standard-resume'
 import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fields'
+import { listFields, type FieldDefinition } from '../../api/dynamic-field'
 import InitiateBackgroundCheckModal from './InitiateBackgroundCheckModal.vue'
 import { listBackgroundCheckOrders } from '../../api/integration'
 
@@ -509,143 +460,260 @@ const route = useRoute()
 const message = useMessage()
 const { t } = useI18n()
 
-const activeTab = ref('info')
+const activeTab = ref('profile')
 
-// 标准简历配置驱动的基本信息字段元数据：fieldKey -> { 中文 label, 候选真实列 }
-// 仅映射 Candidate 模型上存在的列；其余扩展字段暂无值存储（全仓无对应表/端点），显示占位符
-const FIELD_META: Record<string, { label: string; col?: keyof CandidateDetailData }> = {
-  'ID number': { label: t('pages.candidate.CandidateDetail.s102'), col: 'id_card_no' },
-  'Mobile': { label: t('pages.candidate.CandidateDetail.s103'), col: 'phone' },
-  'About me': { label: t('pages.candidate.CandidateDetail.s104') },
-  'Birth Date (Age)': { label: t('pages.candidate.CandidateDetail.s105'), col: 'age' },
-  'Major': { label: t('pages.candidate.CandidateDetail.s106') },
-  'Email': { label: t('pages.candidate.CandidateDetail.s107'), col: 'email' },
-  'Salary': { label: t('pages.candidate.CandidateDetail.s108') },
-  'Project description': { label: t('pages.candidate.CandidateDetail.s109') },
-  'Team leader': { label: t('pages.candidate.CandidateDetail.s110') },
-  'Gender': { label: t('pages.candidate.CandidateDetail.s111'), col: 'gender' },
-  'Current salary': { label: t('pages.candidate.CandidateDetail.s112') },
-  'Current department': { label: t('pages.candidate.CandidateDetail.s113') },
-  'Work location': { label: t('pages.candidate.CandidateDetail.s114') },
-  'Residence address': { label: t('pages.candidate.CandidateDetail.s115') },
-  'Expected city': { label: t('pages.candidate.CandidateDetail.s116'), col: 'expected_city' },
-  'Hobbies': { label: t('pages.candidate.CandidateDetail.s117') },
-  'Organizational role': { label: t('pages.candidate.CandidateDetail.s118') },
-  'School': { label: t('pages.candidate.CandidateDetail.s119') },
-  'Graduation date': { label: t('pages.candidate.CandidateDetail.s120') },
-  'Highest degree': { label: t('pages.candidate.CandidateDetail.s121'), col: 'highest_education' },
-  'Award time': { label: t('pages.candidate.CandidateDetail.s122') },
-  'Start date': { label: t('pages.candidate.CandidateDetail.s123') },
-  'Work experience': { label: t('pages.candidate.CandidateDetail.s124'), col: 'work_years' },
-  'Reason for leaving': { label: t('pages.candidate.CandidateDetail.s125') },
-  'Company': { label: t('pages.candidate.CandidateDetail.s126') },
-  'Award name': { label: t('pages.candidate.CandidateDetail.s127') },
-  'Current company': { label: t('pages.candidate.CandidateDetail.s128'), col: 'current_company' },
-  'ID card validity period': { label: t('pages.candidate.CandidateDetail.s129') },
-  'Industry': { label: t('pages.candidate.CandidateDetail.s130') },
-  'Political affiliation': { label: t('pages.candidate.CandidateDetail.s131') },
-  'Expected industry': { label: t('pages.candidate.CandidateDetail.s132') },
-  'Company size': { label: t('pages.candidate.CandidateDetail.s133') },
-  'End date': { label: t('pages.candidate.CandidateDetail.s123') },
-  'Registered birthplace': { label: t('pages.candidate.CandidateDetail.s134') },
-  'Issuing authority': { label: t('pages.candidate.CandidateDetail.s135') },
-  'Responsibilities': { label: t('pages.candidate.CandidateDetail.s136') },
-  'Location': { label: t('pages.candidate.CandidateDetail.s137') },
-  'No. of subordinates': { label: t('pages.candidate.CandidateDetail.s138') },
-  'Degree': { label: t('pages.candidate.CandidateDetail.s139') },
-  'Current title': { label: t('pages.candidate.CandidateDetail.s140'), col: 'current_position' },
-  'WeChat': { label: t('pages.candidate.CandidateDetail.s141') },
-  'Project name': { label: t('pages.candidate.CandidateDetail.s142') },
-  'Upload ID photo (portrait side)': { label: t('pages.candidate.CandidateDetail.s143') },
-  'Resume update time': { label: t('pages.candidate.CandidateDetail.s144') },
-  'Ethnicity': { label: t('pages.candidate.CandidateDetail.s145') },
-  'Country/Region': { label: t('pages.candidate.CandidateDetail.s146') },
-  'Proficiency': { label: t('pages.candidate.CandidateDetail.s147') },
-  'Onboarding time': { label: t('pages.candidate.CandidateDetail.s148') },
-  'Language': { label: t('pages.candidate.CandidateDetail.s149') },
-  'Rating': { label: t('pages.candidate.CandidateDetail.s150'), col: 'resume_score' },
-  'Reading and writing': { label: t('pages.candidate.CandidateDetail.s151') },
-  'Listening and speaking': { label: t('pages.candidate.CandidateDetail.s152') },
-  'Company type': { label: t('pages.candidate.CandidateDetail.s153') },
-  'Name': { label: t('pages.candidate.CandidateDetail.s154'), col: 'name' },
-  'Job title': { label: t('pages.candidate.CandidateDetail.s155') },
-  'Upload ID photo (national emblem side)': { label: t('pages.candidate.CandidateDetail.s156') },
-  'Expected salary': { label: t('pages.candidate.CandidateDetail.s157'), col: 'expected_salary' },
+/**
+ * 中文标签映射：snake_case fieldKey → i18n key（s102–s157 现有译文）。
+ * 权威来源为「标准简历设置」的动态字段（fieldKey 已由迁移 0023 归一为 snake_case，
+ * 但组件曾用英文显示标签作键 → 查不到 → 页面直接裸显 about_me 等英文键）。
+ * 此表不依赖 listFields 权限（HR 无 recruit:settings:dynamic-fields:list 也可用）。
+ */
+const FIELD_LABEL_I18N: Record<string, string> = {
+  name: 's154', gender: 's111', about_me: 's104', birth_date_age: 's105',
+  mobile: 's103', wechat: 's141', email: 's107', political_affiliation: 's131',
+  registered_birthplace: 's134', highest_degree: 's121', work_experience: 's124',
+  id_card_photo_front: 's143', id_card_photo_back: 's156',
+  id_card_issuing_authority: 's135', id_card_validity_period: 's129',
+  id_card_number: 's102', country_region: 's146', ethnicity: 's145',
+  residence_address: 's115', hobbies: 's117', graduation_date: 's120', major: 's106',
+  current_company: 's128', industry: 's130', current_title: 's140', location: 's137',
+  current_salary: 's112', expected_salary: 's157', onboarding_time: 's148',
+  expected_city: 's116', expected_industry: 's132', rating: 's150',
+  resume_update_time: 's144', start_date: 's123', school: 's119', degree: 's139',
+  company: 's126', current_department: 's113', job_title: 's155',
+  responsibilities: 's136', team_leader: 's110', work_location: 's114',
+  company_size: 's133', company_type: 's153', salary: 's108',
+  reason_for_leaving: 's125', no_of_subordinates: 's138', end_date: 's123',
+  project_name: 's142', organizational_role: 's118', project_description: 's109',
+  language: 's149', proficiency: 's147', listening_and_speaking: 's152',
+  reading_and_writing: 's151', award_time: 's122', award_name: 's127',
 }
 
-// 候选人详情真实数据形态（对齐后端 CandidateDetailSerializer 字段）
+// 板块 code → i18n（迁移 0023 MODULES：候选人信息/求职意向/工作经历/项目经历/教育背景/技能语言/证书荣誉）
+const MODULE_I18N: Record<string, string> = {
+  candidate: 's184', expectation: 's185', work: 's186', project: 's187',
+  edu: 's188', skill: 's189', certificate: 's190',
+}
+const MODULE_ORDER = ['candidate', 'expectation', 'work', 'project', 'edu', 'skill', 'certificate']
+
+// listFields 不可用（如 HR 无字段管理权限）时的板块归属兜底（对齐迁移 0023 MODULE_ASSIGN）
+const MODULE_ASSIGN_FALLBACK: Record<string, string> = {
+  name: 'candidate', gender: 'candidate', about_me: 'candidate',
+  birth_date_age: 'candidate', mobile: 'candidate', wechat: 'candidate',
+  email: 'candidate', political_affiliation: 'candidate',
+  registered_birthplace: 'candidate', country_region: 'candidate',
+  ethnicity: 'candidate', residence_address: 'candidate', hobbies: 'candidate',
+  highest_degree: 'candidate', location: 'candidate', rating: 'candidate',
+  resume_update_time: 'candidate', id_card_photo_front: 'candidate',
+  id_card_photo_back: 'candidate', id_card_issuing_authority: 'candidate',
+  id_card_validity_period: 'candidate', id_card_number: 'candidate',
+  expected_salary: 'expectation', current_salary: 'expectation',
+  onboarding_time: 'expectation', expected_city: 'expectation',
+  expected_industry: 'expectation',
+  work_experience: 'work', industry: 'work', current_company: 'work',
+  current_title: 'work', start_date: 'work', end_date: 'work',
+  company: 'work', current_department: 'work', job_title: 'work',
+  responsibilities: 'work', team_leader: 'work', work_location: 'work',
+  company_size: 'work', company_type: 'work', salary: 'work',
+  reason_for_leaving: 'work', no_of_subordinates: 'work',
+  project_name: 'project', organizational_role: 'project',
+  project_description: 'project',
+  graduation_date: 'edu', school: 'edu', degree: 'edu', major: 'edu',
+  language: 'skill', proficiency: 'skill',
+  listening_and_speaking: 'skill', reading_and_writing: 'skill',
+  award_time: 'certificate', award_name: 'certificate',
+}
+
+/**
+ * 动态字段 fieldKey → Candidate 模型列（值在候选人主表上）。
+ * 详情接口经 CamelCaseJSONRenderer 输出 camelCase 键（如 id_card_no → idCardNo），
+ * 读取时先试 camelCase 再回退 snake_case。
+ */
+const MODEL_COL: Record<string, string> = {
+  name: 'name', mobile: 'phone', email: 'email', gender: 'gender',
+  birth_date_age: 'age', id_card_number: 'id_card_no',
+  highest_degree: 'highest_education', work_experience: 'work_years',
+  expected_city: 'expected_city', current_company: 'current_company',
+  current_title: 'current_position', expected_salary: 'expected_salary',
+  rating: 'resume_score',
+}
+
+/** 候选人详情真实数据形态（对齐后端 CandidateDetailSerializer，camelCase 键） */
 interface CandidateDetailData {
   id?: string
+  code?: string
   name?: string
   phone?: string
   email?: string
   gender?: string
   age?: number | null
-  birth_date?: string | null
-  id_card_no?: string | null
   highest_education?: string | null
-  work_years?: number | null
-  expected_city?: string | null
-  current_company?: string | null
-  current_position?: string | null
-  expected_salary?: string | null
-  resume_score?: number | null
   current_state?: string
   state_display?: string
   created_at?: string
-  /** 应聘职位来源：后端 CandidateDetailSerializer.get_applications 返回投递记录（CamelCase 键） */
-  applications?: Array<{ id?: string; code?: string; positionTitle?: string | null; state?: string }> | null
+  updated_at?: string
+  resume_file_url?: string | null
+  tags?: Array<string | { name?: string }> | null
+  /** 投递记录（后端 get_applications，CamelCase 键） */
+  applications?: Array<{
+    id?: string; code?: string; positionTitle?: string | null
+    state?: string; currentStage?: string | null; createdAt?: string
+  }> | null
+  /** 操作历史（CandidateHistorySerializer，CamelCase 键） */
+  histories?: Array<{
+    id?: string; action?: string; detail?: string
+    operatorName?: string; createdAt?: string
+  }> | null
   [key: string]: any
+}
+
+interface DisplayField {
+  fieldKey: string
+  label: string
+  value: string
+  hasCol: boolean
 }
 
 const candidateDetail = ref<CandidateDetailData | null>(null)
 const standardResumeConfig = ref<StandardResumeConfig | null>(null)
 // 扩展简历字段值 (fieldKey -> value), 来自 CandidateResumeFieldsView; 覆盖无模型列的 40+ 字段
 const resumeFields = ref<Record<string, any>>({})
+// 动态字段定义（fieldKey -> FieldDefinition），提供中文 label 与板块归属；403 时为空表
+const fieldDefMap = ref<Record<string, FieldDefinition>>({})
 const loading = ref(false)
 
-// 仅展示「标准简历设置」中 enabled 的字段（顺序按配置）
-// 值优先级: 候选真实模型列 (meta.col) > 扩展字段值 (resumeFields) > 占位符「—」
-const displayFields = computed(() => {
+const camelize = (s: string) => s.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
+
+/** 从详情中取模型列值：优先 camelCase 键（渲染器输出），回退 snake_case */
+function pickDetail(col: string): string {
+  const cd = candidateDetail.value
+  if (!cd) return ''
+  const camel = cd[camelize(col)]
+  if (camel != null && camel !== '') return String(camel)
+  const snake = cd[col]
+  if (snake != null && snake !== '') return String(snake)
+  return ''
+}
+
+/** 从扩展简历字段中取值：响应键可能是 snake_case 或被渲染器 camelCase */
+function pickResume(fieldKey: string): string {
+  const rf = resumeFields.value
+  const snake = rf[fieldKey]
+  if (snake != null && snake !== '') return String(snake)
+  const camel = rf[camelize(fieldKey)]
+  if (camel != null && camel !== '') return String(camel)
+  return ''
+}
+
+/** 中文标签解析：i18n 映射（57 个已知字段）→ 动态字段定义 label → 原始 key */
+function labelFor(fieldKey: string): string {
+  const sKey = FIELD_LABEL_I18N[fieldKey]
+  if (sKey) return t(`pages.candidate.CandidateDetail.${sKey}`)
+  const def = fieldDefMap.value[fieldKey]
+  if (def?.label) return def.label
+  return fieldKey
+}
+
+/** 板块归属：动态字段定义 module → 本地兜底映射 → candidate */
+function moduleCodeOf(fieldKey: string): string {
+  const def = fieldDefMap.value[fieldKey]
+  if (def?.module?.code && MODULE_I18N[def.module.code]) return def.module.code
+  return MODULE_ASSIGN_FALLBACK[fieldKey] ?? 'candidate'
+}
+
+function moduleTitleOf(code: string): string {
+  return t(`pages.candidate.CandidateDetail.${MODULE_I18N[code] ?? 's183'}`)
+}
+
+function buildDisplayField(fieldKey: string): DisplayField {
+  let value = ''
+  const col = MODEL_COL[fieldKey]
+  if (col) value = pickDetail(col)
+  if (!value) value = pickResume(fieldKey)
+  return {
+    fieldKey,
+    label: labelFor(fieldKey),
+    value: value || '—',
+    hasCol: !!col,
+  }
+}
+
+/** 仅展示「标准简历设置」中 enabled 的字段，按业务板块分组（板块顺序固定，组内按配置顺序） */
+const profileGroups = computed<Array<{ code: string; title: string; fields: DisplayField[] }>>(() => {
   const cfg = standardResumeConfig.value
   if (!cfg) return []
-  const cd = candidateDetail.value
-  const rf = resumeFields.value
-  return cfg.fields
-    .filter((f) => f.enabled)
-    .map((f) => {
-      const meta = FIELD_META[f.fieldKey] || { label: f.fieldKey }
-      let value = '—'
-      if (cd && meta.col) {
-        const raw = cd[meta.col]
-        if (raw != null && raw !== '') value = String(raw)
-      }
-      if (value === '—' && rf[f.fieldKey] != null && rf[f.fieldKey] !== '') {
-        value = String(rf[f.fieldKey])
-      }
-      return { fieldKey: f.fieldKey, label: meta.label, value, hasCol: !!meta.col }
-    })
+  const buckets = new Map<string, DisplayField[]>()
+  const order: string[] = []
+  for (const f of cfg.fields) {
+    if (!f.enabled) continue
+    const code = moduleCodeOf(f.fieldKey)
+    if (!buckets.has(code)) { buckets.set(code, []); order.push(code) }
+    buckets.get(code)!.push(buildDisplayField(f.fieldKey))
+  }
+  const ordered = MODULE_ORDER.filter((c) => order.includes(c))
+  const rest = order.filter((c) => !MODULE_ORDER.includes(c))
+  return [...ordered, ...rest].map((code) => ({
+    code,
+    title: moduleTitleOf(code),
+    fields: buckets.get(code) ?? [],
+  }))
 })
 
-// 兼容 header 模板既有的 candidateData 字段访问（改为从真实详情映射）
+/** 编辑弹窗用的扁平字段列表（同 profileGroups 数据源） */
+const displayFields = computed<DisplayField[]>(() =>
+  profileGroups.value.flatMap((g) => g.fields),
+)
+
+const candidateTags = computed<string[]>(() => {
+  const raw = candidateDetail.value?.tags
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => (typeof item === 'string' ? item : item?.name ?? ''))
+    .filter((s) => !!s)
+})
+
+const histories = computed(() => candidateDetail.value?.histories ?? [])
+const applications = computed(() => candidateDetail.value?.applications ?? [])
+const currentStage = computed(() => applications.value[0]?.currentStage ?? '')
+const resumeFileUrl = computed(() => pickDetail('resume_file_url'))
+
+const genderAgeText = computed(() => {
+  const parts: string[] = []
+  const g = pickDetail('gender')
+  if (g) parts.push(g)
+  const age = pickDetail('age')
+  if (age) parts.push(`${age}${t('pages.candidate.CandidateDetail.s43')}`)
+  return parts.join(' · ')
+})
+
+function formatTime(iso?: string): string {
+  if (!iso) return ''
+  return String(iso).replace('T', ' ').slice(0, 16)
+}
+
+/** 入库时间（候选人创建时间），用于右侧「当前阶段」卡片的副信息 */
+const createdAtText = computed(() => {
+  const v = pickDetail('created_at')
+  return v ? `${t('pages.candidate.CandidateDetail.s203')} ${v}` : ''
+})
+
+// 兼容模板既有 candidateData 字段访问（从真实详情映射；不再使用假数据）
 const candidateData = computed(() => {
   const c = candidateDetail.value
   return {
-    id: (route.params.id as string) || '1',
+    id: (route.params.id as string) || '',
+    code: c?.code ?? '',
     name: c?.name ?? t('pages.candidate.CandidateDetail.s158'),
     phone: c?.phone ?? '—',
     email: c?.email ?? '—',
-    position: c?.current_position ?? '—',
-    status: c?.current_state ?? '',
-    hrbp: '—',
-    hiringManager: '—',
-    createdAt: c?.created_at ?? '',
+    // 后端 state_display（CamelCase 后为 stateDisplay）= current_state 的中文展示名
+    stateDisplay: pickDetail('state_display') || '',
   }
 })
 
 /**
- * 应聘职位：取自投递记录（applications[].position_title），
- * 而非候选人的「当前头衔」current_position（二者语义不同，后者常为空）。
+ * 应聘职位：取自投递记录（applications[].positionTitle），
+ * 而非候选人的「当前头衔」current_title（二者语义不同，后者常为空）。
  * 多次投递时优先取最新一条（后端 applications 已按 -created_at 排序）。
  */
 const appliedPosition = computed<string>(() => {
@@ -658,7 +726,7 @@ onMounted(async () => {
   const id = route.params.id
   loading.value = true
   try {
-    const [cfg, det, rf] = await Promise.all([
+    const [cfg, det, rf, defs] = await Promise.all([
       fetchConfig().catch(() => defaultConfig()),
       id
         ? getCandidate(String(id)).then((r: any) => r?.data ?? r).catch(() => null)
@@ -666,52 +734,45 @@ onMounted(async () => {
       id
         ? getResumeFields(String(id)).catch(() => ({}))
         : Promise.resolve({}),
+      // 动态字段定义：提供 label / 板块；无权限或异常时降级为本地映射
+      listFields('Candidate').catch(() => [] as FieldDefinition[]),
     ])
     standardResumeConfig.value = cfg
     candidateDetail.value = det ?? null
     resumeFields.value = rf || {}
+    const map: Record<string, FieldDefinition> = {}
+    for (const d of defs) if (d?.fieldKey) map[d.fieldKey] = d
+    fieldDefMap.value = map
   } finally {
     loading.value = false
   }
 })
 
-const resumeData = ref({
-  url: 'https://example.com/resume.pdf',
-  name: t('pages.candidate.CandidateDetail.s159'),
-  phone: '138****8888',
-  email: 'zhangsan@example.com',
-  education: t('pages.candidate.CandidateDetail.s160'),
-  school: t('pages.candidate.CandidateDetail.s161'),
-  workYears: 5,
-  currentCompany: t('pages.candidate.CandidateDetail.s162'),
-  expectedSalary: '40K',
-  source: t('pages.candidate.CandidateDetail.s163'),
-})
-
-// ===== 编辑简历 (配置驱动) =====
-// 控件类型: 长文本 / 数字 / 下拉 / 普通文本, 由 fieldKey 推断
+// ===== 编辑档案 (配置驱动) =====
+// 控件类型: 长文本 / 数字 / 下拉 / 普通文本, 由 snake_case fieldKey 推断
 const genderOptions = [
   { label: t('pages.candidate.CandidateDetail.s164'), value: '男' },
   { label: t('pages.candidate.CandidateDetail.s165'), value: '女' },
   { label: t('pages.candidate.CandidateDetail.s166'), value: '未知' },
 ]
 const TEXTAREA_KEYS = new Set([
-  'About me', 'Project description', 'Reason for leaving', 'Responsibilities',
-  'Self evaluation', 'Reading and writing', 'Listening and speaking',
+  'about_me', 'project_description', 'reason_for_leaving', 'responsibilities',
+  'reading_and_writing', 'listening_and_speaking', 'hobbies',
 ])
 const NUMBER_KEYS = new Set([
-  'Work experience', 'No. of subordinates', 'Rating', 'Current salary', 'Award time',
+  'work_experience', 'no_of_subordinates', 'rating', 'current_salary',
+  'award_time', 'salary',
 ])
 function controlType(fieldKey: string): 'textarea' | 'number' | 'select' | 'text' {
   if (TEXTAREA_KEYS.has(fieldKey)) return 'textarea'
   if (NUMBER_KEYS.has(fieldKey)) return 'number'
-  if (fieldKey === 'Highest degree' || fieldKey === 'Degree' || fieldKey === 'Gender') return 'select'
+  if (fieldKey === 'highest_degree' || fieldKey === 'degree' || fieldKey === 'gender') return 'select'
   return 'text'
 }
 // educationOptions 在下方定义, 此处惰性引用 (函数调用时已完成模块初始化)
 function selectOptionsFor(fieldKey: string) {
-  if (fieldKey === 'Highest degree' || fieldKey === 'Degree') return educationOptions
-  if (fieldKey === 'Gender') return genderOptions
+  if (fieldKey === 'highest_degree' || fieldKey === 'degree') return educationOptions
+  if (fieldKey === 'gender') return genderOptions
   return []
 }
 // 编辑态表单: fieldKey -> 当前值
@@ -731,6 +792,7 @@ const editResumeModalVisible = ref(false)
 const notificationModalVisible = ref(false)
 const bgModalVisible = ref(false)
 const bgParentOrderId = ref('')
+const noteContent = ref('')
 
 async function openSupplementBg() {
   // 补充背调：定位该候选人最新一条背调订单作为父单，复用统一弹窗
@@ -779,7 +841,8 @@ const openEditResumeModal = () => {
 }
 
 const handleDownloadResume = () => {
-  if (resumeData.value.url) message.success(t('pages.candidate.CandidateDetail.s174'))
+  const url = resumeFileUrl.value
+  if (url) window.open(url, '_blank')
   else message.warning(t('pages.candidate.CandidateDetail.s175'))
 }
 
@@ -802,13 +865,12 @@ const handleSaveResume = async () => {
     // 模型列字段 (姓名/手机/邮箱等) 为候选人档案字段, 在弹窗中只读, 不在此修改
     const extValues: Record<string, any> = {}
     for (const f of displayFields.value) {
-      const meta = FIELD_META[f.fieldKey]
-      if (meta && meta.col) continue
+      if (f.hasCol) continue
       extValues[f.fieldKey] = editForm.value[f.fieldKey] ?? ''
     }
     if (Object.keys(extValues).length) {
       const saved = await putResumeFields(String(id), extValues)
-      resumeFields.value = { ...resumeFields.value, ...saved }
+      resumeFields.value = { ...resumeFields.value, ...(saved || {}) }
     }
     message.success(t('pages.candidate.CandidateDetail.s178'))
     editResumeModalVisible.value = false
@@ -826,6 +888,11 @@ const handleUploadResume = () => {
   fileList.value = []
 }
 
+const handleSaveNote = () => {
+  // 备注后端端点尚未接入：明确提示，不伪造保存成功
+  message.info(t('pages.candidate.CandidateDetail.s200'))
+}
+
 const handleSendNotification = () => {
   message.success(t('pages.candidate.CandidateDetail.s182'))
   notificationModalVisible.value = false
@@ -833,68 +900,93 @@ const handleSendNotification = () => {
 </script>
 
 <style scoped>
-.candidate-detail-page { padding: var(--space-6); background: var(--c-info-soft); min-height: 100vh; } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-.page-header { margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: center; }
+.candidate-detail-page { padding: var(--space-6); background: var(--c-info-soft); min-height: 100vh; }
+.page-header { margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; }
 .back-btn { border: none; background: transparent; }
-.send-btn { background: var(--brand); border-color: var(--brand); border-radius: 8px; font-weight: 600; }
-.info-card { margin-bottom: var(--space-6); border-radius: 24px; border: 1px solid var(--border-hairline); box-shadow: none; }
-.candidate-avatar { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: 32px; font-weight: 700; } /* v2.9: 越界硬编码渐变 var(--c-purple)/var(--c-info-deep) → brand 渐变 + 移除 !important */
-.candidate-header { display: flex; justify-content: space-between; align-items: flex-start; }
-.contact-info { color: var(--ink-soft); }
-.position-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand-fg); }
-.channel-tag { border-radius: 9999px; padding: var(--space-1) var(--space-3); background: var(--brand-soft); color: var(--brand-fg); }
-.candidate-meta { text-align: right; color: var(--ink-soft); font-size: var(--fs-12); }
-.tabs-card { border-radius: 24px; border: 1px solid var(--border-hairline); box-shadow: none; }
-.info-section { padding: var(--space-4); }
-.info-row { display: flex; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); }
-.info-label { width: 100px; color: var(--ink-soft); font-size: var(--fs-14); }
-.info-value { font-weight: 600; color: var(--ink); }
-.process-section, .interview-table { background: var(--c-info-soft); border-radius: 12px; padding: var(--space-4); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-.interview-header { font-weight: 600; color: var(--ink-soft); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); }
-.interview-row { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); }
-.resume-section { padding: var(--space-6); }
-.resume-content { display: flex; flex-direction: column; gap: var(--space-6); }
-.resume-toolbar { display: flex; justify-content: flex-start; }
-.resume-preview { background: var(--c-info-soft); border-radius: 12px; padding: var(--space-6); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
-.resume-info { display: flex; flex-direction: column; gap: var(--space-3); }
-.resume-field { display: flex; align-items: center; }
-.resume-field .field-label { width: 100px; color: var(--ink-soft); font-size: var(--fs-14); }
-.resume-field .field-value { color: var(--ink); font-weight: 500; font-size: var(--fs-14); }
-.upload-tip { margin-top: var(--space-4); color: var(--ink-faint); font-size: var(--fs-12); }
+
+/* ===== 身份条 ===== */
+.identity-card { margin-bottom: var(--space-4); border-radius: 16px; border: 1px solid var(--border-hairline); box-shadow: none; }
+.identity-row { display: flex; align-items: center; gap: var(--space-4); }
+.candidate-avatar { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: 26px; font-weight: 700; flex-shrink: 0; }
+.identity-main { flex: 1; min-width: 0; }
+.identity-name-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.identity-name { font-size: var(--fs-20); font-weight: 700; color: var(--ink); }
+.identity-code { font-size: var(--fs-12); color: var(--ink-soft); background: var(--border-hairline); border-radius: 6px; padding: 2px 8px; font-family: ui-monospace, monospace; }
+.position-tag { background: var(--brand-soft); color: var(--brand-fg); border-radius: 9999px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.identity-meta-row { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: var(--space-2); }
+.meta-chip { font-size: var(--fs-12); color: var(--ink-soft); display: inline-flex; align-items: center; gap: 4px; }
+
+/* ===== 左主区 / 右操作栏 ===== */
+.detail-layout { display: flex; gap: var(--space-4); align-items: flex-start; }
+.main-col { flex: 1; min-width: 0; }
+.rail-col { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: var(--space-4); position: sticky; top: var(--space-4); }
+@media (max-width: 960px) {
+  .detail-layout { flex-direction: column; }
+  .rail-col { width: 100%; position: static; }
+}
+
+.tabs-card { border-radius: 16px; border: 1px solid var(--border-hairline); box-shadow: none; }
+
+/* ===== 档案信息（板块分组 + 标签在上/值在下的栅格） ===== */
+.profile-section { padding: var(--space-2) 0; }
+.profile-group { margin-bottom: var(--space-6); }
+.section-title { font-size: var(--fs-16); font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.section-title::before { content: ''; width: 4px; height: 16px; background: var(--brand); border-radius: 2px; flex-shrink: 0; }
+.field-grid { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: var(--space-8); }
+@media (max-width: 1200px) { .field-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .field-grid { grid-template-columns: 1fr; } }
+.field-cell { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); min-width: 0; }
+.field-label { font-size: var(--fs-12); color: var(--ink-soft); margin-bottom: 4px; }
+.field-value { font-size: var(--fs-14); color: var(--ink); font-weight: 500; word-break: break-all; }
+.field-value.empty { color: var(--ink-faint); font-weight: 400; }
+
+.resume-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-2); }
 .download-btn { background: var(--brand); border-color: var(--brand); border-radius: 8px; }
-.empty-state { padding: 40px; }
-.history-section { padding: var(--space-4); }
+
+/* ===== 操作记录 ===== */
+.history-section { padding: var(--space-2) 0; }
+
+/* ===== 右侧操作栏卡片 ===== */
+.rail-card { background: var(--glass-bg-card); border: 1px solid var(--border-hairline); border-radius: 16px; padding: var(--space-4); }
+.rail-title { font-size: var(--fs-14); font-weight: 700; color: var(--ink); margin-bottom: var(--space-3); }
+.stage-value { margin-bottom: var(--space-2); }
+.rail-sub { font-size: var(--fs-12); color: var(--ink-soft); margin-top: var(--space-1); }
+.application-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.application-item { padding: var(--space-2) var(--space-3); background: var(--brand-soft); border-radius: 8px; }
+.application-position { font-size: var(--fs-14); font-weight: 600; color: var(--brand-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.application-meta { display: flex; gap: var(--space-3); font-size: var(--fs-12); color: var(--ink-soft); margin-top: 2px; }
+.upload-tip { margin-top: var(--space-4); color: var(--ink-faint); font-size: var(--fs-12); }
+
+/* ===== 发送通知弹窗（保持既有交互） ===== */
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--overlay-glass-mid); }
 .modal-title { font-size: var(--fs-20); font-weight: 700; color: var(--ink); }
 .close-btn { width: 32px; height: 32px; border: none; background: transparent; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink-soft); transition: all var(--duration-base) var(--ease-out); }
 .close-btn:hover { background: var(--overlay-glass-mid); color: var(--ink); }
 .candidate-summary { display: flex; align-items: center; gap: var(--space-4); background: var(--brand-soft); border-radius: 8px; padding: var(--space-3); margin-top: var(--space-4); }
-.candidate-avatar-sm { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: var(--fs-20); font-weight: 600; } /* v2.9: 越界硬编码渐变 → brand 渐变 + 移除 !important */
+.candidate-avatar-sm { background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 45%, var(--brand)) 100%); font-size: var(--fs-20); font-weight: 600; }
 .candidate-info { flex: 1; }
 .candidate-name-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
 .candidate-name { font-size: var(--fs-16); font-weight: 600; color: var(--ink); }
 .position-tag-sm { background: var(--brand-soft); color: var(--brand-dark); border-radius: 9999px; font-size: var(--fs-12); padding: 2px var(--space-2); }
-.experience-tag { background: var(--border-hairline); color: var(--ink-soft); border-radius: 9999px; font-size: var(--fs-12); padding: 2px var(--space-2); }
 .candidate-contact-row { display: flex; gap: var(--space-4); font-size: var(--fs-14); color: var(--ink-soft); }
 .candidate-contact-row span { display: flex; align-items: center; gap: var(--space-1); }
 .modal-content { display: flex; min-height: 400px; }
-.left-sidebar { width: 340px; background: var(--c-info-soft); border-right: 1px solid var(--overlay-glass-mid); padding: var(--space-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-8); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
+.left-sidebar { width: 340px; background: var(--c-info-soft); border-right: 1px solid var(--overlay-glass-mid); padding: var(--space-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-8); }
 .step-section { display: flex; flex-direction: column; gap: var(--space-4); }
 .step-title { font-size: var(--fs-16); font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: var(--space-2); margin: 0; }
 .step-number { width: 24px; height: 24px; border-radius: 50%; background: var(--brand-button); color: var(--on-brand); font-size: var(--fs-12); font-weight: 600; display: flex; align-items: center; justify-content: center; }
 .step-content { display: flex; flex-direction: column; gap: var(--space-4); }
 .content-group { display: flex; flex-direction: column; gap: var(--space-2); }
 .content-group-title { font-size: var(--fs-14); font-weight: 600; color: var(--ink); padding-left: var(--space-1); }
-.content-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); font-size: var(--fs-14); color: var(--ink); } /* v2.8 T2.8.2: #c1c6d5/var(--g1)/#161c23 → var(--border-hairline)/var(--glass-bg-card)/var(--ink) */
+.content-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); font-size: var(--fs-14); color: var(--ink); }
 .content-item:hover { border-color: var(--brand); background: var(--brand-soft); }
 .content-item.selected { border-color: var(--brand); background: var(--brand-a12); }
-.method-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); } /* v2.8 T2.8.2: var(--g6)/var(--g1) → var(--border-hairline)/var(--glass-bg-card) */
+.method-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: 8px; border: 1px solid var(--border-hairline); background: var(--glass-bg-card); cursor: pointer; transition: all var(--duration-base) var(--ease-out); }
 .method-item:hover { border-color: var(--brand); background: var(--brand-soft); }
 .method-item.selected { border-color: var(--brand); background: var(--brand-a12); }
 .method-icon { font-size: var(--fs-20); color: var(--brand-fg); }
 .method-name { font-size: var(--fs-14); font-weight: 600; color: var(--ink); }
-.right-content { flex: 1; padding: var(--space-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-6); background: var(--glass-bg-card); } /* v2.8 T2.8.2: var(--g1) → var(--glass-bg-card) */
-/* v2 bugfix P0-A: 金色硬编码 var(--c-warning-bg)/var(--c-warning-deep)/RGBA(255,214,102,0.1) → 改用 --c-warning 系列 token */
+.right-content { flex: 1; padding: var(--space-6); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-6); background: var(--glass-bg-card); }
 .info-callout { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); background: var(--c-warning-soft); border: 1px solid var(--c-warning); border-radius: 8px; font-size: var(--fs-14); color: var(--ink); }
 .editor-section { display: flex; flex-direction: column; gap: var(--space-3); }
 .editor-header { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-3); border-bottom: 1px solid var(--overlay-glass-mid); }
@@ -905,10 +997,9 @@ const handleSendNotification = () => {
 .sms-counter { display: flex; justify-content: space-between; align-items: center; }
 .counter-text { font-size: var(--fs-12); color: var(--ink-faint); }
 .email-subject-input, .email-content-input, .sms-content-input { background: var(--overlay-glass-mid); border: 1px solid var(--overlay-glass-mid); border-radius: 6px; }
-.modal-footer { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) var(--space-6); border-top: 1px solid var(--overlay-glass-mid); background: var(--c-info-soft); } /* v2.8 T2.8.3: 浅蓝 → var(--c-info-soft) */
+.modal-footer { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) var(--space-6); border-top: 1px solid var(--overlay-glass-mid); background: var(--c-info-soft); }
 .recipient-info { font-size: var(--fs-12); color: var(--ink-soft); }
 .footer-buttons { display: flex; gap: var(--space-4); align-items: center; }
-/* v2 bugfix P0-A: 删 !important 金色硬编码（var(--c-warning-bg)/var(--c-warning-bg)/var(--n-850)），n-button type="primary" 已全局接管（App.vue themeOverrides 渐变按钮） */
 .send-btn-primary {
   background: linear-gradient(135deg, var(--brand), var(--brand-grad-a));
   border-color: var(--overlay-glass-mid);

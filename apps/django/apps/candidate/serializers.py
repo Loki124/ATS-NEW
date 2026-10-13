@@ -88,7 +88,7 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
     class Meta:
         model = Candidate
         fields = [
-            'id', 'recruit_type', 'name', 'phone', 'email', 'gender', 'age', 'birth_date', 'id_card_no',
+            'id', 'code', 'recruit_type', 'name', 'phone', 'email', 'gender', 'age', 'birth_date', 'id_card_no',
             'highest_education', 'work_years',
             'current_city', 'expected_city', 'current_company', 'current_position',
             'expected_salary', 'resume_file_url', 'resume_text',
@@ -100,7 +100,7 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
             'created_at', 'updated_at',
             'histories', 'applications', 'soft_reject_stats',
         ]
-        read_only_fields = ['current_state', 'created_at', 'updated_at']
+        read_only_fields = ['code', 'current_state', 'created_at', 'updated_at']
 
     def get_applications(self, obj):
         return [

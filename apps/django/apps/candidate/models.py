@@ -245,6 +245,20 @@ class Candidate(FSMModelMixin, FullAuditModel):
             kwargs['update_fields'] = frozenset(update_fields)
         super().save(*args, **kwargs)
 
+    def get_current_state_display(self):
+        """current_state 的中文展示名。
+
+        ``current_state`` 是 ``FSMField`` 且未声明 ``choices``，Django 不会
+        自动生成 ``get_<field>_display``；而 List/Detail 两个序列化器的
+        ``state_display`` 均以 ``source='get_current_state_display'`` 取值，
+        缺该方法时该字段解析抛 AttributeError 被静默丢弃 → 前端拿不到状态/流程阶段。
+        这里显式从 ``CandidateState`` 枚举取 label，保证 ``state_display`` 正常出参。
+        """
+        try:
+            return CandidateState(self.current_state).label
+        except ValueError:
+            return self.current_state or ''
+
     # === 状态机转换 ===
     @transition(field=current_state, source=CandidateState.APPLIED, target=CandidateState.IN_PROCESS)
     def enter_process(self):

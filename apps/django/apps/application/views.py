@@ -111,6 +111,10 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
         position_id = self.request.query_params.get('position')
         if position_id:
             qs = qs.filter(position_id=position_id)
+        # 流程（2026-10-13: 支持按流程过滤，供前端"流程-阶段"管道视图按阶段统计/筛选候选人）
+        process_id = self.request.query_params.get('process')
+        if process_id:
+            qs = qs.filter(process_id=process_id)
         # 当前阶段
         stage_id = self.request.query_params.get('stage')
         if stage_id:
