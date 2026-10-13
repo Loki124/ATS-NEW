@@ -1,6 +1,6 @@
 <template>
-  <div class="candidate-detail-page">
-    <!-- 顶部导航（仅返回 + 标题；操作按钮移至右侧操作栏） -->
+  <div class="candidate-detail-page" :class="{ 'page-zoomed': zoomed }">
+    <!-- 顶部导航（返回 + 标题 + 候选人切换/编辑/放大/关闭操作） -->
     <div class="page-header">
       <n-space>
         <n-button class="back-btn" @click="goBack">
@@ -9,9 +9,30 @@
         </n-button>
         <n-h4 style="margin: 0; font-weight: 700">{{ t('pages.candidate.CandidateDetail.s2') }}</n-h4>
       </n-space>
+      <n-space align="center" :size="8" class="header-ops">
+        <n-button size="small" :disabled="!hasPrev" @click="goPrevCandidate">
+          <template #icon><n-icon :component="ChevronBackOutline" /></template>
+          {{ t('pages.candidate.CandidateDetail.s208') }}
+        </n-button>
+        <n-button size="small" :disabled="!hasNext" @click="goNextCandidate">
+          {{ t('pages.candidate.CandidateDetail.s209') }}
+          <template #icon><n-icon :component="ChevronForwardOutline" /></template>
+        </n-button>
+        <n-button size="small" @click="openEditResumeModal">
+          <template #icon><n-icon :component="CreateOutline" /></template>
+          {{ t('pages.candidate.CandidateDetail.s210') }}
+        </n-button>
+        <n-button size="small" @click="zoomed = !zoomed">
+          <template #icon><n-icon :component="zoomed ? ContractOutline : ExpandOutline" /></template>
+          {{ zoomed ? t('pages.candidate.CandidateDetail.s212') : t('pages.candidate.CandidateDetail.s211') }}
+        </n-button>
+        <n-button size="small" quaternary class="header-close" @click="goBack">
+          <template #icon><n-icon :component="CloseOutline" /></template>
+        </n-button>
+      </n-space>
     </div>
 
-    <!-- 候选人身份条：头像 + 姓名 + 编号 + 状态 + 应聘职位 + 关键信息 -->
+    <!-- 候选人身份条：头像 + 姓名 + 编号 + 状态 + 锁定人 + 应聘职位 + 关键信息 -->
     <n-card class="identity-card">
       <div class="identity-row">
         <n-avatar :size="64" round class="candidate-avatar">
@@ -24,15 +45,23 @@
             <n-tag v-if="candidateData.stateDisplay" type="info" :bordered="false" size="small">
               {{ candidateData.stateDisplay }}
             </n-tag>
+            <!-- 锁定人：候选人级招聘官为空时回退到投递记录认领人 -->
+            <span v-if="lockOwnerText" class="meta-chip lock-chip">
+              <n-icon :component="LockClosedOutline" />{{ t('pages.candidate.CandidateDetail.s205') }}：{{ lockOwnerText }}
+            </span>
             <n-tag v-if="appliedPosition" class="position-tag" :bordered="false" size="small">
               {{ appliedPosition }}
             </n-tag>
           </div>
           <div class="identity-meta-row">
             <span v-if="genderAgeText" class="meta-chip">{{ genderAgeText }}</span>
-            <span v-if="candidateDetail?.highest_education" class="meta-chip">{{ candidateDetail.highest_education }}</span>
+            <span v-if="highestEducationText" class="meta-chip">{{ highestEducationText }}</span>
             <span v-if="candidateData.phone !== '—'" class="meta-chip"><n-icon :component="CallOutline" /> {{ candidateData.phone }}</span>
             <span v-if="candidateData.email !== '—'" class="meta-chip"><n-icon :component="MailOutline" /> {{ candidateData.email }}</span>
+            <!-- 应聘渠道：来源渠道名（后端 source_channel_name） -->
+            <span v-if="sourceChannelText" class="meta-chip">{{ t('pages.candidate.CandidateDetail.s206') }}：{{ sourceChannelText }}</span>
+            <!-- 简历来源：按真实入库形态推导（摩卡同步/附件上传/手动录入） -->
+            <span v-if="resumeSourceText" class="meta-chip">{{ t('pages.candidate.CandidateDetail.s207') }}：{{ resumeSourceText }}</span>
           </div>
         </div>
       </div>
@@ -109,7 +138,7 @@
                     <div>
                       <n-tag type="info" :bordered="false" size="small">{{ h.action }}</n-tag>
                       <n-text :depth="3" style="font-size: var(--fs-12); margin-left: 8px">{{ formatTime(h.createdAt) }}</n-text>
-                      <div style="margin-top: 4px"><n-text :depth="2">{{ h.detail }}</n-text></div>
+                      <div style="margin-top: 4px"><n-text :depth="2">{{ typeof h.detail === 'string' ? h.detail : JSON.stringify(h.detail || '') }}</n-text></div>
                       <div style="margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--fs-12)">{{ h.operatorName }}</div>
                     </div>
                   </n-timeline-item>
@@ -123,11 +152,34 @@
 
       <!-- 右侧操作栏 -->
       <div class="rail-col">
-        <!-- 当前阶段 -->
+        <!-- 当前阶段：琥珀色步骤面板（已完成=实心勾 / 当前=空心圆环 / 待办=浅点，悬浮显阶段名） -->
         <div class="rail-card">
-          <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s191') }}</div>
-          <div class="stage-value">
-            <n-tag type="warning" :bordered="false">{{ currentStage || candidateData.stateDisplay || '—' }}</n-tag>
+          <div class="stage-panel">
+            <div class="stage-panel-title">
+              {{ t('pages.candidate.CandidateDetail.s191') }}：<span class="stage-panel-current">{{ currentStage || candidateData.stateDisplay || '—' }}</span>
+            </div>
+            <!-- 有流程阶段数据（>=2 个阶段）时渲染步骤条；悬浮任一节点显示该阶段名 -->
+            <div v-if="stageSteps.length >= 2" class="stage-steps">
+              <template v-for="(step, i) in stageSteps" :key="i">
+                <n-tooltip placement="top">
+                  <template #trigger>
+                    <span class="stage-node" :class="step.state">
+                      <n-icon v-if="step.state === 'done'" :component="CheckmarkOutline" class="stage-node-check" />
+                    </span>
+                  </template>
+                  {{ step.name }}
+                </n-tooltip>
+                <span
+                  v-if="i < stageSteps.length - 1"
+                  class="stage-link"
+                  :class="{ done: i < currentStageIdx }"
+                />
+              </template>
+            </div>
+            <!-- 兜底：无流程阶段数据时退化为当前阶段标签 -->
+            <div v-else class="stage-value">
+              <n-tag type="warning" :bordered="false">{{ currentStage || candidateData.stateDisplay || '—' }}</n-tag>
+            </div>
           </div>
           <div v-if="appliedPosition" class="rail-sub">{{ t('pages.candidate.CandidateDetail.s204') }}：{{ appliedPosition }}</div>
           <div v-if="candidateData.stateDisplay && currentStage" class="rail-sub">{{ candidateData.stateDisplay }}</div>
@@ -430,12 +482,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
 import {
   ChevronBackOutline,
+  ChevronForwardOutline,
   MailOutline,
   CallOutline,
   PersonOutline,
@@ -447,8 +500,13 @@ import {
   LogoWechat,
   CloudUploadOutline,
   DownloadOutline,
+  CreateOutline,
+  CheckmarkOutline,
+  LockClosedOutline,
+  ExpandOutline,
+  ContractOutline,
 } from '@vicons/ionicons5'
-import { getCandidate } from '../../api/candidate'
+import { getCandidate, listCandidates } from '../../api/candidate'
 import { fetchConfig, defaultConfig, type StandardResumeConfig } from '../../api/standard-resume'
 import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fields'
 import { listFields, type FieldDefinition } from '../../api/dynamic-field'
@@ -548,20 +606,35 @@ interface CandidateDetailData {
   gender?: string
   age?: number | null
   highest_education?: string | null
+  highestEducation?: string | null
   current_state?: string
   state_display?: string
+  stateDisplay?: string
   created_at?: string
   updated_at?: string
   resume_file_url?: string | null
   tags?: Array<string | { name?: string }> | null
+  /** 锁定人（候选人级招聘官用户名；为空时前端回退投递记录认领人） */
+  recruiter_name?: string
+  recruiterName?: string
+  /** 简历来源（后端推导：摩卡同步 / 附件上传 / 手动录入） */
+  resume_source?: string
+  resumeSource?: string
+  /** 应聘渠道（来源渠道名） */
+  source_channel_name?: string
+  sourceChannelName?: string
   /** 投递记录（后端 get_applications，CamelCase 键） */
   applications?: Array<{
     id?: string; code?: string; positionTitle?: string | null
-    state?: string; currentStage?: string | null; createdAt?: string
+    processName?: string | null
+    state?: string; currentStage?: string | null
+    grabbedByName?: string
+    stageList?: string[]
+    createdAt?: string
   }> | null
   /** 操作历史（CandidateHistorySerializer，CamelCase 键） */
   histories?: Array<{
-    id?: string; action?: string; detail?: string
+    id?: string; seq?: number; action?: string; detail?: any
     operatorName?: string; createdAt?: string
   }> | null
   [key: string]: any
@@ -677,6 +750,115 @@ const applications = computed(() => candidateDetail.value?.applications ?? [])
 const currentStage = computed(() => applications.value[0]?.currentStage ?? '')
 const resumeFileUrl = computed(() => pickDetail('resume_file_url'))
 
+// ===== 操作记录渲染（字段级 diff / 阶段·状态流转 / 解析溯源 / 哈希链校验） =====
+// 操作类型 → i18n key（s235–s244）；命中不到则回退原始 action 串，避免空白
+const ACTION_LABEL_KEY: Record<string, string> = {
+  CREATED: 's235', INFO_UPDATED: 's236', RESUME_FIELDS_UPDATED: 's237',
+  RESUME_UPLOADED: 's238', RESUME_PARSED: 's239', STAGE_CHANGED: 's240',
+  STATE_CHANGED: 's241', BLACKLIST_CHANGED: 's242', BLACKLISTED: 's243',
+  UNBLACKLISTED: 's244',
+}
+const STATE_ENUM_LABEL_KEY: Record<string, string> = {
+  APPLIED: 's245', IN_PROCESS: 's246', OFFER_SENT: 's247', ONBOARDED: 's248',
+  PROCESS_FAILED: 's249', WITHDRAWN: 's250', TALENT_POOL: 's251', PROCESS_PAUSED: 's252',
+}
+// 操作类型 → tag 配色
+const ACTION_TAG_TYPE: Record<string, 'success' | 'info' | 'warning' | 'error' | 'default'> = {
+  CREATED: 'success', INFO_UPDATED: 'info', RESUME_FIELDS_UPDATED: 'info',
+  RESUME_UPLOADED: 'info', RESUME_PARSED: 'warning', STAGE_CHANGED: 'warning',
+  STATE_CHANGED: 'success', BLACKLIST_CHANGED: 'error', BLACKLISTED: 'error',
+  UNBLACKLISTED: 'default',
+}
+function actionLabel(h: any): string {
+  const key = ACTION_LABEL_KEY[h?.action]
+  return key ? t(`pages.candidate.CandidateDetail.${key}`) : (h?.action || '')
+}
+function actionTagType(action?: string): 'success' | 'info' | 'warning' | 'error' | 'default' {
+  return ACTION_TAG_TYPE[action ?? ''] ?? 'info'
+}
+function stateLabel(v: any): string {
+  if (v == null || v === '') return '—'
+  const key = STATE_ENUM_LABEL_KEY[v]
+  return key ? t(`pages.candidate.CandidateDetail.${key}`) : String(v)
+}
+function fmtVal(v: any, max = 60): string {
+  if (v === null || v === undefined) return '—'
+  let s: string
+  if (typeof v === 'object') {
+    try { s = JSON.stringify(v) } catch { s = String(v) }
+  } else {
+    s = String(v)
+  }
+  return s.length > max ? `${s.slice(0, max)}…` : s
+}
+function historyLines(h: any): string[] {
+  const d = h?.detail || {}
+  const action = h?.action
+  const lines: string[] = []
+  if (action === 'INFO_UPDATED' || action === 'RESUME_FIELDS_UPDATED' || action === 'RESUME_UPLOADED') {
+    const changes = Array.isArray(d.changes) ? d.changes : []
+    if (changes.length === 0) {
+      lines.push(t('pages.candidate.CandidateDetail.s228'))
+    } else {
+      for (const c of changes) {
+        const label = c?.label ?? c?.field ?? ''
+        lines.push(`${label}：${fmtVal(c?.old)} → ${fmtVal(c?.new)}`)
+      }
+    }
+  } else if (action === 'STAGE_CHANGED') {
+    lines.push(`${fmtVal(d.from_stage, 40)} → ${fmtVal(d.to_stage, 40)}`)
+    if (d.position) lines.push(`${t('pages.candidate.CandidateDetail.s204')}：${d.position}`)
+    if (d.via) lines.push(t('pages.candidate.CandidateDetail.s230', { via: d.via }))
+  } else if (action === 'STATE_CHANGED') {
+    lines.push(`${stateLabel(d.from)} → ${stateLabel(d.to)}`)
+  } else if (action === 'BLACKLISTED' || action === 'UNBLACKLISTED' || action === 'BLACKLIST_CHANGED') {
+    const toStr = (v: any) =>
+      v === true ? t('pages.candidate.CandidateDetail.s243') : v === false ? t('pages.candidate.CandidateDetail.s244') : fmtVal(v)
+    lines.push(`${toStr(d.from)} → ${toStr(d.to)}`)
+  } else if (action === 'RESUME_PARSED') {
+    const p = d.parse || {}
+    if (p.provider) lines.push(t('pages.candidate.CandidateDetail.s231', { provider: p.provider }))
+    if (p.confidence != null) lines.push(t('pages.candidate.CandidateDetail.s232', { confidence: p.confidence }))
+    if (p.educations != null) lines.push(t('pages.candidate.CandidateDetail.s233', { n: p.educations }))
+    if (p.experiences != null) lines.push(t('pages.candidate.CandidateDetail.s234', { n: p.experiences }))
+    if (p.channel) lines.push(`${t('pages.candidate.CandidateDetail.s253')}：${p.channel}`)
+  } else if (action === 'CREATED') {
+    lines.push(`${t('pages.candidate.CandidateDetail.s253')}：${d.source || '—'}`)
+  } else {
+    // 兜底：逐键展示 detail 内容
+    for (const [k, v] of Object.entries(d)) lines.push(`${k}：${fmtVal(v)}`)
+  }
+  return lines
+}
+
+// 哈希链完整性校验（不可篡改检测）
+const verifying = ref(false)
+const verifyResult = ref<{ ok: boolean; checked: number; brokenAt: number | null } | null>(null)
+async function handleVerifyHistories() {
+  const id = route.params.id
+  if (!id) return
+  verifying.value = true
+  verifyResult.value = null
+  try {
+    const res: any = await verifyCandidateHistories(String(id))
+    // 响应体已抽成 { ok, checked, brokenAt }
+    verifyResult.value = {
+      ok: !!res?.ok,
+      checked: Number(res?.checked ?? 0),
+      brokenAt: res?.brokenAt ?? null,
+    }
+    if (verifyResult.value.ok) {
+      message.success(t('pages.candidate.CandidateDetail.s226', { n: verifyResult.value.checked }))
+    } else {
+      message.error(t('pages.candidate.CandidateDetail.s227', { seq: verifyResult.value.brokenAt }))
+    }
+  } catch (e: any) {
+    message.error(e?.message || t('pages.candidate.CandidateDetail.s227', { seq: '?' }))
+  } finally {
+    verifying.value = false
+  }
+}
+
 const genderAgeText = computed(() => {
   const parts: string[] = []
   const g = pickDetail('gender')
@@ -722,8 +904,96 @@ const appliedPosition = computed<string>(() => {
   return (hit?.positionTitle || '').trim()
 })
 
-onMounted(async () => {
-  const id = route.params.id
+/** 最高学历（渲染器 camelCase 后为 highestEducation，兼容 snake_case 回退） */
+const highestEducationText = computed(() => pickDetail('highest_education'))
+
+/** 锁定人：候选人级招聘官优先，为空回退到投递记录认领人（grabbedByName） */
+const lockOwnerText = computed<string>(() => {
+  const own = (pickDetail('recruiter_name') || '').trim()
+  if (own) return own
+  const apps = candidateDetail.value?.applications ?? []
+  const hit = apps.find((a) => (a?.grabbedByName || '').trim())
+  return (hit?.grabbedByName || '').trim()
+})
+
+/** 应聘渠道：来源渠道名（后端 source_channel_name） */
+const sourceChannelText = computed(() => (pickDetail('source_channel_name') || '').trim())
+
+/** 简历来源后端值 → i18n 键（后端返固定中文串，未知值原样展示，不虚构） */
+const RESUME_SOURCE_I18N: Record<string, string> = {
+  摩卡同步: 's214',
+  附件上传: 's215',
+  手动录入: 's216',
+}
+const resumeSourceText = computed(() => {
+  const v = (pickDetail('resume_source') || '').trim()
+  if (!v) return ''
+  const key = RESUME_SOURCE_I18N[v]
+  return key ? t(`pages.candidate.CandidateDetail.${key}`) : v
+})
+
+/** 流程阶段有序列表（后端 applications[0].stage_list，按 order 升序） */
+const stageList = computed<string[]>(() => applications.value[0]?.stageList ?? [])
+
+/** 当前阶段在阶段列表中的下标；-1 = 未匹配/无数据 */
+const currentStageIdx = computed(() => {
+  const list = stageList.value
+  const cur = (currentStage.value || '').trim()
+  if (!list.length || !cur) return -1
+  return list.findIndex((s) => s === cur)
+})
+
+/** 步骤条节点状态：done=已完成(实心勾) / current=当前(空心圆环) / todo=待办(浅点) */
+const stageSteps = computed(() => {
+  const idx = currentStageIdx.value
+  return stageList.value.map((name, i) => ({
+    name,
+    state: idx < 0 ? 'todo' : i < idx ? 'done' : i === idx ? 'current' : 'todo',
+  }))
+})
+
+// ===== 上一位 / 下一位候选人 =====
+// 列表页跳转详情不带筛选上下文，故在详情页按默认排序(-created_at)拉取候选人序列，
+// 当前 id 不在首页则继续翻页（上限 5 页 × 200 条），找不到则禁用切换。
+const navIds = ref<string[]>([])
+const navIndex = ref(-1)
+const hasPrev = computed(() => navIndex.value > 0)
+const hasNext = computed(() => navIndex.value >= 0 && navIndex.value < navIds.value.length - 1)
+
+async function loadNavContext() {
+  const cur = String(route.params.id || '')
+  const ids: string[] = []
+  let found = -1
+  try {
+    for (let p = 1; p <= 5; p++) {
+      const res = await listCandidates({ page: p, pageSize: 200 })
+      const items: any[] = res?.data ?? []
+      const pageIds = items.map((i) => String(i?.id || '')).filter(Boolean)
+      ids.push(...pageIds)
+      found = ids.indexOf(cur)
+      if (found >= 0) break
+      if (pageIds.length < 200) break
+    }
+  } catch {
+    // 列表不可用（如无 recruit:candidate:list 权限）时静默降级：切换按钮禁用
+  }
+  navIds.value = ids
+  navIndex.value = found
+}
+
+function goPrevCandidate() {
+  if (!hasPrev.value) return
+  router.push(`/candidates/${navIds.value[navIndex.value - 1]}`)
+}
+function goNextCandidate() {
+  if (!hasNext.value) return
+  router.push(`/candidates/${navIds.value[navIndex.value + 1]}`)
+}
+
+/** 放大页面（专注模式）：页面铺满视口，再次点击还原 */
+const zoomed = ref(false)
+
+async function loadCandidateData(id: string) {
   loading.value = true
   try {
     const [cfg, det, rf, defs] = await Promise.all([
@@ -746,6 +1016,21 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(async () => {
+  const id = route.params.id ? String(route.params.id) : ''
+  await Promise.all([loadCandidateData(id), loadNavContext()])
+})
+
+// 上一位/下一位切换（同组件仅路由参数变化，onMounted 不重跑，须 watch 重载）
+watch(() => route.params.id, async (newId, oldId) => {
+  if (!newId || newId === oldId) return
+  await loadCandidateData(String(newId))
+  const idx = navIds.value.indexOf(String(newId))
+  if (idx >= 0) navIndex.value = idx
+  else await loadNavContext()
+  window.scrollTo({ top: 0 })
 })
 
 // ===== 编辑档案 (配置驱动) =====
@@ -901,8 +1186,10 @@ const handleSendNotification = () => {
 
 <style scoped>
 .candidate-detail-page { padding: var(--space-6); background: var(--c-info-soft); min-height: 100vh; }
-.page-header { margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; }
+.page-header { margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
 .back-btn { border: none; background: transparent; }
+.header-ops { flex-wrap: wrap; }
+.header-close { padding: 0 8px; }
 
 /* ===== 身份条 ===== */
 .identity-card { margin-bottom: var(--space-4); border-radius: 16px; border: 1px solid var(--border-hairline); box-shadow: none; }
@@ -915,6 +1202,14 @@ const handleSendNotification = () => {
 .position-tag { background: var(--brand-soft); color: var(--brand-fg); border-radius: 9999px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
 .identity-meta-row { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: var(--space-2); }
 .meta-chip { font-size: var(--fs-12); color: var(--ink-soft); display: inline-flex; align-items: center; gap: 4px; }
+.lock-chip .n-icon { color: var(--c-warning); }
+
+/* 放大页面（专注模式）: 详情页铺满视口, 再次点击还原 */
+.candidate-detail-page.page-zoomed {
+  position: fixed; inset: 0; z-index: 1000;
+  overflow-y: auto; overscroll-behavior: contain;
+  background: var(--c-info-soft);
+}
 
 /* ===== 左主区 / 右操作栏 ===== */
 .detail-layout { display: flex; gap: var(--space-4); align-items: flex-start; }
@@ -945,12 +1240,47 @@ const handleSendNotification = () => {
 
 /* ===== 操作记录 ===== */
 .history-section { padding: var(--space-2) 0; }
+.history-toolbar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
+.history-detail { margin-top: var(--space-1); display: flex; flex-direction: column; gap: 2px; }
+.history-line { font-size: var(--fs-12); color: var(--ink); line-height: 1.5; word-break: break-all; }
+.history-operator { margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--fs-12); }
 
 /* ===== 右侧操作栏卡片 ===== */
 .rail-card { background: var(--glass-bg-card); border: 1px solid var(--border-hairline); border-radius: 16px; padding: var(--space-4); }
 .rail-title { font-size: var(--fs-14); font-weight: 700; color: var(--ink); margin-bottom: var(--space-3); }
 .stage-value { margin-bottom: var(--space-2); }
 .rail-sub { font-size: var(--fs-12); color: var(--ink-soft); margin-top: var(--space-1); }
+
+/* ===== 当前阶段：琥珀色步骤面板（Moka 参考样式） =====
+ * 已完成=实心圆+白勾 / 当前=空心圆环 / 待办=浅色小点; 节点间连线在当前位置前为实线、
+ * 之后为虚线; 悬浮任一节点以 tooltip 展示阶段名。颜色全部走 token（琥珀 = --c-warning）。 */
+.stage-panel {
+  background: var(--c-warning-soft);
+  border: 1px solid color-mix(in srgb, var(--c-warning) 30%, transparent);
+  border-radius: 12px;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+.stage-panel-title { font-size: var(--fs-14); font-weight: 600; color: var(--ink); margin-bottom: var(--space-3); }
+.stage-panel-current { font-weight: 700; }
+.stage-steps { display: flex; align-items: center; }
+.stage-node {
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: default;
+}
+.stage-node.done { background: var(--c-warning); }
+.stage-node.done .stage-node-check { color: #fff; font-size: 11px; }
+/* 当前阶段: 空心圆环（略大于已完成节点，视觉锚点） */
+.stage-node.current { width: 18px; height: 18px; background: transparent; border: 2px solid var(--c-warning); }
+/* 待办: 浅色小点 */
+.stage-node.todo { width: 10px; height: 10px; background: color-mix(in srgb, var(--c-warning) 32%, transparent); }
+/* 节点间连线: 当前位置之前实线, 之后虚线 */
+.stage-link {
+  flex: 1; min-width: 6px; margin: 0 3px; height: 0;
+  border-top: 2px dashed color-mix(in srgb, var(--c-warning) 32%, transparent);
+}
+.stage-link.done { border-top-style: solid; border-top-color: var(--c-warning); }
 .application-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .application-item { padding: var(--space-2) var(--space-3); background: var(--brand-soft); border-radius: 8px; }
 .application-position { font-size: var(--fs-14); font-weight: 600; color: var(--brand-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

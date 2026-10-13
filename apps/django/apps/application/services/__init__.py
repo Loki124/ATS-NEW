@@ -38,6 +38,10 @@ from apps.time_limit.services import calc_time_limit
 from ..models import Application, ApplicationHistory, ApplicationStageRecord, ApplicationState
 from .stage_mapping import StageMappingError, resolve_stage_mapping
 
+# 跨 app：阶段变更同步写候选人维度审计（CandidateHistory 哈希链）。audit 顶部仅依赖
+# stdlib，无循环导入风险；record_stage_change 内部延迟 import 模型。
+from apps.candidate.audit import record_stage_change
+
 logger = logging.getLogger(__name__)
 
 # 产品决策 O2（2026-10-03 锁定）：阶段自动跳过/归档的级联自动进入
@@ -221,6 +225,9 @@ class ApplicationService:
             },
             operator=data.actor,
         )
+
+        # 候选人维度审计：初始阶段入库
+        record_stage_change(application, None, first_link.stage.name, actor=data.actor, via='created')
 
         logger.info(
             'Application created: %s candidate=%s position=%s stage=%s',
@@ -466,6 +473,9 @@ class ApplicationService:
             operator=actor,
         )
 
+        # 候选人维度审计：阶段推进
+        record_stage_change(application, old_stage.name if old_stage else None, next_link.stage.name, actor=actor, via='advance')
+
         # 触发自动化
         try:
             from apps.automation.services import TriggerContext, run_automation_for_trigger
@@ -594,6 +604,9 @@ class ApplicationService:
             detail={'reason': reason, 'jump': True, 'from_stage': old_stage.name if old_stage else None},
             operator=actor,
         )
+
+        # 候选人维度审计：阶段跳转
+        record_stage_change(application, old_stage.name if old_stage else None, target_link.stage.name, actor=actor, via='jump')
 
         # P1-1：阶段进入后挂接 自动跳过 / 自动归档 求值与执行（与 evaluate_stage_entry 同刻）。
         ApplicationService._apply_stage_entry_skip_archive(application, actor)
@@ -886,6 +899,9 @@ class ApplicationService:
             operator=actor,
         )
 
+        # 候选人维度审计：升版本导致的阶段改指（落点相同则 record 内部去重）
+        record_stage_change(application, old_stage.name if old_stage else None, mapping.stage.name, actor=actor, via='upgrade_version')
+
         logger.info(
             'Application %s upgraded: process %s(%s) -> %s(%s), stage %s -> %s (remapped=%s)',
             application.code, old_process_id, old_workflow_version,
@@ -990,6 +1006,9 @@ class ApplicationService:
             },
             operator=actor,
         )
+
+        # 候选人维度审计：换流程线导致的阶段改指
+        record_stage_change(application, old_stage.name if old_stage else None, target_stage_link.stage.name, actor=actor, via='change_process')
 
         logger.info(
             'Application %s changed process: %s(%s) -> %s(%s), stage %s -> %s',
@@ -1196,6 +1215,9 @@ class ApplicationService:
             application.time_limit_rule_id = tl.rule_id
             application.total_time_limit_days = tl.total_lock_days
             application.save()
+
+            # 候选人维度审计：级联自动跳过/推进的每一次阶段进入
+            record_stage_change(application, old_stage.name if old_stage else None, next_link.stage.name, actor=actor, via='auto_skip')
 
             # 评估该阶段的 skip/archive
             decision = evaluate_stage_skip_archive(next_link, application.candidate, context)

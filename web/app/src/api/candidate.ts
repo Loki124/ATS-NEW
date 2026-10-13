@@ -53,6 +53,21 @@ export async function updateCandidate(id: string, payload: Record<string, any>) 
   return data?.data ?? data
 }
 
+// 操作历史（时间倒序；支持 action / date_from / date_to 筛选，分页）
+export async function getCandidateHistories(
+  id: string,
+  params: { page?: number; pageSize?: number; action?: string; date_from?: string; date_to?: string } = {},
+) {
+  const { data } = await api.get(`/candidates/${id}/histories/`, { params })
+  return data?.data ?? data
+}
+
+// 操作历史哈希链完整性校验（不可篡改检测）
+export async function verifyCandidateHistories(id: string) {
+  const { data } = await api.get(`/candidates/${id}/histories/verify/`)
+  return data?.data ?? data
+}
+
 // G9 批量推荐
 export async function batchRecommend(payload: { candidateIds: string[]; positionId: string; comment?: string }) {
   const { data } = await api.post('/candidates/batch/recommend/', payload)

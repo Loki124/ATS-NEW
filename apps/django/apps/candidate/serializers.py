@@ -63,7 +63,7 @@ class CandidateHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CandidateHistory
-        fields = ['id', 'action', 'detail', 'created_by', 'operator_name', 'created_at']
+        fields = ['id', 'seq', 'action', 'detail', 'created_by', 'operator_name', 'created_at']
 
 
 class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):

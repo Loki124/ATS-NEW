@@ -21,6 +21,7 @@ from django.db import transaction
 from apps.application.models import Application, ApplicationState
 from apps.candidate.models import Candidate, CandidateState
 from apps.candidate.services import CandidateService
+from apps.candidate.audit import record_created, record_resume_parsed
 from apps.core.models import User
 
 # 2026-09-25: 简历解析结果结构化落 extra（供指标库派生指标对真实数据取值）
@@ -149,6 +150,19 @@ class BulkCreateService:
                 },
             )
             logger.info('Created candidate %s for draft %s', cand.id, draft.draft_id)
+
+            # 审计：创建 + 简历解析溯源（该路径绕过 create_candidate，原本无任何历史 → 详情页操作记录为空）
+            parsed = draft.parsed_data or {}
+            record_created(cand, actor=actor, source='add_candidate_v2')
+            record_resume_parsed(cand, {
+                'draft_id': draft.draft_id,
+                'provider': draft.provider,
+                'source': draft.source,
+                'channel': draft.channel,
+                'confidence': parsed.get('confidence'),
+                'educations': len(parsed.get('educations') or []),
+                'experiences': len(parsed.get('experiences') or []),
+            }, actor=actor)
 
         # 4. 按方向创建关联
         if draft.direction == 'pending':

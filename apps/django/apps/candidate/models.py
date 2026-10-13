@@ -8,6 +8,8 @@ from apps.common.encryption import EncryptedCharField
 from apps.common.models import FullAuditModel, SoftDeleteManager, SoftDeleteModel, TimestampedModel
 from apps.reason_library.models import RECRUIT_TYPE_CHOICES, RecruitType
 
+from .audit import AuditImmutabilityError, compute_row_hash
+
 
 def gen_id():
     return nanoid_generate(size=21)
@@ -371,7 +373,13 @@ class CandidateTag(SoftDeleteModel):
     objects = SoftDeleteManager()
     all_objects = models.Manager()
 class CandidateHistory(FullAuditModel):
-    """候选人操作历史 - 自动审计"""
+    """候选人操作历史 - 自动审计（不可篡改：哈希链 + 禁改删）
+
+    - ``seq``：每候选人内单调递增序号；``prev_hash`` 指向上条的 ``row_hash``，串成哈希链。
+    - ``save()`` 在 INSERT 时自动补 seq/哈希；对既有行 UPDATE 或 ``delete()`` 抛
+      ``AuditImmutabilityError``（软删亦走 ``save()``，同样被拦）。
+    - ``row_hash`` 刻意不含 ``created_at``（auto_now_add 会覆盖，纳入会致哈希与落库值不一致）。
+    """
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     candidate = models.ForeignKey(
         Candidate, on_delete=models.CASCADE,
@@ -379,12 +387,47 @@ class CandidateHistory(FullAuditModel):
     )
     action = models.CharField(max_length=64, verbose_name='操作')
     detail = models.JSONField(default=dict, blank=True, verbose_name='详情')
+    seq = models.PositiveIntegerField(default=0, db_index=True, verbose_name='序号')
+    prev_hash = models.CharField(max_length=64, blank=True, default='', verbose_name='上一行哈希')
+    row_hash = models.CharField(max_length=64, blank=True, default='', db_index=True, verbose_name='行哈希')
 
     class Meta:
         db_table = 'candidate_histories'
         verbose_name = '候选人历史'
         verbose_name_plural = verbose_name
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        # 不可篡改：既有行禁止 UPDATE（软删 restore 亦走 save，一并拦截）
+        if self.pk and not self._state.adding:
+            raise AuditImmutabilityError(
+                f'CandidateHistory 行不可修改/删除（不可篡改审计）: id={self.pk}'
+            )
+        if self._state.adding:
+            # INSERT：在事务内取该候选人当前最大 seq 行（select_for_update 串行化并发插入），
+            # 续接哈希链。sqlite 测试库忽略 FOR UPDATE（无锁但不报错）。
+            with transaction.atomic():
+                last = (
+                    CandidateHistory.objects
+                    .filter(candidate_id=self.candidate_id)
+                    .select_for_update()
+                    .order_by('-seq', '-created_at')
+                    .first()
+                )
+                self.seq = (last.seq + 1) if last else 1
+                self.prev_hash = (last.row_hash or '') if last else ''
+                self.row_hash = compute_row_hash(
+                    self.candidate_id, self.seq, self.action, self.detail,
+                    self.created_by_id, self.prev_hash,
+                )
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise AuditImmutabilityError(
+            f'CandidateHistory 行不可删除（不可篡改审计）: id={self.pk}'
+        )
 
 
 class CandidateFieldValue(TimestampedModel):
