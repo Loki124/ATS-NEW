@@ -640,8 +640,13 @@ onMounted(() => {
 .tpl-enum-select { width: 100%; }
 /* 🔴 实体引用型值域配置块（人员 / 部门）：视觉沿用枚举块，保持弹窗内一致性 */
 .tpl-entity-block { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--g1); border-radius: var(--radius-sm); }
-.tpl-entity-pick-lbl { margin-top: var(--space-1); }
-.tpl-entity-picker { width: 100%; }
+.tpl-entity-opt-row { display: flex; align-items: center; gap: var(--space-2); }
+.tpl-entity-opt-type { flex: 0 0 auto; font-size: var(--fs-13); color: var(--ink-soft); white-space: nowrap; }
+.tpl-entity-opt-auto { flex: 1 1 auto; font-size: var(--fs-13); color: var(--ink); }
+.tpl-entity-add-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.tpl-entity-add-row .tpl-add-seg { margin-bottom: 0; flex: 0 0 auto; }
+.tpl-entity-draft-type { flex: 0 0 180px; }
+.tpl-entity-picker { flex: 1 1 240px; min-width: 0; }
 .pv-entity { display: inline-flex; min-width: 0; width: 100%; }
 .tpl-hint { color: var(--ink-faint); font-size: var(--fs-12); line-height: 1.6; }
 .tpl-hint-block { display: flex; align-items: flex-start; gap: var(--space-1); }

@@ -893,19 +893,8 @@ export function useMetricsWorkspace() {
     }
     return out
   }
-  const domainItems = computed<{ text: string; value: string }[]>(() => {
-    if (isEnumOutput.value || isTextOutput.value) return []
-    return isDateOutput.value ? computeDateDomain().items : buildDomainItems()
-  })
-  const domainValueCount = computed<number>(() => domainItems.value.length)
-  const domainSummaryText = computed<string>(() => domainItems.value.map((i) => i.text).join(', '))
-  const domainSummaryTag = computed<string>(() => {
-    if (!isDateOutput.value) return t('metrics.tpl.domainCount', { n: domainValueCount.value })
-    const total = computeDateDomain().total
-    return total > domainValueCount.value
-      ? t('metrics.tpl.domainCountTruncated', { total, shown: domainValueCount.value })
-      : t('metrics.tpl.domainCount', { n: total })
-  })
+  //注：domainItems / domainValueCount / domainSummary* 定义在下方实体候选块之后
+  //（依赖 entityCandidateOptions，避免 TDZ 与隐式依赖）
 
   function segBoundNum(v: any): number | null {
     return segBound(v)
@@ -1006,7 +995,7 @@ export function useMetricsWorkspace() {
     return vd
   })
 
-  /** 可选的选取方式（人员 / 部门各自不同） */
+  /** 可选的选取方式（人员 / 部门各自不同）—— 每个取值方式就是一个「候选类型」 */
   const entitySelectorOptions = computed<{ label: string; value: string }[]>(() => {
     if (isDeptOutput.value) {
       return [
@@ -1025,86 +1014,152 @@ export function useMetricsWorkspace() {
     () => entitySelectorOptions.value[0]?.value || 'specified',
   )
 
-  /** 当前 selector 对应的 id 字段名 */
-  const ENTITY_ID_FIELD: Record<string, Record<string, string>> = {
-    person: { specified: 'userIds', identity: 'identityIds', current_user: 'userIds' },
-    department: { specified: 'unitIds', current_user_dept: 'unitIds' },
-  }
-  const entityIdField = computed<string>(
-    () => ENTITY_ID_FIELD[entityKind.value]?.[String(entityDomain.value.selector || '')] || 'userIds',
-  )
-
-  /** 该selector 是否需要额外的下拉选择框（当前登录人 → 不需要） */
-  const entityNeedsPicker = computed<boolean>(
-    () => isEntityOutput.value && !!String(entityDomain.value.selector || '') && entityDomain.value.selector !== 'current_user' && entityDomain.value.selector !== 'current_user_dept',
-  )
-
-  /** 按 selector 给出正确的候选下拉（人员 / 身份 / 部门） */
-  const entityPickerOptions = computed<{ label: string; value: string }[]>(() => {
-    const sel = String(entityDomain.value.selector || '')
-    const src = sel === 'identity' ? entityIdentities.value : isDeptOutput.value ? entityUnits.value : entityUsers.value
-    return src.map((x) => ({ label: x.label, value: x.id }))
-  })
-
-  /** 当前选中的 id 列表（供 n-select v-model 双绑） */
-  const entitySelectedIds = computed<string[]>({
-    get() {
-      const v = entityDomain.value[entityIdField.value]
-      return Array.isArray(v) ? (v as string[]) : []
-    },
-    set(next: string[]) {
-      tplForm.value.valueDomain[entityIdField.value] = next || []
-    },
-  })
-
   /**
-   * 切换选取方式 —— **必须清理互斥字段**（用户要求 5）：
-   * 从「指定身份」切到「当前登录人」时，若不清 identityIds 会残留脏配置；
-   * 切到「指定人员」同理要清 identityIds / unitIds。
-   * 同时清空不再适用的候选下拉缓存语义（缓存本身保留，避免重新请求）。
+   * 🔴 该候选类型是否需要额外的对象选择下拉（当前登录人 → 运行时才知值，无需选）。
+   * 与「锁定一种方式」的旧设计不同：这里只影响**新增候选**时是否要弹选择器。
    */
-  function setEntitySelector(next: string) {
+  function entityTypeNeedsPicker(type: string): boolean {
+    return type !== 'current_user' && type !== 'current_user_dept'
+  }
+
+  /** 按候选类型给出正确的对象下拉（人员 / 身份 / 部门） */
+  function entityOptionsForType(type: string): { label: string; value: string }[] {
+    const src =
+      type === 'identity'
+        ? entityIdentities.value
+        : isDeptOutput.value
+          ? entityUnits.value
+          : entityUsers.value
+    return src.map((x) => ({ label: x.label, value: x.id }))
+  }
+
+  /** 候选清单（对应数值型的segments → domainItems：模板层只限定可选范围，应用方选具体值） */
+  const entityOptions = computed<any[]>(() => {
+    const v = (entityDomain.value as any).options
+    return Array.isArray(v) ? v : []
+  })
+
+  /** 新增一条候选；当前登录人类型无需选择对象，其余类型挂在「正在配置」态由 UI 收集 */
+  const entityDraft = ref<{ type: string; ids: string[] }>({ type: '', ids: [] })
+
+  function entityDraftPickerOptions(): { label: string; value: string }[] {
+    return entityOptionsForType(entityDraft.value.type)
+  }
+
+  /** 新增候选：type 必选；指定类必须至少选一个对象 */
+  function addEntityOption(): string {
+    const type = entityDraft.value.type
+    if (!type) return t('metrics.tpl.entitySelectorRequired')
+    if (entityTypeNeedsPicker(type) && !entityDraft.value.ids.filter(Boolean).length) {
+      return entityPickerRequiredText(type)
+    }
     const vd = tplForm.value.valueDomain
     vd.kind = entityKind.value
-    vd.selector = next
-    vd.multiple = vd.multiple ?? true
-    // 无条件清空全部候选 id 字段：任何切换都重新选，避免跨 selector 残留
-    vd.userIds = []
-    vd.identityIds = []
-    vd.unitIds = []
+    if (!Array.isArray(vd.options)) vd.options = []
+    vd.options.push(makeEntityOption(type, entityDraft.value.ids))
+    entityDraft.value = { type: '', ids: [] }
+    return ''
   }
 
-  /** 实体值域校验：指定类必须至少选一个；非指定类必须清空（与后端 _validate_entity_value_domain 对齐） */
+  function entityPickerRequiredText(type: string): string {
+    if (type === 'identity') return t('metrics.tpl.entityIdentityRequired')
+    if (type === 'specified' && isDeptOutput.value) return t('metrics.tpl.entityDeptRequired')
+    return t('metrics.tpl.entityUserRequired')
+  }
+
+  /** 生成一条候选（存id + label 快照：id 用于精确匹配，label 用于展示与改名后仍可读） */
+  function makeEntityOption(type: string, ids: string[]) {
+    const opts = entityOptionsForType(type)
+    const map = new Map(opts.map((o) => [o.value, o.label]))
+    const picked = (ids || []).filter(Boolean).map((id) => map.get(id) || id)
+    return {
+      type,
+      ids: entityTypeNeedsPicker(type) ? [...new Set((ids || []).filter(Boolean))] : [],
+      label: entityTypeNeedsPicker(type) ? picked.join('、') : t(entityAutoLabelKey(type)),
+    }
+  }
+
+  function entityAutoLabelKey(type: string): string {
+    return type === 'current_user_dept'
+      ? 'metrics.tpl.entityCurrentUserDept'
+      : 'metrics.tpl.entityCurrentUser'
+  }
+
+  function removeEntityOption(idx: number) {
+    const vd = tplForm.value.valueDomain
+    if (Array.isArray(vd.options)) vd.options.splice(idx, 1)
+  }
+
+  /** 修改某条候选的对象选择（换人/换身份后要同步刷新 label 快照） */
+  function updateEntityOptionIds(idx: number, ids: string[]) {
+    const vd = tplForm.value.valueDomain
+    const opt = Array.isArray(vd.options) ? vd.options[idx] : null
+    if (!opt) return
+    const merged = makeEntityOption(opt.type, ids)
+    vd.options[idx] = { ...opt, ids: merged.ids, label: merged.label }
+  }
+
+  /** 候选类型的中文标签（列表展示用） */
+  function entityTypeLabel(type: string): string {
+    return entitySelectorOptions.value.find((o) => o.value === type)?.label || type
+  }
+
+  /**
+   * 候选清单 → 候选下拉项。
+   * value 用可解析的 JSON 串（type + ids），既保留"选哪种方式"的信息，
+   * 又能直接喂给枚举型复用的 previewNeedsEnumPicker 路径 —— 与枚举型行为完全一致。
+   */
+  const entityCandidateOptions = computed<{ label: string; value: string }[]>(() =>
+    entityOptions.value.map((o, i) => ({
+      label: o.label || entityTypeLabel(o.type),
+      value: JSON.stringify({ t: o.type, i: i, ids: o.ids || [] }),
+    })),
+  )
+
+  /**
+   * 值域候选清单（数值/日期/实体三来源统一出口）。
+   * 实体引用型（人员/部门）与数值型 segments、枚举型候选**同一套机制**：
+   * 模板层只限定「可选范围」，应用方（预览下拉）在使用时自由切换 —— 这正是
+   * 旧设计（模板层用 selector 锁定一种取值方式）的缺陷所在。
+   */
+  const domainItems = computed<{ text: string; value: string }[]>(() => {
+    if (isTextOutput.value) return []
+    if (isEnumOutput.value) return []
+    if (isEntityOutput.value) {
+      return entityCandidateOptions.value.map((o) => ({ text: o.label, value: o.value }))
+    }
+    return isDateOutput.value ? computeDateDomain().items : buildDomainItems()
+  })
+
+  /** 候选数量 / 摘要文案（数值型「共 N 个值」的同款呈现，实体型共用） */
+  const domainValueCount = computed<number>(() => domainItems.value.length)
+  const domainSummaryText = computed<string>(() => domainItems.value.map((i) => i.text).join(', '))
+  const domainSummaryTag = computed<string>(() => {
+    if (!isDateOutput.value) return t('metrics.tpl.domainCount', { n: domainValueCount.value })
+    const total = computeDateDomain().total
+    return total > domainValueCount.value
+      ? t('metrics.tpl.domainCountTruncated', { total, shown: domainValueCount.value })
+      : t('metrics.tpl.domainCount', { n: total })
+  })
+
+  /** 实体值域校验：至少要有一条候选；指定类候选必须有对象 */
   const entityDomainIssue = computed<string>(() => {
     if (!isEntityOutput.value) return ''
-    const sel = String(entityDomain.value.selector || '')
-    if (!sel) return t('metrics.tpl.entitySelectorRequired')
-    if (!entityNeedsPicker.value) return ''
-    const ids = entitySelectedIds.value.filter((x) => String(x).trim())
-    if (!ids.length) {
-      return sel === 'identity'
-        ? t('metrics.tpl.entityIdentityRequired')
-        : isDeptOutput.value
-          ? t('metrics.tpl.entityDeptRequired')
-          : t('metrics.tpl.entityUserRequired')
-    }
+    const opts = entityOptions.value
+    if (!opts.length) return t('metrics.tpl.entityOptionRequired')
+    const bad = opts.findIndex((o) => entityTypeNeedsPicker(o.type) && !(o.ids || []).length)
+    if (bad >= 0) return entityPickerRequiredText(opts[bad].type)
     return ''
   })
 
-  /** 配置预览的校验值回填（用户要求 2） */
+  /** 配置预览的默认回填（对应数值型 previewValueSelected = 第一个候选） */
   const entityPreviewValue = computed<string>(() => {
     if (!isEntityOutput.value) return ''
-    const sel = String(entityDomain.value.selector || '')
-    if (sel === 'current_user') return t('metrics.tpl.entityCurrentUser')
-    if (sel === 'current_user_dept') return t('metrics.tpl.entityCurrentUserDept')
-    const ids = entitySelectedIds.value
-    if (!ids.length) return ''
-    const src = sel === 'identity' ? entityIdentities.value : isDeptOutput.value ? entityUnits.value : entityUsers.value
-    const map = new Map(src.map((x) => [x.id, x.name]))
-    return ids.map((id) => map.get(id) || id).join('、')
+    return entityOptions.value[0]?.label || ''
   })
 
   const domainSegmentIssues = computed<(string | null)[]>(() => {
+    if (isDateOutput.value) return dateSegmentIssues.value
     if (isDateOutput.value) return dateSegmentIssues.value
     if (!isNumberOutput.value) return []
     const segs = (tplForm.value.valueDomain?.segments || []) as any[]
@@ -1204,12 +1259,34 @@ export function useMetricsWorkspace() {
   const MULTI_VALUE_OPERATORS = ['IN', 'NOT_IN']
   const previewNeedsNoValue = computed<boolean>(() => NO_VALUE_OPERATORS.includes(previewOpSelected.value))
   const previewNeedsTextInput = computed<boolean>(() => isTextOutput.value && !previewNeedsNoValue.value)
-  const previewNeedsMultiEnum = computed<boolean>(() => isEnumOutput.value && MULTI_VALUE_OPERATORS.includes(previewOpSelected.value))
-  const previewNeedsEnumPicker = computed<boolean>(() => isEnumOutput.value && !previewNeedsNoValue.value)
-  // 🔴 实体引用型预览（人员/部门）：校验值直接回填所选对象名/当前登录人，
-  //   不需要用户再手输（用户要求 2：配置需在"配置预览"的校验值中生效）。
-  const previewNeedsEntityValue = computed<boolean>(() => isEntityOutput.value && !previewNeedsNoValue.value)
+  const previewNeedsMultiEnum = computed<boolean>(
+    () => (isEnumOutput.value || isEntityOutput.value) && MULTI_VALUE_OPERATORS.includes(previewOpSelected.value),
+  )
+  // 🔴 实体引用型（人员/部门）与枚举型同构：预览出候选下拉，
+  //   **应用时可在候选清单间自由切换**（这正是兵哥指出的旧设计缺陷：
+  //   模板层锁定一种取值方式会导致应用时无从切换）。
+  const previewNeedsEnumPicker = computed<boolean>(
+    () => (isEnumOutput.value || isEntityOutput.value) && !previewNeedsNoValue.value,
+  )
+  const previewNeedsEntityValue = computed<boolean>(() => false)
   const previewEnumValue = ref<string[]>([])
+
+  /** 预览下拉的候选源：枚举型用候选值清单，实体引用型用实体候选（同一交互形态） */
+  const previewCandidateOptions = computed<{ label: string; value: string }[]>(() =>
+    isEntityOutput.value ? entityCandidateOptions.value : enumCandidateOptions.value,
+  )
+  // 实体候选变化时，预览默认选中第一个（与数值型 previewValueSelected 行为一致）
+  watch(entityCandidateOptions, (opts) => {
+    if (!isEntityOutput.value) return
+    const first = opts[0]?.value
+    if (!first) {
+      previewEnumValue.value = []
+      return
+    }
+    previewEnumValue.value = previewNeedsMultiEnum.value
+      ? [...new Set([...previewEnumValue.value, first])]
+      : [first]
+  }, { immediate: true })
 
   const previewTextValue = ref('')
   const previewRegexIssue = computed<string>(() => {
@@ -1276,14 +1353,7 @@ export function useMetricsWorkspace() {
     }
     // 🔴 实体引用型：切换到人员/部门指标时，用 kind 结构重置值域（默认取第一个选取方式）
     if (isEntityOutput.value) {
-      tplForm.value.valueDomain = {
-        kind: entityKind.value,
-        selector: entityDefaultSelector.value,
-        multiple: true,
-        userIds: [],
-        identityIds: [],
-        unitIds: [],
-      }
+      tplForm.value.valueDomain = { kind: entityKind.value, options: [] }
       void ensureEntityOptions()
     }
     if (isEnumOutput.value) {
@@ -1329,11 +1399,15 @@ export function useMetricsWorkspace() {
     if (kind) {
       return {
         kind,
-        selector: String(d.selector || ''),
-        multiple: d.multiple ?? true,
-        userIds: Array.isArray(d.userIds) ? [...d.userIds] : [],
-        identityIds: Array.isArray(d.identityIds) ? [...d.identityIds] : [],
-        unitIds: Array.isArray(d.unitIds) ? [...d.unitIds] : [],
+        options: Array.isArray(d.options)
+          ? d.options
+              .filter((o: any) => o && o.type)
+              .map((o: any) => ({
+                type: String(o.type),
+                ids: Array.isArray(o.ids) ? [...o.ids] : [],
+                label: String(o.label || ''),
+              }))
+          : [],
       }
     }
     return { segments: (d.segments || []).map((s: any) => ({ ...s })) }
@@ -1378,14 +1452,7 @@ export function useMetricsWorkspace() {
       // 🔴 实体引用型：入参枚举无意义；值域必须是 kind 结构（历史脏数据兜底重置）
       tplForm.value.paramEnums = []
       if (tplForm.value.valueDomain.kind !== entityKind.value) {
-        tplForm.value.valueDomain = {
-          kind: entityKind.value,
-          selector: entityDefaultSelector.value,
-          multiple: true,
-          userIds: [],
-          identityIds: [],
-          unitIds: [],
-        }
+        tplForm.value.valueDomain = { kind: entityKind.value, options: [] }
       }
     } else {
       tplForm.value.paramEnums = []
@@ -1410,25 +1477,23 @@ export function useMetricsWorkspace() {
 
   /**
    * 保存前的值域归一（2026-10-13）：
-   *   - 实体引用型：只落 kind / selector / multiple 与**当前 selector 对应**的 id 数组，
-   *     其余互斥字段一律不下发（后端会拒绝「当前登录人 + 带 id 列表」的组合）。
+   *   - 实体引用型：只落 kind 与 options（候选清单），
+   *     每条候选 {type, ids, label}；label 为展示快照，ids 为精确匹配依据。
    *   - 其余类型：原样返回，数值/日期 segments 结构完全不受影响。
    */
   function buildSaveValueDomain() {
     if (!isEntityOutput.value) return tplForm.value.valueDomain
-    const sel = String(tplForm.value.valueDomain.selector || entityDefaultSelector.value)
-    const field = ENTITY_ID_FIELD[entityKind.value]?.[sel] || 'userIds'
-    const picked = Array.isArray(tplForm.value.valueDomain[field])
-      ? tplForm.value.valueDomain[field].filter((x: unknown) => String(x ?? '').trim())
+    const vd = tplForm.value.valueDomain
+    const options = Array.isArray(vd.options)
+      ? vd.options
+          .filter((o: any) => o && o.type)
+          .map((o: any) => ({
+            type: String(o.type),
+            ids: Array.isArray(o.ids) ? o.ids.filter((x: unknown) => String(x ?? '').trim()) : [],
+            label: String(o.label || '').trim(),
+          }))
       : []
-    const isAuto = sel === 'current_user' || sel === 'current_user_dept'
-    return {
-      kind: entityKind.value,
-      selector: sel,
-      multiple: tplForm.value.valueDomain.multiple ?? true,
-      // 当前登录人取值由运行时决定 → 必须为空数组
-      [field]: isAuto ? [] : picked,
-    }
+    return { kind: entityKind.value, options }
   }
 
   async function submitTemplate() {
@@ -1855,15 +1920,19 @@ export function useMetricsWorkspace() {
     isPersonOutput,
     isDeptOutput,
     entitySelectorOptions,
-    entityDefaultSelector,
     entityDomain,
-    entityNeedsPicker,
-    entityPickerOptions,
-    entitySelectedIds,
+    entityOptions,
+    entityTypeNeedsPicker,
+    entityOptionsForType,
+    entityDraft,
+    entityDraftPickerOptions,
+    addEntityOption,
+    removeEntityOption,
+    updateEntityOptionIds,
+    entityTypeLabel,
+    entityCandidateOptions,
     entityDomainIssue,
-    entityPreviewValue,
     entityOptionsLoading,
-    setEntitySelector,
     ensureEntityOptions,
     showValueDomain,
     operatorDisabledForFreetext,
@@ -1907,7 +1976,7 @@ export function useMetricsWorkspace() {
     previewNeedsTextInput,
     previewNeedsMultiEnum,
     previewNeedsEnumPicker,
-    previewNeedsEntityValue,
+    previewCandidateOptions,
     previewEnumValue,
     previewTextValue,
     previewRegexIssue,

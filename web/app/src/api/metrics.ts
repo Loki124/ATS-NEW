@@ -99,16 +99,22 @@ export interface MetricTemplateValueDomain {
    *   **历史模板无此键** → 前端一律走原有数值/日期/枚举逻辑，零行为变化。
    */
   kind?: 'person' | 'department' | string
-  /** 选取方式：person=指定人员/指定身份/当前登录人；department=指定部门/当前登录人所在部门 */
-  selector?: string
-  /** 指定人员：选中的用户 id 列表 */
-  userIds?: string[]
-  /** 指定身份：选中的身份（角色）id 列表，取自身份管理 */
-  identityIds?: string[]
-  /** 指定部门：选中的管理单元 id 列表 */
-  unitIds?: string[]
-  /** 是否允许多选（默认 true） */
-  multiple?: boolean
+  /**
+   * 候选值清单（2026-10-13 重构）：与数值型 segments / 枚举型候选同一语义 ——
+   * 模板层只限定「可选范围」，具体选哪一个由应用方在使用时决定。
+   * 🔴 旧版曾用 selector 单值锁定一种取值方式，导致应用时无法切换，已废弃。
+   */
+  options?: MetricTemplateEntityOption[]
+}
+
+/** 实体引用型值域的单条候选 */
+export interface MetricTemplateEntityOption {
+  /** specified=指定人员/部门；identity=指定身份；current_user/current_user_dept=运行时取值 */
+  type: string
+  /** 绑定的对象 id 列表（当前登录人类型为空数组） */
+  ids?: string[]
+  /** 展示名快照（对象改名后历史配置仍可读） */
+  label?: string
 }
 
 export interface MetricTemplate {

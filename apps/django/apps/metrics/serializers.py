@@ -372,18 +372,18 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
                 '字符串型出参不接受数值分段的值域配置：字符串不是可枚举刻度，请清空值域'
             )
 
-    # 实体值域的合法取值：kind → {selector: (对应 id 字段, 是否必填)}
-    #   person     指定人员=指定 user；指定身份=指定身份(role)；当前登录人=无需选择
-    #   department 指定部门=指定管理单元；当前登录人所在部门=无需选择
-    _ENTITY_DOMAIN_SPEC = {
+    # 实体值域的合法取值：kind → {type: 是否需要绑定具体对象}
+    #   person     指定人员=绑定用户；指定身份=绑定身份(role)；当前登录人=运行时取值
+    #   department 指定部门=绑定管理单元；当前登录人所在部门=运行时取值
+    _ENTITY_OPTION_TYPES = {
         'person': {
-            'specified': ('userIds', True),
-            'identity': ('identityIds', True),
-            'current_user': ('userIds', False),
+            'specified': True,
+            'identity': True,
+            'current_user': False,
         },
         'department': {
-            'specified': ('unitIds', True),
-            'current_user_dept': ('unitIds', False),
+            'specified': True,
+            'current_user_dept': False,
         },
     }
 
@@ -391,33 +391,36 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
     def _validate_entity_value_domain(domain, kind):
         """实体引用型值域校验（人员 / 部门）。
 
-        结构：{kind, selector, <id 字段>: [..], multiple}
-        约束：selector 必须在该kind 的白名单内；指定类必须选中至少一个对象；
-        非指定类（当前登录人/所在部门）必须清空 id 数组，避免残留脏配置。
+        结构：{kind, options: [{type, ids: [...], label}]}
+        语义与数值型 segments 一致 —— **模板层只限定可选范围（候选清单），
+        具体选哪一个由应用方在使用时决定**，故此处不限制只能用一种取值方式。
+        约束：type 必须在该 kind 白名单内；需绑定对象的类型必须至少有一个 id；
+        当前登录人类型不得携带 id（值由运行时决定）。
         """
-        spec = MetricTemplateSerializer._ENTITY_DOMAIN_SPEC.get(kind)
+        spec = MetricTemplateSerializer._ENTITY_OPTION_TYPES.get(kind)
         if spec is None:
             raise serializers.ValidationError(f'未知的值域类型: {kind}')
-        selector = domain.get('selector')
-        if selector not in spec:
-            raise serializers.ValidationError(
-                f'值域类型 {kind} 不支持的选择方式: {selector}'
-            )
-        id_field, required = spec[selector]
-        ids = domain.get(id_field)
-        if ids is not None and not isinstance(ids, list):
-            raise serializers.ValidationError(f'值域 {id_field} 必须是数组')
-        cleaned = [str(x).strip() for x in (ids or []) if str(x or '').strip()]
-        if required and not cleaned:
-            raise serializers.ValidationError('请至少选择一个对象')
-        # 非指定类不应带 id 列表（切状态时清空），此处兜底强制为空，避免语义歧义
-        if not required and cleaned:
-            raise serializers.ValidationError(
-                '当前登录人取值由运行时决定，无需指定具体对象'
-            )
-        multiple = domain.get('multiple')
-        if multiple is not None and not isinstance(multiple, bool):
-            raise serializers.ValidationError('值域 multiple 必须是布尔值')
+        options = domain.get('options')
+        if options is None:
+            return
+        if not isinstance(options, list):
+            raise serializers.ValidationError('值域候选必须是数组')
+        for i, opt in enumerate(options):
+            if not isinstance(opt, dict):
+                raise serializers.ValidationError(f'值域候选#{i + 1}格式不正确')
+            otype = str(opt.get('type') or '')
+            if otype not in spec:
+                raise serializers.ValidationError(f'值域类型 {kind} 不支持的取值方式: {otype}')
+            ids = opt.get('ids')
+            if ids is not None and not isinstance(ids, list):
+                raise serializers.ValidationError(f'值域候选#{i + 1} 的 ids 必须是数组')
+            cleaned = [str(x).strip() for x in (ids or []) if str(x or '').strip()]
+            if spec[otype] and not cleaned:
+                raise serializers.ValidationError(f'值域候选#{i + 1} 需要至少选择一个对象')
+            if not spec[otype] and cleaned:
+                raise serializers.ValidationError(
+                    '当前登录人取值由运行时决定，无需指定具体对象'
+                )
 
     @staticmethod
     def _validate_value_domain(domain, data_type='number', is_enum=False):

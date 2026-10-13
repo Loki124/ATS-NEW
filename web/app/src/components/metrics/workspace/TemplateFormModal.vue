@@ -173,44 +173,68 @@
             <span>{{ t('metrics.tpl.legacyNumericDomain') }}</span>
           </div>
           <div class="tpl-segments">
-            <!-- 🔴 实体引用型值域（人员 / 部门）：值域语义是「限定为哪些对象」，
-                 与下方数值/日期分段体系互斥，由valueDomain.kind 显式分流。 -->
+            <!-- 🔴 实体引用型值域（人员 / 部门）：与数值型分段/枚举型候选**同一套语义**——
+                 模板层只限定「可选范围」（候选清单），具体选哪个由应用方在使用时决定。
+                 旧设计把取值方式做成模板层单选，会导致应用时无法切换 → 已改为候选清单。 -->
             <template v-if="isEntityOutput">
               <div class="tpl-entity-block">
-                <label class="tpl-seg-lbl" for="tpl-entity-selector">{{ t('metrics.tpl.entitySelectorLabel') }}</label>
-                <n-select
-                  id="tpl-entity-selector"
-                   :value="entityDomain.selector || ''"
-                  :options="entitySelectorOptions"
-                  :placeholder="t('metrics.tpl.entitySelectorPlaceholder')"
-                  :disabled="entityOptionsLoading"
-                  @update:value="setEntitySelector"
-                />
-                <!-- 指定人员 / 指定身份 / 指定部门才渲染额外下拉；当前登录人不渲染 -->
-                <template v-if="entityNeedsPicker">
-                  <label class="tpl-seg-lbl tpl-entity-pick-lbl" for="tpl-entity-picker">
-                    {{ entityDomain.selector === 'identity'
-                      ? t('metrics.tpl.entityIdentityLabel')
-                      : isDeptOutput ? t('metrics.tpl.entityDeptLabel') : t('metrics.tpl.entityUserLabel') }}
-                  </label>
+                <label class="tpl-seg-lbl">{{ t('metrics.tpl.entityCandidatesLabel') }}</label>
+                <!-- 已配置的候选清单 -->
+                <div v-for="(opt, idx) in entityOptions" :key="idx" class="tpl-entity-opt-row">
+                  <span class="tpl-seg-tag">{{ t('metrics.tpl.entitySegmentTag', { n: idx + 1 }) }}</span>
+                  <span class="tpl-entity-opt-type">{{ entityTypeLabel(opt.type) }}</span>
                   <n-select
-                    id="tpl-entity-picker"
-                    v-model:value="entitySelectedIds"
+                    v-if="entityTypeNeedsPicker(opt.type)"
+                    :value="opt.ids || []"
                     multiple
                     filterable
                     clearable
-                    :options="entityPickerOptions"
+                    :options="entityOptionsForType(opt.type)"
                     :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
                     :loading="entityOptionsLoading"
-                    :status="entityDomainIssue ? 'error' : undefined"
+                    class="tpl-entity-picker"
+                    @update:value="(v: string[]) => updateEntityOptionIds(idx, v)"
+                  />
+                  <span v-else class="tpl-entity-opt-auto">{{ opt.label }}</span>
+                  <n-button size="tiny" quaternary circle type="error" class="tpl-seg-del" :title="t('metrics.btn.delete')" @click="removeEntityOption(idx)">
+                    <template #icon><n-icon :component="CloseOutline" /></template>
+                  </n-button>
+                </div>
+                <!-- 新增候选：先选取值方式，指定类再选具体对象；当前登录人无需选对象 -->
+                <div class="tpl-entity-add-row">
+                  <n-select
+                    v-model:value="entityDraft.type"
+                    :options="entitySelectorOptions"
+                    :placeholder="t('metrics.tpl.entitySelectorPlaceholder')"
+                    :disabled="entityOptionsLoading"
+                    class="tpl-entity-draft-type"
+                  />
+                  <n-select
+                    v-if="entityTypeNeedsPicker(entityDraft.type)"
+                    v-model:value="entityDraft.ids"
+                    multiple
+                    filterable
+                    clearable
+                    :options="entityDraftPickerOptions()"
+                    :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
+                    :loading="entityOptionsLoading"
                     class="tpl-entity-picker"
                   />
-                </template>
+                  <n-button size="small" dashed class="tpl-add-seg" @click="addEntityOption">
+                    <template #icon><n-icon :component="AddOutline" /></template>
+                    {{ t('metrics.tpl.entityAddOption') }}
+                  </n-button>
+                </div>
                 <p v-if="entityDomainIssue" class="tpl-field-error">
                   <n-icon :component="AlertCircleOutline" :size="14" aria-hidden="true" />
                   <span>{{ entityDomainIssue }}</span>
                 </p>
                 <p v-else class="tpl-hint">{{ t('metrics.tpl.entityHint') }}</p>
+                <!-- 候选值汇总（与数值型「共 N 个值」一致） -->
+                <div v-if="!entityDomainIssue && domainValueCount" class="domain-summary">
+                  <span class="ds-tag">{{ domainSummaryTag }}</span>
+                  <span class="ds-vals">{{ domainSummaryText }}</span>
+                </div>
               </div>
             </template>
             <!-- 枚举型出参：值域 = 候选值清单。data_type 仍是 string，靠 isEnum 分流。 -->
@@ -348,27 +372,19 @@
             <span class="pv-arrow">~</span>
             <n-select v-model:value="previewRangeUpper" :options="previewCheckValueOptions" :placeholder="t('metrics.tpl.rangeUpper')" class="pv-select" />
           </span>
-          <!-- 枚举型：候选值下拉；属于集合 / 不属于集合时为多选 -->
+          <!-- 枚举型 / 实体引用型：候选值下拉；属于集合 / 不属于集合时为多选
+               （实体型的候选即"取值方式 + 对象"，应用时在此自由切换） -->
           <n-select
             v-else-if="previewNeedsEnumPicker"
             v-model:value="previewEnumValue"
             :multiple="previewNeedsMultiEnum"
-            :options="enumCandidateOptions"
+            :options="previewCandidateOptions"
             :placeholder="t('metrics.tpl.checkValuePlaceholder')"
             :aria-label="t('metrics.tpl.checkValuePlaceholder')"
             class="pv-select"
           />
-          <!-- 🔴 实体引用型（人员/部门）：校验值直接回填所选对象名 / 当前登录人，
-               体现「值域配置在预览中生效」，无需用户再手输 -->
-          <span v-else-if="previewNeedsEntityValue" class="pv-entity">
-            <n-input
-              :value="entityPreviewValue || t('metrics.tpl.entityPreviewPlaceholder')"
-              readonly
-              :placeholder="t('metrics.tpl.entityPreviewPlaceholder')"
-              :aria-label="t('metrics.tpl.entityPreviewPlaceholder')"
-              class="pv-input"
-            />
-          </span>
+          <!-- 🔴 实体引用型与枚举型共用同一预览分支：出候选下拉，
+               应用时可在候选清单间自由切换（不再被模板层锁死一种方式） -->
           <!-- 自由文本型：单行输入（无穷域无法从下拉枚举），正则匹配即时校验表达式合法性 -->
           <span v-else-if="previewNeedsTextInput" class="pv-text">
             <n-input
@@ -454,13 +470,17 @@ const {
   isDeptOutput,
   entitySelectorOptions,
   entityDomain,
-  entityNeedsPicker,
-  entityPickerOptions,
-  entitySelectedIds,
+  entityOptions,
+  entityTypeNeedsPicker,
+  entityOptionsForType,
+  entityDraft,
+  entityDraftPickerOptions,
+  addEntityOption,
+  removeEntityOption,
+  updateEntityOptionIds,
+  entityTypeLabel,
   entityDomainIssue,
   entityOptionsLoading,
-  setEntitySelector,
-  entityPreviewValue,
   previewMetricSelected,
   previewMetricItemOptions,
   previewParamSelected,
@@ -468,7 +488,7 @@ const {
   previewOpSelected,
   previewOpOptions,
   previewNeedsNoValue,
-  previewNeedsEntityValue,
+  previewCandidateOptions,
   previewNeedsRangeValue,
   previewRangeLower,
   previewCheckValueOptions,
