@@ -104,13 +104,13 @@ def _make_full_chain():
 
 def test_applications_expose_process_stages_and_lock_fallback():
     """applications 出参含所属流程、当前阶段、阶段有序列表、认领人兜底。"""
-    candidate, _ = _make_full_chain()
+    candidate, application = _make_full_chain()
     apps = CandidateDetailSerializer(candidate).data["applications"]
     assert len(apps) == 1
     app = apps[0]
     assert app["position_title"] == "客服专员"
     assert app["process_name"] == "社招标准流程"
-    assert app["current_stage"] is not None and app["current_stage"].endswith("薪酬意向确认")
+    assert app["current_stage"] == application.current_stage.name
     assert app["grabbed_by_name"] == "锁定人小李"
     # 阶段列表按 order 升序，且流程内显示名（custom_name）覆盖全局阶段名
     assert app["stage_list"][2] == "沟通Offer"
