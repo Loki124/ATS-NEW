@@ -1041,6 +1041,30 @@ export function useMetricsWorkspace() {
 
   /** 新增一条候选；当前登录人类型无需选择对象，其余类型挂在「正在配置」态由 UI 收集 */
   const entityDraft = ref<{ type: string; ids: string[] }>({ type: '', ids: [] })
+  // 🔴 草稿行默认收起（兵哥 2026-10-14 交互修正）：常驻空草稿行既占地又像没填完，
+  //   改为点「+ 添加候选」才展开，确认/取消后收起并复位。
+  const entityDraftVisible = ref(false)
+  const entityDraftError = ref('')
+  function showEntityDraft() {
+    if (!entityDraft.value.type) entityDraft.value.type = entityDefaultSelector.value
+    entityDraftError.value = ''
+    entityDraftVisible.value = true
+  }
+  function resetEntityDraft() {
+    entityDraft.value = { type: '', ids: [] }
+    entityDraftError.value = ''
+    entityDraftVisible.value = false
+  }
+  // 草稿内容一变就清错误（保留"点确认才校验"的节奏）
+  watch(entityDraft, () => { entityDraftError.value = '' }, { deep: true })
+  function cancelEntityDraft() {
+    resetEntityDraft()
+  }
+  function confirmEntityDraft() {
+    const err = addEntityOption()
+    entityDraftError.value = err
+    if (!err) resetEntityDraft()
+  }
 
   function entityDraftPickerOptions(): { label: string; value: string }[] {
     return entityOptionsForType(entityDraft.value.type)
@@ -1428,6 +1452,8 @@ export function useMetricsWorkspace() {
       tplForm.value.valueDomain = { kind: entityKind.value, options: [] }
       void ensureEntityOptions()
     }
+    // 切指标后草稿行同步复位（人员/部门的取值方式不同，残留草稿会错配）
+    resetEntityDraft()
     if (isEnumOutput.value) {
       tplForm.value.paramEnums = [...(d?.enumValues || [])]
     } else {
@@ -1455,6 +1481,7 @@ export function useMetricsWorkspace() {
   function openTemplateCreate() {
     templateEditId.value = ''
     tplForm.value = emptyTplForm()
+    resetEntityDraft()
     showTemplateModal.value = true
   }
 
@@ -1535,6 +1562,7 @@ export function useMetricsWorkspace() {
     if (isEntityOutput.value) {
       void ensureEntityOptions()
     }
+    resetEntityDraft()
     showTemplateModal.value = true
   }
 
@@ -1997,6 +2025,12 @@ export function useMetricsWorkspace() {
     entityTypeNeedsPicker,
     entityOptionsForType,
     entityDraft,
+    entityDraftVisible,
+    entityDraftError,
+    entityAutoLabelKey,
+    showEntityDraft,
+    cancelEntityDraft,
+    confirmEntityDraft,
     entityDraftPickerOptions,
     addEntityOption,
     removeEntityOption,

@@ -200,31 +200,47 @@
                     <template #icon><n-icon :component="CloseOutline" /></template>
                   </n-button>
                 </div>
-                <!-- 新增候选：先选取值方式，指定类再选具体对象；当前登录人无需选对象 -->
-                <div class="tpl-entity-add-row">
-                  <n-select
-                    v-model:value="entityDraft.type"
-                    :options="entitySelectorOptions"
-                    :placeholder="t('metrics.tpl.entitySelectorPlaceholder')"
-                    :disabled="entityOptionsLoading"
-                    class="tpl-entity-draft-type"
-                  />
-                  <n-select
-                    v-if="entityTypeNeedsPicker(entityDraft.type)"
-                    v-model:value="entityDraft.ids"
-                    multiple
-                    filterable
-                    clearable
-                    :options="entityDraftPickerOptions()"
-                    :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
-                    :loading="entityOptionsLoading"
-                    class="tpl-entity-picker"
-                  />
-                  <n-button size="small" dashed class="tpl-add-seg" @click="addEntityOption">
-                    <template #icon><n-icon :component="AddOutline" /></template>
-                    {{ t('metrics.tpl.entityAddOption') }}
-                  </n-button>
-                </div>
+                <!-- 新增候选：默认收起（点「+ 添加候选」展开草稿行，确认/取消后收起复位）；
+                     先选取值方式，指定类再选具体对象；当前登录人无需选对象 -->
+                <n-button
+                  v-if="!entityDraftVisible"
+                  size="small"
+                  dashed
+                  class="tpl-add-seg"
+                  @click="showEntityDraft"
+                >
+                  <template #icon><n-icon :component="AddOutline" /></template>
+                  {{ t('metrics.tpl.entityAddOption') }}
+                </n-button>
+                <template v-else>
+                  <div class="tpl-entity-add-row">
+                    <n-select
+                      v-model:value="entityDraft.type"
+                      :options="entitySelectorOptions"
+                      :placeholder="t('metrics.tpl.entitySelectorPlaceholder')"
+                      :disabled="entityOptionsLoading"
+                      class="tpl-entity-draft-type"
+                    />
+                    <n-select
+                      v-if="entityTypeNeedsPicker(entityDraft.type)"
+                      v-model:value="entityDraft.ids"
+                      multiple
+                      filterable
+                      clearable
+                      :options="entityDraftPickerOptions()"
+                      :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
+                      :loading="entityOptionsLoading"
+                      class="tpl-entity-picker"
+                    />
+                    <span v-else class="tpl-entity-opt-auto">{{ t(entityAutoLabelKey(entityDraft.type)) }}</span>
+                    <n-button size="small" quaternary @click="cancelEntityDraft">{{ t('metrics.btn.cancel') }}</n-button>
+                    <n-button size="small" type="primary" @click="confirmEntityDraft">{{ t('metrics.btn.confirm') }}</n-button>
+                  </div>
+                  <p v-if="entityDraftError" class="tpl-field-error">
+                    <n-icon :component="AlertCircleOutline" :size="14" aria-hidden="true" />
+                    <span>{{ entityDraftError }}</span>
+                  </p>
+                </template>
                 <p v-if="entityDomainIssue" class="tpl-field-error">
                   <n-icon :component="AlertCircleOutline" :size="14" aria-hidden="true" />
                   <span>{{ entityDomainIssue }}</span>
@@ -488,8 +504,13 @@ const {
   entityTypeNeedsPicker,
   entityOptionsForType,
   entityDraft,
+  entityDraftVisible,
+  entityDraftError,
+  entityAutoLabelKey,
+  showEntityDraft,
+  cancelEntityDraft,
+  confirmEntityDraft,
   entityDraftPickerOptions,
-  addEntityOption,
   removeEntityOption,
   updateEntityOptionIds,
   entityTypeLabel,
