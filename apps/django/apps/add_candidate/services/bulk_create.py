@@ -164,7 +164,17 @@ class BulkCreateService:
                 'experiences': len(parsed.get('experiences') or []),
             }, actor=actor)
 
-        # 4. 按方向创建关联
+        # 4. 上传链路：写「简历上传人」+ 按需授予 72h 临时锁定（PRD 双轨锁定）
+        #   提供人(referrer) 与上传人不是同一人时，上传人获 72h 操作权 —— 避免
+        #   "我传的简历却轮不到我动"。二者一致（传自己的资源）或无提供人
+        #   （无归属冲突）时不授予，不制造噪声。
+        from apps.candidate.lock_engine import maybe_grant_temp_lock
+        if str(cand.uploaded_by_id or '') != str(actor.pk):
+            cand.uploaded_by = actor
+            cand.save(update_fields=['uploaded_by', 'updated_at'])
+        maybe_grant_temp_lock(cand, actor)
+
+        # 5. 按方向创建关联
         if draft.direction == 'pending':
             pass  # 仅 candidate
         elif draft.direction == 'position':

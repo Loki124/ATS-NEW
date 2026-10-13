@@ -120,11 +120,13 @@ def test_create_application_inherits_lock_when_previous_owner_is_authority():
 # ============================ 2/3. 批量导入（新增候选人） ============================
 
 def _draft(direction: str, **kwargs):
-    return BulkCreateDraft(
-        draft_id=_uid("draft"), direction=direction,
-        name=kwargs.get('name', '批量候选人'), phone=_uid('139'),
-        email=f'{uuid.uuid4().hex[:8]}@example.com', parsed_data={}, **kwargs,
-    )
+    base = {
+        'draft_id': _uid("draft"), 'direction': direction,
+        'name': '批量候选人', 'phone': _uid('139'),
+        'email': f'{uuid.uuid4().hex[:8]}@example.com', 'parsed_data': {},
+    }
+    base.update(kwargs)          # 允许覆盖 phone 等，用于命中查重复用分支
+    return BulkCreateDraft(**base)
 
 
 def test_bulk_create_position_direction_wires_lock():
@@ -154,6 +156,53 @@ def test_bulk_create_talent_direction_leaves_public_pool_unlocked():
     assert entry.pool_kind == TalentPoolEntry.PoolKind.GENERAL
     assert cand.formal_locked_by_id is None, '通用库属公共资源池，不得私自锁定'
     assert cand.assign_state == Candidate.AssignState.PENDING.value, '入库不等于已分配职位'
+
+
+# ============================ 上传链路：上传人 + 72h 临时锁定 ============================
+
+def test_bulk_create_sets_uploader_and_grants_temp_lock_when_not_referrer():
+    """复用已有简历（该简历已有提供人）→ 上传人 ≠ 提供人 → 获 72h 临时锁定。
+
+    真实场景：内推人提供的简历由另一位 HR 上传，上传者需要能立即处理这份简历。
+    """
+    referrer, uploader = _user("referrer"), _user("uploader")
+    existing = _cand(name="已存在简历", referrer=referrer)
+
+    result = BulkCreateService.create_batch(
+        [_draft('pending', name='已存在简历', phone=existing.phone)], actor=uploader,
+    )
+
+    cand = Candidate.objects.get(pk=result.created_candidate_ids[0])
+    assert cand.pk == existing.pk, '同手机号应复用已有简历'
+    assert cand.uploaded_by_id == uploader.pk, '上传人必须落库'
+    assert cand.temp_locked_by_id == uploader.pk, '上传人≠提供人 → 授予临时锁定'
+    assert cand.temp_lock_expires_at is not None
+    assert cand.formal_locked_by_id is None, '未分配职位 → 无正式锁定人'
+
+
+def test_bulk_create_uploader_is_referrer_gets_no_temp_lock():
+    """上传人就是提供人本人 → 不授予临时锁（本来就是他的资源，避免审计噪声）。"""
+    referrer = _user("referrer")
+    existing = _cand(referrer=referrer)
+
+    result = BulkCreateService.create_batch(
+        [_draft('pending', name='自有简历', phone=existing.phone)], actor=referrer,
+    )
+
+    cand = Candidate.objects.get(pk=result.created_candidate_ids[0])
+    assert cand.uploaded_by_id == referrer.pk
+    assert cand.temp_locked_by_id is None
+
+
+def test_bulk_create_brand_new_candidate_gets_no_temp_lock():
+    """全新简历无提供人 → 无归属冲突，不授予临时锁。"""
+    actor = _user("actor")
+
+    result = BulkCreateService.create_batch([_draft('pending')], actor=actor)
+
+    cand = Candidate.objects.get(pk=result.created_candidate_ids[0])
+    assert cand.uploaded_by_id == actor.pk
+    assert cand.temp_locked_by_id is None
 
 
 # ============================ 4. 手动放入人才库（HTTP 全链路） ============================
