@@ -388,8 +388,8 @@
             <n-select v-model:value="previewRangeUpper" :options="previewCheckValueOptions" :placeholder="t('metrics.tpl.rangeUpper')" class="pv-select" />
           </span>
           <!-- 枚举型 / 实体型指定类：对象下拉；属于集合 / 不属于集合时为多选。
-               实体型候选 = 该方式的全量对象（模板预设只作默认值，可改选任意人 →
-               解决"不同场景对指定人员要求不同"）。 -->
+               实体型候选 = 值域配置中该方式配置过的候选值并集（≤ 值域配置范围），
+               默认预填该方式的第一个候选。 -->
           <n-select
             v-else-if="previewNeedsEnumPicker"
             v-model:value="previewEnumValueModel"

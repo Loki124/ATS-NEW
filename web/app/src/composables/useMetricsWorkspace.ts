@@ -1272,9 +1272,9 @@ export function useMetricsWorkspace() {
   const previewNeedsMultiEnum = computed<boolean>(
     () => (isEnumOutput.value || isEntityOutput.value) && MULTI_VALUE_OPERATORS.includes(previewOpSelected.value),
   )
-  // 🔴 实体引用型预览（2026-10-13 二次修正，兵哥定稿）：
+  // 🔴 实体引用型预览（2026-10-14 三次修正，兵哥定稿）：
   //   预览行新增「取值方式」下拉（第 4 个框），选中指定人员/指定身份后**联动出对象下拉**；
-  //   对象候选 = 系统全量（模板预设仅作默认值）→ 不同场景可自由选人，不被预设池锁死。
+  //   对象候选 = 值域配置中**该方式配置过的候选值并集**（≤ 值域配置，不超出配置范围）。
   const previewEntitySelector = ref<string>('')
   /** 方式下拉选项 = 模板层配置过的方式（去重），模板没启用的方式不出现 */
   const previewEntitySelectorOptions = computed<{ label: string; value: string }[]>(() => {
@@ -1291,10 +1291,24 @@ export function useMetricsWorkspace() {
   const previewEntityIsAuto = computed<boolean>(
     () => previewEntitySelector.value === 'current_user' || previewEntitySelector.value === 'current_user_dept',
   )
-  /** 对象下拉候选 = 该方式的全量对象列表（不受模板预设池限制） */
-  const previewEntityObjectOptions = computed<{ label: string; value: string }[]>(() =>
-    entityOptionsForType(previewEntitySelector.value),
-  )
+  /**
+   * 对象下拉候选 = 值域配置中该方式的候选值并集（同一方式可配多条候选，取 id 并集去重）。
+   * label 优先用全量目录反查（防改名后快照过期），查不到兜底用 id 本身。
+   */
+  const previewEntityObjectOptions = computed<{ label: string; value: string }[]>(() => {
+    const dir = new Map(entityOptionsForType(previewEntitySelector.value).map((o) => [o.value, o.label]))
+    const out: { label: string; value: string }[] = []
+    const seen = new Set<string>()
+    for (const o of entityOptions.value) {
+      if (o?.type !== previewEntitySelector.value) continue
+      for (const id of Array.isArray(o.ids) ? o.ids : []) {
+        if (!id || seen.has(id)) continue
+        seen.add(id)
+        out.push({ label: dir.get(id) || id, value: id })
+      }
+    }
+    return out
+  })
   const previewNeedsEntityObject = computed<boolean>(
     () => isEntityOutput.value && previewNeedsEntitySelector.value && !previewEntityIsAuto.value,
   )
@@ -1322,7 +1336,7 @@ export function useMetricsWorkspace() {
   const previewNeedsEnumPicker = computed<boolean>(
     () => (isEnumOutput.value || previewNeedsEntityObject.value) && !previewNeedsNoValue.value,
   )
-  /** 预览候选下拉的选项源：实体型用该方式的全量对象，枚举型用候选值清单 */
+  /** 预览候选下拉的选项源：实体型用该方式配置过的候选值，枚举型用候选值清单 */
   const previewCandidateOptions = computed<{ label: string; value: string }[]>(() =>
     previewNeedsEntityObject.value ? previewEntityObjectOptions.value : enumCandidateOptions.value,
   )
