@@ -129,8 +129,9 @@ def test_guard_targets_still_exist():
 
 def test_guarded_methods_use_known_actions():
     """守卫里传的 action 必须是 action_map 已注册动作（拼错会运行时早失败）。"""
-    from apps.data_permission.action_map import is_known_action
     import re
+
+    from apps.data_permission.action_map import is_known_action
     bad = []
     for module_dotted, cls_name, method in GUARD_TARGETS:
         src = _method_source(module_dotted, cls_name, method)

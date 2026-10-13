@@ -311,7 +311,13 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
 
 
 def options_payload() -> Dict:
-    """模块 × 维度矩阵 + 维度值选项（部门/用户/管理单元）。"""
+    """模块 × 维度矩阵 + 维度值选项（部门/用户/管理单元）。
+
+    v2：增发 actionRegistry / presetPackages —— 动作与预设包是 **DB 可配置字典**
+    （管理员可增删改），前端禁止硬编码动作清单，一律以本接口下发为准。
+    """
+    from . import action_registry
+
     dept_options = _department_options()
     user_options = _user_options()
     unit_options = _unit_options()
@@ -337,4 +343,14 @@ def options_payload() -> Dict:
             # (filterable=True); 派生指标与不可下推字段天然排除。
             'attributeFields': attribute_fields_for(mk, scenario=SCENARIO_ROW_FILTER),
         })
-    return {'modules': modules}
+    return {
+        'modules': modules,
+        'actionRegistry': action_registry.action_dict(),
+        # 数组形态而非 {key: [...]} 映射 —— drf-camel-case 会把响应的**字典键**
+        # snake→camel（owner_restricted → ownerRestricted），key 作为字典键会被
+        # 破坏；作为数组元素的值则原样透传，前端拿到的 key 与存储契约一致。
+        'presetPackages': [
+            {'key': k, 'label': k, 'actionKeys': list(v)}
+            for k, v in action_registry.preset_dict().items()
+        ],
+    }
