@@ -53,6 +53,32 @@ class TalentPoolEntry(FullAuditModel):
         db_index=True, verbose_name='子库类型',
     )
 
+    # 2026-10-14: 人才库「库归属」维度（PRD《简历模块及特殊简历审批流程调整需求说明》）。
+    #   与 pool_type 正交：pool_type 描述「人才处于什么状态」（被动/主动/已入职/未通过/
+    #   黑名单/总库/淘汰），pool_kind 描述「这个库归谁、什么性质」，两者并存、互不覆盖。
+    #   人才库内简历的锁定规则按 pool_kind 判定：
+    #     独享=独享人 / 共享=无锁定人 / 个人库=所属人 / 入职库=负责人 /
+    #     内推库=无锁定人 / 通用=无锁定人（公共资源池）。
+    class PoolKind(models.TextChoices):
+        CAMPUS_EXCLUSIVE = 'CAMPUS_EXCLUSIVE', '校招简历库（独享）'
+        CAMPUS_SHARED = 'CAMPUS_SHARED', '校招简历库（共享）'
+        PERSONAL = 'PERSONAL', '个人库'
+        ONBOARD = 'ONBOARD', '入职库'
+        REFERRAL = 'REFERRAL', '内推库'
+        GENERAL = 'GENERAL', '通用人才库'
+
+    pool_kind = models.CharField(
+        max_length=20, choices=PoolKind.choices, default=PoolKind.GENERAL.value,
+        db_index=True, verbose_name='库归属类型',
+        help_text='与 pool_type 正交：描述库归属/性质，决定人才库内简历的锁定规则',
+    )
+    pool_owner = models.ForeignKey(
+        'core.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='owned_talent_pool_entries',
+        verbose_name='库归属人',
+        help_text='独享库的独享人 / 个人库所属人 / 入职库负责人；共享库、内推库、通用库为空',
+    )
+
     # 元数据
     last_position = models.ForeignKey(
         'position.Position', on_delete=models.SET_NULL,

@@ -178,6 +178,37 @@ class Candidate(FSMModelMixin, FullAuditModel):
     # 乐观锁版本号：正式/临时锁定人并发执行分配时「先到先得」，更新须校验 version 防覆盖
     lock_version = models.PositiveIntegerField(default=0, verbose_name='锁定乐观锁版本号')
 
+    # ===== 简历流转角色（PRD《简历模块及特殊简历审批流程调整需求说明》2026-10-14 兵哥口径）=====
+    # 提供人   = referrer（简历推荐人，既有字段，不新增）
+    # 上传人   = uploaded_by（实际执行上传操作的用户）
+    # 职位分配人 = assigned_by（将简历分配至职位的人）
+    uploaded_by = models.ForeignKey(
+        'core.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='uploaded_candidates',
+        verbose_name='简历上传人',
+        help_text='实际执行简历上传操作的用户；与提供人(referrer)不一致时授予 72h 临时锁定',
+    )
+    assigned_by = models.ForeignKey(
+        'core.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='assigned_candidates',
+        verbose_name='职位分配人',
+        help_text='将简历成功分配至职位的人；可永久在「我分配的」中查看该简历',
+    )
+
+    class AssignState(models.TextChoices):
+        """简历生命周期状态（PRD 核心生命周期 3 态），驱动「列表操作权限」：
+        待分配=分配/放入人才库/查看；已分配=查看+（锁定人）推进；已归档=仅查看/重新激活。
+        """
+        PENDING = 'PENDING', '待分配'
+        ASSIGNED = 'ASSIGNED', '已分配'
+        ARCHIVED = 'ARCHIVED', '已归档'
+
+    assign_state = models.CharField(
+        max_length=16, choices=AssignState.choices, default=AssignState.PENDING.value,
+        db_index=True, verbose_name='分配状态',
+        help_text='简历生命周期状态；与既有 is_archived 并存，后者保留兼容，收敛待后续统一',
+    )
+
     # 归档（批量归档 batch/archive 用，软标志，可逆）
     is_archived = models.BooleanField(default=False, db_index=True, verbose_name='是否归档')
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name='归档时间')
