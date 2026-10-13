@@ -152,6 +152,32 @@ class Candidate(FSMModelMixin, FullAuditModel):
         verbose_name='招聘官',
     )
 
+    # ===== 简历锁定人（双轨模型）=====
+    # 依据《简历模块及特殊简历审批流程调整需求说明》(2026-10-14)：
+    # - 正式锁定人：对简历拥有永久分配操作权、是最终责任人；由锁定引擎按规则自动确定与流转，
+    #   **任何角色不可手动变更**（故不在任何 serializer 的可写字段中暴露，无写入口）。
+    # - 临时锁定人：特定场景下被授予有时效(72h)的分配操作权，与正式锁定人并存、权限同等；
+    #   到期由定时任务/Redis 过期事件回收分配权限（保留查看）。
+    # 权限判定恒为两者并集，且临时锁须校验未过期：
+    #   Q(formal_locked_by=me) | Q(temp_locked_by=me, temp_lock_expires_at__gt=now)
+    formal_locked_by = models.ForeignKey(
+        'core.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='formal_locked_candidates',
+        verbose_name='正式锁定人',
+        help_text='规则驱动、系统自动确定与流转；不可手动变更',
+    )
+    temp_locked_by = models.ForeignKey(
+        'core.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='temp_locked_candidates',
+        verbose_name='临时锁定人',
+        help_text='72 小时有效，到期回收分配权限（保留查看）',
+    )
+    temp_lock_expires_at = models.DateTimeField(
+        null=True, blank=True, db_index=True, verbose_name='临时锁定到期时间',
+    )
+    # 乐观锁版本号：正式/临时锁定人并发执行分配时「先到先得」，更新须校验 version 防覆盖
+    lock_version = models.PositiveIntegerField(default=0, verbose_name='锁定乐观锁版本号')
+
     # 归档（批量归档 batch/archive 用，软标志，可逆）
     is_archived = models.BooleanField(default=False, db_index=True, verbose_name='是否归档')
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name='归档时间')
