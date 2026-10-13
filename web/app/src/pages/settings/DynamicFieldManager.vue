@@ -805,16 +805,47 @@
               {{ t('pages.settings.DynamicFieldManager.s338') }}
             </n-text>
           </n-space>
+          <!-- 分组筛选: 只影响本弹窗内的展示与「全选可见」范围, 不改变已勾选的 id 集合。
+               提交仍只提交显式勾选的行, 避免筛选切换误改未勾选字段。 -->
+          <n-space align="center" :size="8" :wrap="true">
+            <n-select
+              v-model:value="batchFilterGroupId"
+              :options="batchFilterGroupOptions"
+              :placeholder="t('pages.settings.DynamicFieldManager.s340')"
+              clearable
+              class="df-input-select"
+              style="min-width: 200px"
+            />
+            <n-button
+              size="small"
+              :disabled="batchApplying || !batchVisibleRows.length"
+              @click="selectAllBatchVisible"
+            >
+              <template #icon><n-icon :component="CheckboxOutline" /></template>
+              {{ t('pages.settings.DynamicFieldManager.s341') }}
+            </n-button>
+            <n-button
+              size="small"
+              quaternary
+              :disabled="batchApplying || !batchCheckedIds.length"
+              @click="batchCheckedIds = []"
+            >
+              {{ t('pages.settings.DynamicFieldManager.s342') }}
+            </n-button>
+            <n-text v-if="batchFilterGroupId" depth="3" style="font-size: 12px">
+              {{ t('pages.settings.DynamicFieldManager.s343', { n: batchVisibleRows.length, total: rows.length }) }}
+            </n-text>
+          </n-space>
           <n-data-table
             v-model:checked-row-keys="batchCheckedIds"
             :columns="batchColumns"
-            :data="rows"
+            :data="batchVisibleRows"
             :loading="loading"
             :pagination="false"
             :row-key="(row: any) => row.id"
             size="small"
             striped
-            style="max-height: 380px"
+            :max-height="380"
           />
           <!-- 第一步: 选择批量动作 -->
           <n-space v-if="!batchAction" justify="end">
@@ -1567,6 +1598,50 @@ const batchGroupOptions = computed(() => {
   return base.map((g) => ({ label: `${g.module?.name || ''} / ${g.name}`, value: g.id }));
 });
 
+// ===== 批量操作: 分组筛选 =====
+// 仅在「当前已加载集合」内再按分组收窄(外层 filterModule/filterGroup 已由服务端过滤),
+// 不额外发请求。__ungrouped__ 是未分组字段的哨兵值(groupId 为空/缺失)。
+const BATCH_UNGROUPED = '__ungrouped__';
+const batchFilterGroupId = ref<string | null>(null);
+
+/** 分组筛选下拉项: 只列出当前 rows 里真实存在的分组(含未分组), 避免选到空分组 */
+const batchFilterGroupOptions = computed(() => {
+  const present = new Set<string>();
+  let hasUngrouped = false;
+  for (const r of rows.value) {
+    const gid = r.groupId || r.group?.id || '';
+    if (gid) present.add(gid);
+    else hasUngrouped = true;
+  }
+  const base = isEmbedded.value && defaultModuleId.value
+    ? groups.value.filter((g) => g.moduleId === defaultModuleId.value)
+    : groups.value;
+  const opts = base
+    .filter((g) => present.has(g.id))
+    .map((g) => ({ label: `${g.module?.name || ''} / ${g.name}`, value: g.id }));
+  if (hasUngrouped) {
+    opts.push({ label: t('pages.settings.DynamicFieldManager.s274'), value: BATCH_UNGROUPED });
+  }
+  return opts;
+});
+
+/** 筛选后的可见行(供表格渲染 + 「全选可见」使用) */
+const batchVisibleRows = computed(() => {
+  const g = batchFilterGroupId.value;
+  if (!g) return rows.value;
+  if (g === BATCH_UNGROUPED) {
+    return rows.value.filter((r) => !(r.groupId || r.group?.id));
+  }
+  return rows.value.filter((r) => (r.groupId || r.group?.id) === g);
+});
+
+/** 全选当前筛选可见的行(并集语义: 不取消已勾选的隐藏行, 避免误丢选择) */
+function selectAllBatchVisible() {
+  const merged = new Set(batchCheckedIds.value);
+  for (const r of batchVisibleRows.value) merged.add(r.id);
+  batchCheckedIds.value = [...merged];
+}
+
 const batchColumns = computed(() => [
   { type: 'selection' as const },
   {
@@ -1600,6 +1675,7 @@ function openBatchModal() {
   batchTypeValue.value = null;
   batchGroupMode.value = 'group';
   batchGroupValue.value = null;
+  batchFilterGroupId.value = null;
   batchModalVisible.value = true;
 }
 
