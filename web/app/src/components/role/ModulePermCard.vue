@@ -91,6 +91,83 @@
         </div>
       </template>
     </div>
+
+    <!-- ===== v2 写范围（操作权限）=====
+         fail-closed 语义必须在 UI 显式传达：配置写范围后未勾选的动作一律拒绝。
+         mode!=='none' 时强制展开，防止管理员漏看已生效的收紧。 -->
+    <div class="write-section" :class="{ open: writeOpen || writeActive }">
+      <div class="write-head" role="button" @click="writeOpen = !writeOpen">
+        <span class="write-title">{{ t('dataperm.write.title') }}</span>
+        <n-tag size="small" :bordered="false" :type="writeBadgeType" class="write-badge">
+          {{ writeBadgeText }}
+        </n-tag>
+        <span class="write-toggle">{{ writeOpen ? t('dataperm.write.collapse') : t('dataperm.write.expand') }}</span>
+      </div>
+
+      <template v-if="writeOpen || writeActive">
+        <n-alert
+          :type="writeActive ? 'warning' : 'default'"
+          :bordered="false"
+          class="write-alert"
+        >
+          {{ writeActive ? t('dataperm.write.failClosedHint') : t('dataperm.write.noneHint') }}
+        </n-alert>
+
+        <n-radio-group
+          :value="module.write?.mode || 'none'"
+          :disabled="disabled"
+          class="write-mode-group"
+          @update:value="(v: WriteMode) => emit('update:write-mode', v)"
+        >
+          <n-radio-button value="none">{{ t('dataperm.write.mode.none') }}</n-radio-button>
+          <n-radio-button value="all">{{ t('dataperm.write.mode.all') }}</n-radio-button>
+          <n-radio-button value="owner">{{ t('dataperm.write.mode.owner') }}</n-radio-button>
+          <n-radio-button value="scope">{{ t('dataperm.write.mode.scope') }}</n-radio-button>
+        </n-radio-group>
+
+        <template v-if="writeActive">
+          <n-select
+            :value="null"
+            size="small"
+            :placeholder="t('dataperm.write.presetPlaceholder')"
+            :options="presetOptions"
+            :disabled="disabled"
+            class="preset-select"
+            @update:value="onPresetPick"
+          />
+          <div class="action-checks">
+            <n-checkbox-group
+              :value="module.write?.actions || []"
+              :disabled="disabled"
+              @update:value="(v: Array<string | number>) => emit('update:write-actions', v.map(String))"
+            >
+              <n-checkbox
+                v-for="a in writableActions"
+                :key="a.key"
+                :value="a.key"
+                class="action-check"
+              >
+                {{ a.label }}
+                <n-tag v-if="a.destructive" size="tiny" :bordered="false" type="error" class="destructive-tag">
+                  {{ t('dataperm.write.destructive') }}
+                </n-tag>
+              </n-checkbox>
+            </n-checkbox-group>
+          </div>
+          <div v-if="module.write?.mode === 'scope'" class="summary-actions">
+            <n-button
+              size="small"
+              secondary
+              type="primary"
+              :disabled="disabled || !canConfig"
+              @click="emit('open-write-rule')"
+            >
+              {{ t('dataperm.write.configScope') }}
+            </n-button>
+          </div>
+        </template>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -105,9 +182,15 @@
  * disabled 时整卡置灰（超管 / 功能权限未分配），disabledReason 显示原因。
  */
 import { computed, ref } from 'vue'
-import { NRadioGroup, NRadioButton, NButton, NTag, NText, NAlert } from 'naive-ui'
+import {
+  NRadioGroup, NRadioButton, NButton, NTag, NText, NAlert,
+  NSelect, NCheckbox, NCheckboxGroup,
+} from 'naive-ui'
 import type { TemplateDrift } from '@/api/data-permission'
-import { previewOf, type DataPermMode, type ModulePerm } from '@/composables/useRoleDataPerm'
+import {
+  previewOf, type DataPermMode, type ModulePerm, type WriteMode,
+  type ActionDictItem, type ActionPreset,
+} from '@/composables/useRoleDataPerm'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
@@ -120,6 +203,10 @@ const props = defineProps<{
   error?: string
   /** 维度选项是否可用（options 接口成功才 true），否则「配置规则」禁用 */
   canConfig: boolean
+  /** v2 可配置动作字典（options 下发；勿在前端硬编码动作清单） */
+  actionRegistry?: ActionDictItem[]
+  /** v2 动作预设包（一键填充 actions） */
+  presetPackages?: ActionPreset[]
 }>()
 
 const emit = defineEmits<{
@@ -127,11 +214,44 @@ const emit = defineEmits<{
   (e: 'open-rule'): void
   /** 升级某个漂移条件组到模板最新版（父组件负责重绑定并替换草稿组） */
   (e: 'upgrade-template', d: TemplateDrift): void
+  (e: 'update:write-mode', v: WriteMode): void
+  (e: 'update:write-actions', v: string[]): void
+  (e: 'open-write-rule'): void
 }>()
 
 /** 正在升级中的条件组下标（驱动按钮 loading），-1 表示空闲 */
 const upgradingGroup = ref(-1)
 defineExpose({ upgradingGroup })
+
+// ===== v2 写范围 =====
+
+/** 折叠状态；write 已激活（mode!=none）时视为强制展开 */
+const writeOpen = ref(false)
+const writeActive = computed(() => (props.module.write?.mode || 'none') !== 'none')
+
+/** 写范围可勾选的动作 = 字典中启用且类别为 write/destructive 的项（view/export 归读路径，不进写范围） */
+const writableActions = computed(() =>
+  (props.actionRegistry || []).filter(
+    (a) => a.enabled && (a.category === 'write' || a.category === 'destructive'),
+  ),
+)
+
+const presetOptions = computed(() =>
+  (props.presetPackages || []).map((p) => ({ label: p.label, value: p.key })),
+)
+
+/** 选预设包 = 用包内动作集合整体覆盖当前勾选（再可手动微调） */
+function onPresetPick(presetKey: string) {
+  const preset = (props.presetPackages || []).find((p) => p.key === presetKey)
+  if (preset) emit('update:write-actions', [...preset.actionKeys])
+}
+
+const writeBadgeType = computed(() => (writeActive.value ? 'success' : 'default') as 'success' | 'default')
+const writeBadgeText = computed(() => {
+  if (!writeActive.value) return t('dataperm.write.badge.none')
+  const n = (props.module.write?.actions || []).length
+  return t('dataperm.write.badge.active', { n })
+})
 
 const totalConditions = computed(() =>
   props.module.groups.reduce((acc, g) => acc + g.conditions.length, 0),
@@ -241,4 +361,36 @@ const driftTags = computed(() =>
 }
 .summary-actions { display: flex; align-items: center; gap: 8px; }
 .count-badge { font-weight: 600; }
+
+/* ===== v2 写范围区 ===== */
+.write-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-hairline, #e2e8f0);
+}
+.write-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.write-title { font-size: 13px; font-weight: 700; color: var(--ink, #1e293b); }
+.write-badge { font-weight: 600; }
+.write-toggle {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-soft, #64748b);
+}
+.write-alert { margin: 10px 0 0; }
+.write-mode-group { width: 100%; margin-top: 10px; }
+.preset-select { margin-top: 10px; max-width: 260px; }
+.action-checks {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.action-check { margin: 2px 0; }
+.destructive-tag { margin-left: 4px; font-weight: 600; }
 </style>

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { NConfigProvider, NMessageProvider } from 'naive-ui'
 import { naivePlugin } from '../../../../plugins/naive'
 import PermissionManagement from '../../PermissionManagement.vue'
@@ -16,6 +17,10 @@ vi.mock('@/api/role-v2', () => ({
 }))
 
 function factory() {
+  // 权限 v2：RolesTab 引入 useUserStore（动作管理入口仅超管可见）→ 需要 Pinia。
+  // setActivePinia 供 setup 期调用；app.use 供组件内注入（与下方 naivePlugin 同款模式）。
+  const pinia = createPinia()
+  setActivePinia(pinia)
   const Wrapper = defineComponent({
     setup(_, { slots }) {
       return () =>
@@ -32,6 +37,7 @@ function factory() {
     attachTo: document.body,
   })
   w.vm.$.appContext.app.use(naivePlugin)
+  w.vm.$.appContext.app.use(pinia)
   return w
 }
 

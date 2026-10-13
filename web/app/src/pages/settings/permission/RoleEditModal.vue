@@ -169,9 +169,14 @@
                 :disabled-reason="disabledReason(m)"
                 :error="dpErrors[m.moduleKey]"
                 :can-config="moduleView(m.moduleKey).dimensions.length > 0"
+                :action-registry="dpActionRegistry"
+                :preset-packages="dpPresetPackages"
                 @update:mode="(mode) => dpSetMode(m.moduleKey, mode)"
                 @open-rule="openRule(m.moduleKey)"
                 @upgrade-template="(d) => onUpgradeTemplate(m.moduleKey, d)"
+                @update:write-mode="(wm) => dpSetWriteMode(m.moduleKey, wm)"
+                @update:write-actions="(acts) => dpSetWriteActions(m.moduleKey, acts)"
+                @open-write-rule="openRule(m.moduleKey, true)"
               />
             </div>
           </div>
@@ -186,15 +191,17 @@
       </n-space>
     </template>
 
-    <!-- 数据权限规则配置弹窗（仅在数据权限页签内触发） -->
+    <!-- 数据权限规则配置弹窗（仅在数据权限页签内触发；writeTarget 分派读/写范围） -->
     <RuleConfigModal
       :show="ruleModalShow"
-      :module-name="ruleModuleView.label"
+      :module-name="writeTarget
+        ? t('dataperm.write.modalTitle', { name: ruleModuleView.label })
+        : ruleModuleView.label"
       :module-key="ruleModuleKey"
       :dimensions="ruleModuleView.dimensions"
       :attribute-fields="ruleModuleView.attributeFields"
-      :groups="ruleModule?.groups || []"
-      :inter-expr="ruleModule?.expr || ''"
+      :groups="ruleModalGroups"
+      :inter-expr="ruleModalInterExpr"
       @update:show="(v: boolean) => (ruleModalShow = v)"
       @update:groups="onRuleGroups"
       @update:inter-expr="onRuleInterExpr"
@@ -261,7 +268,9 @@ const activeTab = ref<'basic' | 'perm' | 'data'>('basic')
 const roleIdRef = computed(() => form.id)
 const {
   draft, loading: dpLoading, errors: dpErrors, isDirty: dpDirty, options: dpOptions,
+  actionRegistry: dpActionRegistry, presetPackages: dpPresetPackages,
   load: dpLoad, setMode: dpSetMode, setGroups: dpSetGroups, validate: dpValidate,
+  setWriteMode: dpSetWriteMode, setWriteGroups: dpSetWriteGroups, setWriteActions: dpSetWriteActions,
   submit: dpSubmit, reset: dpReset,
 } = useRoleDataPerm(roleIdRef)
 const dpLoaded = ref(false)
@@ -327,8 +336,24 @@ const ruleModuleKey = ref('')
 const ruleModule = computed(() => draft.value.find((m) => m.moduleKey === ruleModuleKey.value))
 const ruleModuleView = computed(() => moduleView(ruleModuleKey.value))
 
-function openRule(key: string) {
+/** v2：规则弹窗目标 —— false=读范围（module.groups），true=写范围（module.write.groups）。
+ *  RuleConfigModal 本身只是条件组编辑器，目标分派在父侧完成。 */
+const writeTarget = ref(false)
+
+const ruleModalGroups = computed(() => {
+  const m = ruleModule.value
+  if (!m) return []
+  return writeTarget.value ? (m.write?.groups || []) : m.groups
+})
+const ruleModalInterExpr = computed(() => {
+  const m = ruleModule.value
+  if (!m) return ''
+  return writeTarget.value ? (m.write?.expr || '') : (m.expr || '')
+})
+
+function openRule(key: string, write = false) {
   ruleModuleKey.value = key
+  writeTarget.value = write
   ruleModalShow.value = true
 }
 
@@ -385,12 +410,19 @@ async function onUpgradeTemplate(moduleKey: string, drift: TemplateDrift) {
 
 function onRuleGroups(groups: PermConditionGroup[]) {
   const m = draft.value.find((x) => x.moduleKey === ruleModuleKey.value)
-  if (m) dpSetGroups(m.moduleKey, groups)
+  if (!m) return
+  if (writeTarget.value) dpSetWriteGroups(m.moduleKey, groups)
+  else dpSetGroups(m.moduleKey, groups)
 }
 
 function onRuleInterExpr(expr: string) {
   const m = draft.value.find((x) => x.moduleKey === ruleModuleKey.value)
-  if (m) m.expr = expr
+  if (!m) return
+  if (writeTarget.value) {
+    if (m.write) m.write.expr = expr
+  } else {
+    m.expr = expr
+  }
 }
 
 // ===== 关闭守卫（真实脏检查：基础信息 / 功能权限 / 数据权限 任一变化即视为脏） =====

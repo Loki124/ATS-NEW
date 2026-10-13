@@ -21,6 +21,10 @@
         class="rule-filter-select"
       />
       <div class="spacer"></div>
+      <!-- 权限 v2：动作字典/预设包管理（超管入口；护栏全部由后端裁决） -->
+      <n-button v-if="isSuperAdmin" @click="actionManageShow = true">
+        {{ t('dataperm.actions.title') }}
+      </n-button>
       <n-button @click="load">{{ t('pages.settings.permission.RolesTab.s4') }}</n-button>
       <n-button type="info" @click="onCloneFromTemplate">{{ t('pages.settings.permission.RolesTab.s5') }}</n-button>
       <n-button type="primary" class="gradient-btn" @click="onCreate">{{ t('pages.settings.permission.RolesTab.s6') }}</n-button>
@@ -81,6 +85,9 @@
       :role="editModal.role"
       @saved="onEditSaved"
     />
+
+    <!-- 权限 v2：动作字典 / 预设包管理 -->
+    <ActionManageModal v-model:show="actionManageShow" />
   </div>
 </template>
 
@@ -103,9 +110,16 @@ import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } fro
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
 import { localPagination } from '@/composables/useTablePagination'
 import RoleEditModal from './RoleEditModal.vue'
+import ActionManageModal from '@/components/role/ActionManageModal.vue'
+import { useUserStore } from '@/stores/user'
 import { useCloseGuard } from '@/composables/useCloseGuard'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
+
+// 权限 v2：动作字典管理入口仅超管可见（后端 IsSuperAdmin 双保险）
+const userStore = useUserStore()
+const isSuperAdmin = computed(() => (userStore.user?.roles ?? []).includes('SUPER_ADMIN'))
+const actionManageShow = ref(false)
 
 const message = useMessage()
 const loading = ref(false)
