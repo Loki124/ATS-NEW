@@ -380,6 +380,33 @@ def apply_pool_lock(candidate, entry, *, actor=None):
 
 # ---------------------------------------------------------------- 临时锁场景
 
+def sync_lock_on_assign(candidate, position, actor) -> LockDecision:
+    """「简历分配至职位」链路的统一同步入口 —— 业务层只调这一个函数。
+
+    做两件事：
+    1. 落事实来源：``assigned_by``（职位分配人）与 ``assign_state``（→ ASSIGNED）。
+       二者是后续权限判定的依据（「我分配的」可见范围、锁定继承、待分配池归属），
+       必须在**分配成功那一刻**落库，不能等别处补写。
+    2. 按 PRD 4.2 重算并写入正式锁定人。
+
+    刻意**不捕获**异常：锁定人算错 = 权限误判，静默降级会让简历落到
+    「看得到不能操作 / 能操作看不到」的残废态，必须 fail-loud 暴露。
+    """
+    from .models import Candidate
+
+    update_fields = ['updated_at']
+    if actor is not None and getattr(actor, 'is_authenticated', False):
+        if str(candidate.assigned_by_id or '') != str(actor.pk):
+            candidate.assigned_by = actor
+            update_fields.append('assigned_by')
+    if candidate.assign_state != Candidate.AssignState.ASSIGNED.value:
+        candidate.assign_state = Candidate.AssignState.ASSIGNED.value
+        update_fields.append('assign_state')
+    candidate.save(update_fields=update_fields)
+
+    return apply_formal_lock(candidate, position=position, assigned_by=actor, actor=actor)
+
+
 def maybe_grant_temp_lock(candidate, actor, *, provider_id=None):
     """PRD 临时锁场景：操作人 ≠ 提供人时，授予操作人 72h 临时锁定。
 

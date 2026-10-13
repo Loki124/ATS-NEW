@@ -106,6 +106,8 @@ def _gen_application_code() -> str:
     return f'A{timezone.now().strftime("%Y%m%d")}{secrets.token_hex(3).upper()}'
 
 
+
+
 class ApplicationService:
     """申请服务"""
 
@@ -228,6 +230,11 @@ class ApplicationService:
 
         # 候选人维度审计：初始阶段入库
         record_stage_change(application, None, first_link.stage.name, actor=data.actor, via='created')
+
+        # 锁定引擎：分配即重算正式锁定人 + 落分配人/分配状态（PRD 4.2）
+        #   ── 与 add_candidate 批量导入分配职位共用同一入口，保证口径一致
+        from apps.candidate.lock_engine import sync_lock_on_assign
+        sync_lock_on_assign(candidate, position, actor=data.actor)
 
         logger.info(
             'Application created: %s candidate=%s position=%s stage=%s',

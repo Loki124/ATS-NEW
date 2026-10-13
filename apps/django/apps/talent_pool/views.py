@@ -215,6 +215,12 @@ class TalentPoolEntryViewSet(ScopeQuerysetMixin, AuditMixin, viewsets.ModelViewS
                 updated_by=user,
             )
             created = True
+
+        # 人才库入库 → 按 pool_kind 联动正式锁定人（PRD 人才库归属规则）：
+        #   独享/个人/入职库 → 库归属人；共享/内推/通用库 → 无锁定人（公共资源池）。
+        from apps.candidate.lock_engine import apply_pool_lock
+        apply_pool_lock(candidate, entry, actor=user)
+
         return Response({
             'success': True,
             'data': {'id': entry.id, 'poolType': entry.pool_type, 'created': created},

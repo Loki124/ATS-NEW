@@ -168,9 +168,16 @@ class BulkCreateService:
         if draft.direction == 'pending':
             pass  # 仅 candidate
         elif draft.direction == 'position':
-            cls._create_application(cand, draft, actor)
+            application = cls._create_application(cand, draft, actor)
+            # 锁定引擎：与 ApplicationService.create_application 共用同一入口（PRD 4.2），
+            #   保证「分配职位」不管走哪条路径，锁定人口径一致。
+            from apps.candidate.lock_engine import sync_lock_on_assign
+            sync_lock_on_assign(cand, application.position, actor=actor)
         elif draft.direction == 'talent':
-            cls._create_talent_pool_entry(cand, draft, actor)
+            entry = cls._create_talent_pool_entry(cand, draft, actor)
+            # 人才库入库 → 按 pool_kind 联动锁定（共享/内推/通用库按 PRD 为无锁定人）
+            from apps.candidate.lock_engine import apply_pool_lock
+            apply_pool_lock(cand, entry, actor=actor)
         else:
             raise BulkCreateError(
                 'INVALID_DIRECTION', f'未知方向: {draft.direction}', draft.draft_id,
