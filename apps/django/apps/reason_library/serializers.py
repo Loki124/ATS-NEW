@@ -140,6 +140,9 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
     maxSelectableTags = serializers.IntegerField(source='max_selectable_tags', read_only=True)
     # 终端用户选择原因弹窗的标题文案 (空=默认「选择原因」) — camelCase 别名
     modalTitle = serializers.CharField(source='modal_title', read_only=True)
+    # 默认人才库 key (配置人员为该规则预设; 取值见 TALENT_POOL_KEYS) — camelCase 别名
+    defaultTalentPool = serializers.CharField(source='default_talent_pool', read_only=True)
+    # 自定义提示文案: snippet 名即 camelCase, 由 Meta.fields 直接包含, 无需额外别名字段。
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
     # 「预置默认规则」标识 (is_system AND name=='预置默认规则'): 覆盖全部场景×类型,
@@ -160,6 +163,7 @@ class SceneRuleListSerializer(serializers.ModelSerializer):
             'id', 'code', 'version', 'name', 'is_system', 'isSystem', 'enabled', 'description',
             'max_selectable_tags', 'maxSelectableTags',
             'modal_title', 'modalTitle',
+            'tip', 'defaultTalentPool',
             'created_at', 'createdAt', 'updated_at', 'updatedAt', 'scenes',
             'tag_count', 'tagCount', 'isPresetDefault',
         ]
@@ -221,7 +225,7 @@ class SceneRuleCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SceneRule
-        fields = ['id', 'code', 'version', 'name', 'is_system', 'enabled', 'description', 'max_selectable_tags', 'modal_title']
+        fields = ['id', 'code', 'version', 'name', 'is_system', 'enabled', 'description', 'max_selectable_tags', 'modal_title', 'tip', 'default_talent_pool']
         read_only_fields = ['id', 'code', 'version']
 
     def validate_name(self, value: str) -> str:
@@ -240,13 +244,15 @@ class SceneRuleUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SceneRule
-        fields = ['name', 'enabled', 'description', 'max_selectable_tags', 'modal_title']
+        fields = ['name', 'enabled', 'description', 'max_selectable_tags', 'modal_title', 'tip', 'default_talent_pool']
         extra_kwargs = {
             'name': {'required': False},
             'enabled': {'required': False},
             'description': {'required': False},
             'max_selectable_tags': {'required': False},
             'modal_title': {'required': False},
+            'tip': {'required': False},
+            'default_talent_pool': {'required': False},
         }
 
     def validate_name(self, value: str) -> str:
@@ -336,6 +342,11 @@ class WizardSaveSerializer(serializers.Serializer):
     max_selectable_tags = serializers.IntegerField(required=False, default=5, min_value=0)
     # 终端用户选择原因弹窗的标题文案 (空=默认「选择原因」, 前端占位展示)
     modal_title = serializers.CharField(max_length=64, required=False, allow_blank=True, default='')
+    # 自定义提示文案 (配置人员编辑、终端用户可见) — 空=不展示
+    tip = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
+    # 默认人才库 key (配置人员预设, 取值见 TALENT_POOL_KEYS) — 空=不预设;
+    # 非法值由 wizard_service 归一化为 ''
+    default_talent_pool = serializers.CharField(max_length=32, required=False, allow_blank=True, default='')
     categories = WizardCategorySerializer(many=True, required=False, default=list)
     scenes = serializers.ListField(
         child=serializers.CharField(), required=False, default=list,

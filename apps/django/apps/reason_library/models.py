@@ -70,6 +70,11 @@ class RecruitType(str, Enum):
 RECRUIT_TYPE_CHOICES = RecruitType.choices()
 RECRUIT_TYPES = [r.value for r in RecruitType]
 
+# 人才库 6 子库 key (与 apps/talent_pool/views.POOL_DEFINITIONS 保持一致; 此处本地镜像
+# 避免 reason_library 对 talent_pool 的硬依赖/导入顺序耦合)。仅作 default_talent_pool
+# 取值合法性校验用; 若 talent_pool 调整子库, 需同步此处。
+TALENT_POOL_KEYS = {'PASSIVE', 'ACTIVE', 'HIRED', 'REJECTED', 'BLACKLIST', 'GENERAL'}
+
 # 全场景统一: 单次选择标签上限 (Q-A1)
 MAX_PICK = 5
 
@@ -156,6 +161,18 @@ class SceneRule(models.Model):
     modal_title = models.CharField(
         max_length=64, blank=True, default='', verbose_name='弹窗标题',
         help_text='终端用户选择原因弹窗的标题文案 (空=使用默认文案「选择原因」)',
+    )
+    # 自定义提示 (2026-10-13 新增): 配置人员编辑、终端用户在选择原因弹窗中可见的公告文案。
+    # 与 modal_title 同属「弹窗展示」维度, 但语义是「给用户的提示/说明」而非标题。
+    tip = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='自定义提示',
+        help_text='配置人员编辑、终端用户在选择原因弹窗中可见的提示文案 (空=不展示)',
+    )
+    # 默认人才库 (2026-10-13 新增): 配置人员为该规则预设的默认人才子库 key。
+    # 取值见 TALENT_POOL_KEYS (6 子库); 终端用户在真实业务弹窗中可覆盖。空=不预设。
+    default_talent_pool = models.CharField(
+        max_length=32, blank=True, default='', verbose_name='默认人才库',
+        help_text='配置人员为该规则预设的默认人才子库 key (终端用户在真实弹窗可覆盖); 空=不预设',
     )
     # 规则编号 (S+4 位, 如 S0001); 写入时由 save() 在事务内自动补号, 保证唯一
     # (镜像 campus_control ControlRule.code 的 G+4 方案, 前缀 S 表示场景规则)。

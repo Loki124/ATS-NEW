@@ -77,6 +77,8 @@
           :all-tags="allTags"
           @update:color="onCategoryColorChange"
           @update:modal-title="onModalTitleChange"
+          @update:tip="onTipChange"
+          @update:default-talent-pool="onDefaultTalentPoolChange"
         />
       </div>
     </n-spin>
@@ -306,6 +308,8 @@ function toWizard(rule: SceneRule): WizardPayload {
     scenePairs,
     maxSelectableTags: rule.maxSelectableTags ?? 5,
     modalTitle: (rule as any).modalTitle ?? '',
+    tip: (rule as any).tip ?? '',
+    defaultTalentPool: (rule as any).defaultTalentPool ?? '',
     categories: deepCloneCategories(rule.categories ?? [], allTags.value),
     updatedAt: rule.updatedAt,
   }
@@ -325,6 +329,8 @@ function emptyWizardPayload(): WizardPayload {
     scenePairs: [],
     maxSelectableTags: 5,
     modalTitle: '',
+    tip: '',
+    defaultTalentPool: '',
     categories: [],
     updatedAt: undefined,
   }
@@ -370,6 +376,20 @@ function onModalTitleChange(v: string) {
   const w = wizard.value
   if (!w) return
   w.modalTitle = v ?? ''
+}
+
+/** 自定义提示变更: 写入 wizard.tip (保存时随规则落库 tip) */
+function onTipChange(v: string) {
+  const w = wizard.value
+  if (!w) return
+  w.tip = v ?? ''
+}
+
+/** 默认人才库变更: 写入 wizard.defaultTalentPool (保存时随规则落库 default_talent_pool) */
+function onDefaultTalentPoolChange(v: string) {
+  const w = wizard.value
+  if (!w) return
+  w.defaultTalentPool = v ?? ''
 }
 
 // ============= 切换步骤 =============

@@ -125,6 +125,14 @@ class WizardService:
         if 'modal_title' in payload:
             mt = payload.get('modal_title')
             rule.modal_title = (mt or '').strip()[:64]
+        # 自定义提示文案 (配置人员编辑、终端用户可见) — 空=不展示
+        if 'tip' in payload:
+            rule.tip = (payload.get('tip') or '').strip()[:255]
+        # 默认人才库 key (配置人员预设) — 非法值归一化为 '' (不落脏数据)
+        if 'default_talent_pool' in payload:
+            from ..models import TALENT_POOL_KEYS
+            tp = (payload.get('default_talent_pool') or '').strip()
+            rule.default_talent_pool = tp if tp in TALENT_POOL_KEYS else ''
         # Item2: 系统预置规则保持不可停用 — enabled 强制 True
         if rule.is_system:
             rule.enabled = True
@@ -133,7 +141,7 @@ class WizardService:
         # 同名校验
         if SceneRule.objects.filter(name=rule.name).exclude(pk=rule.pk).exists():
             raise BizException(BizCode.RULE_NAME_DUPLICATED, '该规则名已存在', status_code=400)
-        rule.save(update_fields=['name', 'description', 'enabled', 'max_selectable_tags', 'modal_title', 'updated_at'])
+        rule.save(update_fields=['name', 'description', 'enabled', 'max_selectable_tags', 'modal_title', 'tip', 'default_talent_pool', 'updated_at'])
 
         # 6) Diff categories: 维护 client_id → id 映射, 同时处理 add/update/delete
         existing_cats = {
