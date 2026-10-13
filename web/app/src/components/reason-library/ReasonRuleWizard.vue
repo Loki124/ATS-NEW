@@ -130,6 +130,18 @@
       :current-version="wizard?.version"
       @rollbacked="onVersionRollbacked"
     />
+
+    <!-- 停用二次风险确认 (编辑向导内禁用规则时) -->
+    <RiskConfirmModal
+      :show="riskConfirmShow"
+      :title="t('reasonLibrary.riskConfirm.title')"
+      :risk-content="t('reasonLibrary.riskConfirm.ruleContent')"
+      :confirm-text="t('reasonLibrary.riskConfirm.confirm')"
+      :cancel-text="t('reasonLibrary.riskConfirm.cancel')"
+      :acknowledge-text="t('reasonLibrary.riskConfirm.acknowledge')"
+      @confirm="onRiskConfirm"
+      @cancel="onRiskCancel"
+    />
   </n-modal>
 </template>
 
@@ -169,6 +181,7 @@ import Step2Assignments from './wizard/Step2Assignments.vue'
 import Step3Preview from './wizard/Step3Preview.vue'
 import RuleConfigModal from './wizard/RuleConfigModal.vue'
 import RuleVersionHistoryModal from './wizard/RuleVersionHistoryModal.vue'
+import RiskConfirmModal from './RiskConfirmModal.vue'
 
 const props = defineProps<{
   show: boolean
@@ -212,6 +225,9 @@ const nextLabel = computed(() =>
 
 // 统一「配置规则」弹窗状态
 const ruleConfigShow = ref(false)
+// 停用二次风险确认: 记录编辑前规则的启用状态, 用于判定「启用→停用」过渡
+const originalEnabled = ref<boolean | null>(null)
+const riskConfirmShow = ref(false)
 
 function openRuleConfig() {
   ruleConfigShow.value = true
@@ -272,6 +288,7 @@ watch(
         wizard.value = toWizard(rule)
       } else {
         wizard.value = emptyWizardPayload()
+        originalEnabled.value = null
       }
     } catch (e: any) {
       message.error(extractReasonApiError(e, t('reasonLibrary.common.failed')))
@@ -294,6 +311,7 @@ function toWizard(rule: SceneRule): WizardPayload {
   }))
   const pairScenes = [...new Set(scenePairs.map((p) => p.scene))]
   const pairTypes = [...new Set(scenePairs.map((p) => p.recruitType))]
+  originalEnabled.value = rule.enabled
   return {
     id: rule.id,
     code: (rule as any).code,
@@ -435,6 +453,18 @@ async function onSave() {
     gotoStep(1)
     return
   }
+  // 停用需要二次风险确认: 编辑中把「启用中」规则关为「停用」且非系统预置规则时拦截,
+  // 由 onRiskConfirm 在确认后才真正保存 (系统预置规则后端会拒, 无需确认直接走保存链路报错)
+  if (originalEnabled.value === true && wizard.value.enabled === false && !wizard.value.isSystem) {
+    riskConfirmShow.value = true
+    return
+  }
+  await doSave()
+}
+
+/** 真正执行保存 (被 onSave 直接调用, 或停用二次确认后调用) */
+async function doSave() {
+  if (!wizard.value) return
   saving.value = true
   try {
     const payload: WizardPayload = JSON.parse(JSON.stringify(wizard.value))
@@ -477,6 +507,16 @@ async function onSave() {
   } finally {
     saving.value = false
   }
+}
+
+// 停用二次风险确认: 确认后才执行真正的保存
+function onRiskConfirm() {
+  riskConfirmShow.value = false
+  doSave()
+}
+
+function onRiskCancel() {
+  riskConfirmShow.value = false
 }
 
 // ============= 退出/关闭 =============
