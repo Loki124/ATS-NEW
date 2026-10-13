@@ -1,5 +1,5 @@
 # 原因库（Reason Library）架构设计
-> 最后更新：2026-10-08（reason-library 规则版本化：code / version / 快照 / 回滚）
+> 最后更新：2026-10-13（权限类名、种子机制、唯一约束、active 参数已按现实校正；规则版本化设计见 2026-10-08）
 
 > 状态：已落地（2026-09-20 合并 main）｜ 技术栈：Django 6.0.6 + DRF 3.17.1（后端）/ Vue3 + Naive UI + UnoCSS（前端）
 
@@ -34,7 +34,7 @@ apps/django/apps/reason_library/
 ├── models.py                      # 6 表模型（含 SceneRuleVersion 快照）+ CheckConstraint(level 1-4)
 ├── serializers.py                 # Tag/Rule/Category/Scene/Wizard/Bulk 序列化器
 ├── exceptions.py                  # BizCode 常量（40001~40030 等）
-├── permissions.py                 # IsAuthenticatedReadOnly（写方法需登录）
+├── permissions.py                 # IsAuthenticatedReadOnly + SystemOrAdminPermission + IsAdminOrReadOnly（三档：超管 / HR 及以上 / 登录只读，写权限由权限体系判定）
 ├── urls.py
 ├── views/
 │   ├── tag_view.py                # 标签 CRUD + CSV 导入
@@ -51,9 +51,9 @@ apps/django/apps/reason_library/
 │   ├── 0014_scenerule_code_version.py   # SceneRule.code(S+4) + version + 存量补号
 │   ├── 0015_scenerule_version.py        # 新建 scene_rule_version 快照表
 │   └── 0016_alter_sceneruleversion_change_kind.py  # change_kind 字段调整
-├── fixtures/
-│   ├── system_tags.json           # 53 系统标签
-│   └── preset_rules.json          # 3 预置规则（含完整树）
+├── seed_data.py                   # 53 SYSTEM_TAGS + 10 PRESET_TAGS（代码驱动，幂等）
+├── management/commands/
+│   └── seed_reason_library.py     # 1 条预置默认规则（迁移 0012 已删兄弟规则）
 └── tests/
     ├── conftest.py                # fixtures + session 清 seed
     ├── test_tag_api.py            # 13 case
@@ -88,7 +88,7 @@ scene_rule (1) ──< (N) scene_rule_version   # 版本快照（仅 INSERT；�
 ```
 
 - `rule_category.parent` 自引用 → 树形，level ≤ 4（CheckConstraint `condition=Q(level__gte=1) & Q(level__lte=4)`）
-- `rule_scene_assignment.scene` UNIQUE → 同场景全局一个规则（Q6）
+- `rule_scene_assignment.(scene, recruit_type)` UNIQUE → 同 (场景, 招聘类型) 全局仅一条规则（Q6 / BR-2；迁移 0009 由 uniq_scene 升级为 uniq_scene_type）
 - `scene_rule.code`：规则编号 `S+4` 位（如 `S0001`），`unique=True`，由 save() 事务内自动补号；存量迁移 0014 回填（空表先加列、回填唯一值、再加唯一约束，避免有数据表建唯一索引撞重复 `''`）。
 - `scene_rule_version`：场景规则完整版本历史快照表（迁移 0015）。`rule` FK CASCADE、UNIQUE(`rule`, `version`)、`version` 单调递增；`snapshot` 为 WizardService 消费的 snake_case 载荷，`changed_fields`/`change_kind`/`change_note`/`created_by` 为审计元数据。**写入口唯一在 `services/rule_version_service.py`，仅 INSERT，禁止 UPDATE/DELETE**（删除走 FK CASCADE）；正常编辑 `version = rule.version`，回滚生成 `version+1` 新快照（kind=`rollback`）并经 WizardService 写回主表。
 
@@ -103,7 +103,7 @@ scene_rule (1) ──< (N) scene_rule_version   # 版本快照（仅 INSERT；�
 | `POST /rules/{id}/snapshot/` | 副本接管 src scene（src 释放绑定） |
 | `GET /rules/{id}/versions/` | 版本历史列表（倒序，含快照/变更字段/操作人） |
 | `POST /rules/{id}/versions/rollback/` | 回滚到指定版本（body `{version_no}`，fail-loud 409/400/404） |
-| `GET /active/?scene=X` | 显式引用 > 系统预置；多条显式按 updated_at；Redis 缓存 |
+| `GET /active/?scene=X&recruitType=social` | 显式引用 > 系统预置；多条显式按 updated_at；Redis 缓存（recruitType 为 camelCase，业务端必传，否则退化为场景级兜底） |
 
 ## 6. 任务分解（有序）
 

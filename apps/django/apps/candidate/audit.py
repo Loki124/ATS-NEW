@@ -166,3 +166,12 @@ def record_stage_change(application, from_stage, to_stage, actor=None, via: str 
         'via': via,
     }
     return _create(candidate, 'STAGE_CHANGED', detail, actor)
+
+
+def record_reason_tagged(candidate, detail: dict, actor=None):
+    """候选人归因标注（原因库回写，§11.8）：记录所选标签及其各自引用的规则版本。
+
+    detail 含 scene / recruit_type / rule_id / rule_version /
+    tags:[{tag_id, rule_version}] / note，供审计溯源与 BI 按规则版本维度消费。
+    """
+    return _create(candidate, 'REASON_TAGGED', detail or {}, actor)

@@ -43,19 +43,6 @@
       <div class="rl-sim-modal__body">
     <!-- ============ 模块零: 自定义提示 (配置人员可编辑, 终端用户在选择原因弹窗中可见) ============ -->
     <div class="rl-preview-module rl-hint-module">
-      <div class="rl-mod-head">
-        <h3>{{ t('reasonLibrary.wizard.preview.tipTitle') }}</h3>
-        <button
-          v-if="!tipEditing"
-          type="button"
-          class="rl-hint-edit-btn"
-          :class="{ visible: hoverTip }"
-          :title="t('reasonLibrary.wizard.preview.tipEdit')"
-          @click="startEditTip"
-        >
-          <n-icon :component="CreateOutline" :size="15" />
-        </button>
-      </div>
       <n-input
         v-if="tipEditing"
         ref="tipInputRef"
@@ -90,7 +77,6 @@
         class="rl-talent-select"
         @update:value="(v: string | null) => emit('update:default-talent-pool', v ?? '')"
       />
-      <p class="rl-talent-hint">{{ t('reasonLibrary.wizard.preview.talentPoolHint') }}</p>
     </div>
 
     <!-- ============ 模块一: 原因标签 (合并单元格式卡片网格, 零表格元素) ============ -->
@@ -343,7 +329,6 @@ const tipModel = computed<string>({
   set: (v: string) => emit('update:tip', v),
 })
 const tipEditing = ref(false)
-const hoverTip = ref(false)
 const tipInputRef = ref<InstanceType<typeof NInput> | null>(null)
 const displayTip = computed(() =>
   props.wizard?.tip?.trim() || t('reasonLibrary.wizard.preview.tipEmpty'),
@@ -789,7 +774,7 @@ function rowStyle(row: TagRow) {
   padding: 0 24px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;

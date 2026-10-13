@@ -416,3 +416,85 @@ class RuleSceneAssignment(models.Model):
             from nanoid import generate as nanoid_generate
             self.id = nanoid_generate(size=21)
         super().save(*args, **kwargs)
+
+
+class CandidateReasonRecord(models.Model):
+    """归因数据回写宽表（原因库 → 候选人维度，§11.8）。
+
+    每次业务节点提交原因标注时随主接口一并写入一行（不单独建接口）。
+    记录当时命中的规则与版本基线；子表 CandidateReasonRecordTag 逐标签记录引用的规则版本，
+    供 BI 按「规则版本」维度还原当时口径，并支撑「首次使用版本引用」逻辑（BR-13）。
+    """
+
+    id = models.CharField(max_length=32, primary_key=True, editable=False)
+    candidate = models.ForeignKey(
+        'candidate.Candidate', on_delete=models.CASCADE,
+        related_name='reason_records', verbose_name='候选人',
+    )
+    application = models.ForeignKey(
+        'application.Application', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='reason_records', verbose_name='关联投递',
+    )
+    scene = models.CharField(max_length=32, verbose_name='业务场景')
+    recruit_type = models.CharField(
+        max_length=16, choices=RECRUIT_TYPE_CHOICES, default=RecruitType.SOCIAL.value,
+        verbose_name='招聘类型',
+    )
+    rule = models.ForeignKey(
+        SceneRule, on_delete=models.PROTECT,
+        related_name='reason_records', verbose_name='命中规则',
+    )
+    rule_version = models.PositiveIntegerField(default=1, verbose_name='规则版本基线')
+    note = models.TextField(blank=True, default='', verbose_name='备注')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='操作人',
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, verbose_name='创建时间',
+    )
+
+    class Meta:
+        db_table = 'candidate_reason_record'
+        verbose_name = '候选人归因记录'
+        verbose_name_plural = '候选人归因记录'
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            from nanoid import generate as nanoid_generate
+            self.id = nanoid_generate(size=21)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.candidate_id} @ {self.scene}/{self.recruit_type} v{self.rule_version}'
+
+
+class CandidateReasonRecordTag(models.Model):
+    """归因记录逐标签明细：每个标签引用的规则版本（首次使用版本 / 最新版本）。"""
+
+    id = models.CharField(max_length=32, primary_key=True, editable=False)
+    record = models.ForeignKey(
+        CandidateReasonRecord, on_delete=models.CASCADE,
+        related_name='tag_records', verbose_name='归因记录',
+    )
+    tag = models.ForeignKey(
+        ReasonTag, on_delete=models.PROTECT,
+        related_name='reason_record_tags', verbose_name='原因标签',
+    )
+    rule_version = models.PositiveIntegerField(default=1, verbose_name='引用规则版本')
+
+    class Meta:
+        db_table = 'candidate_reason_record_tag'
+        verbose_name = '归因标签明细'
+        verbose_name_plural = '归因标签明细'
+        ordering = ['id']
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            from nanoid import generate as nanoid_generate
+            self.id = nanoid_generate(size=21)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.tag_id} → v{self.rule_version}'
