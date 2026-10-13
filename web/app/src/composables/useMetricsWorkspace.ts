@@ -1257,36 +1257,88 @@ export function useMetricsWorkspace() {
 
   const NO_VALUE_OPERATORS = ['IS_EMPTY', 'IS_NOT_EMPTY']
   const MULTI_VALUE_OPERATORS = ['IN', 'NOT_IN']
-  const previewNeedsNoValue = computed<boolean>(() => NO_VALUE_OPERATORS.includes(previewOpSelected.value))
+  /**
+   * 校验值真源（枚举型 / 实体型共用）。统一以数组承载：
+   * 单选态只是"取第 0 个"，切到多选不丢已选值，切回单选也不炸。
+   */
+  const previewEnumValue = ref<string[]>([])
+  const previewNeedsNoValue = computed<boolean>(
+    () =>
+      NO_VALUE_OPERATORS.includes(previewOpSelected.value) ||
+      // 🔴 实体型选「当前登录人」：值由运行时决定，同样无需填校验值
+      (isEntityOutput.value && previewEntityIsAuto.value),
+  )
   const previewNeedsTextInput = computed<boolean>(() => isTextOutput.value && !previewNeedsNoValue.value)
   const previewNeedsMultiEnum = computed<boolean>(
     () => (isEnumOutput.value || isEntityOutput.value) && MULTI_VALUE_OPERATORS.includes(previewOpSelected.value),
   )
-  // 🔴 实体引用型（人员/部门）与枚举型同构：预览出候选下拉，
-  //   **应用时可在候选清单间自由切换**（这正是兵哥指出的旧设计缺陷：
-  //   模板层锁定一种取值方式会导致应用时无从切换）。
-  const previewNeedsEnumPicker = computed<boolean>(
-    () => (isEnumOutput.value || isEntityOutput.value) && !previewNeedsNoValue.value,
-  )
-  const previewNeedsEntityValue = computed<boolean>(() => false)
-  const previewEnumValue = ref<string[]>([])
-
-  /** 预览下拉的候选源：枚举型用候选值清单，实体引用型用实体候选（同一交互形态） */
-  const previewCandidateOptions = computed<{ label: string; value: string }[]>(() =>
-    isEntityOutput.value ? entityCandidateOptions.value : enumCandidateOptions.value,
-  )
-  // 实体候选变化时，预览默认选中第一个（与数值型 previewValueSelected 行为一致）
-  watch(entityCandidateOptions, (opts) => {
-    if (!isEntityOutput.value) return
-    const first = opts[0]?.value
-    if (!first) {
-      previewEnumValue.value = []
-      return
+  // 🔴 实体引用型预览（2026-10-13 二次修正，兵哥定稿）：
+  //   预览行新增「取值方式」下拉（第 4 个框），选中指定人员/指定身份后**联动出对象下拉**；
+  //   对象候选 = 系统全量（模板预设仅作默认值）→ 不同场景可自由选人，不被预设池锁死。
+  const previewEntitySelector = ref<string>('')
+  /** 方式下拉选项 = 模板层配置过的方式（去重），模板没启用的方式不出现 */
+  const previewEntitySelectorOptions = computed<{ label: string; value: string }[]>(() => {
+    const types: string[] = []
+    for (const o of entityOptions.value) {
+      if (o?.type && !types.includes(o.type)) types.push(o.type)
     }
-    previewEnumValue.value = previewNeedsMultiEnum.value
-      ? [...new Set([...previewEnumValue.value, first])]
-      : [first]
-  }, { immediate: true })
+    return types.map((tp) => ({ label: entityTypeLabel(tp), value: tp }))
+  })
+  const previewNeedsEntitySelector = computed<boolean>(
+    () => isEntityOutput.value && previewEntitySelectorOptions.value.length > 0,
+  )
+  /** 当前登录人 / 所在部门：无对象下拉 */
+  const previewEntityIsAuto = computed<boolean>(
+    () => previewEntitySelector.value === 'current_user' || previewEntitySelector.value === 'current_user_dept',
+  )
+  /** 对象下拉候选 = 该方式的全量对象列表（不受模板预设池限制） */
+  const previewEntityObjectOptions = computed<{ label: string; value: string }[]>(() =>
+    entityOptionsForType(previewEntitySelector.value),
+  )
+  const previewNeedsEntityObject = computed<boolean>(
+    () => isEntityOutput.value && previewNeedsEntitySelector.value && !previewEntityIsAuto.value,
+  )
+  // 方式切换：默认选中列表里第一个；并把模板预设对象回填为默认校验值（兵哥要求 2）
+  function applyEntityPreviewPreset() {
+    if (!isEntityOutput.value) return
+    const opts = previewEntitySelectorOptions.value
+    if (!opts.some((o) => o.value === previewEntitySelector.value)) {
+      previewEntitySelector.value = opts[0]?.value || ''
+    }
+    // 模板预设的对象回填为默认校验值（单选态只取第一个，多选态全填）
+    const preset = [
+      ...new Set(
+        entityOptions.value
+          .filter((o) => o.type === previewEntitySelector.value)
+          .flatMap((o) => (Array.isArray(o.ids) ? o.ids : []))
+          .filter(Boolean),
+      ),
+    ]
+    previewEnumValue.value = previewNeedsMultiEnum.value ? preset : preset.slice(0, 1)
+  }
+  watch([previewEntitySelectorOptions, previewEntitySelector], applyEntityPreviewPreset, { immediate: true })
+
+  // 枚举型与实体型共用候选下拉（实体型仅在需要对象框时走该路径）
+  const previewNeedsEnumPicker = computed<boolean>(
+    () => (isEnumOutput.value || previewNeedsEntityObject.value) && !previewNeedsNoValue.value,
+  )
+  /** 预览候选下拉的选项源：实体型用该方式的全量对象，枚举型用候选值清单 */
+  const previewCandidateOptions = computed<{ label: string; value: string }[]>(() =>
+    previewNeedsEntityObject.value ? previewEntityObjectOptions.value : enumCandidateOptions.value,
+  )
+
+  /**
+   * 🔴 单选态下 n-select 只吃标量，多选态下只吃数组 —— 类型不对会静默渲染成 placeholder
+   * （"预填了值但框里空的"就是这个坑）。用可写 computed 做形态适配，
+   * 底层仍以 previewEnumValue 为唯一真源，切换运算符/取值方式不丢值。
+   */
+  const previewEnumValueModel = computed<string | string[] | null>({
+    get: () =>
+      previewNeedsMultiEnum.value ? previewEnumValue.value : (previewEnumValue.value[0] ?? null),
+    set: (v) => {
+      previewEnumValue.value = Array.isArray(v) ? v : v === null || v === undefined || v === '' ? [] : [String(v)]
+    },
+  })
 
   const previewTextValue = ref('')
   const previewRegexIssue = computed<string>(() => {
@@ -1309,8 +1361,14 @@ export function useMetricsWorkspace() {
     if (op !== 'REGEX_MATCH') previewTextValue.value = ''
   })
   watch(previewNeedsMultiEnum, (multi) => {
-    const first = enumCandidateOptions.value[0]?.value
-    if (!multi) previewEnumValue.value = first ? [first] : []
+    if (multi) return
+    // 切回单选：保留已选的第 0 个；一个都没选才退回候选首项
+    if (previewEnumValue.value.length) {
+      previewEnumValue.value = previewEnumValue.value.slice(0, 1)
+      return
+    }
+    const first = previewCandidateOptions.value[0]?.value
+    if (first) previewEnumValue.value = [first]
   })
 
   const RANGE_OPERATOR = 'BETWEEN'
@@ -1977,7 +2035,13 @@ export function useMetricsWorkspace() {
     previewNeedsMultiEnum,
     previewNeedsEnumPicker,
     previewCandidateOptions,
+    previewEntitySelector,
+    previewEntitySelectorOptions,
+    previewNeedsEntitySelector,
+    previewNeedsEntityObject,
+    previewEntityIsAuto,
     previewEnumValue,
+    previewEnumValueModel,
     previewTextValue,
     previewRegexIssue,
     previewTextPlaceholder,

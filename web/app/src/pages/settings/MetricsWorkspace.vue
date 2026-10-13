@@ -675,6 +675,10 @@ onMounted(() => {
 .tpl-readout-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--brand-text); margin-bottom: var(--space-2); }
 .tpl-readout-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-2); }
 .tpl-readout-row.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
+/* 🔴 实体引用型：多出「取值方式」框（指标/运算符/取值方式/对象），列数随之 +1；
+   不加这条第 4 个下拉会被挤进隐式第二行、再被弹窗高度裁掉（取证截图 v3-1 踩中） */
+.tpl-readout-row.with-entity { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
+.tpl-readout-row.with-entity.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
 .pv-select { min-width: 0; width: 100%; }
 /* 自由文本校验值走单行输入；空值判断不收输入，仅说明 */
 .pv-text { display: inline-flex; min-width: 0; width: 100%; }

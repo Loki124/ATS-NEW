@@ -357,34 +357,48 @@
       <!-- 配置预览（仪表读数条） -->
       <section class="tpl-readout">
         <div class="tpl-readout-eyebrow">{{ t('metrics.tpl.previewTitle') }} · 规则配置者所见</div>
-        <div class="tpl-readout-row" :class="{ 'no-param': !showTemplateParamConfig }">
+        <div class="tpl-readout-row" :class="{ 'no-param': !showTemplateParamConfig, 'with-entity': previewNeedsEntitySelector }">
           <n-select v-model:value="previewMetricSelected" :options="previewMetricItemOptions" class="pv-select" />
           <span v-if="showTemplateParamConfig" class="pv-arrow">→</span>
           <n-select v-if="showTemplateParamConfig" v-model:value="previewParamSelected" :options="previewParamOptions" class="pv-select" />
           <span class="pv-arrow">→</span>
           <n-select v-model:value="previewOpSelected" :options="previewOpOptions" class="pv-select" />
+          <!-- 🔴 实体引用型：第 4 个下拉 = 取值方式（兵哥定稿）。
+               选项来自模板层启用的方式；选「指定人员/指定身份」后联动出对象下拉（候选=全量，
+               默认预填模板预设值），选「当前登录人」则不出对象框。 -->
+          <template v-if="previewNeedsEntitySelector">
+            <span class="pv-arrow">→</span>
+            <n-select
+              v-model:value="previewEntitySelector"
+              :options="previewEntitySelectorOptions"
+              :aria-label="t('metrics.tpl.entitySelectorLabel')"
+              class="pv-select pv-entity-sel"
+            />
+          </template>
           <span class="pv-arrow">→</span>
-          <!-- 为空 / 不为空：语义已自洽，不收校验值 -->
-          <span v-if="previewNeedsNoValue" class="pv-novalue">{{ t('metrics.tpl.checkValueNone') }}</span>
+          <!-- 为空 / 不为空 / 当前登录人：语义已自洽，不收校验值 -->
+          <span v-if="previewNeedsNoValue" class="pv-novalue">
+            {{ previewNeedsEntitySelector && previewEntityIsAuto
+              ? entityTypeLabel(previewEntitySelector) : t('metrics.tpl.checkValueNone') }}
+          </span>
           <!-- 区间是双值运算符：校验值拆成下限 / 上限两个框 -->
           <span v-else-if="previewNeedsRangeValue" class="pv-range">
             <n-select v-model:value="previewRangeLower" :options="previewCheckValueOptions" :placeholder="t('metrics.tpl.rangeLower')" class="pv-select" />
             <span class="pv-arrow">~</span>
             <n-select v-model:value="previewRangeUpper" :options="previewCheckValueOptions" :placeholder="t('metrics.tpl.rangeUpper')" class="pv-select" />
           </span>
-          <!-- 枚举型 / 实体引用型：候选值下拉；属于集合 / 不属于集合时为多选
-               （实体型的候选即"取值方式 + 对象"，应用时在此自由切换） -->
+          <!-- 枚举型 / 实体型指定类：对象下拉；属于集合 / 不属于集合时为多选。
+               实体型候选 = 该方式的全量对象（模板预设只作默认值，可改选任意人 →
+               解决"不同场景对指定人员要求不同"）。 -->
           <n-select
             v-else-if="previewNeedsEnumPicker"
-            v-model:value="previewEnumValue"
+            v-model:value="previewEnumValueModel"
             :multiple="previewNeedsMultiEnum"
             :options="previewCandidateOptions"
             :placeholder="t('metrics.tpl.checkValuePlaceholder')"
             :aria-label="t('metrics.tpl.checkValuePlaceholder')"
             class="pv-select"
           />
-          <!-- 🔴 实体引用型与枚举型共用同一预览分支：出候选下拉，
-               应用时可在候选清单间自由切换（不再被模板层锁死一种方式） -->
           <!-- 自由文本型：单行输入（无穷域无法从下拉枚举），正则匹配即时校验表达式合法性 -->
           <span v-else-if="previewNeedsTextInput" class="pv-text">
             <n-input
@@ -489,12 +503,16 @@ const {
   previewOpOptions,
   previewNeedsNoValue,
   previewCandidateOptions,
+  previewEntitySelector,
+  previewEntitySelectorOptions,
+  previewNeedsEntitySelector,
+  previewEntityIsAuto,
   previewNeedsRangeValue,
   previewRangeLower,
   previewCheckValueOptions,
   previewRangeUpper,
   previewNeedsEnumPicker,
-  previewEnumValue,
+  previewEnumValueModel,
   previewNeedsMultiEnum,
   previewNeedsTextInput,
   previewTextValue,
