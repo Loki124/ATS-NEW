@@ -450,7 +450,13 @@
                   />
                   <!-- 布尔 -->
                   <n-switch v-else-if="item.field.fieldType === 'BOOLEAN'" v-model:value="formValues[item.field.fieldKey]" />
-                  <!-- 附件 / 其他: URL 文本 -->
+                  <!-- 附件: 标准上传器, 值存 AttachmentItem[] (2026-10-13 兵哥: 附件字段不再降级为 URL 输入框) -->
+                  <AttachmentUploader
+                    v-else-if="item.field.fieldType === 'ATTACHMENT'"
+                    :model-value="asAttachmentList(formValues[item.field.fieldKey])"
+                    @update:model-value="(v: AttachmentItem[]) => (formValues[item.field.fieldKey] = v)"
+                  />
+                  <!-- 其他: URL 文本 -->
                   <n-input
                     v-else
                     v-model:value="formValues[item.field.fieldKey]"
@@ -483,10 +489,11 @@ import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
 import RichEditor from '../../components/RichEditor.vue'
 import SafeHtml from '../../components/SafeHtml.vue'
+import AttachmentUploader from '../../components/AttachmentUploader.vue'
 
 import {
   listFields, listGroups, getDynamicFieldValues, saveDynamicFieldValues, extractApiError,
-  type FieldDefinition, type FieldOption, type FieldGroup,
+  type FieldDefinition, type FieldOption, type FieldGroup, type AttachmentItem,
 } from '../../api/dynamic-field'
 import {
   fetchFormConfig, mergeFields, groupFieldsByGroup, type FormConfig,
@@ -696,6 +703,13 @@ const isDateType = (t: string) => DATE_TYPES.includes(t)
 const isPlainTextType = (t: string) => PLAIN_TEXT_TYPES.includes(t)
 const isMultiType = (t: string) => t === 'MULTISELECT' || t === 'LIST_MULTI'
 
+// 附件值统一为 AttachmentItem[]; 兼容旧版「URL 文本输入」存下的字符串值 (2026-10-13)
+function asAttachmentList(v: unknown): AttachmentItem[] {
+  if (Array.isArray(v)) return v as AttachmentItem[]
+  if (typeof v === 'string' && v) return [{ id: v, name: v, url: v }]
+  return []
+}
+
 function selectOptions(f: FieldDefinition): { label: string; value: any }[] {
   return (f.options || []).map((o: FieldOption) => ({
     label: o.label || o.value, value: o.value,
@@ -791,6 +805,13 @@ function displayText(f: FieldDefinition, value: any): string {
     return value.map((v: any) => optionLabel(f, v)).join('、')
   }
   if (OPTION_TYPES.includes(t)) return optionLabel(f, value)
+  if (t === 'ATTACHMENT') {
+    if (Array.isArray(value) && value.length) {
+      return value.map((x: any) => x?.name || x?.url).filter(Boolean).join('、')
+    }
+    if (typeof value === 'string' && value) return value
+    return '-'
+  }
   if (t === 'DATE') return formatDateVal(value)
   if (t === 'DATE_RANGE') {
     if (Array.isArray(value) && value.length === 2) return `${formatDateVal(value[0])} ~ ${formatDateVal(value[1])}`
