@@ -838,6 +838,7 @@
           </n-space>
           <n-data-table
             v-model:checked-row-keys="batchCheckedIds"
+            class="df-batch-table"
             :columns="batchColumns"
             :data="batchVisibleRows"
             :loading="loading"
@@ -846,6 +847,7 @@
             size="small"
             striped
             :max-height="380"
+            :scrollbar-props="{ trigger: 'none' }"
           />
           <!-- 第一步: 选择批量动作 -->
           <n-space v-if="!batchAction" justify="end">
@@ -2371,4 +2373,22 @@ onMounted(async () => {
 .df-input-select    { width: 200px; }
 .df-flex-grow       { flex: 1; }
 .df-width-full      { width: 100%; }
+/* 批量操作弹窗字段表: 滚动条常显（2026-10-13 兵哥反馈"列表数据无法滚动"）
+ * 根因（两层叠加，缺一不可）:
+ *   1) Naive data-table 内部 scrollbar 默认 trigger='hover' —— 不悬停时滑块节点
+ *      (.n-scrollbar-rail__scrollbar) 根本不在 DOM，只有空 rail；
+ *   2) 全局 glass.css「22:35 悬停显现规范」把 .n-scrollbar-rail 默认 opacity:0，
+ *      仅 hover/scroll 时置 1。
+ *   → max-height:380 裁掉半行 + 无任何滚动提示，用户判定"无法滚动"（实测容器本身
+ *     overflow-y:scroll 且滚轮可滚，纯可供性缺失）。
+ * 修法: scrollbar-props={trigger:'none'} 让滑块在溢出时持续渲染 + 本规则局部强制
+ * rail 常显（有意偏离全局悬停规范：弹窗内固定高度表格的滚动条是唯一"内容未竟"
+ * 可供性；特异性 .df-batch-table[data-v] .n-scrollbar-rail--*(0,3,0) 压过全局
+ * (0,1,0)+!important）。
+ * 注: 无效先例 —— scrollbar-props.nativeScrollbar 不是 ScrollbarProps 合法属性
+ * （运行时 no-op 且触发 vue-tsc 报错），勿再尝试。 */
+.df-batch-table :deep(.n-scrollbar-rail--vertical),
+.df-batch-table :deep(.n-scrollbar-rail--horizontal) {
+  opacity: 1 !important;
+}
 </style>
