@@ -25,10 +25,14 @@
 
 状态门
 ------
-``STATE_ACTION_GATE`` 为空表示**不限制**（与整体 fail-open 哲学一致）。
-PRD 的「评分中全局置灰 / 审批中发起人独占」需要先把这两个状态补全到
-``CandidateState``（当前枚举里没有），再调用 :func:`register_state_gate` 登记。
-**在口径确认前不臆造映射** —— 宁可先不限，也不配错。
+- **审批独占**（已实现）：候选人存在在途审批（``ApprovalFlow.status in
+  (PENDING, IN_PROGRESS)``）时，**只有该审批的发起人**能操作 —— 连锁定人也不放行。
+  理由：审批是对该简历处置权的临时移交，他人此时改动会与审批结论打架
+  （批的是旧版本，改的是新版本）。终态（APPROVED/REJECTED/CANCELLED）自动解除。
+- **评分中置灰**：**已作废**。评分自 2026-10 起平均耗时 < 10s（兵哥 2026-10-14
+  确认），不存在需要置灰的窗口，故不实现「评分中全局置灰」。
+- ``STATE_ACTION_GATE``：可按 ``Candidate.current_state`` 登记额外状态门
+  （当前为空 = 不限制）。口径确认前不臆造映射 —— 宁可先不限，也不配错。
 """
 
 from __future__ import annotations
@@ -77,6 +81,38 @@ def _action_enabled(action: str) -> bool:
     from apps.data_permission.action_registry import is_action_enabled
 
     return is_action_enabled(action)
+
+
+# ============================ 审批独占（状态门） ============================
+
+def in_flight_approval(candidate):
+    """该候选人当前的在途审批流（无则 None）。
+
+    「在途」= ``ApprovalFlow.status in (PENDING, IN_PROGRESS)``；终态不占用。
+    以 ``created_at desc`` 取最新一条 —— 唯一性由创建侧校验保证（同一简历不可
+    有两条在途），此处的 ``first()`` 只是防御性兜底。
+    """
+    from apps.resume_flow.models import ApprovalFlow
+
+    if candidate is None or getattr(candidate, 'pk', None) is None:
+        return None
+    return (
+        ApprovalFlow.objects
+        .filter(candidate_id=candidate.pk, status__in=ApprovalFlow.IN_FLIGHT_STATUSES)
+        .order_by('-created_at')
+        .first()
+    )
+
+
+def is_approval_owner(user, candidate) -> bool:
+    """``user`` 是否是该在途审批的**发起人**（``ApprovalFlow.created_by``）。
+
+    发起人是审批的归属人 —— PRD 口径「审批中时仅发起人可以处理」。
+    """
+    flow = in_flight_approval(candidate)
+    if flow is None or user is None or getattr(user, 'pk', None) is None:
+        return False
+    return str(getattr(flow, 'created_by_id', None) or '') == str(user.pk)
 
 
 # ============================ 主体判定（复用 lock.py 原语） ============================
@@ -179,6 +215,20 @@ def is_operable(user, candidate, action: str) -> bool:
                     candidate.pk, getattr(candidate, 'current_state', None), action)
         return False
 
+    # ---- 审批独占（优先级高于锁定人）----
+    # 兵哥 2026-10-14 口径「审批中时仅发起人可以处理」：候选人存在在途审批时，
+    # **只有该审批的发起人**（ApprovalFlow.created_by）能操作 —— 连锁定人也不放行。
+    # 理由：审批是对该简历处置权的临时移交，发起人之外的任何人（包括锁定人）
+    # 此时改动会与审批结论打架（批的是旧版本，改的是新版本）。
+    flow = in_flight_approval(candidate)
+    if flow is not None:
+        if is_approval_owner(user, candidate):
+            return True
+        logger.info('操作权拒绝(审批独占): user=%s candidate=%s flow=%s action=%s',
+                    user.pk, candidate.pk, flow.id, action)
+        return False
+
+    # ---- 分支 2：无在途审批 -> 常规主体判定 ----
     # 主体：有锁定人 -> 严格按锁定人（需求核心：只有锁定人能操作这条简历）
     if has_lock(candidate):
         if is_lock_principal(user, candidate):
@@ -228,33 +278,65 @@ def ensure_operable(user, candidate, action: str) -> None:
 def operable_q(user, action: str) -> Q:
     """列表级：可对该动作操作的简历集合（供前端批量置灰 / 批量操作预过滤）。
 
-    与 :func:`is_operable` 同一套主体语义，但走 SQL 层：
-    - 有锁定人 → 锁定人命中；
-    - 无锁定人且开启兜底 → 职位权限人命中。
+    与 :func:`is_operable` **逐分支同构**（这是两者不漂移的唯一保证方式）：
 
-    二者是 OR 关系（一条记录要么有锁要么无锁，互斥），故直接并集即可。
+    ==========  ===============================================  ==========
+    分支         条件                          放行集合
+    ==========  ===============================================  ==========
+    审批独占     存在在途审批                   仅该审批 created_by
+    有锁定人     formal/temp 锁存在             锁定人（严格）
+    过渡兜底     无锁定人 + 角色级配了写范围      严格按写范围
+    过渡兜底     无锁定人 + 角色级未配            legacy 主体 ∪ 无主简历
+    ==========  ===============================================  ==========
+
+    ⚠️ 三处已踩坑，勿改回：
+    1. 审批独占写成 ``if 有在途审批: return Q(pk__in=发起人)`` → 无关候选人全被误杀；
+    2. 兜底写成 ``legacy | (scope_q or Q())`` → 空 Q() 是 OR 单位元会被 Django 化简，
+       兜底形同虚设；
+    3. 审批独占与主体判定写成纯并集 ``(不在途) | ...`` → 会让无审批且非锁定人的简历
+       全部放行，把主体判定架空（比误杀更危险：等于无权限）。
     """
+    from apps.resume_flow.models import ApprovalFlow
+
     from .lock import lock_owner_q, position_authority_q
 
     if _anon(user):
         return Q(pk__in=[])
 
-    q = lock_owner_q(user)
+    in_flight = ApprovalFlow.objects.filter(
+        status__in=ApprovalFlow.IN_FLIGHT_STATUSES,
+    ).values('candidate_id')
+
+    # ---- 分支 1：审批独占（优先级最高，**替代**主体判定）----
+    # 存在在途审批 → 仅该审批发起人可操作。发起人**不受锁定人限制**：
+    # 审批是对该简历处置权的临时移交，发起人拿到的是「这次审批期间的全权」。
+    approval_exclusive = Q(pk__in=ApprovalFlow.objects.filter(
+        status__in=ApprovalFlow.IN_FLIGHT_STATUSES, created_by=user,
+    ).values('candidate_id'))
+
+    # ---- 分支 2：无在途审批 → 常规主体判定 ----
+    not_in_flight = ~Q(pk__in=in_flight)
+
+    #   2a 有锁定人 —— 严格按锁定人
+    has_lock_q = Q(formal_locked_by__isnull=False) | Q(temp_locked_by__isnull=False)
+    locked_pass = has_lock_q & lock_owner_q(user)
+
+    #   2b 无锁定人的过渡兜底
+    no_lock = ~has_lock_q
     if ALLOW_POSITION_AUTHORITY_FALLBACK:
-        no_lock = Q(formal_locked_by__isnull=True, temp_locked_by__isnull=True)
-        legacy = position_authority_q(user) | Q(created_by=user) | Q(recruiter=user)
-        # 无主简历交回角色级写范围（与 is_operable 的 ② 分支**必须**同语义）：
-        #   write_scope_q 返回 None = 未配置写范围 = 不限制 -> 所有无锁定人的简历放行。
-        # ⚠️ 不能写成 ``legacy | (scope_q or Q())``：空 Q() 是 OR 的单位元，Django 会
-        #    把它化简掉，兜底形同虚设（已实测踩坑：无主简历被整批拒掉）。
         from apps.data_permission.enforcement import write_scope_q
 
+        legacy = position_authority_q(user) | Q(created_by=user) | Q(recruiter=user)
         scope_q = write_scope_q(user, 'candidate', action=action)
         if scope_q is None:
-            # 角色级未配置 -> legacy 主体（含无主简历，与 is_legacy_principal 同语义）
             ownerless = Q(created_by__isnull=True, recruiter__isnull=True, applications__isnull=True)
-            q = q | (no_lock & (legacy | ownerless))
+            unlocked_pass = legacy | ownerless
         else:
-            # 角色级明确配置了写范围 -> 严格按它，不得被 legacy 放宽
-            q = q | (no_lock & scope_q)
-    return q
+            unlocked_pass = scope_q
+    else:
+        unlocked_pass = Q(pk__in=[])
+
+    # 顶层 OR：两个分支互斥（有在途审批 / 无在途审批），故并集即为全语义。
+    # ⚠️ 不能写成 ``(不在途) | (在途且发起人是我) & 主体`` 之类的形式 ——
+    #    「不在途」单独一项会让无审批且非锁定人的简历全部放行（主体判定被架空）。
+    return approval_exclusive | (not_in_flight & (locked_pass | (no_lock & unlocked_pass)))

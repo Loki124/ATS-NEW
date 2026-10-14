@@ -57,6 +57,31 @@ class ApprovalFlowCreateSerializer(serializers.ModelSerializer):
         model = ApprovalFlow
         fields = ['candidate', 'resume_id', 'nodes']
 
+    def validate(self, attrs):
+        """同一简历同时只能有一个在途审批（兵哥 2026-10-14 口径）。
+
+        终态（APPROVED / REJECTED / CANCELLED）不占用在途名额，可再次发起；
+        PENDING / IN_PROGRESS 时重复发起直接拒绝 —— 否则会出现两条审批并行、
+        「审批中仅发起人可操作」的归属无法判定（哪个 created_by 才是发起人？）。
+        """
+        candidate = attrs.get('candidate')
+        if candidate is None:
+            return attrs
+        existing = ApprovalFlow.objects.filter(
+            candidate=candidate,
+            status__in=ApprovalFlow.IN_FLIGHT_STATUSES,
+            deleted_at__isnull=True,
+        ).first()
+        if existing is not None:
+            raise serializers.ValidationError({
+                'candidate': (
+                    f'该候选人已有在途审批（单号 {existing.id}，状态 '
+                    f'{existing.get_status_display()}），不可重复发起；'
+                    '如需重新审批请先完成或撤销原审批'
+                ),
+            })
+        return attrs
+
     def create(self, validated_data):
         request = self.context.get('request')
         validated_data['created_by'] = request.user if request else None

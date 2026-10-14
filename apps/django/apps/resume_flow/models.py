@@ -32,6 +32,11 @@ class ApprovalFlow(SoftDeleteModel):
         ('CANCELLED', '已取消'),
     ]
 
+    #: 在途状态集合 —— 「同一简历同时只能有一个在途审批」的判定依据。
+    #: PENDING（刚发起尚未批）与 IN_PROGRESS（审批流转中）都算在途；
+    #: APPROVED / REJECTED / CANCELLED 为终态，不占用在途名额，可再次发起。
+    IN_FLIGHT_STATUSES = ('PENDING', 'IN_PROGRESS')
+
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     candidate = models.ForeignKey(
         'candidate.Candidate', on_delete=models.PROTECT,
