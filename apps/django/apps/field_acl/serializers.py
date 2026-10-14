@@ -51,6 +51,17 @@ class FieldAclRuleSerializer(serializers.ModelSerializer):
     resource = serializers.CharField(source='entity', read_only=True)
     field = serializers.CharField(read_only=True)
     action = serializers.SerializerMethodField()
+    # P2-1（2026-10-14）：补权威口径 `permission`（READ/MASK/NONE 代码枚举）。
+    # 修复前本序列化器只回旧词汇 `action`（VIEW/MASK/HIDE），而 matrix 端点已回双字段，
+    # 造成两处口径不一致：
+    #   1. 前端 `FieldAclSettings.vue reload()` 读 `r.permission` 建基线快照恒为
+    #      undefined —— 那段是死代码，实际靠 matrix 循环兜底；
+    #   2. 往返断裂：GET 回 `action:'HIDE'`，PUT 却拒收 `permission:'HIDE'`
+    #      （旧词汇不是合法代码枚举），客户端 GET→改→PUT 必 400。
+    # 与 `action` 并存一个批次（action 为 TODO(P0-4 过渡) 字段，下批删）。
+    # 注意不能写 `source='permission'`：字段名与模型字段同名时 DRF 的 bind()
+    # 会直接 assert 报错（redundant source），路由一注册就 500。
+    permission = serializers.CharField(read_only=True)
     roleCode = serializers.CharField(source='role_code', read_only=True)
     roleId = serializers.SerializerMethodField()
     maskPattern = serializers.SerializerMethodField()
@@ -65,7 +76,7 @@ class FieldAclRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = FieldACL
         fields = [
-            'id', 'resource', 'field', 'action',
+            'id', 'resource', 'field', 'action', 'permission',
             'roleId', 'roleCode', 'maskPattern',
             'priority', 'description', 'isActive',
             'createdAt', 'updatedAt',

@@ -303,7 +303,10 @@ async function reload() {
     // 建立基线快照（已保存的显式规则）
     const base: Record<string, PermissionCode> = {};
     for (const r of (rules || [])) {
-      const perm = (r as any).permission as PermissionCode | undefined;
+      // P2-1 起 rules 列表回权威 permission（READ/MASK/NONE 代码枚举）。
+      // 与下方 matrix 循环同源同值（都来自 FieldACL 表），matrix 后写覆盖；
+      // rules 先写保证「只在 rules 出现、不在 matrix 出现」的条目也有基线。
+      const perm = r.permission;
       if (perm) base[cellKey(r.resource, r.field, r.roleCode || '')] = perm;
     }
     // 兼容过渡期：matrix 单元可能是对象（含 permission/action）或裸字符串

@@ -51,6 +51,13 @@ export interface FieldAclRule {
   id: string;
   resource: string;
   field: string;
+  /**
+   * 权威值：后端代码枚举 READ/MASK/NONE。
+   *
+   * P2-1（2026-10-14）起 rules 列表与 matrix 同口径双返回；此前本字段缺失，
+   * 前端只能读旧词汇 `action`，GET→PUT 往返必 400（PUT 只认代码枚举）。
+   */
+  permission: PermissionCode;
   /** 旧前端词汇，仅为过渡保留；新代码请读 `permission`（见类型注释）。 */
   action?: string;
   roleId?: string | null;
