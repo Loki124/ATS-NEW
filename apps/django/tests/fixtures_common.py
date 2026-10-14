@@ -226,11 +226,40 @@ def _seed_role_permissions(connection):
     print(f'[conftest] seeded {seeded} role_permission rows for {len(resource_codes)} resources')
 
 
+def _seed_action_dictionary():
+    """把动作字典种子幂等灌入 ``data_permission_actions`` / ``..._presets``。
+
+    2026-10-14: 修复跨 app 顺序污染的第二载体。
+
+    ``serialized_rollback`` 用例会把 DB 回滚到 ``django_db_setup`` 时的快照, 而
+    ``action_map.sync_seed()`` 是**迁移 0006** 灌的 —— 快照拍在 seed 之前, 故回滚后
+    字典表为空。此后 ``action_registry`` 读到空字典 → ``validate_write_actions``
+    报「未知动作 key: edit」、``is_writable(action='edit')` 全 False。
+
+    表现为「同一份代码连跑几轮, 失败数在 0 / 6 / 26 / 32 之间跳」—— 取决于
+    ``pytest-randomly`` 把那 3 个 rollback 用例排在了前面还是后面, 故一直误判为
+    环境问题。根治点就在这里: 与 ``role_permission`` 同构, 惰性补种子。
+
+    用 ``sync_seed()`` 而非手写 INSERT —— 它是 ``action_registry`` 自己的兜底源,
+    两者保证同一份语义, 不会漂移。
+    """
+    try:
+        from apps.data_permission.action_map import sync_seed
+
+        sync_seed()
+        # 字典刚被改动 -> 必须失效 TTL 缓存, 否则读到的还是回滚前的旧值
+        from apps.data_permission.action_registry import invalidate_cache
+
+        invalidate_cache()
+    except Exception:  # noqa: BLE001 — 无 DB 连接的纯单测跳过, 不影响
+        pass
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_runtest_setup(item):
-    """惰性重 seed role_permission, 修复 test_migration_0005 等使用
-    django_db_serialized_rollback 的用例把会话级 seed 的 role_permission 清空、
-    导致后续依赖权限的用例 403 的问题.
+    """惰性重 seed role_permission **与动作字典种子**, 修复 test_migration_0005 等使用
+    django_db_serialized_rollback 的用例把会话级 seed 清空、导致后续依赖权限的用例
+    403 / 动作字典为空 的问题.
 
     机制: TransactionTestCase 的 serialized_rollback 在 _fixture_setup (setup 阶段)
     用 loaddata 把 DB 重载到 django_db_setup 时拍的快照 (此时 _ensure_v2_schema 尚未
@@ -238,8 +267,10 @@ def pytest_runtest_setup(item):
     类用例会在 setup 与 teardown 两处把它清零 (loaddata / flush).
     本 hook 用 trylast 保证在默认 pytest_runtest_setup 之后运行 —— 默认 hook 会调用
     _setupstate.setup → _django_db_helper._pre_setup → loaddata 清零, 本 hook 在其后
-    才执行, 因此每个测试体执行前 role_permission 一定已就绪. 仅在为空时才写入, 正常
-    用例零额外开销 (一次 COUNT 查询).
+    才执行, 因此每个测试体执行前 role_permission 与动作字典一定已就绪.
+
+    仅在为空时才写入 role_permission (一次 COUNT 查询); 动作字典走 ``sync_seed()``
+    幂等补齐 (它内部按 key 存在与否决定建/更新, 开销可忽略).
     """
     from django.db import connection as _conn
     try:
@@ -250,6 +281,7 @@ def pytest_runtest_setup(item):
     except Exception:
         # 无 DB 连接的纯单测直接跳过, 不影响.
         pass
+    _seed_action_dictionary()
 
 
 @pytest.fixture(autouse=True, scope='session')
