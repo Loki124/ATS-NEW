@@ -1,0 +1,166 @@
+%% 数据权限 P0 止血 —— 数据结构与关系图
+%% 配套文档: docs/ARCH_数据权限P0止血_系统设计.md §3
+%% 图例: <<P0改动>> 标记本次变更点; 实线=真FK, 虚线=逻辑关联(非FK)
+
+classDiagram
+    direction LR
+
+    class User {
+        +BigAutoField id PK
+        +CharField username
+        +CharField employee_id
+        +BigInteger department FK
+        +Boolean is_active
+        +DateTime deleted_at
+        +soft_delete()
+    }
+
+    class RoleV2 {
+        +BigAutoField id PK
+        +CharField system_code
+        +CharField role_code
+        +CharField role_name
+        +CharField default_data_scope_type
+        +SmallInteger status
+        +UniqueConstraint uk_system_role~system_code,role_code~
+    }
+
+    class UserRoleV2 {
+        +BigAutoField id PK
+        +BigInteger user_id FK «P0改»
+        +CharField role_code
+        +CharField system_code
+        +JSONField management_unit_ids
+        +JSONField app_data_scopes
+        +DateField valid_from
+        +DateField valid_to
+        +BigInteger granted_by_id
+        +UniqueConstraint uk_user_role~user_id,role_code~
+    }
+
+    class RolePermissionV2 {
+        +BigAutoField id PK
+        +CharField role_code
+        +CharField resource_code
+        +CharField system_code
+        +UniqueConstraint uk_role_resource~role_code,resource_code~
+    }
+
+    class PermissionResource {
+        +BigAutoField id PK
+        +CharField resource_code UK
+        +CharField resource_name
+        +CharField resource_type
+        +CharField parent_code
+    }
+
+    class DataPermissionRule {
+        +CharField id PK
+        +CharField dimension_type
+        +CharField dimension_value
+        +CharField level
+        +CharField scope_type
+        +JSONField scope_payload
+        +CharField row_access
+        +JSONField actions
+        +CharField entity
+        +CharField field
+        +CharField permission
+        -IntegerField priority «P0删»
+        +SmallInteger status
+    }
+
+    class FieldACL {
+        +CharField id PK
+        +CharField entity
+        +CharField field
+        +CharField role_code
+        +CharField permission
+        +UniqueConstraint entity_field_role~entity,field,role_code~
+    }
+
+    class FieldAclAccessLog {
+        +CharField id PK
+        +CharField entity
+        +CharField user_id
+        +CharField username
+        +JSONField role_codes
+        +JSONField masked_fields
+        +JSONField hidden_fields
+        +CharField request_path
+    }
+
+    class DataPermissionAction {
+        +CharField key PK
+        +CharField label
+        +CharField category
+        +Boolean destructive
+        +Boolean enabled
+        +Boolean is_system
+    }
+
+    %% ---- 真 FK（P0-3 新增）----
+    User "1" <-- "N" UserRoleV2 : user (FK CASCADE)
+
+    %% ---- 逻辑关联（跨系统串，刻意不建 FK）----
+    RoleV2 ..> UserRoleV2 : role_code
+    RoleV2 ..> RolePermissionV2 : role_code
+    RoleV2 ..> DataPermissionRule : dimension_value
+    RoleV2 ..> FieldACL : role_code
+    UserRoleV2 ..> DataPermissionRule : dimension_value
+
+    %% ---- 资源关联 ----
+    PermissionResource ..> RolePermissionV2 : resource_code
+
+    %% ---- ACL 消费 ----
+    FieldACL ..> FieldAclService : 规则源(60s缓存)
+    FieldAclAccessLog ..> FieldAclService : 审计落点(每次请求)
+
+    %% ---- 服务类（P0 新增/修改）----
+    class FieldAclService {
+        +DEFAULT_SENSITIVE_FIELDS~dict~
+        +_RULES_CACHE_TTL = 60
+        +get_rules_map(entity) dict
+        +invalidate_rules_cache(entity) None «P0改»
+        +apply_acl(entity, data, user, request) dict
+        +_get_field_permission(entity, field, user_roles, rules_map) str
+        +_mask_value(field, value) Any
+        +_record_access(request, entity, user, roles, masked, hidden) None
+    }
+
+    class DataPermissionEnforcement {
+        +_SEVERITY~READ:0,MASK:1,NONE:2~
+        +most_restrictive(a, b) str
+        +column_permission_for(user, entity, field) str
+        +ensure_writable(user, entity, obj, action) None
+    }
+
+    class FieldAclSerializerMixin {
+        +str acl_entity
+        +bool acl_strict = True
+        +to_representation(instance) dict
+        +_apply_default_mask(entity, data) dict
+    }
+
+    class RoleScopeApi {
+        +build_modules_response(role, normalized_modules) dict «P0改»
+        +validate_modules(modules) str
+        +upsert_modules(role, modules, user) dict «P0改 差分重建»
+        -_save_rule_row(rule, ...) None «P0新增»
+        -_delete_rule_row(rule) None «P0新增»
+        +options_payload() dict
+    }
+
+    class FieldACLViewSet {
+        +matrix() GET «P0改 双字段»
+        +rules() GET
+        +write_rule() PUT/DELETE «P0新增»
+        +batch_rules() POST «P0新增»
+        +audit() GET
+    }
+
+    %% ---- 服务装配关系 ----
+    FieldAclSerializerMixin ..> FieldAclService : to_representation 调用
+    FieldACLViewSet ..> FieldAclService : 写后必须 invalidate 缓存
+    FieldAclService ..> DataPermissionEnforcement : 列级从严叠加
+    RoleScopeApi ..> DataPermissionRule : 差分读写

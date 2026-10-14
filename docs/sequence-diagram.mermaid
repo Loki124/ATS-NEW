@@ -1,0 +1,234 @@
+%% 数据权限 P0 止血 —— 关键调用流程
+%% 配套文档: docs/ARCH_数据权限P0止血_系统设计.md §4
+%% F1 配置写范围→保存→重开 (P0-1 主用例)
+%% F2 字段 ACL 三态配置→生效 (P0-2)
+%% F3 孤儿数据清理 + FK 生效 (P0-3)
+%% F4 投递手机号脱敏 (P0-4)
+
+%% ============================================================
+%% F1 写范围保存往返 —— P0-1 根因修复
+%% ============================================================
+sequenceDiagram
+    autonumber
+    actor Admin as 管理员
+    participant FE as useRoleDataPerm.submit
+    participant V as views_permission_v2.data_permissions
+    participant VA as role_scope_api.validate_modules
+    participant UP as role_scope_api.upsert_modules
+    participant DB as DataPermissionRule
+    participant BR as build_modules_response
+
+    Admin->>FE: 点「保存角色权限」
+    FE->>FE: serialize(draft) 比对 isDirty（含 write）
+    FE->>FE: validate() —— 配了写范围未勾动作则拦截
+    FE->>V: POST /roles/{id}/data-permissions/ {modules:[{mode, write:{mode,actions}}]}
+
+    alt 修复前：payload 漏 write 字段
+        V->>UP: upsert_modules(role, modules)
+        UP->>DB: DELETE 全部 ROLE/ROW 规则（含 WRITE 行）⚠️ 已执行
+        loop 每个模块
+            UP->>DB: CREATE 读行
+            UP->>UP: write 缺失 → w_mode='none' → continue
+        end
+        Note over DB: WRITE 行被删且不重建 —— 配置静默消失
+        UP-->>V: 200 {write:{mode:'none'}}（前端察觉不到）
+    else 修复后：payload 带 write + 差分重建
+        V->>VA: validate_modules(modules)
+        VA->>VA: _validate_write_block：mode≠none 必须有非空 actions
+        VA-->>V: None（通过）
+        V->>UP: upsert_modules(role, modules, user)
+        UP->>DB: SELECT 现有规则，按 entity+row_access 归组
+        loop 每个模块（差分）
+            UP->>DB: 读行原地 UPDATE scope_type/scope_payload
+            alt write 为 dict 且显式 mode ≠ 'none'
+                UP->>DB: 写行原地 UPDATE（_save_rule_row，保留 id/created_at）
+            else write 显式 mode='none'（管理员主动取消）
+                UP->>DB: 仅删本模块 WRITE 行（_delete_rule_row）
+            else write 缺键 / null / {}（无意图 · v1.2 三态）
+                UP->>UP: 原行原样不动 + 计入 writeNormalized 哨兵
+                Note over UP,DB: 无意图 ≠ 取消；此处删行会让 P0-1 复发
+            end
+        end
+        Note over UP,DB: 未提及的模块物理上不被触碰
+        UP->>BR: build_modules_response(role, normalized)
+        BR->>DB: 复查落库结果
+        BR-->>UP: {roleId, roleCode, modules, writeNormalized}
+        UP-->>V: 同上
+        alt payload 漏 write 且该模块原有 WRITE 行（回归哨兵）
+            UP->>UP: writeNormalized=['candidate']
+            V->>V: _audit_config_change(..., 'WRITE_NORMALIZED', ...) 🔍
+            Note over V: 不阻断保存（Q6 兼容式），但留痕可观测
+        end
+    end
+
+    V-->>FE: 200 {modules:[{write:{mode:'all',actions:['edit']}}], writeNormalized:[]}
+    FE->>FE: saved.value = clone(返回值)；draft 同步
+    Admin->>FE: 关闭后重新打开该角色
+    FE->>V: GET /roles/{id}/data-permissions/
+    V->>BR: build_modules_response(role)
+    BR-->>FE: write.mode='all', actions=['edit'] ✅ 配置仍在
+
+%% ============================================================
+%% F2 字段 ACL 三态配置 —— P0-2（写接口路由原本不存在）
+%% ============================================================
+sequenceDiagram
+    autonumber
+    actor Admin as 管理员
+    participant Page as FieldAclSettings.vue
+    participant Api as api/field-acl.ts
+    participant V as FieldACLViewSet
+    participant S as FieldACLWriteSerializer
+    participant M as FieldACL 模型
+    participant Cache as Redis 规则缓存(60s)
+    participant Log as FieldAclAccessLog
+
+    Admin->>Page: 选实体「投递」→ 在矩阵里给角色「HR」设「手机号=脱敏可见」
+    Page->>Page: 本地暂存未保存变更（底部显示「N 条未保存」）
+    Admin->>Page: 点「保存字段可见性」
+    Page->>Api: upsertAclRule({entity:'application', field:'candidate_phone', roleCode:'HR', permission:'MASK'})
+    Api->>V: PUT /field-acl/rules
+    V->>S: is_valid(data)
+    S->>S: validate_role_code：角色必须真实存在
+    S-->>V: validated_data
+    V->>M: update_or_create(entity, field, role_code, defaults.permission)
+    Note over V: ⚠️ 修复前：GET-only 的 rules 路由遮蔽 → POST 405 / DELETE 404
+    M-->>V: (obj, created)
+    V->>Cache: invalidate_rules_cache('application') ⚠️ 不清则 60s 内不生效
+    V->>Log: _audit_acl_change(CREATE/UPDATE)
+    V-->>Api: 201(created) / 200(updated) {id, entity, field, roleCode, permission}
+    Api-->>Page: 成功
+    Page->>Page: Toast「已保存「HR · 投递 · 手机号」为脱敏可见」
+
+    Note over Admin,Log: —— 单条删除走 Toast 撤销（5–8s）——
+    Admin->>Page: 把某三态改回「默认」（= 删除规则）
+    Page->>Api: deleteAclRule({entity, field, roleCode})
+    Api->>V: DELETE /field-acl/rules（body 传三元组）
+    V->>M: filter(...).delete()
+    M-->>V: deleted=1
+    V->>Cache: invalidate_rules_cache(entity)
+    V-->>Api: 200 {deleted:1}（幂等：不存在时 deleted=0 仍 200）
+    Api-->>Page: 成功
+    Page->>Page: Toast +「撤销」按钮，5–8s 内可再 PUT 原值
+
+    Note over Admin,Log: —— 批量操作走确认框 + 影响预览 ——
+    Admin->>Page: 选「按角色批量设置」→填 N 个字段
+    Page->>Api: previewAclBatch({mode:'by_role', roleCode:'HR', items, dryRun:true})
+    Api->>V: POST /field-acl/rules/batch（dryRun）
+    V-->>Api: {affectedRoles:1, affectedFields:N, willCreate, willUpdate, willDelete}
+    Api-->>Page: 确认框文案「将影响 1 个角色 × N 个字段」
+    Admin->>Page: 确认「清空该角色的全部可见性规则」
+    Page->>Api: applyAclBatch({..., dryRun:false})
+    Api->>V: POST /field-acl/rules/batch
+    V->>M: 批量 update_or_create + delete
+    V->>Cache: invalidate_rules_cache(entity)
+    V-->>Page: {created, updated, deleted}
+
+%% ============================================================
+%% F3 授权数据完整性 —— P0-3（清理 + FK + 校验）
+%% ============================================================
+sequenceDiagram
+    autonumber
+    participant M23 as 迁移 0023 purge_orphans
+    participant M24 as 迁移 0024 user FK
+    participant DB as MySQL
+    participant Sig as RoleV2 post_delete 钩子
+    participant Ser as UserRoleSerializer.validate
+    participant Svc as role_v2_query.user_role_codes
+
+    Note over M23,DB: 阶段一：数据清理（不可逆，需先跑只读核对 SQL）
+    M23->>DB: SELECT 有效 user_id 集合
+    M23->>DB: DELETE user_rows WHERE user_id NOT IN (...) → 76 条
+    M23->>DB: SELECT roles 表有效 role_code（system_code='recruit'）
+    M23->>DB: DELETE user_roles WHERE role_code NOT IN (...) → 孤儿角色
+    M23->>DB: DELETE role_permission WHERE role_code NOT IN (...) → 21 条（含 test）
+    Note over M23,DB: 反向函数为空 + 显式告警（数据已物理删除）
+
+    Note over M24,DB: 阶段二：结构变更
+    M24->>DB: ALTER TABLE user_roles ADD CONSTRAINT FK user_id → core_user(id) ON DELETE CASCADE
+    Note over M24,DB: 列类型已是 bigint，无需数据搬迁；idx_user_id 索引复用
+
+    Note over Sig,DB: 阶段三：孤儿角色防护（替代建不了 FK 的 role_code 侧）
+    Admin->>DB: 删除角色 test / 任意 RoleV2 行
+    DB->>Sig: post_delete 触发
+    Sig->>DB: DELETE user_roles WHERE role_code=? AND system_code=?
+    Sig->>DB: DELETE role_permission WHERE role_code=? AND system_code=?
+    Note over Sig,DB: 「删角色 → 授权与权限关联自动清除」
+
+    Admin->>DB: 删除用户
+    DB->>DB: CASCADE 自动清除其 user_roles 行 ✅
+
+    Note over Ser,DB: 阶段四：授权接口校验（替代 FK 的应用层保证）
+    Admin->>Ser: POST /user-roles/ {user_id, role_code, system_code}
+    Ser->>Ser: validate()：仅 is_superuser 可授予
+    Ser->>DB: User.objects.filter(pk=...).first()
+    alt 用户不存在
+        Ser-->>Admin: 400 {user_id: "所选用户不存在，请刷新后重试"}
+    else 用户已停用
+        Ser-->>Admin: 400 {user_id: "用户「X」已停用，无法授予角色"}
+    else 角色不存在
+        Ser->>DB: RoleV2.objects.filter(role_code=...).exists() == False
+        Ser-->>Admin: 400 {role_code: "角色「X」不存在，请先创建角色或从下拉中重新选择"}
+    end
+
+    Note over Svc,DB: 回归验证：查询路径零改动
+    Admin->>Svc: 请求任意受保护接口
+    Svc->>DB: UserRoleV2.objects.filter(user_id=user.pk, system_code='recruit')
+    Note over Svc,DB: FK 的 attname 就是 user_id → 现有 filter 写法全部继续工作
+
+%% ============================================================
+%% F4 字段 ACL 在投递列表生效 —— P0-4
+%% ============================================================
+sequenceDiagram
+    autonumber
+    actor HR as 普通 HR
+    participant V as ApplicationViewSet
+    participant S as ApplicationListSerializer
+    participant Mix as FieldAclSerializerMixin
+    participant Acl as FieldAclService
+    participant Cache as Redis 规则缓存
+    participant DP as DataPermissionEnforcement
+    participant Log as FieldAclAccessLog
+    participant Audit as 审计
+
+    HR->>V: GET /applications/
+    V->>S: many=True 序列化（传 context={'request': request}）
+    S->>Mix: to_representation(instance)
+    Mix->>Mix: request = self.context['request']
+    Mix->>Acl: apply_acl('application', data, user, request=request)
+    Acl->>Acl: is_super_admin(user)? 否 → user_role_codes(user)
+    Acl->>Cache: get_rules_map('application')（key: field_acl:rules:application）
+    alt 缓存命中
+        Cache-->>Acl: {(candidate_phone, HR): MASK}
+    else 缓存未命中
+        Cache->>Acl: 60s TTL
+        Acl-->>Cache: 写入规则映射
+    end
+    loop 每个输出字段
+        Acl->>Acl: _get_field_permission('application', field, user_roles, rules_map)
+        Acl->>DP: column_permission_for(user, 'application', field)
+        DP-->>Acl: None（无列级规则）
+        Note over Acl,DP: 多来源叠加取最严：role ACL ∪ DataPermissionRule → most_restrictive
+        alt permission = NONE
+            Acl->>Acl: masked.pop('candidate_phone') 🔒 字段被删除
+            Acl->>Acl: hidden_fields += ['candidate_phone']
+        else permission = MASK
+            Acl->>Acl: masked['candidate_phone'] = mask_phone(原值)
+            Acl->>Acl: masked_fields += ['candidate_phone']
+        else permission = READ
+            Acl->>Acl: 保持原值
+        end
+    end
+    Acl->>Log: _record_access(request, entity, user, roles, masked, hidden)
+    Note over Acl,Log: 按 (request, entity) 去重 —— 列表 N 行只写 1 条
+    Acl-->>Mix: 脱敏后的 dict
+    Mix-->>S: data
+    S-->>V: JSON
+    V-->>HR: candidate_phone = "138****5678" ✅ 无明文
+
+    HR->>Audit: 查访问审计
+    Log-->>Audit: masked_fields=['candidate_phone'] ✅ 不再全空
+
+    Note over HR,Audit: —— 异常路径 ——
+    Acl--xMix: apply_acl 抛异常（ACL 出错绝不让业务接口 500）
+    Mix->>Mix: logger.exception + _apply_default_mask 降级为「全部脱敏」
+    Mix-->>V: fail-closed 返回脱敏数据
