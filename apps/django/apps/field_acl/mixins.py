@@ -15,6 +15,16 @@
     class CandidateListSerializer(FieldAclSerializerMixin, ModelSerializer):
         acl_entity = 'candidate'
 
+接入新实体时的三条硬要求（2026-10-14 P0-4踩坑沉淀）:
+  1. ``acl_entity`` 必须是**扁平化后的输出字段名所属的实体**。``apply_acl``
+     只遍历 ``data.items()`` ——它看到的是序列化**输出**的键名。所以列表若把
+     手机号扁平化成 ``candidate_phone``，``acl_entity`` 要用 ``'candidate'``
+     （因为 ``candidate_phone`` 在候选默认清单里），而不是 ``'application'``。
+  2. ``DEFAULT_SENSITIVE_FIELDS[entity]`` 为空 = **无任何默认脱敏**。
+     ``_get_field_permission`` 对不在清单内的字段返回 READ（原值放行）——
+     所以"接了 mixin 却没补默认清单"=裸奔，必须接与补同批次（DR-03 强制）。
+  3. ``NONE`` 是**删除字段**（不是置空），消费方必须能容忍字段缺失。
+
 行为约定:
   - 只影响**输出** (to_representation), 不影响 create/update 的入参校验
   - superuser / SUPER_ADMIN 角色不脱敏 (但访问仍记审计)

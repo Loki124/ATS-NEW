@@ -1067,7 +1067,7 @@ export const APP_UI_ZH: Record<string, string> = {
   'pages.settings.ExternalSettings.s244': "确认删除「{name}」({appId}) 的接入配置？此操作不可恢复。",
   'pages.settings.ExternalSettings.s245': "查看",
   'pages.settings.FieldAclSettings.s1': "字段级访问控制",
-  'pages.settings.FieldAclSettings.s2': "G43 - 配置角色对字段的 VIEW / MASK / HIDE 权限",
+  'pages.settings.FieldAclSettings.s2': "按角色配置敏感字段的可见性：可读 / 脱敏可见 / 不可见",
   'pages.settings.FieldAclSettings.s3': "权限规则",
   'pages.settings.FieldAclSettings.s4': "刷新",
   'pages.settings.FieldAclSettings.s5': "权限矩阵",

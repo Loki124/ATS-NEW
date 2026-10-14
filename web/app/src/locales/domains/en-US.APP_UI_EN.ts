@@ -1067,7 +1067,7 @@ export const APP_UI_EN: Record<string, string> = {
   'pages.settings.ExternalSettings.s244': "Confirm deleting the integration config for \"{name}\" ({appId})? This operation is irreversible.",
   'pages.settings.ExternalSettings.s245': "View",
   'pages.settings.FieldAclSettings.s1': "Field-level Access Control",
-  'pages.settings.FieldAclSettings.s2': "G43 - configure role field VIEW / MASK / HIDE permissions",
+  'pages.settings.FieldAclSettings.s2': "Configure per-role visibility for sensitive fields: Readable / Masked / Hidden",
   'pages.settings.FieldAclSettings.s3': "Permission Rules",
   'pages.settings.FieldAclSettings.s4': "Refresh",
   'pages.settings.FieldAclSettings.s5': "Permission Matrix",

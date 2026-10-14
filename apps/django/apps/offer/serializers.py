@@ -1,10 +1,19 @@
 """Offer Serializers (PRD v4 §6.6, §14.5)"""
 from rest_framework import serializers
 
+from apps.field_acl.mixins import FieldAclSerializerMixin
+
 from .models import Offer
 
 
-class OfferListSerializer(serializers.ModelSerializer):
+class OfferListSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):
+    """报价列表。
+
+    2026-10-14 P0-4（设计文档 §1.4.3 #3）：接字段 ACL mixin。
+    ``salary`` / ``bonus`` 已在 DEFAULT_SENSITIVE_FIELDS['offer'] 里，
+    故无规则时按默认脱敏执行，管理员现在可以为每个角色单独配可见性。
+    """
+    acl_entity = 'offer'
     candidate_name = serializers.CharField(source='candidate.name', read_only=True, default='')
     position_title = serializers.CharField(source='position.title', read_only=True, default='')
     state_display = serializers.CharField(source='get_state_display', read_only=True)

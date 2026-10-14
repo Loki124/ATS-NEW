@@ -1,7 +1,7 @@
 """Field ACL Serializers (PRD v4 §4.4)"""
 from rest_framework import serializers
 
-from .models import FieldACL
+from .models import FieldACL, FieldPermission
 
 
 class FieldACLSerializer(serializers.ModelSerializer):
@@ -23,6 +23,8 @@ PERMISSION_TO_ACTION = {
     'READ': 'VIEW',
     'MASK': 'MASK',
     'NONE': 'HIDE',
+    # TODO(P0-4 过渡):下批删除 —— 旧前端仍消费 action 字段（前端读 permission 缺失时回落）。
+    # 新代码一律只用 permission 代码枚举，禁止在前端自建映射表。
 }
 
 
@@ -91,8 +93,61 @@ class FieldAclRuleSerializer(serializers.ModelSerializer):
         return None
 
     def get_isActive(self, obj: FieldACL) -> bool:
-        """模型无 is_active 字段 —— 存在即生效, 故恒为 True。
+        """模型无is_active 字段 —— 存在即生效, 故恒为 True。
 
         前端 matrix 渲染不依赖该字段, 返回常数 True 即可满足契约。
         """
         return True
+
+
+class FieldACLWriteSerializer(serializers.Serializer):
+    """字段 ACL 写入校验（PUT /field-acl/rules）。
+
+    与只读的 FieldAclRuleSerializer **刻意分开**（设计文档 §0.2 D4）：
+      - 只读那个为兼容旧前端保留 VIEW/MASK/HIDE 词汇（PERMISSION_TO_ACTION）；
+      - 写入这个**只用代码枚举 READ/MASK/NONE**，与 field_acl/models.py 的
+        FieldPermission.choices 严格一一对应。
+    这样任何时候都不存在「两套词汇同时可选」—— 混用是 P2-7 同款病灶：
+    管理员能选出一个后端根本不认的词，保存静默失败或被降级解释。
+
+    ACL 的唯一键是 (entity, field, role_code) 三元组（模型 unique_together），
+    没有单条 pk 语义，故不用 ModelSerializer 的默认 create/update，
+    存在性判定与 upsert 都在 view 里用 update_or_create 完成。
+    """
+
+    permission = serializers.ChoiceField(
+        choices=FieldPermission.choices,
+        help_text='READ=可读 / MASK=脱敏可见 / NONE=不可见（从严顺序 NONE>MASK>READ）',
+    )
+    entity = serializers.CharField(max_length=64)
+    field = serializers.CharField(max_length=64)
+    role_code = serializers.CharField(max_length=50)
+
+    def validate_permission(self, value: str) -> str:
+        """三态之外一律拒收，且错误文案要说人话（AGENTS.md R-203 第一段）。"""
+        if value not in FieldPermission.values:
+            raise serializers.ValidationError('字段可见性只能是「可读 / 脱敏可见 / 不可见」之一')
+        return value
+
+    def validate_field(self, value: str) -> str:
+        """field 必须与序列化器**输出**的键名一致（apply_acl 只遍历输出键）。
+
+        这里不做实体白名单校验：字段名随各序列化器演进，硬白名单会在新增字段时
+        静默拒掉合法配置（这正是 DEFAULT_SENSITIVE_FIELDS 踩过的坑的镜像）。
+        真正的兜底是 DEFAULT_SENSITIVE_FIELDS —— 未配规则时按默认脱敏执行。
+        """
+        return value.strip()
+
+    def validate_role_code(self, value: str) -> str:
+        """角色必须真实存在 —— 防止再产生孤儿 ACL 规则。
+
+        FieldACL.role_code 是裸CharField（跨系统串，与 RoleV2 的
+        (system_code, role_code) 复合唯一键同款约束，无法建 FK），
+        故校验失败必须**响亮**：返回明确 400，禁止静默写入孤儿规则
+        （设计文档 §0.3 DR-02 / §6.2「失败必须响亮」）。
+        """
+        from apps.core.models_permission_v2 import RoleV2
+        value = value.strip()
+        if not RoleV2.objects.filter(role_code=value).exists():
+            raise serializers.ValidationError(f'角色「{value}」不存在，请重新选择')
+        return value

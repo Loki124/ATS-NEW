@@ -58,7 +58,15 @@ class FieldAclService:
             'candidate_phone', 'candidate_email',
         ],
         'offer': ['salary', 'bonus'],
-        'application': [],
+        # 2026-10-14 P0-4（设计文档 §1.4.3 #1，DR-03 强制同批次补齐）：
+        # application 原为 []，而 _get_field_permission 对「不在清单内」的字段
+        # 返回 READ（原值放行）。这意味着：只要把 ApplicationListSerializer
+        # 的 get_candidate_phone 硬编码脱敏删掉、改由 mixin 裁决，
+        # 而这里留空 —— 效果就从「硬编码脱敏」退化为「完全不脱敏」，
+        # 比原 bug 更严重。**补清单必须与删硬编码同批次，先补后删**。
+        'application': ['candidate_phone', 'candidate_email'],
+        # 2026-10-14 P0-4（§1.4.3 #4）：需求薪资区间由 demand app 接入 mixin。
+        'demand': ['salary_range'],
     }
 
     @staticmethod
@@ -77,8 +85,27 @@ class FieldAclService:
 
     @staticmethod
     def invalidate_rules_cache(entity: str = None) -> None:
-        """规则变更后清缓存 (entity 为空时按已知实体全清)."""
-        entities = [entity] if entity else list(FieldAclService.DEFAULT_SENSITIVE_FIELDS.keys())
+        """规则变更后清缓存。
+
+        2026-10-14 P0-2/P0-4 修正（设计文档 §1.4.2⑤ / DR-04c / RK-7）：
+        原实现 entity=None 时**只清 DEFAULT_SENSITIVE_FIELDS 的 key**，
+        而这里新接入的实体（application / demand 等）若不在该字典里
+        —— 批量改完这些实体的规则后缓存不会被清，表现为「保存成功但不生效」，
+        且要等 60s TTL 过期才恢复，是最难排查的一类「假生效」。
+
+        改为反查 FieldACL 表里出现过的全部 entity（并集已知默认清单，双保险）。
+        DB 不可用时退回默认清单，不阻断保存（保存是主路径，缓存是辅助）。
+        """
+        if entity:
+            entities = [entity]
+        else:
+            entities = set(FieldAclService.DEFAULT_SENSITIVE_FIELDS)
+            try:
+                entities |= set(
+                    FieldACL.objects.values_list('entity', flat=True).distinct()
+                )
+            except DatabaseError:  # noqa: BLE001 — 拿不到就退回已知默认清单, 不影响保存
+                logger.warning('Field ACL 全量缓存失效: 反查 entity 失败, 仅清默认清单')
         for ent in entities:
             cache.delete(f'field_acl:rules:{ent}')
 

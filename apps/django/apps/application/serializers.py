@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from apps.field_acl.mixins import FieldAclSerializerMixin
 from apps.position.serializers import PositionListSerializer
 from apps.process.serializers import (
     RecruitmentProcessDetailSerializer,
@@ -68,12 +69,25 @@ class ApplicationStageRecordSerializer(serializers.ModelSerializer):
 # ============================================================
 # Application
 # ============================================================
-class ApplicationListSerializer(serializers.ModelSerializer):
+class ApplicationListSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):
     """申请列表"""
+    acl_entity = 'application'
+    # 2026-10-14 P0-4：脱敏职责**唯一收口**到 FieldAclSerializerMixin。
+    # 此前本类有一个硬编码 get_candidate_phone（只看 is_super_admin 做两档脱敏），
+    # 它完全不受 ACL 规则影响 → 管理员在字段 ACL 页为该角色配的规则对该字段无效，
+    # 与P0-2「可配」的承诺直接矛盾，故删除（见下方 candidate_phone 字段说明）。
     candidate_name = serializers.CharField(source='candidate.name', read_only=True)
-    # 2026-07-02: candidate_phone 在 list 端 mask, 详情端保留
-    # 之前 list 端任意 HR 都看全公司候选人手机号 (PII 泄漏)
-    candidate_phone = serializers.SerializerMethodField()
+    # P0-4 关键：`acl_entity='application'` 而不是 'candidate' —— apply_acl 只遍历
+    # **序列化输出**的键名，这里输出的键是 `candidate_phone`，而它已被登记在
+    # DEFAULT_SENSITIVE_FIELDS['application'] 下（services.py）。若 entity 用
+    # 'candidate'，默认脱敏清单里虽有 candidate_phone，但管理员配的 application 规则
+    # 就永远命中不到本字段。详见 field_acl/mixins.py 顶部的三条接入硬要求。
+    candidate_phone = serializers.CharField(
+        source='candidate.phone', read_only=True, default='',
+    )
+    candidate_email = serializers.CharField(
+        source='candidate.email', read_only=True, default='',
+    )
     position_title = serializers.CharField(source='position.title', read_only=True)
     position_code = serializers.CharField(source='position.code', read_only=True)
     process_name = serializers.CharField(source='process.name', read_only=True)
@@ -85,7 +99,8 @@ class ApplicationListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = [
-            'id', 'code', 'candidate', 'candidate_name', 'candidate_phone',
+            'id', 'code', 'candidate', 'candidate_name',
+            'candidate_phone', 'candidate_email',
             'position', 'position_code', 'position_title',
             'process', 'process_name', 'workflow_version',
             'current_link', 'current_stage', 'current_stage_name',
@@ -95,17 +110,6 @@ class ApplicationListSerializer(serializers.ModelSerializer):
             'is_grabbed', 'grabbed_by', 'grabbed_at', 'is_in_grab_pool',
             'created_at', 'last_advanced_at',
         ]
-
-    def get_candidate_phone(self, obj):
-        # 2026-07-02: 列表端根据角色 mask, 超管/Admin 可见, 普通 HR 见 **** 前缀
-        from apps.core.permissions import is_super_admin
-        request = self.context.get('request')
-        if request and request.user.is_authenticated and is_super_admin(request.user):
-            return obj.candidate.phone
-        candidate_phone = obj.candidate.phone or ''
-        if len(candidate_phone) >= 7:
-            return candidate_phone[:3] + '****' + candidate_phone[-4:]
-        return '****' if candidate_phone else ''
 
     def get_is_overdue(self, obj) -> bool:
         from django.utils import timezone
@@ -132,8 +136,13 @@ class ApplicationListSerializer(serializers.ModelSerializer):
 from apps.candidate.serializers import CandidateListSerializer
 
 
-class ApplicationDetailSerializer(serializers.ModelSerializer):
+class ApplicationDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerializer):
     """申请详情"""
+    # P0-4：详情端接 mixin。此前详情端**完全不受字段 ACL 约束** —— 列表端有那个
+    # 硬编码 get_candidate_phone 挡一下，详情端却直接吐明文（P0-2 核心泄漏面）。
+    # 注意内嵌的 CandidateListSerializer 已自带 mixin(entity='candidate')，
+    # 两层不冲突：外层管本类自己输出的顶层键，内层管 candidate 子对象。
+    acl_entity = 'application'
     candidate = CandidateListSerializer(read_only=True)
     position = PositionListSerializer(read_only=True)
     process = RecruitmentProcessDetailSerializer(read_only=True)
