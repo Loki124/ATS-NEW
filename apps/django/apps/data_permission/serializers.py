@@ -19,7 +19,7 @@ class DataPermissionRuleSerializer(serializers.ModelSerializer):
             'dimension_type', 'dimension_value', 'level',
             'scope_type', 'scope_payload',
             'entity', 'field', 'permission',
-            'priority', 'status', 'remark', 'created_by',
+            'status', 'remark', 'created_by',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

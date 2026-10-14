@@ -64,8 +64,12 @@ class DataPermissionRuleViewSet(EnvelopeModelViewSet):
     permission_classes = [IsSuperAdmin]
     pagination_class = StandardResultsSetPagination
     filterset_fields = ['dimension_type', 'dimension_value', 'level']
-    ordering_fields = ['priority', 'created_at']
-    ordering = ['-priority', '-created_at']
+    # 2026-10-14: priority 字段已下掉（唯一写入点恒为 0 且从不被 enforcement 读取，
+    # 见 docs/ARCH_数据权限P0止血_系统设计.md §1.1③）。排序键从 -priority,-created_at
+    # 改为 -created_at —— 存量全部 priority=0，原排序实际就只由 -created_at 决定，
+    # 故列表表现完全一致。其余字段补进 ordering_fields 供前端显式指定排序键。
+    ordering_fields = ['created_at', 'dimension_type', 'dimension_value', 'entity', 'level']
+    ordering = ['-created_at']
 
     @action(detail=False, methods=['get'], url_path='options')
     def options(self, request):

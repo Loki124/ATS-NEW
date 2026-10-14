@@ -281,7 +281,6 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
             entity=mk,
             scope_type=scope_type,
             scope_payload=payload,
-            priority=0,
             status=1,
             created_by=created_by,
         )
@@ -303,7 +302,6 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
             scope_payload=w_payload,
             row_access='WRITE',
             actions=list(write.get('actions') or []),
-            priority=0,
             status=1,
             created_by=created_by,
         )

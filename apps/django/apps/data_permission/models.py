@@ -90,7 +90,11 @@ class DataPermissionRule(TimestampedModel):
     - 行级 (level=ROW): 用 scope_type + scope_payload 描述数据可见范围。
     - 列级 (level=COLUMN): 用 entity + field + permission 描述字段可见性。
     - 维度 (dimension_type + dimension_value): ROLE→role_code / DEPARTMENT→department_id / USER→user_id。
-    - priority: 同一 (维度, 层级) 多条规则冲突时, 大者优先。
+    - 叠加语义: 读范围=并集 / 列权限=从严(most_restrictive) / 写动作=从严(未列出即拒绝)。
+      2026-10-14 起本模型**不再有 priority 字段** —— 旧字段"大者优先"从未被
+      enforcement 读取（唯一写入点硬编码 0），属第二套叠加语义（会误导管理员以为
+      能调冲突顺序）。裁决顺序现由 (dimension_type, dimension_value, entity) 唯一定位，
+      不需要额外优先级轴。详见 docs/ARCH_数据权限P0止血_系统设计.md §1.1。
     """
 
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
@@ -135,7 +139,6 @@ class DataPermissionRule(TimestampedModel):
         max_length=8, choices=ColumnPermission.choices, null=True, blank=True, verbose_name='列级权限',
     )
 
-    priority = models.IntegerField(default=0, verbose_name='优先级(大者优先)')
     status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0停用)')
     remark = models.CharField(max_length=255, null=True, blank=True, verbose_name='备注')
     created_by = models.BigIntegerField(null=True, blank=True, verbose_name='创建人ID')
