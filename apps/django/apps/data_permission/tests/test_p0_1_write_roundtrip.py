@@ -115,17 +115,92 @@ def test_write_not_wiped_when_field_absent(role, admin_user):
 
 
 def test_write_normalized_absent_for_role_without_write_rules(role, admin_user):
-    """存量**无** WRITE 规则 + 缺 write 键 → 补默认值属正常，**不**进哨兵。
+    """Q6 兼容式强校验边界：存量**无** WRITE 规则 + 未表达 write 意图
+    → 补默认值属正常，**不**进哨兵、不打断首次保存。
 
     这是"兼容式强校验不打断存量首轮保存"的另一半：新建角色首次保存时前端
     无论带不带 write 都不该告警，否则告警会变成噪声而被忽略。
+    ⚠️ 本用例锁的是 Q6 边界，删掉它会导致"哨兵对所有模块都亮"——
+    那等于没人看哨兵，P0-1 的防复发能力随之失效。
     """
     data = upsert_modules(
         role, [{'moduleKey': 'candidate', 'mode': 'all'}], admin_user,
     )
 
-    assert write_rules(ROLE_CODE) == {}, '缺 write 键不应凭空造出 WRITE 行'
+    assert write_rules(ROLE_CODE) == {}, '未表达 write 意图时不应凭空造出 WRITE 行'
+    assert data['writeNormalized'] == [], '无历史 WRITE 行时不应告警（否则哨兵变噪声）'
+
+
+@pytest.mark.parametrize('write_value', [None, {}], ids=['null', 'empty-dict'])
+def test_write_null_or_empty_preserves_rule(role, admin_user, write_value):
+    """🔴 P0-1 变种漏洞：`write: null` / `write: {}` 同样必须**保留**原 WRITE 行。
+
+    这条专防"缺键修了但 null/{} 漏了"的半吊子实现。危害比原始 bug 更难排查：
+    `null`/`{}` 是 JSON 序列化的极常见产物 ——
+      - 前端写 `write: m.write` 而 `m.write` 恰为 undefined/null；
+      - 中间层用 `JSON.parse(JSON.stringify())` 深拷贝时丢字段。
+    一旦命中，现场日志会显示"前端确实传了 write"，极难定位。
+
+    两步式断言（DR-01 要求）：先证明删前有数据，再证明删后没变，
+    否则"行仍存在"在无数据时恒真、测试无鉴别力。
+    """
+    # --- 删前：先 seed 出真实的 WRITE 行并断言存在 ---
+    upsert_modules(
+        role,
+        [{'moduleKey': 'candidate', 'mode': 'all', 'write': {'mode': 'all', 'actions': ['edit']}}],
+        admin_user,
+    )
+    seeded = write_rules(ROLE_CODE)
+    assert seeded, 'seed 失败，测试无鉴别力'
+    before_count = len(seeded)
+    before_ids = {k: v.id for k, v in seeded.items()}
+    before_actions = {k: list(v.actions or []) for k, v in seeded.items()}
+
+    # --- 删后：传入 null / {}，WRITE 行必须原样保留 ---
+    data = upsert_modules(
+        role, [{'moduleKey': 'candidate', 'mode': 'all', 'write': write_value}], admin_user,
+    )
+
+    after = write_rules(ROLE_CODE)
+    assert len(after) == before_count, (
+        f'write={write_value!r} 时 WRITE 行数量变了：'
+        f'{before_count} -> {len(after)} —— 无意图的 payload 抹掉了管理员配置'
+    )
+    assert {k: v.id for k, v in after.items()} == before_ids, 'WRITE 行被删了重建（应原地保留）'
+    assert {k: list(v.actions or []) for k, v in after.items()} == before_actions, 'actions 被改写'
+    # 与「缺键」同口径：计入哨兵，前端真出回归时有告警
+    assert data['writeNormalized'] == ['candidate'], '未表达意图时应计入哨兵'
+    got = next(m for m in data['modules'] if m['moduleKey'] == 'candidate')
+    assert got['write']['mode'] == 'all', '响应回读不应把写配置变成 none'
+    assert got['write']['actions'] == ['edit']
+
+
+def test_write_null_for_role_without_write_rules_does_not_break(role, admin_user):
+    """Q6 边界未被破坏：存量无 WRITE 规则时传 `write: null` → 不报错、不造行、不告警。
+
+    与 test_write_normalized_absent_for_role_without_write_rules 配对：
+    守卫收紧不能反过来把「新建角色首轮保存」这个正常路径堵死。
+    """
+    data = upsert_modules(
+        role, [{'moduleKey': 'candidate', 'mode': 'all', 'write': None}], admin_user,
+    )
+
+    assert write_rules(ROLE_CODE) == {}, 'write=null 不应凭空造出 WRITE 行'
     assert data['writeNormalized'] == [], '无历史 WRITE 行时不应告警'
+
+
+def test_write_non_dict_still_rejected(role, admin_user):
+    """write 为非 dict 字符串 → 校验层 400（响亮失败，绝不静默当 none 处理）。
+
+    与 null/{} 的区别：null/{} 表达的是「没意图」，而字符串是**脏数据** ——
+    应当报错让调用方知道传错了，而不是猜它想干什么。
+    """
+    from apps.data_permission.role_scope_api import validate_modules
+    reason = validate_modules([
+        {'moduleKey': 'candidate', 'mode': 'all', 'write': 'all'},
+    ])
+    assert reason, 'write 为非对象必须被拒'
+    assert '对象' in reason
 
 
 def test_explicit_none_write_deletes_rule(role, admin_user):

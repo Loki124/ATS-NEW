@@ -276,14 +276,21 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
 
     差分语义（对前端完全等价，但物理上更安全）：
       命中的行**原地更新**（保留 id / created_at，列表页脚注与审计不断链）；
-      只删除「本次 payload 显式声明 mode=none」的那一行；
-      payload 未提及的模块、以及缺 write 键的模块 —— 物理上不可能被删。
+      只删除「本次 payload 显式且非空地声明了 mode=none」的那一行；
+      payload 未提及的模块、以及未表达 write 意图的模块 —— 物理上不可能被删。
 
-    「缺键」与「显式 none」的区分（2026-10-14 P0-1 修复的关键，见 §0.2 D1）：
-      两者语义完全不同 —— 显式 none 是管理员说"取消写范围"，缺键是前端没提交。
-      把缺键当 none 处理，管理员配的操作权限仍会被静默抹除（P0-1 原始complaint
-      未解决），只是顺带保住了读配置。因此缺键一律**保留原 WRITE 行不动**，
-      并计入响应 writeNormalized 作为防复发哨兵。
+    「未表达意图」与「显式取消」的区分（2026-10-14 P0-1 修复的关键，见 §0.2 D1）：
+      管理员说"取消写范围"与前端没提交 write，是两件完全不同的事。
+      把前者当成后者（或反过来），管理员配的操作权限都会被静默抹除——
+      P0-1 的原始 complaint 根本没解决，只是顺带保住了读配置。
+
+      未表达意图的四种形态一律**保留原 WRITE 行不动**并计入 writeNormalized：
+        ① 缺 `write` 键（前端回归/ 旧客户端）
+        ② `write: null`（`write: m.write` 而 m.write 为 undefined/null）
+        ③ `write: {}`（中间层 JSON 深拷贝丢字段）
+        ④ `write` 为非 dict（脏数据）
+      只有「显式非空 dict 且 mode='none'」才算主动取消，才删行。
+      详见设计文档 §1.2.2「写范围三态判定表」（v1.2 唯一口径）。
 
     并列铁律：
       - 读行与写行同生共死（同一个 (role, module) 的两行一起处理），
@@ -325,23 +332,32 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
         )
 
         # ---- 写范围行（row_access=WRITE）----
-        # ⚠️ 三态语义（设计文档 §0.2 D1 / §1.2.4 验收表 / §5.5.1 C2「缺 write 时
-        # 原 WRITE 行不变」，三处一致口径）：
-        #   - payload **显式**带 write.mode='none' → 管理员明确要取消写范围 → 删除该行；
-        #   - payload **缺** write 键（前端回归/旧客户端）→ **不动**该行（保留原配置）
-        #     并计入 writeNormalized 哨兵；
-        #   - write.mode ∈ all/owner/scope → 建或原地更新。
-        # 「缺键」与「显式 none」必须区分：把缺键也当none 处理，管理员配的操作权限
-        # 仍会被静默抹除（P0-1 的原始complaint 根本没解决），只是顺带保住了读配置。
-        if 'write' not in m:
+        # 判据是「**有没有表达过明确意图**」，而不是「mode 是不是 none」。
+        # 无意图的四种形态 —— 缺键 / write:null / write:{} / 非 dict —— 一律
+        # **保留原 WRITE 行不动**并计入 writeNormalized 哨兵；只有显式非空 dict
+        # 且 mode='none' 才算管理员主动取消，才删行。
+        #
+        # ⚠️ 为什么不能写成 `write = m.get('write') or {}` + `w_mode = write.get('mode','none')`
+        # （2026-10-14 补P0-1 变种漏洞）：那样 null/{} 会被 `or {}` 归一成 {}
+        # 再取默认 'none' → 与显式 none 走同一条删除路径 → WRITE 行照样被抹除。
+        # 这与P0-1 是**同一类数据丢失**（无意图的 payload 抹掉管理员配置），只是换了形态，
+        # 且更难排查 —— null/{} 是 JSON 序列化的极常见产物（前端 `write: m.write` 而
+        # m.write 恰为 undefined/null；或中间层 JSON.parse(JSON.stringify()) 深拷贝丢字段），
+        # 发生时报错现场会显示"前端确实传了 write"，极难定位。
+        #
+        # 见设计文档 §1.2.2「写范围三态判定表」（v1.2 唯一口径）。
+        write = m.get('write')
+        if not isinstance(write, dict) or not write:
+            # 未表达意图：保留原行。有历史 WRITE 行才告警 ——
+            # 新建角色首轮补默认值属正常，不记（否则告警变噪声而被忽略）。
             if slot['write'] is not None:
                 normalized.append(mk)
             continue
 
-        write = m.get('write') or {}
-        w_mode = write.get('mode', 'none') if isinstance(write, dict) else 'none'
+        w_mode = write.get('mode', 'none')
         if w_mode == 'none':
-            # 显式 none → 只删本模块自己的 WRITE 行；读范围行已在上一步正常落库。
+            # 显式且非空的 none = 管理员主动取消 → 只删本模块自己的 WRITE 行；
+            # 读范围行已在上一步正常落库。
             _delete_rule_row(slot['write'])
             continue
         w_scope_type = _WRITE_MODE_TO_SCOPE[w_mode]
