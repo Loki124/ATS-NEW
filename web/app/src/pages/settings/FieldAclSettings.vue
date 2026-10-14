@@ -202,7 +202,19 @@ function onSelect(entity: string, field: string, roleCode: string, value: Permis
   failedKeys.value = failedKeys.value.filter(k => k !== key);
 }
 
-/** 单条从非默认态改回默认 = 删除规则（R-106：单条删ACL 走 Toast 撤销，禁止确认弹窗）。 */
+/**
+ * 判断某格子是否处于「默认态」—— 即无显式规则时后端按默认脱敏清单裁决出的值
+ * （在默认脱敏清单里的字段为 MASK，其余为 READ；与 currentValue 的兜底推导同源，
+ * 保证 UI 展示与运行时 apply_acl 结果一致）。
+ *
+ * 实际流程：用户改动只进草稿（onSelect）→ 点主操作「保存字段可见性」（saveAll）
+ * → 逐条走 persistOne → 草稿值落到默认态时调 deleteAclRule 撤销显式规则（幂等），
+ * 否则 upsertAclRule；就地重试（retryOne）复用同一 persistOne。
+ *
+ * ⚠️ 本函数只是**判据**，不执行删除；删除没有独立入口、也没有确认弹窗 ——
+ * 它只是保存时对「改回默认」的一种落库方式。需要确认弹窗 + 影响范围预览的是
+ * 批量清空角色规则（confirmClearRole，破坏性分级最高级）。
+ */
 function isDefaultState(entity: string, field: string, roleCode: string): boolean {
   const meta = catalog.value[entity];
   return currentValue(entity, field, roleCode) === ((meta?.defaultMasked || []).includes(field) ? 'MASK' : 'READ');
