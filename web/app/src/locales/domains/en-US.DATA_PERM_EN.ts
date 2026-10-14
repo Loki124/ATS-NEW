@@ -2613,6 +2613,10 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.RecruitmentStage.s22': " column.",
   'pages.settings.permission.RolesTab.s15': "No roles yet; click \"New Role\" at the top right",
   'pages.settings.permission.RolesTab.s16': "No roles under the current filter",
+  // R3 / C5 (P0-3) destructive delete notice: deleting a role cascades to clear functional permissions + field-visibility rules (R-106)
+  'pages.settings.permission.RolesTab.s17': "Confirm role deletion",
+  'pages.settings.permission.RolesTab.s18': "Deleting this role will also invalidate its {n} functional permission(s) and {m} field-visibility rule(s), and cannot be undone. Continue?",
+  'pages.settings.permission.RolesTab.s19': "Delete",
 
   'pages.settings.RecruitmentStage.s23': "Stage ",
 

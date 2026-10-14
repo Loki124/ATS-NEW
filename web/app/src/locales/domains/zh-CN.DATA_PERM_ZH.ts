@@ -2613,6 +2613,10 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.RecruitmentStage.s22': "列。",
   'pages.settings.permission.RolesTab.s15': "暂无角色，点击右上角「新建角色」",
   'pages.settings.permission.RolesTab.s16': "当前筛选下无角色",
+  // R3 / C5 (P0-3) 破坏性删除告知：删角色会级联清功能授权 + 字段可见性规则（R-106）
+  'pages.settings.permission.RolesTab.s17': "确认删除身份",
+  'pages.settings.permission.RolesTab.s18': "删除该身份将同时使其 {n} 条功能授权、{m} 条字段可见性规则一并失效，且操作不可撤销。确定继续吗？",
+  'pages.settings.permission.RolesTab.s19': "删除",
 
   'pages.settings.RecruitmentStage.s23': "阶段是",
 

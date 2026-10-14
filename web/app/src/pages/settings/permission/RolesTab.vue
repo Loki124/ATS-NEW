@@ -105,9 +105,10 @@
  *   - 表格包 .table-wrap + flex-height（仅表体内部滚动）；空状态区分「无数据/无筛选结果」
  */
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, useMessage } from 'naive-ui'
+import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, useMessage, useDialog } from 'naive-ui'
 import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } from '@/api/role-v2'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
+import { listAclRules } from '@/api/field-acl'
 import { localPagination } from '@/composables/useTablePagination'
 import RoleEditModal from './RoleEditModal.vue'
 import ActionManageModal from '@/components/role/ActionManageModal.vue'
@@ -122,6 +123,7 @@ const isSuperAdmin = computed(() => (userStore.user?.roles ?? []).includes('SUPE
 const actionManageShow = ref(false)
 
 const message = useMessage()
+const dialog = useDialog()
 const loading = ref(false)
 const data = ref<RoleV2[]>([])
 const templates = ref<PermissionTemplate[]>([])
@@ -312,13 +314,32 @@ function onEditSaved() {
 }
 
 async function onDelete(row: RoleV2) {
+  // R3 / C5 (P0-3) R-106：破坏性删除告知 —— 角色删除会级联清功能授权 + 字段可见性规则。
+  // N = 功能授权数（角色已带 permissionCodes）；M = 字段可见性规则数（按 roleCode 查 field-acl）。
+  // 先取 M 再弹确认框，保证告知文案数字准确（参考 useRuleActions.ts 禁用原生 confirm 范式）。
+  const funcCount = row.permissionCodes?.length ?? 0
+  let fieldAclCount = 0
   try {
-    await deleteRole(row.id)
-    message.success('已删除')
-    await load()
-  } catch (e: any) {
-    message.error('删除失败: ' + (e?.response?.data?.message ?? e?.message ?? e))
+    const rules = await listAclRules({ roleCode: row.roleCode })
+    fieldAclCount = rules?.length ?? 0
+  } catch {
+    // 取字段级规则数失败不影响删除确认，按 0 兜底（告知文案仍可点删）
   }
+  dialog.warning({
+    title: t('pages.settings.permission.RolesTab.s17'),
+    content: t('pages.settings.permission.RolesTab.s18', { n: funcCount, m: fieldAclCount }),
+    positiveText: t('pages.settings.permission.RolesTab.s19'),
+    negativeText: t('pages.settings.permission.RolesTab.s13'),
+    onPositiveClick: async () => {
+      try {
+        await deleteRole(row.id)
+        message.success('已删除')
+        await load()
+      } catch (e: any) {
+        message.error('删除失败: ' + (e?.response?.data?.message ?? e?.message ?? e))
+      }
+    },
+  })
 }
 
 onMounted(load)
