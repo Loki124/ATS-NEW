@@ -1110,10 +1110,4 @@ function rowStyle(row: TagRow) {
 
 /* === 模块零·五: 人才库下拉 === */
 .rl-talent-select { max-width: 320px; }
-.rl-talent-hint {
-  margin: 6px 0 0;
-  font-size: var(--fs-12);
-  color: var(--ink-faint);
-  line-height: 1.5;
-}
 </style>
