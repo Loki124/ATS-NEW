@@ -20,8 +20,16 @@ from apps.field_acl.services import FieldAclService
 
 
 @pytest.fixture(autouse=True)
-def _isolate_field_acl_rules_cache():
-    """每个用例前后清空字段 ACL 规则缓存，杜绝跨用例污染。"""
+def _isolate_field_acl_rules_cache(db):
+    """每个用例前后清空字段 ACL 规则缓存，杜绝跨用例污染。
+
+    `db` 依赖必填（P1-3）：`invalidate_rules_cache(None)` 会反查
+    `FieldACL.objects.values_list('entity')` 拿真实实体清单，
+    而函数式用例（无 `django_db` 标记）默认禁用了数据库访问，
+    缺 `db` 会在 setup 阶段直接抛
+    `RuntimeError: Database access not allowed`（QA 曾 8/8 ERROR）。
+    TestCase 子类自带事务，不受影响。
+    """
     FieldAclService.invalidate_rules_cache(None)
     yield
     FieldAclService.invalidate_rules_cache(None)
