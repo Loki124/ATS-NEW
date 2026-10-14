@@ -1118,6 +1118,15 @@ export function useMetricsWorkspace() {
     const wasAll = isAllSelected(base, entityDraft.value.ids)
     entityDraft.value.ids = applySelectAll(raw, base, wasAll)
   }
+  /** 三处多选框的「是否全选」判定（标签区据此把全量折叠成单个「全部」chip） */
+  function entityRowIsAll(idx: number): boolean {
+    const opt = entityOptions.value[idx]
+    if (!opt) return false
+    return isAllSelected(entityOptionsForType(opt.type), opt.ids || [])
+  }
+  const entityDraftIsAll = computed<boolean>(() =>
+    isAllSelected(entityDraftPickerOptions(), entityDraft.value.ids),
+  )
 
   /** 新增候选：type 必选且未配过；指定类必须至少选一个对象 */
   function addEntityOption(): string {
@@ -1145,12 +1154,13 @@ export function useMetricsWorkspace() {
     return t('metrics.tpl.entityTypeDuplicate', { type: entityTypeLabel(type) })
   }
 
-  // ── 多选对象的「全选」支持（Naive UI 无内置项，用顶部哨兵项实现）──
+  // ── 多选对象的「全部」支持（Naive UI 无内置项，用顶部哨兵项实现）──
+  // 文案按兵哥要求叫「全部」；全选后标签区只回显一个「全部」，不铺开所有选项（见 AllChipTag）
   const SELECT_ALL = '__select_all__'
   function isSelectAllValue(v: string): boolean {
     return v === SELECT_ALL
   }
-  /** 顶部插入「全选/取消全选」；已全选时该项本身也呈选中态 */
+  /** 顶部插入「全部 / 取消全部」；已全选时该项本身也呈选中态 */
   function withSelectAllOption(opts: { label: string; value: string }[], current: string[]) {
     const ids = opts.map((o) => o.value)
     const all = ids.length > 0 && ids.every((id) => current.includes(id))
@@ -1451,11 +1461,15 @@ export function useMetricsWorkspace() {
   const previewCandidateOptions = computed<{ label: string; value: string }[]>(() =>
     previewNeedsEntityObject.value ? previewEntityObjectOptions.value : enumCandidateOptions.value,
   )
-  /** 多选态（属于集合/不属于集合）时顶部插入「全选」哨兵项 */
+  /** 多选态（属于集合/不属于集合）时顶部插入「全部」哨兵项 */
   const previewSelectOptions = computed<{ label: string; value: string }[]>(() =>
     previewNeedsMultiEnum.value
       ? withSelectAllOption(previewCandidateOptions.value, previewEnumValue.value)
       : previewCandidateOptions.value,
+  )
+  /** 预览对象框是否处于全选（标签区据此折叠为单个「全部」） */
+  const previewIsAllSelected = computed<boolean>(() =>
+    isAllSelected(previewCandidateOptions.value, previewEnumValue.value),
   )
 
   /**
@@ -2146,6 +2160,10 @@ export function useMetricsWorkspace() {
     entityUnusedSelectorOptions,
     entityTypesExhausted,
     entityDuplicateTypeText,
+    entityRowIsAll,
+    entityDraftIsAll,
+    SELECT_ALL,
+    previewIsAllSelected,
     addEntityOption,
     removeEntityOption,
     updateEntityOptionIds,

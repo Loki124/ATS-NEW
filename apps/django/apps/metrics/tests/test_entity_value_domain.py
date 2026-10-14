@@ -127,3 +127,44 @@ def test_entity_department_kinds(auth_client):
                         {'type': 'current_user_dept', 'ids': ['d1'], 'label': '所在部门'},
                     ]})
     assert bad.status_code == 400, bad.data
+
+
+# ---- 集合运算符（回归：界面上能勾，保存却被自由文本校验拒掉） ----
+
+def test_entity_allows_set_operators(auth_client):
+    """实体引用型（HRBP / demand.hr = PERSON）的值域是有限候选对象集合，
+    「属于集合 / 不属于集合」语义成立，不该按自由文本一律拒。"""
+    # 自建一条 PERSON 动态字段（不依赖 dev 库 seed），指标 source_path=demand.hr 指向它
+    from apps.dynamic_field.models import DynamicField
+
+    DynamicField.objects.update_or_create(
+        resource='Demand',
+        field_key='hr',
+        defaults={
+            'label': 'HRBP',
+            'field_type': DynamicField.FieldType.PERSON,
+            'status': 'active',
+        },
+    )
+    m = _unwrap(auth_client.post(BASE + 'atomic-metrics/', {
+        'name': 'HRBP_集合运算符',
+        'sourcePath': 'demand.hr',
+        'dataType': 'string',
+        'isEnum': False,
+        'enumValues': [],
+    }, format='json'))
+    assert m, '指标创建失败'
+    resp = _template(auth_client, m['id'] if isinstance(m, dict) else m.id,
+                     'HRBP集合运算符模板', ['EQ', 'IN', 'NOT_IN'],
+                     valueDomain=_person_domain([
+                         {'type': 'specified', 'ids': ['u1', 'u2'], 'label': '张三、李四'},
+                     ]))
+    assert resp.status_code in (200, 201), resp.data
+
+
+def test_freetext_still_rejects_set_operators(auth_client):
+    """非实体的自由文本仍然禁止集合运算（无穷域无法穷举，防漏匹配）。"""
+    m = _metric(auth_client, '职位名称_集合回归')
+    resp = _template(auth_client, m['id'], '职位名称集合模板', ['EQ', 'IN'])
+    assert resp.status_code == 400, resp.data
+    assert '属于集合' in _err(resp)

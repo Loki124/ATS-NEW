@@ -170,7 +170,11 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
         # 枚举型（is_enum）在存储上也是 string，靠标志位区分「有限候选集」与「自由文本」
         is_enum = bool(metric and getattr(metric, 'is_enum', False))
         is_date_output = data_type == 'date'
-        is_free_text = data_type == 'string' and not is_enum
+        # 🔴 实体引用型（人员 / 部门）：存储上是 string，但值域是**有限候选对象集合**
+        #   （指定人员 / 指定身份 / 指定部门…），集合运算语义成立 —— 不能按自由文本拦。
+        #   历史 bug：界面上能勾「属于集合」，保存却被这条校验拒（勾了存不进去）。
+        is_entity_output = bool(metric is not None and self._metric_entity_kind(metric))
+        is_free_text = data_type == 'string' and not is_enum and not is_entity_output
         unit = attrs.get('unit')
         if is_date_output and unit:
             if unit not in DATE_GRANULARITIES:
@@ -258,6 +262,40 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
         for spec in schema:
             if spec.get('required') and calc_params.get(spec['key']) is None:
                 raise serializers.ValidationError(f'计算参数「{spec["key"]}」为必填项')
+
+    @staticmethod
+    def _metric_entity_kind(metric):
+        """指标 → 实体引用类型（person / department）；非实体返回空串。
+
+        与 views 的指标列表同一口径：原子指标按 source_path（形如 ``demand.hr``）
+        拆出 resource + field_key 反查动态字段，再经 field_type_capability() 取
+        entityKind（该键只对 PERSON / DEPARTMENT 产出）。查不到 / 异常一律降级为
+        ''（按非实体处理，绝不因板块信息缺失阻断模板保存）。
+        """
+        source_path = getattr(metric, 'source_path', '') or ''
+        if '.' not in source_path:
+            return ''
+        resource, field_key = source_path.split('.', 1)
+        if not resource or not field_key:
+            return ''
+        try:
+            from apps.dynamic_field.models import DynamicField
+            from apps.metrics.services.operator_matrix import field_type_capability
+
+            field_type = (
+                DynamicField.objects.filter(
+                    deleted_at__isnull=True,
+                    resource__iexact=resource,
+                    field_key=field_key,
+                )
+                .values_list('field_type', flat=True)
+                .first()
+            )
+            if not field_type:
+                return ''
+            return str(field_type_capability(field_type).get('entityKind') or '')
+        except Exception:  # noqa: BLE001 — 实体信息缺失不该阻断模板保存
+            return ''
 
     @staticmethod
     def _validate_date_value_domain(domain):

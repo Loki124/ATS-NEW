@@ -193,6 +193,7 @@
                     :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
                     :loading="entityOptionsLoading"
                     class="tpl-entity-picker"
+                    :render-tag="rowTagRender(idx)"
                     @update:value="(v: string[]) => handleEntityRowPickerUpdate(idx, v)"
                   />
                   <span v-else class="tpl-entity-opt-auto">{{ opt.label }}</span>
@@ -236,6 +237,7 @@
                       :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
                       :loading="entityOptionsLoading"
                       class="tpl-entity-picker"
+                      :render-tag="draftTagRender"
                       @update:value="(v: string[]) => handleEntityDraftPickerUpdate(v)"
                     />
                     <span v-else class="tpl-entity-opt-auto">{{ t(entityAutoLabelKey(entityDraft.type)) }}</span>
@@ -420,6 +422,7 @@
             :placeholder="t('metrics.tpl.checkValuePlaceholder')"
             :aria-label="t('metrics.tpl.checkValuePlaceholder')"
             class="pv-select"
+            :render-tag="previewTagRender"
           />
           <!-- 自由文本型：单行输入（无穷域无法从下拉枚举），正则匹配即时校验表达式合法性 -->
           <span v-else-if="previewNeedsTextInput" class="pv-text">
@@ -450,9 +453,10 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue'
+import { h, inject } from 'vue'
 import { AddOutline, AlertCircleOutline, CloseOutline, InformationCircleOutline } from '@vicons/ionicons5'
 import { METRICS_WORKSPACE_KEY } from '@/composables/useMetricsWorkspace'
+import AllChipTag from './AllChipTag.vue'
 
 const ws = inject(METRICS_WORKSPACE_KEY)!
 const {
@@ -548,7 +552,11 @@ const {
   previewCheckValueOptions,
   previewRangeUpper,
   previewNeedsEnumPicker,
+  entityRowIsAll,
+  entityDraftIsAll,
+  SELECT_ALL,
   previewSelectOptions,
+  previewIsAllSelected,
   previewEnumValueModel,
   previewNeedsMultiEnum,
   previewNeedsTextInput,
@@ -559,4 +567,21 @@ const {
   onTemplateMetricChange,
   submitTemplate,
 } = ws
+
+/**
+ * n-select 的标签渲染器（Naive 2.44 只有 renderTag prop，没有 #tag 插槽）。
+ * 三处多选框复用同一个 AllChipTag：全选态把标签折叠成单个「全部」。
+ */
+type TagRenderProps = { option: { label: string; value: string }; handleClose: () => void }
+const chip = (p: TagRenderProps, all: boolean) =>
+  h(AllChipTag, {
+    option: p.option,
+    all,
+    sentinel: SELECT_ALL,
+    allLabel: t('metrics.tpl.selectAll'),
+    onClose: p.handleClose,
+  })
+const rowTagRender = (idx: number) => (p: TagRenderProps) => chip(p, entityRowIsAll(idx))
+const draftTagRender = (p: TagRenderProps) => chip(p, entityDraftIsAll.value)
+const previewTagRender = (p: TagRenderProps) => chip(p, previewIsAllSelected.value)
 </script>
