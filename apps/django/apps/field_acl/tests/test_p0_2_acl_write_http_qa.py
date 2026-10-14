@@ -389,12 +389,16 @@ def test_rules_list_carries_authoritative_permission(
     """P2-1 契约：GET /rules 同时回权威 `permission`（READ/MASK/NONE）与过渡 `action`。
 
     背景（P2-1，commit 98557be9）：修复前 `FieldAclRuleSerializer` 只回旧词汇
-    `action`（VIEW/MASK/HIDE），而 matrix 端点已回双字段，两处口径不一致：
+    `action`（VIEW/MASK/HIDE），而 matrix 端点已回双字段（permission 权威 +
+    action 过渡），两处口径不一致：
       1. 前端 `FieldAclSettings.vue reload()` 读 `r.permission` 建基线快照恒为
-         undefined —— 死代码，实际靠 matrix 循环兜底；
-      2. 往返断裂：GET 回 `action:'HIDE'`，PUT 却拒收 `permission:'HIDE'`
-         （旧词汇不是合法代码枚举，见 test_put_bad_permission_value_400），
-         客户端 GET→改→PUT 必 400。
+         undefined —— 该段是死代码。但**基线值不变**：matrix 端点由同一张
+         FieldACL 表构建（rules ⊆ matrix，QA 已核实 views.matrix 用
+         `FieldACL.objects.all()`），且 FE 的 matrix 循环在 rules 循环之后
+         以同源数据覆盖，兜底产出正确基线。即"值不变、死代码变活代码"；
+      2. 往返断裂（真实用户可见缺陷）：GET 回 `action:'HIDE'`，PUT 却拒收
+         `permission:'HIDE'`（旧词汇不是合法代码枚举，见
+         test_put_bad_permission_value_400），客户端 GET→改→PUT 必 400。
 
     本用例锁住修复后的双字段契约（action 为 TODO(P0-4 过渡) 字段，下批删）：
       1. `permission` 存在且 ∈ {READ, MASK, NONE}（代码枚举，非旧词汇）；
