@@ -1191,6 +1191,16 @@ export const DATA_PERM_EN: Record<string, string> = {
   // s6 previously pointed at a read-only table that never existed (dead end):
   // the old page had no configuration entry point at all. Now it states the
   // actual behaviour when nothing is configured.
+  //
+  // P2-2 (2026-10-14): s1/s2/s4/s5 moved here from the APP_UI domain.
+  // Reason: loadLocale merges as `...dataPerm, ...appUi` — APP_UI overrides
+  // DATA_PERM, so a key present in both domains makes the DATA_PERM side dead.
+  // All copy for this page (s1~s46) belongs to the data-permission domain.
+  // Text was rewritten from the page structure, not copied from the old values.
+  'pages.settings.FieldAclSettings.s1': "Field Visibility Settings",
+  'pages.settings.FieldAclSettings.s2': "Decide per role whether each field is Readable, Masked, or Not visible. Fields without rules fall back to default masking.",
+  'pages.settings.FieldAclSettings.s4': "Reload settings",
+  'pages.settings.FieldAclSettings.s5': "Field Visibility Matrix",
   'pages.settings.FieldAclSettings.s6': "No field visibility rules configured yet. Roles you configure will apply the default masking for sensitive fields such as phone number and ID card.",
   'pages.settings.FieldAclSettings.s23': "Discard these changes",
   'pages.settings.FieldAclSettings.s24': "Save field visibility",

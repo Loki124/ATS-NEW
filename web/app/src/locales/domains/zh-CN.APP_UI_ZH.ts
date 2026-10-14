@@ -1066,11 +1066,10 @@ export const APP_UI_ZH: Record<string, string> = {
   'pages.settings.ExternalSettings.s243': "套餐✗",
   'pages.settings.ExternalSettings.s244': "确认删除「{name}」({appId}) 的接入配置？此操作不可恢复。",
   'pages.settings.ExternalSettings.s245': "查看",
-  'pages.settings.FieldAclSettings.s1': "字段级访问控制",
-  'pages.settings.FieldAclSettings.s2': "按角色配置敏感字段的可见性：可读 / 脱敏可见 / 不可见",
+  // P2-2（2026-10-14）：FieldAclSettings.s1/s2/s4/s5 已迁至 DATA_PERM 域
+  // （loadLocale 合并顺序 appUi 覆盖 dataPerm，同键两域并存会使迁入侧成为死键）。
+  // s3「权限规则」本页未使用，暂留此域；下批随死键清理一并处理。
   'pages.settings.FieldAclSettings.s3': "权限规则",
-  'pages.settings.FieldAclSettings.s4': "刷新",
-  'pages.settings.FieldAclSettings.s5': "权限矩阵",
   'pages.settings.MajorLibrary.s1': "专业库",
   'pages.settings.MajorLibrary.s2': "阳光高考专业库 — 覆盖本科 / 专科专业，含门类 / 专业类 / 学历层次",
   'pages.settings.MajorLibrary.s3': "刷新",

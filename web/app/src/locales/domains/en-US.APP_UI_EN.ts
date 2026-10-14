@@ -1066,11 +1066,10 @@ export const APP_UI_EN: Record<string, string> = {
   'pages.settings.ExternalSettings.s243': "Package✗",
   'pages.settings.ExternalSettings.s244': "Confirm deleting the integration config for \"{name}\" ({appId})? This operation is irreversible.",
   'pages.settings.ExternalSettings.s245': "View",
-  'pages.settings.FieldAclSettings.s1': "Field-level Access Control",
-  'pages.settings.FieldAclSettings.s2': "Configure per-role visibility for sensitive fields: Readable / Masked / Hidden",
+  // P2-2 (2026-10-14): FieldAclSettings.s1/s2/s4/s5 moved to the DATA_PERM domain
+  // (loadLocale merges appUi over dataPerm, so a key in both domains would make
+  // the moved copy dead). s3 is unused by the page and stays here for now.
   'pages.settings.FieldAclSettings.s3': "Permission Rules",
-  'pages.settings.FieldAclSettings.s4': "Refresh",
-  'pages.settings.FieldAclSettings.s5': "Permission Matrix",
   'pages.settings.MajorLibrary.s1': "Major Library",
   'pages.settings.MajorLibrary.s2': "Sunshine College Entrance major library — covers undergrad / vocational majors, with category / subcategory / education level",
   'pages.settings.MajorLibrary.s3': "Refresh",

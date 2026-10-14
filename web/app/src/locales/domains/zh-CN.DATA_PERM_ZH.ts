@@ -1190,6 +1190,15 @@ export const DATA_PERM_ZH: Record<string, string> = {
   // === 字段 ACL 可配矩阵（2026-10-14 P0-2 C6）===
   // s6 原文"暂无字段权限规则，请在上方角色矩阵中配置"指向一个不存在的只读表格（死胡同）：
   // 旧页面根本没有可配入口，管理员照着做找不到地方。改为说明"未配置时的实际行为"。
+  //
+  // P2-2（2026-10-14）：s1/s2/s4/s5 从 APP_UI 域迁入本域。
+  // 原因：loadLocale 的合并顺序是 `...dataPerm, ...appUi`—— APP_UI 覆盖 DATA_PERM，
+  // 同一 key 两域并存时 DATA_PERM 侧是死键。本页全部文案（s1~s46）应收敛到数据权限域，
+  // 避免"改了没生效"的漂移。迁入时按页面结构重写文案，不照搬旧值。
+  'pages.settings.FieldAclSettings.s1': "字段可见性配置",
+  'pages.settings.FieldAclSettings.s2': "按角色决定每个字段是「可读」「脱敏可见」还是「不可见」；未配置的字段按默认脱敏执行。",
+  'pages.settings.FieldAclSettings.s4': "重新加载配置",
+  'pages.settings.FieldAclSettings.s5': "字段可见性矩阵",
   'pages.settings.FieldAclSettings.s6': "还没有配置字段可见性规则。现在配置的角色将按「默认脱敏」执行候选人手机号、身份证等敏感字段的脱敏。",
   'pages.settings.FieldAclSettings.s23': "放弃本次改动",
   'pages.settings.FieldAclSettings.s24': "保存字段可见性",
