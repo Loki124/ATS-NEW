@@ -185,15 +185,15 @@
                   <span class="tpl-entity-opt-type">{{ entityTypeLabel(opt.type) }}</span>
                   <n-select
                     v-if="entityTypeNeedsPicker(opt.type)"
-                    :value="opt.ids || []"
+                    :value="entityRowPickerValue(idx)"
                     multiple
                     filterable
                     clearable
-                    :options="entityOptionsForType(opt.type)"
+                    :options="entityRowPickerOptions(idx)"
                     :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
                     :loading="entityOptionsLoading"
                     class="tpl-entity-picker"
-                    @update:value="(v: string[]) => updateEntityOptionIds(idx, v)"
+                    @update:value="(v: string[]) => handleEntityRowPickerUpdate(idx, v)"
                   />
                   <span v-else class="tpl-entity-opt-auto">{{ opt.label }}</span>
                   <n-button size="tiny" quaternary circle type="error" class="tpl-seg-del" :title="t('metrics.btn.delete')" @click="removeEntityOption(idx)">
@@ -201,9 +201,10 @@
                   </n-button>
                 </div>
                 <!-- 新增候选：默认收起（点「+ 添加候选」展开草稿行，确认/取消后收起复位）；
+                     取值方式总共只有 3 种、每种只能配一条 → 配齐后入口直接隐藏；
                      先选取值方式，指定类再选具体对象；当前登录人无需选对象 -->
                 <n-button
-                  v-if="!entityDraftVisible"
+                  v-if="!entityDraftVisible && !entityTypesExhausted"
                   size="small"
                   dashed
                   class="tpl-add-seg"
@@ -212,25 +213,30 @@
                   <template #icon><n-icon :component="AddOutline" /></template>
                   {{ t('metrics.tpl.entityAddOption') }}
                 </n-button>
+                <p v-else-if="!entityDraftVisible && entityTypesExhausted" class="tpl-hint">
+                  <n-icon :component="InformationCircleOutline" :size="14" aria-hidden="true" />
+                  <span>{{ t('metrics.tpl.entityTypesExhausted') }}</span>
+                </p>
                 <template v-else>
                   <div class="tpl-entity-add-row">
                     <n-select
                       v-model:value="entityDraft.type"
-                      :options="entitySelectorOptions"
+                      :options="entityUnusedSelectorOptions"
                       :placeholder="t('metrics.tpl.entitySelectorPlaceholder')"
                       :disabled="entityOptionsLoading"
                       class="tpl-entity-draft-type"
                     />
                     <n-select
                       v-if="entityTypeNeedsPicker(entityDraft.type)"
-                      v-model:value="entityDraft.ids"
+                      :value="entityDraftPickerValue"
                       multiple
                       filterable
                       clearable
-                      :options="entityDraftPickerOptions()"
+                      :options="entityDraftPickerOptionsAll"
                       :placeholder="t('metrics.tpl.entityPickerPlaceholder')"
                       :loading="entityOptionsLoading"
                       class="tpl-entity-picker"
+                      @update:value="(v: string[]) => handleEntityDraftPickerUpdate(v)"
                     />
                     <span v-else class="tpl-entity-opt-auto">{{ t(entityAutoLabelKey(entityDraft.type)) }}</span>
                     <n-button size="small" quaternary @click="cancelEntityDraft">{{ t('metrics.btn.cancel') }}</n-button>
@@ -410,7 +416,7 @@
             v-else-if="previewNeedsEnumPicker"
             v-model:value="previewEnumValueModel"
             :multiple="previewNeedsMultiEnum"
-            :options="previewCandidateOptions"
+            :options="previewSelectOptions"
             :placeholder="t('metrics.tpl.checkValuePlaceholder')"
             :aria-label="t('metrics.tpl.checkValuePlaceholder')"
             class="pv-select"
@@ -510,7 +516,16 @@ const {
   showEntityDraft,
   cancelEntityDraft,
   confirmEntityDraft,
+  entityUnusedSelectorOptions,
+  entityTypesExhausted,
+  entityDuplicateTypeText,
   entityDraftPickerOptions,
+  entityDraftPickerOptionsAll,
+  entityDraftPickerValue,
+  handleEntityDraftPickerUpdate,
+  entityRowPickerOptions,
+  entityRowPickerValue,
+  handleEntityRowPickerUpdate,
   removeEntityOption,
   updateEntityOptionIds,
   entityTypeLabel,
@@ -533,6 +548,7 @@ const {
   previewCheckValueOptions,
   previewRangeUpper,
   previewNeedsEnumPicker,
+  previewSelectOptions,
   previewEnumValueModel,
   previewNeedsMultiEnum,
   previewNeedsTextInput,

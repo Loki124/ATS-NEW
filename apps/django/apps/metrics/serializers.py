@@ -394,7 +394,8 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
         结构：{kind, options: [{type, ids: [...], label}]}
         语义与数值型 segments 一致 —— **模板层只限定可选范围（候选清单），
         具体选哪一个由应用方在使用时决定**，故此处不限制只能用一种取值方式。
-        约束：type 必须在该 kind 白名单内；需绑定对象的类型必须至少有一个 id；
+        约束：type 必须在该 kind 白名单内；**同一取值方式最多一条候选**（取值方式总共只有
+        几种，重复配置无意义）；需绑定对象的类型必须至少有一个 id；
         当前登录人类型不得携带 id（值由运行时决定）。
         """
         spec = MetricTemplateSerializer._ENTITY_OPTION_TYPES.get(kind)
@@ -405,12 +406,17 @@ class MetricTemplateSerializer(serializers.ModelSerializer):
             return
         if not isinstance(options, list):
             raise serializers.ValidationError('值域候选必须是数组')
+        seen_types = set()
         for i, opt in enumerate(options):
             if not isinstance(opt, dict):
                 raise serializers.ValidationError(f'值域候选#{i + 1}格式不正确')
             otype = str(opt.get('type') or '')
             if otype not in spec:
                 raise serializers.ValidationError(f'值域类型 {kind} 不支持的取值方式: {otype}')
+            # 同一种取值方式只能配一条候选（前端同样限制，最多 3 条）
+            if otype in seen_types:
+                raise serializers.ValidationError(f'取值方式重复配置: {otype}（每种取值方式只能配置一条候选）')
+            seen_types.add(otype)
             ids = opt.get('ids')
             if ids is not None and not isinstance(ids, list):
                 raise serializers.ValidationError(f'值域候选#{i + 1} 的 ids 必须是数组')

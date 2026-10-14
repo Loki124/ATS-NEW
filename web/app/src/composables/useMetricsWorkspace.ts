@@ -1039,6 +1039,17 @@ export function useMetricsWorkspace() {
     return Array.isArray(v) ? v : []
   })
 
+  /** 已配置过候选的取值方式（同一种方式只允许一条，配多了没有意义） */
+  const entityUsedTypes = computed<string[]>(() =>
+    entityOptions.value.map((o: any) => String(o?.type || '')).filter(Boolean),
+  )
+  /** 草稿里还能选的取值方式：已配过的不再出现 */
+  const entityUnusedSelectorOptions = computed<{ label: string; value: string }[]>(() =>
+    entitySelectorOptions.value.filter((o) => !entityUsedTypes.value.includes(o.value)),
+  )
+  /** 三种方式全部配齐 → 隐藏添加入口 */
+  const entityTypesExhausted = computed<boolean>(() => entityUnusedSelectorOptions.value.length === 0)
+
   /** 新增一条候选；当前登录人类型无需选择对象，其余类型挂在「正在配置」态由 UI 收集 */
   const entityDraft = ref<{ type: string; ids: string[] }>({ type: '', ids: [] })
   // 🔴 草稿行默认收起（兵哥 2026-10-14 交互修正）：常驻空草稿行既占地又像没填完，
@@ -1046,7 +1057,9 @@ export function useMetricsWorkspace() {
   const entityDraftVisible = ref(false)
   const entityDraftError = ref('')
   function showEntityDraft() {
-    if (!entityDraft.value.type) entityDraft.value.type = entityDefaultSelector.value
+    const unused = entityUnusedSelectorOptions.value
+    if (!unused.length) return
+    entityDraft.value.type = unused[0].value
     entityDraftError.value = ''
     entityDraftVisible.value = true
   }
@@ -1070,10 +1083,47 @@ export function useMetricsWorkspace() {
     return entityOptionsForType(entityDraft.value.type)
   }
 
-  /** 新增候选：type 必选；指定类必须至少选一个对象 */
+  /** 已配置候选行的对象下拉（含顶部「全选」哨兵项） */
+  function entityRowPickerOptions(idx: number): { label: string; value: string }[] {
+    const opt = entityOptions.value[idx]
+    if (!opt) return []
+    return withSelectAllOption(entityOptionsForType(opt.type), opt.ids || [])
+  }
+  /** 已配置候选行的选中值：全选时把哨兵项一起给出去（让「全选」呈选中态） */
+  function entityRowPickerValue(idx: number): string[] {
+    const opt = entityOptions.value[idx]
+    if (!opt) return []
+    const ids = opt.ids || []
+    const base = entityOptionsForType(opt.type)
+    return isAllSelected(base, ids) ? [SELECT_ALL, ...ids] : ids
+  }
+  function handleEntityRowPickerUpdate(idx: number, raw: string[]) {
+    const opt = entityOptions.value[idx]
+    if (!opt) return
+    const base = entityOptionsForType(opt.type)
+    const wasAll = isAllSelected(base, opt.ids || [])
+    updateEntityOptionIds(idx, applySelectAll(raw, base, wasAll))
+  }
+  /** 草稿行的对象下拉 / 选中值（同款全选） */
+  const entityDraftPickerOptionsAll = computed<{ label: string; value: string }[]>(() =>
+    withSelectAllOption(entityDraftPickerOptions(), entityDraft.value.ids),
+  )
+  const entityDraftPickerValue = computed<string[]>(() => {
+    const base = entityDraftPickerOptions()
+    const ids = entityDraft.value.ids
+    return isAllSelected(base, ids) ? [SELECT_ALL, ...ids] : ids
+  })
+  function handleEntityDraftPickerUpdate(raw: string[]) {
+    const base = entityDraftPickerOptions()
+    const wasAll = isAllSelected(base, entityDraft.value.ids)
+    entityDraft.value.ids = applySelectAll(raw, base, wasAll)
+  }
+
+  /** 新增候选：type 必选且未配过；指定类必须至少选一个对象 */
   function addEntityOption(): string {
     const type = entityDraft.value.type
     if (!type) return t('metrics.tpl.entitySelectorRequired')
+    if (entityUsedTypes.value.includes(type)) return entityDuplicateTypeText(type)
     if (entityTypeNeedsPicker(type) && !entityDraft.value.ids.filter(Boolean).length) {
       return entityPickerRequiredText(type)
     }
@@ -1089,6 +1139,43 @@ export function useMetricsWorkspace() {
     if (type === 'identity') return t('metrics.tpl.entityIdentityRequired')
     if (type === 'specified' && isDeptOutput.value) return t('metrics.tpl.entityDeptRequired')
     return t('metrics.tpl.entityUserRequired')
+  }
+
+  function entityDuplicateTypeText(type: string): string {
+    return t('metrics.tpl.entityTypeDuplicate', { type: entityTypeLabel(type) })
+  }
+
+  // ── 多选对象的「全选」支持（Naive UI 无内置项，用顶部哨兵项实现）──
+  const SELECT_ALL = '__select_all__'
+  function isSelectAllValue(v: string): boolean {
+    return v === SELECT_ALL
+  }
+  /** 顶部插入「全选/取消全选」；已全选时该项本身也呈选中态 */
+  function withSelectAllOption(opts: { label: string; value: string }[], current: string[]) {
+    const ids = opts.map((o) => o.value)
+    const all = ids.length > 0 && ids.every((id) => current.includes(id))
+    return [
+      { label: t(all ? 'metrics.tpl.selectAllOff' : 'metrics.tpl.selectAll'), value: SELECT_ALL },
+      ...opts,
+    ]
+  }
+  /** 当前值是否已覆盖全部候选（用于把哨兵项渲染成选中态） */
+  function isAllSelected(opts: { label: string; value: string }[], current: string[]): boolean {
+    const ids = opts.map((o) => o.value)
+    return ids.length > 0 && ids.every((id) => current.includes(id))
+  }
+  /**
+   * 全选哨兵项的值变化 → 真实 id 列表。
+   * 三种情形要分清（Naive UI 不可区分"取消勾选全选项"与"逐个勾满"）：
+   *   1. 勾上哨兵 → 全选；
+   *   2. 原本全选、只取消哨兵（其余 id 仍在）→ 清空；
+   *   3. 原本全选、取消某个具体项 → 保留剩余。
+   */
+  function applySelectAll(raw: string[], opts: { label: string; value: string }[], wasAll: boolean): string[] {
+    const ids = opts.map((o) => o.value)
+    if (raw.includes(SELECT_ALL)) return [...ids]
+    if (wasAll && raw.length >= ids.length) return []
+    return raw.filter((x) => !isSelectAllValue(x))
   }
 
   /** 生成一条候选（存id + label 快照：id 用于精确匹配，label 用于展示与改名后仍可读） */
@@ -1364,17 +1451,35 @@ export function useMetricsWorkspace() {
   const previewCandidateOptions = computed<{ label: string; value: string }[]>(() =>
     previewNeedsEntityObject.value ? previewEntityObjectOptions.value : enumCandidateOptions.value,
   )
+  /** 多选态（属于集合/不属于集合）时顶部插入「全选」哨兵项 */
+  const previewSelectOptions = computed<{ label: string; value: string }[]>(() =>
+    previewNeedsMultiEnum.value
+      ? withSelectAllOption(previewCandidateOptions.value, previewEnumValue.value)
+      : previewCandidateOptions.value,
+  )
 
   /**
    * 🔴 单选态下 n-select 只吃标量，多选态下只吃数组 —— 类型不对会静默渲染成 placeholder
    * （"预填了值但框里空的"就是这个坑）。用可写 computed 做形态适配，
    * 底层仍以 previewEnumValue 为唯一真源，切换运算符/取值方式不丢值。
+   * 多选态还要把「全选」哨兵项翻译成真实 id 列表。
    */
   const previewEnumValueModel = computed<string | string[] | null>({
-    get: () =>
-      previewNeedsMultiEnum.value ? previewEnumValue.value : (previewEnumValue.value[0] ?? null),
+    get: () => {
+      if (!previewNeedsMultiEnum.value) return previewEnumValue.value[0] ?? null
+      const base = previewCandidateOptions.value
+      return isAllSelected(base, previewEnumValue.value)
+        ? [SELECT_ALL, ...previewEnumValue.value]
+        : previewEnumValue.value
+    },
     set: (v) => {
-      previewEnumValue.value = Array.isArray(v) ? v : v === null || v === undefined || v === '' ? [] : [String(v)]
+      const arr = Array.isArray(v) ? v : v === null || v === undefined || v === '' ? [] : [String(v)]
+      if (!previewNeedsMultiEnum.value) {
+        previewEnumValue.value = arr
+        return
+      }
+      const base = previewCandidateOptions.value
+      previewEnumValue.value = applySelectAll(arr, base, isAllSelected(base, previewEnumValue.value))
     },
   })
 
@@ -2032,6 +2137,15 @@ export function useMetricsWorkspace() {
     cancelEntityDraft,
     confirmEntityDraft,
     entityDraftPickerOptions,
+    entityDraftPickerOptionsAll,
+    entityDraftPickerValue,
+    handleEntityDraftPickerUpdate,
+    entityRowPickerOptions,
+    entityRowPickerValue,
+    handleEntityRowPickerUpdate,
+    entityUnusedSelectorOptions,
+    entityTypesExhausted,
+    entityDuplicateTypeText,
     addEntityOption,
     removeEntityOption,
     updateEntityOptionIds,
@@ -2082,6 +2196,7 @@ export function useMetricsWorkspace() {
     previewNeedsTextInput,
     previewNeedsMultiEnum,
     previewNeedsEnumPicker,
+    previewSelectOptions,
     previewCandidateOptions,
     previewEntitySelector,
     previewEntitySelectorOptions,
