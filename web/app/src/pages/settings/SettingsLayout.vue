@@ -111,7 +111,6 @@ const rawSubMenuOptions: MenuItem[] = [
           { key: '/settings/company/brand', label: t('pages.settings.SettingsLayout.s13'), icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
         ],
       },
-      { key: '/settings/department', label: t('pages.settings.SettingsLayout.s14'), icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
       {
         // ★ 北森风格重构：用户管理迁移自「组织信息管理」，承载内部/外部/全部用户 + 注册审核 + 用户组
         key: 'g-user',
@@ -143,6 +142,19 @@ const rawSubMenuOptions: MenuItem[] = [
           { key: '/settings/field-acl', label: t('pages.settings.SettingsLayout.s22'), icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
         ],
       },
+    ],
+  },
+  {
+    // 2026-10-14 org-mgmt（兵哥 Q1 拍板）：组织管理一级菜单。
+    // 形态同「用户管理」(g-user)——带图标的可展开父菜单项（不设 type:'group'，避免渲染成
+    // 不可点击的分组标题），部门/职务/职级为其二级子项；位置置于「基本信息」之后、不强置首位。
+    key: 'g-org',
+    label: t('pages.settings.SettingsLayout.s62'),
+    icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }),
+    children: [
+      { key: '/settings/department', label: t('pages.settings.SettingsLayout.s14'), icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
+      { key: '/settings/job-title', label: t('pages.settings.SettingsLayout.s63'), icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
+      { key: '/settings/job-level', label: t('pages.settings.SettingsLayout.s64'), icon: () => h(NIcon, null, { default: () => h(LayersOutline) }) },
     ],
   },
   {

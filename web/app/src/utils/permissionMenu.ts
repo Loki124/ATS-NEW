@@ -47,6 +47,9 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   // ===== 基本信息其余项 =====
   { prefix: '/settings/account', code: 'recruit:settings:account:menu:view' },
   { prefix: '/settings/department', code: 'recruit:settings:department:menu:view' },
+  // ===== 组织管理：职务 / 职级（2026-10-14 org-mgmt）=====
+  { prefix: '/settings/job-title', code: 'recruit:settings:job_title:menu:view' },
+  { prefix: '/settings/job-level', code: 'recruit:settings:job_level:menu:view' },
   { prefix: '/settings/users/all', code: 'recruit:settings:users:all:menu:view' },
   { prefix: '/settings/registrations', code: 'recruit:settings:registrations:menu:view' },
   { prefix: '/settings/user-groups', code: 'recruit:settings:user-groups:menu:view' },

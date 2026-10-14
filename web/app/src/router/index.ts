@@ -129,6 +129,9 @@ const routes: RouteRecordRaw[] = [
           { path: 'onboarding', name: 'OnboardingSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'approval', name: 'ApprovalSettings', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue') },
           { path: 'department', name: 'DepartmentManagement', component: () => import(/* webpackChunkName: "settings-department" */ '../pages/settings/DepartmentManagement.vue') },
+          // ===== 组织管理：职务 / 职级（2026-10-14 org-mgmt，g-org 分组子项）=====
+          { path: 'job-title', name: 'PositionTitleManagement', component: () => import(/* webpackChunkName: "settings-job-title" */ '../pages/settings/PositionTitleManagement.vue') },
+          { path: 'job-level', name: 'JobLevelManagement', component: () => import(/* webpackChunkName: "settings-job-level" */ '../pages/settings/JobLevelManagement.vue') },
           // ===== 用户管理：内部/外部/全部已整合为单一页面（user_type 字段区分），默认展示全部用户 =====
           { path: 'users/all', name: 'UserDirectoryAll', component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserDirectory.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] } },
           { path: 'registrations', name: 'RegistrationApproval', component: () => import(/* webpackChunkName: "settings-registrations" */ '../pages/settings/RegistrationApproval.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ONLY] } },
