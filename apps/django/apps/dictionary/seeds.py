@@ -1,8 +1,9 @@
 """业务枚举字典种子（注册到数据字典注册表）。
 
 承载原「业务码表」中需要用户可维护的枚举值——学历 / 职位类别 / 招聘渠道 /
-离职原因 / 合同类型。这些类别注册为系统预置 DictionaryType（is_system=True），
-初始灌入常用项，后续可在数据字典管理页继续增改删（区别于只读标准码表）。
+离职原因 / 合同类型 / 职位族三级分类。这些类别注册为系统预置 DictionaryType
+（is_system=True），初始灌入常用项，后续可在数据字典管理页继续增改删
+（区别于只读标准码表）。
 
 数据来源：内部招聘业务常用枚举，人工整理；项可由业务方在字典页自由扩展。
 """
@@ -66,6 +67,31 @@ CONTRACT_TYPE_ITEMS = [
     ('PROBATION', '试用期', 'Probation', 60),
     ('PROJECT', '项目制', 'Project-based', 70),
     ('OTHER', '其他', 'Other', 80),
+]
+
+# 2026-10-14 组织管理域扩展: 职务管理职位族三级分类下拉数据源。
+# 码命名刻意避开既有 JOB_CATEGORY (单级"职位类别"枚举), 见设计 §9 Q2。
+POSITION_FAMILY_ITEMS = [
+    ('FUNCTION', '职能类', 'Function', 10),
+    ('TECH', '技术类', 'Technology', 20),
+    ('BUSINESS', '业务类', 'Business', 30),
+]
+
+POSITION_CATEGORY_ITEMS = [
+    ('FINANCE_INVESTMENT', '财务投资', 'Finance & Investment', 10),
+    ('HR', '人力资源', 'Human Resources', 20),
+    ('ADMIN', '行政', 'Administration', 30),
+    ('IT', '信息技术', 'Information Technology', 40),
+    ('LEGAL_COMPLIANCE', '法务合规', 'Legal & Compliance', 50),
+]
+
+POSITION_SUBCATEGORY_ITEMS = [
+    ('BUSINESS_FINANCE', '业财融合', 'Business-Finance Integration', 10),
+    ('FUND_SETTLEMENT', '资金结算', 'Fund Settlement', 20),
+    ('TAX', '税务管理', 'Tax Management', 30),
+    ('RECRUITING', '招聘配置', 'Recruiting & Staffing', 40),
+    ('TRAINING', '培训发展', 'Training & Development', 50),
+    ('SYSTEM_OPERATION', '系统运维', 'System Operations', 60),
 ]
 
 
@@ -134,4 +160,31 @@ def seed_contract_type_type():
         'CONTRACT_TYPE', '合同类型', 'Contract Type',
         '用工合同类型枚举（全职/兼职/实习/劳务派遣等）',
         CONTRACT_TYPE_ITEMS,
+    )
+
+
+def seed_position_family_type():
+    """职位族字典（系统预置，可扩展）— 职务管理职位族下拉数据源。"""
+    _seed_type(
+        'POSITION_FAMILY', '职位族', 'Position Family',
+        '职务职位族枚举（职能类/技术类/业务类），职务管理「职位族」下拉数据源',
+        POSITION_FAMILY_ITEMS,
+    )
+
+
+def seed_position_category_type():
+    """职位类字典（系统预置，可扩展）— 职务管理职位类下拉数据源。"""
+    _seed_type(
+        'POSITION_CATEGORY', '职位类', 'Position Category',
+        '职务职位类枚举（财务投资/人力资源/行政等），职务管理「职位类」下拉数据源',
+        POSITION_CATEGORY_ITEMS,
+    )
+
+
+def seed_position_subcategory_type():
+    """职位子类字典（系统预置，可扩展）— 职务管理职位子类下拉数据源。"""
+    _seed_type(
+        'POSITION_SUBCATEGORY', '职位子类', 'Position Subcategory',
+        '职务职位子类枚举（业财融合/资金结算/税务管理等），职务管理「职位子类」下拉数据源',
+        POSITION_SUBCATEGORY_ITEMS,
     )

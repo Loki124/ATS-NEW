@@ -40,6 +40,10 @@ _EMPTY_PREFIX = [
     ('', 'apps.core.urls_permission_v2'),
     ('', 'apps.core.urls'),
     ('', 'apps.dictionary.urls'),
+    # 2026-10-14 组织管理域扩展: job_level 一个 app 承载 4 个平级资源
+    # (job-levels / job-level-categories / job-level-grade-settings / job-level-sequences),
+    # 与 dictionary 同模式挂 api_v1 根, 各资源自行注册完整前缀 (设计 §3.3)
+    ('', 'apps.job_level.urls'),
 ]
 
 # 3) 其余非空前缀 (按长度降序, 顺序无关)
@@ -91,6 +95,8 @@ _NON_EMPTY = [
     ('metrics/', 'apps.metrics.urls'),
     ('duplicate-rules/', 'apps.duplicate_rule.urls'),
     ('reason-library/', 'apps.reason_library.urls'),
+    # 2026-10-14 组织管理域扩展: 职务管理 (设计 §3.3, /api/v1/position-titles/)
+    ('position-titles/', 'apps.position_title.urls'),
 ]
 
 # 直接挂载的 APIView (非 include, 静态前缀)

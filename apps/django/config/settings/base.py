@@ -151,6 +151,9 @@ LOCAL_APPS = [
     'apps.duplicate_rule',  # 2026-09-13: 重复候选人管理独立模块（合并规则 / 重复申请管理 / 候选人查重规则）
     'apps.accounts',        # 2026-09-11: 自助注册 → 邮箱验证码 → 管理员审核 → 激活登录
     'apps.reason_library',  # 原因库（标签池 + 场景规则）— Phase 2 T01
+    # 2026-10-14 组织管理域扩展: 职务 / 职级（settings 类独立 app, 与 dictionary 等同粒度）
+    'apps.position_title',  # 职务管理（JobTitle 单模型, 职位族三级走 dictionary 字典）
+    'apps.job_level',       # 职级管理（JobLevel / JobLevelCategory / JobLevelGradeSetting / JobLevelSequence）
 ]  # Phase 2 T02 (寇豆码): 原删 'apps.data' / 'apps.external_sync' 两个 0-model 空壳 app; data 已重建为 analytics(/data/), external_sync 重建为 mock 端点(/external-sync/)
                           #   上游 grep 0 调用方, 无 model 无迁移. 详见 §T02.
 

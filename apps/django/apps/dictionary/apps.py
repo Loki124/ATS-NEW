@@ -24,11 +24,15 @@ class DictionaryConfig(AppConfig):
         from apps.dictionary.registry import register_dictionary_seed
 
         # 业务枚举字典种子（学历/职位类别/招聘渠道/离职原因/合同类型）
+        # 2026-10-14 组织管理域扩展: 追加职位族三级分类（职务管理下拉数据源）
         from apps.dictionary.seeds import (
             seed_contract_type_type,
             seed_education_type,
             seed_job_category_type,
             seed_offboard_reason_type,
+            seed_position_category_type,
+            seed_position_family_type,
+            seed_position_subcategory_type,
             seed_recruit_channel_type,
         )
 
@@ -37,5 +41,8 @@ class DictionaryConfig(AppConfig):
         register_dictionary_seed(seed_recruit_channel_type)
         register_dictionary_seed(seed_offboard_reason_type)
         register_dictionary_seed(seed_contract_type_type)
+        register_dictionary_seed(seed_position_family_type)
+        register_dictionary_seed(seed_position_category_type)
+        register_dictionary_seed(seed_position_subcategory_type)
 
         post_migrate.connect(_seed_dictionary_on_post_migrate, sender=self, weak=False)

@@ -133,12 +133,32 @@ RESOURCES = [
     # 品牌信息管理 (config)
     ('recruit:settings:company-brand:menu:view', '品牌信息管理菜单', 'MENU', 'settings'),
     ('recruit:settings:company-brand:edit', '编辑品牌信息', 'BUTTON', 'settings'),
-    # 组织职责管理 (management)
-    ('recruit:settings:department:menu:view', '组织职责管理菜单', 'MENU', 'settings'),
-    ('recruit:settings:department:create', '新增组织职责', 'BUTTON', 'settings'),
-    ('recruit:settings:department:edit', '编辑组织职责', 'BUTTON', 'settings'),
-    ('recruit:settings:department:delete', '删除组织职责', 'BUTTON', 'settings'),
-    ('recruit:settings:department:export', '导出组织职责', 'BUTTON', 'settings'),
+    # 部门 (department) — 2026-10-14 组织管理重构：原「组织职责管理」菜单更名为「部门」
+    ('recruit:settings:department:menu:view', '部门菜单', 'MENU', 'settings'),
+    ('recruit:settings:department:create', '新增部门', 'BUTTON', 'settings'),
+    ('recruit:settings:department:edit', '编辑部门', 'BUTTON', 'settings'),
+    ('recruit:settings:department:delete', '删除部门', 'BUTTON', 'settings'),
+    ('recruit:settings:department:export', '导出部门', 'BUTTON', 'settings'),
+    # 职务管理 (job_title) — 2026-10-14 组织管理扩展
+    ('recruit:settings:job_title:menu:view', '职务管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:job_title:list', '职务列表', 'BUTTON', 'settings'),
+    ('recruit:settings:job_title:create', '新增职务', 'BUTTON', 'settings'),
+    ('recruit:settings:job_title:edit', '编辑职务', 'BUTTON', 'settings'),
+    ('recruit:settings:job_title:delete', '删除职务', 'BUTTON', 'settings'),
+    ('recruit:settings:job_title:export', '导出职务', 'BUTTON', 'settings'),
+    # 职级管理 (job_level) — 2026-10-14 组织管理扩展
+    ('recruit:settings:job_level:menu:view', '职级管理菜单', 'MENU', 'settings'),
+    ('recruit:settings:job_level:list', '职级列表', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:create', '新增职级', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:edit', '编辑职级', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:delete', '删除职级', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:export', '导出职级', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:category:list', '职级类别列表', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:category:create', '新增职级类别', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:category:edit', '编辑职级类别', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:category:delete', '删除职级类别', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:grade:edit', '编辑职等上限', 'BUTTON', 'settings'),
+    ('recruit:settings:job_level:sequence:edit', '编辑职级序列', 'BUTTON', 'settings'),
     # 权限管理 (「基本信息」下的子菜单: 身份管理/资源管理/管理单元/字段权限)
     ('recruit:settings:permission:menu:view', '权限管理菜单', 'MENU', 'settings'),
     # 身份管理 (management) —— 2026-09-18 菜单由「角色管理」更名, 2026-09-23 同步 seed 展示名
@@ -385,6 +405,16 @@ CONFIG_CODES = [
     'recruit:user_role:create', 'recruit:user_role:edit',
     'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
     'recruit:mgmt_unit:create', 'recruit:mgmt_unit:edit',
+    # 组织管理扩展：职务 / 职级（2026-10-14）
+    'recruit:settings:job_title:menu:view', 'recruit:settings:job_title:list',
+    'recruit:settings:job_title:create', 'recruit:settings:job_title:edit',
+    'recruit:settings:job_title:delete', 'recruit:settings:job_title:export',
+    'recruit:settings:job_level:menu:view', 'recruit:settings:job_level:list',
+    'recruit:settings:job_level:create', 'recruit:settings:job_level:edit',
+    'recruit:settings:job_level:delete', 'recruit:settings:job_level:export',
+    'recruit:settings:job_level:category:list', 'recruit:settings:job_level:category:create',
+    'recruit:settings:job_level:category:edit', 'recruit:settings:job_level:category:delete',
+    'recruit:settings:job_level:grade:edit', 'recruit:settings:job_level:sequence:edit',
 ]
 
 
