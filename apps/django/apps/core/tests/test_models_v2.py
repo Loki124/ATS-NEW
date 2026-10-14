@@ -92,8 +92,10 @@ class TestV2ModelsSmoke:
 
         upsert 同 app_code 仅替换列表, 不产生重复 key。
         """
+        # P0-3 (R3): user_id 已是真 FK, 必须引用真实存在的用户
+        ur_user = User.objects.create_user(username='ur_scope_unique', password='x')
         ur = UserRoleV2.objects.create(
-            user_id=1, role_code='R1', system_code='recruit',
+            user=ur_user, role_code='R1', system_code='recruit',
             app_data_scopes={'recruit': [1, 2]},
         )
         scopes = ur.app_data_scopes or {}
@@ -106,8 +108,10 @@ class TestV2ModelsSmoke:
 
     def test_user_app_data_scope_per_app_coexists(self):
         """合并后: 同一 (user, role) 下不同 app_code 作为 dict key 并存。"""
+        # P0-3 (R3): user_id 已是真 FK, 必须引用真实存在的用户
+        ur_user = User.objects.create_user(username='ur_scope_coexists', password='x')
         ur = UserRoleV2.objects.create(
-            user_id=1, role_code='R1', system_code='recruit',
+            user=ur_user, role_code='R1', system_code='recruit',
             app_data_scopes={'recruit': [1, 2], 'campus': [9]},
         )
         assert set(ur.app_data_scopes.keys()) == {'recruit', 'campus'}

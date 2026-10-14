@@ -211,13 +211,26 @@ class ManagementUnitMember(models.Model):
 class UserRoleV2(models.Model):
     """V2 用户-角色关联 — 替代 V1 user_roles
 
-    字段差异:
-    - role_code 字符串(替代 FK,跨系统灵活)
+    2026-10-14 P0-3 (R3 / C5) 变更:
+    - `user_id` 从裸 BigIntegerField 改为真 ForeignKey(core.User, CASCADE)。
+      列名保持 `user_id` 不变(db_column='user_id'),Django FK 属性名为 `user`、
+      查询列名仍为 `user_id` → 现有 `filter(user_id=...)` / `values_list('user_id')`
+      / 序列化器 `'user_id'` 字段 **零改动**。删用户 → 其角色授权自动 CASCADE 清除
+      (PRD P0-3 验收②前半句)。
+    - `role_code` 仍是字符串:它是**跨系统业务串**(同 role_code 可存在于多 system_code
+      角色库),建 FK 会摧毁跨系统能力且 RoleV2 唯一键是复合键、单列不唯一 → 技术上不可建
+      FK(ARCH D3 / DR-02 已确认)。孤儿角色防护改由 RoleV2 生命周期钩子
+      (signals.py purge_role_grants_on_delete) + serializers.validate_role_code 承担。
+
+    其余字段:
     - management_unit_ids JSON(数据权限范围)
     - valid_from / valid_to(角色有效期)
     - granted_by_id + granted_at(审计字段)
     """
-    user_id = models.BigIntegerField(verbose_name='用户ID')
+    user = models.ForeignKey(
+        'core.User', on_delete=models.CASCADE, db_index=False,
+        related_name='user_roles_v2', db_column='user_id', verbose_name='用户',
+    )
     role_code = models.CharField(max_length=64, verbose_name='角色编码')
     system_code = models.CharField(max_length=32, default='recruit', verbose_name='系统编码')
     management_unit_ids = models.JSONField(null=True, blank=True, verbose_name='管理单元ID列表(JSON)')
@@ -233,10 +246,12 @@ class UserRoleV2(models.Model):
         verbose_name = '用户角色(V2)'
         verbose_name_plural = verbose_name
         constraints = [
-            models.UniqueConstraint(fields=['user_id', 'role_code'], name='uk_user_role'),
+            # 2026-10-14 P0-3 (R3): 字段改名 user_id→user(FK, db_column 仍是 user_id),
+            # 约束字段名同步改 user; 物理列仍是 user_id, 约束/索引名不变。
+            models.UniqueConstraint(fields=['user', 'role_code'], name='uk_user_role'),
         ]
         indexes = [
-            models.Index(fields=['user_id'], name='idx_user_id'),
+            models.Index(fields=['user'], name='idx_user_id'),
         ]
 
     def __str__(self):

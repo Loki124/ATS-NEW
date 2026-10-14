@@ -51,6 +51,12 @@ def test_super_admin_can_be_granted_by_django_superuser(db):
     su = User.objects.create(
         username='true_su', is_active=True, is_superuser=True,
     )
+    # P0-3 契约：role_code 必须真实存在；建好 SUPER_ADMIN 角色后超管授权才合法
+    from apps.core.models_permission_v2 import RoleV2
+    RoleV2.objects.get_or_create(
+        system_code='recruit', role_code='SUPER_ADMIN',
+        defaults={'role_name': '超级管理员'},
+    )
     ser = UserRoleSerializer(
         data={'user_id': su.id, 'role_code': 'SUPER_ADMIN', 'system_code': 'recruit'},
         context={'request': _Req(su)},
@@ -67,6 +73,12 @@ def test_normal_role_unaffected(db):
     User = get_user_model()
     actor = User.objects.create(username='actor_plain', is_active=True)
 
+    # P0-3 契约：role_code 必须真实存在；建好 HR 角色后普通授权才合法
+    from apps.core.models_permission_v2 import RoleV2
+    RoleV2.objects.get_or_create(
+        system_code='recruit', role_code='HR',
+        defaults={'role_name': '人力资源'},
+    )
     ser = UserRoleSerializer(
         data={'user_id': actor.id, 'role_code': 'HR', 'system_code': 'recruit'},
         context={'request': _Req(actor)},

@@ -144,6 +144,11 @@ def test_role_v2_create_with_v2_columns_succeeds():
 def test_user_role_v2_create_with_v2_columns_succeeds():
     """RT-2 (续): UserRoleV2 真入库 + granted_by_id 等 V2 字段全 OK."""
     from apps.core.models_permission_v2 import RoleV2, UserRoleV2
+    from django.contrib.auth import get_user_model
+
+    # RK-3: user_id 已改为真 FK，必须指向真实存在的用户（否则 IntegrityError）。
+    User = get_user_model()
+    grant_user = User.objects.create_user(username='ur_test_user', password='x')
 
     role = RoleV2.objects.create(
         system_code='recruit',
@@ -151,7 +156,7 @@ def test_user_role_v2_create_with_v2_columns_succeeds():
         role_name='UR Test Role',
     )
     ur = UserRoleV2.objects.create(
-        user_id=12345,
+        user_id=grant_user.pk,
         role_code='UR_TEST_ROLE',
         system_code='recruit',
         granted_by_id=1,
@@ -160,11 +165,11 @@ def test_user_role_v2_create_with_v2_columns_succeeds():
         valid_to='2026-12-31',
     )
     assert ur.id is not None
-    assert ur.user_id == 12345
+    assert ur.user_id == grant_user.pk
     assert ur.granted_by_id == 1
     assert ur.management_unit_ids == [1, 2, 3]
 
-    fresh = UserRoleV2.objects.get(user_id=12345, role_code='UR_TEST_ROLE')
+    fresh = UserRoleV2.objects.get(user_id=grant_user.pk, role_code='UR_TEST_ROLE')
     assert fresh.id == ur.id
     assert fresh.valid_from.strftime('%Y-%m-%d') == '2026-01-01'
 

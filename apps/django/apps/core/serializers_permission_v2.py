@@ -126,6 +126,12 @@ class ManagementUnitMemberSerializer(serializers.ModelSerializer):
 
 
 class UserRoleSerializer(serializers.ModelSerializer):
+    # 2026-10-14 P0-3 (R3): 模型 user_id 已改为 FK(core.User, db_column='user_id')。
+    # DRF 会把 `user_id` 自动识别为只读(因它不是模型字段名, 只是 FK 的 db_column)，
+    # 导致客户端传的 user_id 被丢弃、validated_data 里拿不到、授权落到「用户不存在」。
+    # 显式声明为可写 IntegerField：写入时走 FK 的 user_id attname 落到 DB，
+    # 读取时输出 user_id 值，维持原 API 契约不变。
+    user_id = serializers.IntegerField()
     management_unit_ids = serializers.JSONField(required=False)
 
     class Meta:
@@ -142,11 +148,52 @@ class UserRoleSerializer(serializers.ModelSerializer):
     def validate_role_code(self, value):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
+        # 防线 B（既有）：SUPER_ADMIN 只能由真正的 Django 超级管理员授予
         if value in self.PRIVILEGED_ROLE_CODES and not getattr(user, 'is_superuser', False):
             raise serializers.ValidationError(
                 f'只有 Django 超级管理员可以授予 {value} 角色。'
             )
+        # DR-02 强制（P0-3 验收③）：role_code 必须真实存在于 RoleV2，否则响亮 400。
+        # 禁止静默写脏 / 降级 warning / 写入后补占位角色 —— 这正是 P0-3 要消灭的病灶形态。
+        # role_code 侧因技术限制只有应用层校验（登记为残余风险 RK-13）。
+        from apps.core.models_permission_v2 import RoleV2
+        system_code = (
+            self.instance.system_code
+            if self.instance
+            else self.initial_data.get('system_code', 'recruit')
+        )
+        if not RoleV2.objects.filter(
+            role_code=value, system_code=system_code
+        ).exists():
+            raise serializers.ValidationError(
+                {'role_code': f'角色「{value}」不存在，请先创建角色或从下拉中重新选择'}
+            )
         return value
+
+    def validate(self, attrs):
+        """P0-3 验收③：新建/更新授权时校验 user 真实存在且未停用（不静默成功）。
+
+        刻意与应用层 role_code 校验组成「双层防护」：user 侧最终由 0024 的 FK 兜底，
+        role_code 侧因技术限制只有应用层（登记为残余风险 RK-13）。
+        """
+        from django.contrib.auth import get_user_model
+
+        user_id = attrs.get('user_id')
+        # 更新且未改 user_id：保持原关联，跳过 user 存在性校验
+        if user_id is None and self.instance is not None:
+            return attrs
+
+        User = get_user_model()
+        user_obj = User.objects.filter(pk=user_id).first()
+        if user_obj is None:
+            raise serializers.ValidationError(
+                {'user_id': '所选用户不存在，请刷新后重试'}
+            )
+        if not user_obj.is_active:
+            raise serializers.ValidationError(
+                {'user_id': f'用户「{user_obj.username}」已停用，无法授予角色'}
+            )
+        return attrs
 
     def create(self, validated_data):
         validated_data['granted_by_id'] = self.context['request'].user.id

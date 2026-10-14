@@ -125,6 +125,11 @@ def test_user_role_retrieve_envelope(auth_client, super_user):
 def test_user_role_create_envelope(auth_client, super_user):
     """create 现返回 201 + {success,data}, 驼峰 roleCode 回填."""
     role_code = f'envrole_{uuid.uuid4().hex[:8]}'
+    # P0-3 契约：role_code 必须真实存在（DR-02 响亮失败），建好角色再授权
+    from apps.core.models_permission_v2 import RoleV2
+    RoleV2.objects.create(
+        system_code='recruit', role_code=role_code, role_name='信封测试角色',
+    )
     payload = {
         'user_id': super_user.id,
         'role_code': role_code,

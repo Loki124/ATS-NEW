@@ -23,6 +23,12 @@ def test_management_unit_list(auth_client):
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_user_role_assign_persists_granted_by(auth_client, super_user):
+    from apps.core.models_permission_v2 import RoleV2
+    # P0-3 契约：授权时 role_code 必须真实存在（DR-02 响亮失败），先建好角色
+    RoleV2.objects.get_or_create(
+        system_code='recruit', role_code='recruit:test',
+        defaults={'role_name': '授权测试角色'},
+    )
     resp = auth_client.post(
         '/api/v1/user-roles/',
         data={'user_id': super_user.id, 'role_code': 'recruit:test',
