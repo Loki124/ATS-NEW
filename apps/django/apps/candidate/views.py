@@ -60,6 +60,7 @@ FSM_ACTION_TO_WRITE_ACTION = {
     'move_to_talent_pool': 'talent_pool_add',   # 放入人才库
     'mark_process_failed': 'eliminate',         # 淘汰（同时直接入淘汰库，见 transition 分支）
 }
+from apps.candidate.operation_guard import ensure_operable, operable_q  # 动态操作权守卫（锁定人主体）
 from apps.common.views import EnvelopeReadOnlyMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
@@ -247,6 +248,10 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         # 无 WRITE 规则时 ensure_writable 内部 fail-open（沿用功能权限，行为不变）
         write_action = FSM_ACTION_TO_WRITE_ACTION.get(action_name, 'transition')
         ensure_writable(request.user, 'candidate', candidate, action=write_action)
+        # 动态操作权（2026-10-14）：简历操作类动作（推进/淘汰/入库…）**仅锁定人可执行**。
+        #   与 ensure_writable 并列 —— 后者管「这条记录是否在你角色的写范围内」，
+        #   前者管「你与这条记录的关系（是不是它的锁定人）」，缺一都是半截权限。
+        ensure_operable(request.user, candidate, write_action)
 
         try:
             with transaction.atomic():
@@ -798,9 +803,18 @@ class CandidateBatchRecommendView(APIView):
                 action='recommend',
             ).values_list('id', flat=True)
         )
+        # 动态操作权（2026-10-14）：转推属简历操作动作，仅锁定人可执行。
+        #   批量场景同样一次求集合（与逐个 ensure_operable 同语义，避免 N 次查询）。
+        #   错误码沿用 FORBIDDEN_SCOPE —— 前端已按该码渲染「无权限」，新增码会漏处理。
+        operable_ids = set(
+            scoped_candidates(request)
+            .filter(id__in=candidate_ids)
+            .filter(operable_q(request.user, 'recommend'))
+            .values_list('id', flat=True)
+        )
         results = []
         for cid in candidate_ids:
-            if cid in invisible or cid not in writable_ids:
+            if cid in invisible or cid not in writable_ids or cid not in operable_ids:
                 results.append({
                     'candidate_id': cid,
                     'success': False,
