@@ -315,6 +315,66 @@ def test_offer_salary_masked_by_default(client_for, app_scenario):
     assert '*' in str(data['salary']), f'salary 未脱敏：{data["salary"]}'
 
 
+def test_application_acl_read_shows_plaintext(client_for, role, app_scenario):
+    """ACL 配 READ → 明文放行。
+
+    这是 P0-2「可配」的正向证明：默认脱敏只是兜底，管理员**显式**配 READ 后
+    该角色确实能看到明文（业务侧已确认接受此口径，见设计文档 DR-03）。
+    没有这条就可能出现"配 READ 也没用"的静默失效。
+    """
+    FieldACL.objects.create(
+        entity='application', field='candidate_phone',
+        role_code=role.role_code, permission='READ',
+    )
+    FieldAclService.invalidate_rules_cache('application')
+
+    from apps.application.serializers import ApplicationListSerializer
+    data = ApplicationListSerializer(
+        app_scenario['app'], context={'request': _req(client_for)},
+    ).data
+    assert data['candidate_phone'] == app_scenario['candidate'].phone, (
+        f"显式配 READ 后仍被脱敏：{data['candidate_phone']}"
+    )
+
+
+def test_application_acl_none_wins_over_mask_across_roles(client_for, db, app_scenario):
+    """多角色命中时从严取值：MASK + NONE 并存 → 最终 NONE（字段被删）。
+
+    对齐 FieldAclService._get_field_permission 的 NONE > MASK > READ 与前端
+    PERMISSION_SEVERITY。若这条失效，同一用户换个角色组合就能看到本该隐藏的字段。
+    """
+    from apps.core.models_permission_v2 import UserRoleV2
+    from apps.application.serializers import ApplicationListSerializer
+
+    role_a = RoleV2.objects.create(
+        system_code='recruit', role_code='ACL_MASK_ROLE', role_name='MASK 角色', status=1,
+    )
+    role_b = RoleV2.objects.create(
+        system_code='recruit', role_code='ACL_NONE_ROLE', role_name='NONE 角色', status=1,
+    )
+    FieldACL.objects.create(
+        entity='application', field='candidate_phone',
+        role_code=role_a.role_code, permission='MASK',
+    )
+    FieldACL.objects.create(
+        entity='application', field='candidate_phone',
+        role_code=role_b.role_code, permission='NONE',
+    )
+    # 该用户同时持有两个角色 → 两个规则同时命中
+    UserRoleV2.objects.create(
+        user_id=client_for._acl_user.pk, role_code=role_a.role_code, system_code='recruit',
+    )
+    UserRoleV2.objects.create(
+        user_id=client_for._acl_user.pk, role_code=role_b.role_code, system_code='recruit',
+    )
+    FieldAclService.invalidate_rules_cache('application')
+
+    data = ApplicationListSerializer(
+        app_scenario['app'], context={'request': _req(client_for)},
+    ).data
+    assert 'candidate_phone' not in data, 'NONE 未从严生效（字段应被删除）'
+
+
 def test_serializer_acl_entities_are_declared():
     """静态护栏：接了 mixin 的序列化器必须显式声明 acl_entity。
 
