@@ -119,12 +119,16 @@ def _collect_template_drifts(modules: List[Dict]) -> Dict[str, List[Dict]]:
     return out
 
 
-def build_modules_response(role) -> Dict:
-    """读某角色的全部模块数据权限配置 -> {roleId, roleCode, modules:[...]}。
+def build_modules_response(role, normalized_modules: List[str] | None = None) -> Dict:
+    """读某角色的全部模块数据权限配置 -> {roleId, roleCode, modules, writeNormalized}。
 
     v2：每模块返回 read 配置（mode/expr/groups，row_access=NULL 行）+ write 配置
     （write: {mode, expr, groups, actions}，row_access=WRITE 行；无 WRITE 行时
     write.mode='none' = 未配置写范围 = 沿用功能权限，前端显式展示该语义）。
+
+    normalized_modules: 本次保存时因payload 缺 write 而被补 {mode:'none'} 的模块 key 列表。
+      正常前端不会命中（payload 必带 write）；一旦命中说明前端某版本漏传，
+      由调用方落审计/告警 —— 这是 P0-1 的"防复发"哨兵，见 upsert_modules。
     """
     rules = DataPermissionRule.objects.filter(
         dimension_type='ROLE',
@@ -189,7 +193,14 @@ def build_modules_response(role) -> Dict:
     for m in modules:
         m['templateDrifts'] = drifts.get(m['moduleKey'], [])
 
-    return {'roleId': role.id, 'roleCode': role.role_code, 'modules': modules}
+    return {
+        'roleId': role.id,
+        'roleCode': role.role_code,
+        'modules': modules,
+        # P0-1 防复发哨兵：正常前端恒为 []。非空 = 有模块的 write 靠"补默认"落库，
+        # 需由视图层落审计（见views_permission_v2.data_permissions）。
+        'writeNormalized': sorted(normalized_modules or []),
+    }
 
 
 # 写范围 mode -> RowScopeType（v2）。none 不建 WRITE 行。
@@ -254,58 +265,137 @@ def validate_modules(modules: List[Dict]) -> str | None:
 
 @transaction.atomic
 def upsert_modules(role, modules: List[Dict], user) -> Dict:
-    """先删后建：删除该角色全部 ROW 模块规则（含 WRITE 行），再按 modules 重建。
+    """按模块**差分重建**该角色的 ROW 规则（读行 + 写行）。
 
-    v2：每模块最多建两行 —— 读范围（row_access=NULL，与存量一致）+
-    写范围（row_access=WRITE，仅当 write.mode != 'none' 时）。
-    返回最新 modules 配置。
+    为什么不再"全删后建"（2026-10-14 P0-1 修复，设计文档 §1.2.2 改动 A）：
+      全删重建把"payload 漏字段"直接等价成了"配置被抹除"——
+      前端漏传 write → 写入循环里 write.mode 走 'none' 分支不重建 WRITE 行
+      → 但DELETE 已经执行 → 管理员配的操作权限静默消失，而接口返回 200。
+      历史上三重"看起来没问题"叠加：前端脏检查含 write、后端对 write=None
+      直接放行、响应体永远回 write，于是前端察觉不到丢失。
+
+    差分语义（对前端完全等价，但物理上更安全）：
+      命中的行**原地更新**（保留 id / created_at，列表页脚注与审计不断链）；
+      只删除「本次 payload 显式声明 mode=none」的那一行；
+      payload 未提及的模块、以及缺 write 键的模块 —— 物理上不可能被删。
+
+    「缺键」与「显式 none」的区分（2026-10-14 P0-1 修复的关键，见 §0.2 D1）：
+      两者语义完全不同 —— 显式 none 是管理员说"取消写范围"，缺键是前端没提交。
+      把缺键当 none 处理，管理员配的操作权限仍会被静默抹除（P0-1 原始complaint
+      未解决），只是顺带保住了读配置。因此缺键一律**保留原 WRITE 行不动**，
+      并计入响应 writeNormalized 作为防复发哨兵。
+
+    并列铁律：
+      - 读行与写行同生共死（同一个 (role, module) 的两行一起处理），
+        杜绝"读行重建了、写行没重建"的错位；
+      - 任一模块处理失败 → 整个事务回滚（@transaction.atomic），
+        绝不出现"3 个模块存了 2 个"。
+
+    返回最新 modules 配置 + writeNormalized（防复发哨兵，见函数末尾）。
     """
-    DataPermissionRule.objects.filter(
-        dimension_type='ROLE',
-        dimension_value=role.role_code,
-        level='ROW',
-        entity__in=MODULE_ORDER,
-    ).delete()
     created_by = getattr(user, 'pk', None)
+    role_code = role.role_code
+
+    # 按 entity + row_access 归组现有行：{entity: {'read': rule|None, 'write': rule|None}}
+    existing: Dict[str, Dict[str, object]] = {}
+    for r in DataPermissionRule.objects.filter(
+        dimension_type='ROLE', dimension_value=role_code,
+        level='ROW', entity__in=MODULE_ORDER,
+    ):
+        slot = existing.setdefault(r.entity, {'read': None, 'write': None})
+        slot['write' if r.row_access == 'WRITE' else 'read'] = r
+
+    # 本次 payload 里write 字段**显式缺失**且该模块原先有 WRITE 行的模块 key。
+    # 这才是真正需要告警的情况（新建角色补默认值属正常，不记）。
+    normalized: List[str] = []
+
     for m in modules:
         mk = m.get('module_key') or m.get('moduleKey')
+        slot = existing.get(mk) or {'read': None, 'write': None}
+
+        # ---- 读范围行（row_access=NULL，与存量语义一致）----
         mode = m.get('mode')
         scope_type = {'none': 'NONE', 'all': 'ALL', 'scope': 'CUSTOM'}[mode]
-        payload = None
-        if scope_type == 'CUSTOM':
-            payload = {'expr': m.get('expr', ''), 'groups': m.get('groups', [])}
-        DataPermissionRule.objects.create(
-            dimension_type='ROLE',
-            dimension_value=role.role_code,
-            level='ROW',
-            entity=mk,
-            scope_type=scope_type,
-            scope_payload=payload,
-            status=1,
-            created_by=created_by,
+        payload = {'expr': m.get('expr', ''), 'groups': m.get('groups', [])} \
+            if scope_type == 'CUSTOM' else None
+        _save_rule_row(
+            slot['read'], dimension_value=role_code, entity=mk,
+            scope_type=scope_type, scope_payload=payload,
+            row_access=None, actions=None, created_by=created_by,
         )
-        # ---- v2 写范围行 ----
+
+        # ---- 写范围行（row_access=WRITE）----
+        # ⚠️ 三态语义（设计文档 §0.2 D1 / §1.2.4 验收表 / §5.5.1 C2「缺 write 时
+        # 原 WRITE 行不变」，三处一致口径）：
+        #   - payload **显式**带 write.mode='none' → 管理员明确要取消写范围 → 删除该行；
+        #   - payload **缺** write 键（前端回归/旧客户端）→ **不动**该行（保留原配置）
+        #     并计入 writeNormalized 哨兵；
+        #   - write.mode ∈ all/owner/scope → 建或原地更新。
+        # 「缺键」与「显式 none」必须区分：把缺键也当none 处理，管理员配的操作权限
+        # 仍会被静默抹除（P0-1 的原始complaint 根本没解决），只是顺带保住了读配置。
+        if 'write' not in m:
+            if slot['write'] is not None:
+                normalized.append(mk)
+            continue
+
         write = m.get('write') or {}
-        w_mode = write.get('mode', 'none')
+        w_mode = write.get('mode', 'none') if isinstance(write, dict) else 'none'
         if w_mode == 'none':
+            # 显式 none → 只删本模块自己的 WRITE 行；读范围行已在上一步正常落库。
+            _delete_rule_row(slot['write'])
             continue
         w_scope_type = _WRITE_MODE_TO_SCOPE[w_mode]
-        w_payload = None
-        if w_scope_type == 'CUSTOM':
-            w_payload = {'expr': write.get('expr', ''), 'groups': write.get('groups', [])}
+        w_payload = {'expr': write.get('expr', ''), 'groups': write.get('groups', [])} \
+            if w_scope_type == 'CUSTOM' else None
+        _save_rule_row(
+            slot['write'], dimension_value=role_code, entity=mk,
+            scope_type=w_scope_type, scope_payload=w_payload, row_access='WRITE',
+            actions=list(write.get('actions') or []), created_by=created_by,
+        )
+
+    # ---- 未被本次 payload 提及的模块：不动（差分的核心）----
+    # 说明：前端永远提交全部 5 个模块（useRoleDataPerm.load() 用 MODULE_KEYS 补齐），
+    # 保留"不删"分支是为了将来支持按模块局部保存时不误删。
+    return build_modules_response(role, normalized)
+
+
+def _save_rule_row(rule, *, dimension_value, entity, scope_type, scope_payload,
+                   row_access, actions, created_by) -> None:
+    """原地更新已有规则行或新建一行（差分重建的写侧原子操作）。
+
+    原地更新保留 id / created_at —— 列表页脚注、审计链、外部引用都不断链
+    （这正是"全删后建"被弃用的另一半原因：它每次保存都换一批 id）。
+    """
+    if rule is None:
         DataPermissionRule.objects.create(
             dimension_type='ROLE',
-            dimension_value=role.role_code,
+            dimension_value=dimension_value,
             level='ROW',
-            entity=mk,
-            scope_type=w_scope_type,
-            scope_payload=w_payload,
-            row_access='WRITE',
-            actions=list(write.get('actions') or []),
+            entity=entity,
+            scope_type=scope_type,
+            scope_payload=scope_payload,
+            row_access=row_access,
+            actions=actions,
             status=1,
             created_by=created_by,
         )
-    return build_modules_response(role)
+        return
+    rule.scope_type = scope_type
+    rule.scope_payload = scope_payload
+    rule.row_access = row_access
+    rule.actions = actions
+    rule.status = 1
+    # updated_at 必须显式列出：TimestampedModel.updated_at 是 auto_now=True
+    # （apps/common/models.py:17），不在 update_fields 里就不会被写。
+    rule.save(update_fields=[
+        'scope_type', 'scope_payload', 'row_access', 'actions', 'status', 'updated_at',
+    ])
+
+
+def _delete_rule_row(rule) -> None:
+    """删除一行规则（None 时无操作）—— 差分重建里唯一允许的删除路径。"""
+    if rule is not None:
+        rule.delete()
 
 
 def options_payload() -> Dict:

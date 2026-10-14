@@ -438,14 +438,19 @@ function serialize(modules: ModulePerm[]): string {
       mode: m.mode,
       expr: m.expr,
       groups: m.groups.map(serializeGroup),
+      // 2026-10-14 P0-1：write 的序列化口径必须与 submit() 的 payload **完全一致**
+      // （groups 按 mode 收敛、缺 write 补四元组默认值）。原实现比 payload 宽松：
+      // mode='all' 时仍序列化 groups，而 submit 会丢弃 groups → 保存后 saved 被
+      // 后端返回值覆盖（groups 清空）→ 用户若此时做过其他改动，isDirty 会莫名翻true。
+      // 口径统一消除这个抖动，也避免"序列化一致但语义不一致"的漂移复发。
       write: m.write
         ? {
             mode: m.write.mode,
-            expr: m.write.expr,
-            groups: (m.write.groups || []).map(serializeGroup),
-            actions: m.write.actions,
+            expr: m.write.mode === 'scope' ? m.write.expr : '',
+            groups: m.write.mode === 'scope' ? (m.write.groups || []).map(serializeGroup) : [],
+            actions: m.write.actions || [],
           }
-        : undefined,
+        : { mode: 'none', expr: '', groups: [], actions: [] },
     })),
   );
 }
@@ -460,6 +465,12 @@ export function useRoleDataPerm(roleId: Ref<string>) {
   const loading = ref(false);
   const saving = ref(false);
   const errors = ref<Record<string, string>>({});
+  /**
+   * 最近一次保存中「因payload 缺 write 键而沿用原值」的模块 key 列表（2026-10-14 P0-1）。
+   * 正常前端恒为空 —— 它是"前端序列化回归"的后端哨兵回传，非空即须向管理员示警。
+   * 消费方：ModulePermCard.vue 的 n-alert（失败/警告态必须可见，禁静默放过）。
+   */
+  const writeNormalized = ref<string[]>([]);
 
   const isDirty = computed(() => serialize(draft.value) !== serialize(saved.value));
 
@@ -689,12 +700,29 @@ export function useRoleDataPerm(roleId: Ref<string>) {
           expr: m.mode === 'scope' ? m.expr : '',
           groups: m.mode === 'scope' ? m.groups : [],
           featureGranted: m.featureGranted,
+          // P0-1 修复：write 必须整段提交。此前漏传导致后端按 mode='none' 处理
+          // 写范围，管理员配的操作权限静默消失（接口仍返回 200）——
+          // 见 docs/ARCH_数据权限P0止血_系统设计.md §1.2.1 根因链。
+          // 口径与 serialize() 保持一致：submit 提交什么，脏检查就必须比什么，
+          // 否则两者各说各话，"看起来保存成功"却什么都没存。
+          write: {
+            mode: m.write?.mode ?? 'none',
+            expr: m.write?.mode === 'scope' ? (m.write?.expr ?? '') : '',
+            groups: m.write?.mode === 'scope' ? (m.write?.groups ?? []) : [],
+            actions: m.write?.actions ?? [],
+          },
         })),
       };
       const res = await saveRoleDataPerm(roleId.value, payload);
       saved.value = cloneModules(res.modules && res.modules.length ? res.modules : draft.value);
       draft.value = cloneModules(saved.value);
       errors.value = {};
+      // P0-1 防复发哨兵：本次保存中有模块因 payload 缺 write 而沿用了原值。
+      // 正常前端恒为空数组 —— 一旦非空，说明 submit 的序列化出现回归，
+      // 必须让管理员知道「你看到的写范围可能不是最新提交的那份」，而不是静默放过。
+      if (res.writeNormalized && res.writeNormalized.length > 0) {
+        writeNormalized.value = res.writeNormalized;
+      }
       return true;
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || '保存失败';
@@ -718,6 +746,7 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     loading,
     saving,
     errors,
+    writeNormalized,
     isDirty,
     load,
     moduleOf,

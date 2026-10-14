@@ -159,6 +159,13 @@ export interface ActionPreset {
 
 export interface RoleDataPermPayload {
   roleId: string;
+  /**
+   * 每模块配置。**write 必须整段提交**（2026-10-14 P0-1）。
+   *
+   * 历史上此处漏传 write，后端按 mode='none' 处理 → 管理员配的操作权限静默消失
+   * 而接口仍返回 200。后端现已改为「缺键=保留原值+写哨兵」，但提交层仍必须
+   * 显式带上 write，否则取消写范围将无法生效（缺键不再等价于 none）。
+   */
   modules: ModulePerm[];
 }
 
@@ -197,10 +204,13 @@ export async function getRoleDataPerm(roleId: string): Promise<{ modules: Module
 export async function saveRoleDataPerm(
   roleId: string,
   payload: RoleDataPermPayload,
-): Promise<{ modules: ModulePerm[] }> {
+): Promise<{ modules: ModulePerm[]; writeNormalized: string[] }> {
   const res = await api.post(`/roles/${roleId}/data-permissions/`, payload);
   const data = res.data?.data || { modules: [] };
-  return { modules: data.modules || [] };
+  // writeNormalized：本次保存中「payload 缺 write 键且该模块原有 WRITE 规则」的模块 key。
+  // 正常前端恒为 []（submit 必带 write）。非空 = 前端序列化回归的哨兵，
+  // 后端已落审计，此处回传供调用方提示，见 docs/ARCH_数据权限P0止血_系统设计.md §1.2.2。
+  return { modules: data.modules || [], writeNormalized: data.writeNormalized || [] };
 }
 
 /** options 接口完整响应（v2：含可配置动作字典与预设包，前端禁止硬编码动作清单） */

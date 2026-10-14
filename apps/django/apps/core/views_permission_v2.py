@@ -264,6 +264,17 @@ class RoleViewSet(viewsets.ModelViewSet):
                     request.user, 'dp_rule', role.role_code, 'UPDATE', None,
                     {'modules': modules}, request,
                 )
+                # P0-1 防复发哨兵：payload 缺 write 键且该模块原有 WRITE 规则时，
+                # 说明前端序列化出现回归（历史上正是这个 bug 抹掉了管理员配置，
+                # 见 docs/ARCH_数据权限P0止血_系统设计.md §1.2.1 根因链）。
+                # 不阻断本次保存（Q6 兼容式：存量首轮自动补默认值不打断保存），
+                # 但必须留痕 —— 否则这个 bug 再次静默复发时无人知晓。
+                normalized = data.get('writeNormalized') or []
+                if normalized:
+                    _audit_config_change(
+                        request.user, 'dp_rule', role.role_code, 'WRITE_NORMALIZED',
+                        None, {'modules': normalized}, request,
+                    )
                 return Response({'success': True, 'data': data})
         # GET
         role = self.get_object()
