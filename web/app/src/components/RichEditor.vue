@@ -266,7 +266,13 @@ onBeforeUnmount(() => {
   width: 100%;
   border: 1px solid var(--g2);
   border-radius: 6px;
-  overflow: hidden;
+  /*
+   * 🔴 不能用 `overflow: hidden` 做圆角裁切：wangEditor 的工具栏下拉
+   * (.w-e-select-list / .w-e-bar-item-menus-container) 是 position:absolute，
+   * 挂在 .w-e-bar-item 内部，依赖祖先的 overflow:visible 才能溢出显示。
+   * 一旦 hidden，下拉浮层被整个裁掉 —— 用户表现为「点了字号/字体/行高，什么都没出来」。
+   */
+  overflow: visible;
   background: var(--glass-bg-card);
 }
 
@@ -276,29 +282,44 @@ onBeforeUnmount(() => {
 
 .rich-editor__bar {
   display: flex;
-  align-items: center;
+  /*
+   * 工具栏允许换行成多行，故不能用 align-items:center —— 那样会把多行内容
+   * 垂直居中并按单行高度裁切。改为顶部对齐，让容器随内容自然增高。
+   */
+  align-items: flex-start;
   gap: var(--space-2);
   padding: 2px 6px 2px 0;
   border-bottom: 1px solid var(--g2);
   background: var(--g1);
+  /* 圆角裁切移交到 bar 自身：只裁工具栏区，不影响下拉浮层溢出 */
+  border-radius: 6px 6px 0 0;
 }
 
 .rich-editor__toolbar {
   flex: 1;
+  /*
+   * 🔴 这里的 overflow 会连带裁掉下拉浮层，故必须 visible。
+   * 工具栏在窄容器下改为换行（见下方 .w-e-toolbar 规则），无需横向滚动。
+   */
+  overflow: visible;
   min-width: 0;
-  overflow-x: auto;
 }
 
 /*
- * wangEditor 的 .w-e-toolbar 自带 flex-wrap: wrap，工具栏按钮放不下时会折成多行，
- * 而外层 .rich-editor__toolbar 的高度按单行计算，折出的第二行会溢出，
- * 并因 `overflow-x: auto` 被 CSS 升格为 `overflow: auto` 而在纵轴产生滚动条
- * （表现：图标被上下切一半，工具栏里出现纵向滚动）。
+ * 工具栏换行而非横向滚动 —— 这是本次修复的核心权衡：
  *
- * 强制单行 + 外层横向滚动，是编辑器工具栏的标准形态。
+ * 1. `overflow-x: auto` 的滚动容器在 CSS 里必然裁剪另一轴
+ *    （overflow-x:auto + overflow-y:visible 会被计算成 auto），
+ *    下拉浮层 100% 被裁，故「横向滚动」与「下拉可见」二者不可兼得。
+ * 2. 实测 32 个工具栏项内容恒为 1357px；视口 900px 时一屏仅放得下 17 项，
+ *    要免滚动需裁掉 15 个按钮，代价远大于换行。
+ *
+ * 因此放开所有 overflow，让 .w-e-toolbar 自然换行、容器随内容增高：
+ * 既无滚动条、图标不被切，下拉也完整可见。
  */
 .rich-editor__toolbar :deep(.w-e-toolbar) {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  row-gap: 2px;
 }
 
 .rich-editor__action {
@@ -309,6 +330,12 @@ onBeforeUnmount(() => {
 .rich-editor__toolbar :deep(.w-e-bar) {
   background: transparent;
   padding: 0 2px;
+}
+
+/* 父级已改为 overflow: visible（避免裁掉工具栏下拉），圆角由正文区自行承担 */
+.rich-editor__body {
+  border-radius: 0 0 6px 6px;
+  background: var(--glass-bg-card);
 }
 
 .rich-editor__body :deep(.w-e-text-placeholder) {
