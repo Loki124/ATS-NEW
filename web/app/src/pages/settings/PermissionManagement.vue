@@ -7,20 +7,9 @@
       </div>
 
       <div class="glass-panel permission-shell">
-        <RolesTab @open-templates="templatesModal.show = true" />
+        <RolesTab />
       </div>
     </div>
-
-    <!-- 模板管理弹窗（原独立 tab 收编为弹窗，入口在标题行右侧） -->
-    <n-modal
-      v-model:show="templatesModal.show"
-      preset="card"
-      :title="t('pages.settings.PermissionManagement.s4')"
-      class="templates-modal"
-      :style="{ width: '1100px', 'max-width': '92vw' }"
-    >
-      <TemplatesTab v-if="templatesModal.show" />
-    </n-modal>
   </div>
 </template>
 
@@ -31,19 +20,17 @@ import { useI18n } from 'vue-i18n'
  *
  * 原为 4-tab 主壳 (资源/模板/角色/用户授权)，本次拆解:
  *   - 资源管理 (ResourcesTab) → 独立菜单页 PermissionResources.vue (/settings/permissions/resources)
- *   - 模板管理 (TemplatesTab) → 收编为本页标题行「模板管理」按钮打开的弹窗
  *   - 角色管理 (RolesTab)     → 本页主体，菜单更名「身份管理」，去 tab 化
  *   - 用户授权 (UserRolesTab) → 移除：与「用户管理」页的分配角色弹窗重复
  *     (两者均写 user_roles 表: 本页走 /api/v1/user-roles/，用户管理走
  *      /api/v1/permissions/users/{id}/roles/，授权入口统一收敛到用户管理页)
+ *
+ * 2026-10-15 兵哥：模板管理 (TemplatesTab) 入口与弹窗整体下线 ——
+ *   模板基础信息（编码/描述/是否预置/权限码数量）已并入模板下拉的「查看权限码」弹窗
+ *   （components/role/PermissionCodeModal.vue），列表页不再保留「模板管理」按钮。
  */
-import { reactive } from 'vue'
-import { NModal } from 'naive-ui'
 import RolesTab from './permission/RolesTab.vue'
-import TemplatesTab from './permission/TemplatesTab.vue'
 const { t } = useI18n()
-
-const templatesModal = reactive({ show: false })
 </script>
 
 <style scoped>
@@ -58,7 +45,7 @@ const templatesModal = reactive({ show: false })
   min-height: 0;
   padding: 0;
 }
-/* 标题区（2026-10-15 兵哥：模板管理入口移入 RolesTab 工具栏，页头回归纯标题） */
+/* 标题区（2026-10-15 兵哥：模板管理入口下线，页头回归纯标题） */
 .page-header {
   flex-shrink: 0;
 }

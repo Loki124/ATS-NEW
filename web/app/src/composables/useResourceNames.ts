@@ -10,7 +10,7 @@
  */
 import { ref } from 'vue'
 import { fetchAllResources, type PermissionResource } from '@/api/permission-resource'
-import { resourceModuleLabel, UNGROUPED_MODULE } from '@/utils/permissionModules'
+import { resourceModuleLabel, buildSubModuleIndex, UNGROUPED_MODULE } from '@/utils/permissionModules'
 
 let cache: PermissionResource[] | null = null
 let loadingPromise: Promise<PermissionResource[]> | null = null
@@ -48,6 +48,90 @@ export function groupPermissionCodesByModule(codes: string[]): GroupedCode[] {
   return result.sort((a, b) => a.moduleLabel.localeCompare(b.moduleLabel, 'zh'))
 }
 
+// ===== 两级分组：功能模块 → 子模块（权限码明细弹窗用）=====
+
+/** 未归入任何子模块的权限码分组 key（与身份编辑弹窗同约定） */
+export const LOOSE_SUB_KEY = '__loose__'
+
+export interface SubGroupedCode {
+  /** 子模块 code；`''` = 该模块无子模块时的模块级分组；`__loose__` = 模块有子模块但本码未归类 */
+  code: string
+  /** 子模块中文名；模块级分组（该模块整体无子模块）时为空串，由 UI 决定是否显示标题 */
+  label: string
+  items: { code: string; name: string }[]
+}
+
+export interface ModuleCodeTree {
+  module: string
+  moduleLabel: string
+  /** 本模块权限码总数 */
+  total: number
+  subModules: SubGroupedCode[]
+}
+
+/**
+ * 把权限码按「功能模块 → 子模块」两级分组（依赖已加载的缓存）。
+ *
+ * 为什么需要下钻到子模块：「系统设置」一个模块下就有 40 个二级分栏、115 条权限码，
+ * 只按模块分组会平铺成一长列，完全读不出归属；下钻后每个子模块独立成块。
+ *
+ * 子模块判定与资源管理列表 / 身份编辑弹窗**同源**（buildSubModuleIndex）：
+ * 形如 `recruit:settings:account:menu:view` 的资源，第 3 段 `account` 即子模块。
+ *
+ * 排序：模块按中文名；模块内子模块按中文名；子模块内权限码按中文名。
+ * 未归类分组恒排在本模块最后，且仅在该模块确实存在子模块时才显示「其他」标题。
+ */
+export function groupPermissionCodesBySubModule(codes: string[]): ModuleCodeTree[] {
+  const index = buildSubModuleIndex(cache ?? [])
+  const modules = new Map<string, { label: string; buckets: Map<string, SubGroupedCode> }>()
+
+  for (const code of codes) {
+    const mod = moduleOf(code) ?? UNGROUPED_MODULE
+    let node = modules.get(mod)
+    if (!node) {
+      node = {
+        label: resourceModuleLabel(mod === UNGROUPED_MODULE ? null : mod, '其他'),
+        buckets: new Map(),
+      }
+      modules.set(mod, node)
+    }
+    const parts = code.split(':')
+    const subCode = parts.length >= 4 ? parts[2] : ''
+    const subLabel = subCode ? index[mod]?.[subCode] : undefined
+    const key = subLabel ? subCode : LOOSE_SUB_KEY
+    let bucket = node.buckets.get(key)
+    if (!bucket) {
+      bucket = { code: key, label: subLabel ?? '', items: [] }
+      node.buckets.set(key, bucket)
+    }
+    bucket.items.push({ code, name: nameOf(code) })
+  }
+
+  const result: ModuleCodeTree[] = []
+  for (const [mod, node] of modules) {
+    const hasSub = [...node.buckets.values()].some((b) => b.label !== '')
+    const subModules = [...node.buckets.values()]
+    for (const b of subModules) {
+      b.items.sort((x, y) => x.name.localeCompare(y.name, 'zh'))
+      // 整个模块都没子模块（如候选人管理）→ 不显示子模块标题，直接平铺；
+      // 有子模块时，散项统一落到「其他」。
+      if (!b.label) b.label = hasSub ? '其他' : ''
+    }
+    subModules.sort((a, b) => {
+      if (a.code === LOOSE_SUB_KEY) return 1
+      if (b.code === LOOSE_SUB_KEY) return -1
+      return a.label.localeCompare(b.label, 'zh')
+    })
+    result.push({
+      module: mod,
+      moduleLabel: node.label,
+      total: subModules.reduce((n, b) => n + b.items.length, 0),
+      subModules,
+    })
+  }
+  return result.sort((a, b) => a.moduleLabel.localeCompare(b.moduleLabel, 'zh'))
+}
+
 export function useResourceNames() {
   const resources = ref<PermissionResource[]>(cache ?? [])
   const loading = ref(false)
@@ -74,5 +158,8 @@ export function useResourceNames() {
     }
   }
 
-  return { resources, loading, ensureLoaded, nameOf, moduleOf, groupPermissionCodesByModule }
+  return {
+    resources, loading, ensureLoaded, nameOf, moduleOf,
+    groupPermissionCodesByModule, groupPermissionCodesBySubModule,
+  }
 }

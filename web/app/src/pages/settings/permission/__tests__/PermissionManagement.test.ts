@@ -7,7 +7,8 @@ import { naivePlugin } from '../../../../plugins/naive'
 import PermissionManagement from '../../PermissionManagement.vue'
 
 // API mock — roles/templates 返回数组 (子组件直接消费)
-// 2026-09-18 重构: 原 4-tab 拆解后本页只挂 RolesTab + TemplatesTab(弹窗内)
+// 2026-09-18 重构: 原 4-tab 拆解后本页只挂 RolesTab。
+// 2026-10-15: 模板管理入口与弹窗下线，模板基础信息并入「查看权限码」弹窗。
 vi.mock('@/api/permission-template', () => ({
   listTemplates: vi.fn().mockResolvedValue([]),
 }))
@@ -58,13 +59,11 @@ describe('PermissionManagement (身份管理)', () => {
     expect(wrapper.findAll('.n-tabs-tab').length).toBe(0)
   })
 
-  it('模板管理 button opens templates modal', async () => {
+  it('不再渲染「模板管理」按钮（模板信息已并入查看权限码弹窗）', async () => {
     const wrapper = factory()
     await flushPromises()
     const btn = wrapper.findAll('button').find((b) => b.text().includes('模板管理'))
-    expect(btn).toBeTruthy()
-    await btn!.trigger('click')
-    await flushPromises()
-    expect(document.body.querySelector('.templates-modal')).toBeTruthy()
+    expect(btn).toBeFalsy()
+    expect(document.body.querySelector('.templates-modal')).toBeFalsy()
   })
 })

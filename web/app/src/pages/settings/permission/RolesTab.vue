@@ -25,15 +25,12 @@
         工具栏按钮组（2026-10-15 兵哥纠偏 · 按 frontend-layout-standard §1.8.1 + frontend-DESIGN §Data Table）：
         - 全部 quaternary 文字按钮，同组按钮统一带 14–16px outline icon（§1.8.1 禁止半带半不带）
         - 仅「新建身份」保留 primary 实心作为主路径；其余为 default 灰阶
-        - 模板管理入口移入本组（用户指定顺序；刷新按钮已按需求移除）
+        - 2026-10-15 兵哥：「模板管理」按钮移除 —— 模板基础信息已并入模板下拉的「查看权限码」弹窗，
+          列表页不再保留该入口（原 TemplatesTab 弹窗一并下线）
       -->
       <n-button v-if="isSuperAdmin" quaternary @click="actionManageShow = true">
         <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
         {{ t('dataperm.actions.title') }}
-      </n-button>
-      <n-button quaternary @click="emit('open-templates')">
-        <template #icon><n-icon :component="GridOutline" /></template>
-        {{ t('pages.settings.PermissionManagement.s3') }}
       </n-button>
       <n-button quaternary @click="onCloneFromTemplate">
         <template #icon><n-icon :component="CopyOutline" /></template>
@@ -108,11 +105,14 @@
     <!-- 权限 v2：动作字典 / 预设包管理 -->
     <ActionManageModal v-model:show="actionManageShow" />
 
-    <!-- 从模板克隆：查看权限码居中模态（共享组件） -->
+    <!-- 从模板克隆：查看权限码居中模态（共享组件，含模板基础信息 + 按子模块分组的权限码） -->
     <PermissionCodeModal
       v-model:show="codeModal.show"
       :title="codeModal.title"
       :codes="codeModal.codes"
+      :template-code="codeModal.templateCode"
+      :description="codeModal.description"
+      :is-system="codeModal.isSystem"
     />
   </div>
 </template>
@@ -132,7 +132,7 @@
  */
 import { computed, h, onMounted, reactive, ref, type VNode } from 'vue'
 import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, NIcon, NEmpty, useMessage, useDialog, type SelectOption } from 'naive-ui'
-import { AddOutline, CopyOutline, CreateOutline, GridOutline, ShieldCheckmarkOutline, TrashOutline } from '@vicons/ionicons5'
+import { AddOutline, CheckmarkOutline, CopyOutline, CreateOutline, ShieldCheckmarkOutline, TrashOutline } from '@vicons/ionicons5'
 import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } from '@/api/role-v2'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
 import { listAclRules } from '@/api/field-acl'
@@ -150,9 +150,6 @@ const { t } = useI18n()
 // 资源码→中文名映射（克隆弹窗展开权限码用）
 const { ensureLoaded } = useResourceNames()
 
-// 模板管理弹窗由父组件 PermissionManagement 持有（弹窗体含 TemplatesTab，本组件只发信号）
-const emit = defineEmits<{ (e: 'open-templates'): void }>()
-
 // 权限 v2：动作字典管理入口仅超管可见（后端 IsSuperAdmin 双保险）
 const userStore = useUserStore()
 const isSuperAdmin = computed(() => (userStore.user?.roles ?? []).includes('SUPER_ADMIN'))
@@ -164,10 +161,21 @@ const loading = ref(false)
 const data = ref<RoleV2[]>([])
 const templates = ref<PermissionTemplate[]>([])
 
-// 「查看权限码」居中模态状态（点下拉选项内的查看入口打开）
-const codeModal = reactive<{ show: boolean; title: string; codes: string[] }>({
+// 「查看权限码」居中模态状态（点下拉选项内的查看入口打开）。
+// 模板基础信息（编码/描述/是否预置）随权限码一并带入 —— 原「模板管理」列表页已下线。
+const codeModal = reactive<{
+  show: boolean
+  title: string
+  templateCode: string
+  description: string
+  isSystem: number | null
+  codes: string[]
+}>({
   show: false,
   title: '',
+  templateCode: '',
+  description: '',
+  isSystem: null,
   codes: [],
 })
 
@@ -177,13 +185,18 @@ const tplOptions = computed<SelectOption[]>(() =>
 )
 
 /**
- * 下拉每个选项后渲染「查看权限码」入口。
+ * 下拉每个选项的行渲染：`✓ 模板名 ……………… 查看权限码`（勾在行首、入口在行尾）。
+ *
  * ⚠️ 必须复用 Naive 传入的 `node` —— 选中用的 onClick 挂在 `node` 上，
- *   自建节点会丢掉该处理器，导致「点选项选不中」（下拉无法回填）。故结构为 [node, 查看入口]。
+ *   自建节点会丢掉该处理器，导致「点选项选不中」（下拉无法回填）。故结构为 [勾, node, 入口]。
+ *   原生勾号由 Naive 渲染在**行尾**（SelectOption.mjs: children = [label, checkmark]），
+ *   与设计稿（勾在行首）不符，故用 CSS 隐去原生勾，改由 .tpl-opt-check 自绘。
  */
-function renderTplOption(info: { node: VNode; option: SelectOption }): VNode {
+function renderTplOption(info: { node: VNode; option: SelectOption; selected?: boolean }): VNode {
   const tpl = templates.value.find((t) => t.templateCode === info.option.value)
-  return h('div', { class: 'tpl-opt' }, [
+  return h('div', { class: ['tpl-opt', { 'tpl-opt--selected': !!info.selected }] }, [
+    h('span', { class: 'tpl-opt-check', 'aria-hidden': 'true' },
+      info.selected ? [h(NIcon, { size: 16 }, { default: () => h(CheckmarkOutline) })] : []),
     info.node,
     h(NButton, {
       size: 'tiny',
@@ -200,6 +213,9 @@ function renderTplOption(info: { node: VNode; option: SelectOption }): VNode {
 
 function viewTplCodes(tpl: PermissionTemplate) {
   codeModal.title = tpl.templateName
+  codeModal.templateCode = tpl.templateCode
+  codeModal.description = tpl.description ?? ''
+  codeModal.isSystem = tpl.isSystem ?? null
   codeModal.codes = tpl.permissionCodes ?? []
   codeModal.show = true
 }
@@ -462,16 +478,59 @@ onMounted(load)
   属性，故选项行样式必须放非 scoped 块（用 .tpl-opt 前缀限定作用域，避免污染其它下拉）。
 -->
 <style>
+/* 选项行 = 勾号 + 模板名 + 查看权限码 三段式整行。
+   .tpl-opt 即「行」，高亮/圆角都挂在它上面（见下）。 */
 .tpl-opt {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  width: 100%;
+  margin: 0 var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background-color .15s var(--ease-out);
 }
-/* info.node 即 Naive 的 .n-base-select-option（自带选中 onClick）：撑满左侧、标签内截断 */
+/* info.node 即 Naive 的 .n-base-select-option（自带选中 onClick）。
+   glass.css 给该元素锁了 `padding: 0 12px !important`（它原本是独立整行）；
+   本处它只是 .tpl-opt 里的一段，行级 padding 已由 .tpl-opt 统一给，
+   故抵消内层左右 padding，避免勾号与文字之间多出 20px 空档。 */
 .tpl-opt .n-base-select-option {
   flex: 1 1 auto;
   min-width: 0;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
-.tpl-opt-view { flex: none; }
+/* 原生勾号在行尾（SelectOption.mjs: children = [label, checkmark]），与设计稿不符 → 隐藏，
+   统一由 .tpl-opt-check 在行首自绘，避免出现两个勾。 */
+.tpl-opt .n-base-select-option__check {
+  display: none !important;
+}
+/* 勾号位常驻 16px，未选中时留白，保证各行模板名左边界对齐 */
+.tpl-opt-check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-fg);
+}
+/* 高亮从「行内文字区」上移到整行：Naive 原高亮挂在 .n-base-select-option::before 上
+   （inset 0 4px，只覆盖文字区，勾号与「查看权限码」落在高亮之外，行看着被切成两段）。
+   这里把原 ::before 置空、改由 .tpl-opt 整行承担高亮；三档梯度与 glass.css §下拉规范一致
+   （hover 14% → selected 18% → 选中+悬停 22%）。 */
+.tpl-opt .n-base-select-option::before {
+  background-color: transparent !important;
+}
+.tpl-opt:hover {
+  background-color: var(--option-hover);
+}
+.tpl-opt--selected {
+  background-color: color-mix(in srgb, var(--brand) 18%, transparent);
+}
+.tpl-opt--selected:hover {
+  background-color: color-mix(in srgb, var(--brand) 22%, transparent);
+}
+.tpl-opt-view {
+  flex: none;
+}
 </style>
