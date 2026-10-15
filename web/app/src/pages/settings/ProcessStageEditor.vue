@@ -443,7 +443,7 @@ onMounted(() => loadProcess())
   font-weight: 600;
 }
 .empty-state {
-  padding: 60px 0;
+  padding: 56px 0;
   text-align: center;
 }
 .stage-card {
@@ -477,7 +477,7 @@ onMounted(() => loadProcess())
   font-size: 11px;
   color: var(--c-warning-deep);
   background: var(--c-warning-soft); /* v2.8 T2.8.3: 浅黄 → var(--c-warning-soft) */
-  padding: 1px 6px;
+  padding: 1px 8px;
   border-radius: 3px;
 }
 .stage-limit {
@@ -501,7 +501,7 @@ onMounted(() => loadProcess())
   font-size: 11px;
   color: var(--ink-soft);
   background: var(--g1);
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-radius: 3px;
 }
 </style>

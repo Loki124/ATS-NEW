@@ -314,7 +314,7 @@ async function handleSubmit() {
   background: var(--g1);
   border: 1px solid var(--border-hairline);
   border-radius: 12px;  /* 原型 config-card radius 12 */
-  padding: 14px 16px 16px;  /* 原型 14 16 16 */
+  padding: 8px 16px 16px;  /* 原型 14 16 16 */
 }
 .stage-rule-config-modal .card-title {
   font-size: var(--fs-14);
@@ -323,8 +323,8 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  margin-bottom: 12px;  /* 原型 12px */
+  gap: 8px;
+  margin-bottom: 8px;  /* 原型 12px */
   letter-spacing: -0.01em;
 }
 .stage-rule-config-modal .card-title .n-icon {
@@ -369,8 +369,8 @@ async function handleSubmit() {
 .stage-rule-config-modal .flow-block {
   background: var(--surface);
   border-radius: 10px;  /* 原型 flow-block radius 10 */
-  padding: 10px 14px;  /* 原型 10 14 */
-  margin-bottom: 12px;
+  padding: 8px 8px;  /* 原型 10 14 */
+  margin-bottom: 8px;
   box-shadow: 0 0 0 1px var(--border-hairline), 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: box-shadow var(--duration-fast) var(--ease-out);
 }
@@ -383,7 +383,7 @@ async function handleSubmit() {
 .stage-rule-config-modal .block-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: var(--fs-13);
   font-weight: 600;
   color: var(--ink);
@@ -413,7 +413,7 @@ async function handleSubmit() {
 .stage-rule-config-modal .block-header__main {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   flex: 1;
 }
@@ -464,7 +464,7 @@ async function handleSubmit() {
   line-height: 1.4;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
   flex: 1 1 auto;
   min-width: 0;
@@ -511,8 +511,8 @@ async function handleSubmit() {
 .rule-config-flat {
   display: flex;
   flex-direction: column;
-  gap: 12px;  /* 原型卡片间距 12px */
-  padding: 14px 20px;  /* 原型主体 padding 16 20 */
+  gap: 8px;  /* 原型卡片间距 12px */
+  padding: 8px 16px;  /* 原型主体 padding 16 20 */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -532,7 +532,7 @@ async function handleSubmit() {
     padding: var(--space-4) var(--space-3);
   }
   .config-card {
-    padding: 10px 10px 12px;
+    padding: 8px 8px 8px;
   }
 }
 </style>

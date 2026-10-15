@@ -86,7 +86,7 @@ function onRequestClose() {
 }
 .action-btns {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 .action-btns a {
   color: var(--brand-fg);

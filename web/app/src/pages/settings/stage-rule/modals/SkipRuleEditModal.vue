@@ -207,7 +207,7 @@ function onSave() {
   display: block;
   font-size: var(--fs-13);
   color: var(--ink);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-weight: 500;
 }
 .required-mark {
@@ -271,7 +271,7 @@ function onSave() {
   background: var(--surface);
   border: 1px solid var(--brand);
   color: var(--brand-fg);
-  padding: 0 14px;
+  padding: 0 8px;
   height: 30px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-12);
@@ -280,7 +280,7 @@ function onSave() {
   align-items: center;
   gap: 4px;
   font-weight: 500;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 .btn-outline-primary:disabled {
   opacity: 0.5;

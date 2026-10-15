@@ -420,7 +420,7 @@ onMounted(() => {
 }
 .ca-tag {
   display: inline-block;
-  padding: 2px 10px;
+  padding: 2px 8px;
   border-radius: 999px;
   font-size: var(--fs-12);
   line-height: 1.4;

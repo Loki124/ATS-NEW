@@ -243,7 +243,7 @@
         <n-alert type="info" :show-icon="true">
           {{ t('pages.settings.DepartmentManagement.s51') }}
         </n-alert>
-        <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
           <n-upload
             accept=".csv"
             :default-upload="false"

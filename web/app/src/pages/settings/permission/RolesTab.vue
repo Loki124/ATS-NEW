@@ -22,11 +22,12 @@
       />
       <div class="spacer"></div>
       <!-- 权限 v2：动作字典/预设包管理（超管入口；护栏全部由后端裁决） -->
-      <n-button v-if="isSuperAdmin" @click="actionManageShow = true">
+      <n-button v-if="isSuperAdmin" quaternary @click="actionManageShow = true">
         {{ t('dataperm.actions.title') }}
       </n-button>
-      <n-button @click="load">{{ t('pages.settings.permission.RolesTab.s4') }}</n-button>
-      <n-button type="info" @click="onCloneFromTemplate">{{ t('pages.settings.permission.RolesTab.s5') }}</n-button>
+      <n-button quaternary @click="load">{{ t('pages.settings.permission.RolesTab.s4') }}</n-button>
+      <!-- 克隆入口降为 ghost：非主路径操作不与「新建身份」争夺视觉焦点（R-202 一屏一主角） -->
+      <n-button quaternary @click="onCloneFromTemplate">{{ t('pages.settings.permission.RolesTab.s5') }}</n-button>
       <n-button type="primary" class="gradient-btn" @click="onCreate">{{ t('pages.settings.permission.RolesTab.s6') }}</n-button>
     </div>
 
@@ -200,11 +201,13 @@ const columns = [
       }),
   },
   {
+    // 来源标签：2026-10-15 单色化 —— 预置/自定义均为中性灰标签，不再用 primary 撞品牌色。
+    // 两者语义同级（同为「来源说明」而非状态），用文字本身承载差异，颜色不再参与区分。
     title: '来源',
     key: 'isSystem',
     width: 90,
     render: (r: RoleV2) =>
-      h(NTag, { type: r.isSystem === 1 ? 'default' : 'primary', bordered: false, size: 'small' },
+      h(NTag, { bordered: false, size: 'small', class: 'neutral-tag' },
         { default: () => (r.isSystem === 1 ? '预置' : '自定义') }),
   },
   {
@@ -214,22 +217,25 @@ const columns = [
     render: (r: RoleV2) => r.permissionCodes?.length ?? 0,
   },
   {
+    // 行内操作：2026-10-15 单色化 —— 常态灰阶 text 按钮，删除仅 hover 时转红。
+    // 理由（X-10 / R-202）：每行都摆红色删除按钮会让 20 行产生 20 个视觉红点，
+    // 抢走「新建身份」的主按钮焦点；危险色只在用户主动指向删除时才出现。
     title: '操作',
     key: 'actions',
     width: 150,
     fixed: 'right' as const,
     render(row: RoleV2) {
-      return h(NSpace, { size: 4 }, () => [
+      return h(NSpace, { size: 8 }, () => [
         h(NButton, {
           size: 'small',
-          tertiary: true,
-          type: 'primary',
+          text: true,
+          class: 'row-action',
           onClick: () => onEdit(row),
         }, () => '编辑'),
         h(NButton, {
           size: 'small',
-          tertiary: true,
-          type: 'error',
+          text: true,
+          class: 'row-action row-action--danger',
           disabled: row.isSystem === 1,
           onClick: () => onDelete(row),
         }, () => '删除'),
@@ -351,9 +357,44 @@ onMounted(load)
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 /* 搜索/筛选输入宽度（对齐 CampusControl rules tab 视觉密度） */
-.rule-filter-search { width: 260px; }
-.rule-filter-select { width: 150px; }
+.rule-filter-search { width: 240px; }
+.rule-filter-select { width: 136px; }
+
+/* === 2026-10-15 单色化：全页唯一强调色 = 品牌色（仅「新建身份」实心按钮）
+ * 收敛前本页有 5 种彩色：primary 实心按钮 + info 克隆 + primary 编辑 + error 删除
+ * + primary 自定义标签。彩色元素越多，用户越无法判断主路径。
+ * 规则：常态灰阶承载次级操作，彩色仅在「主操作」与「用户主动指向的危险操作」出现。 */
+
+/* 来源标签：中性灰，不参与语义区分 */
+.roles-tab :deep(.neutral-tag) {
+  --n-color: transparent;
+  --n-text-color: var(--ink-soft);
+  background: var(--border-hairline);
+}
+
+/* 行内操作：常态墨色轻量，hover 才显形 */
+.roles-tab :deep(.row-action) {
+  --n-text-color: var(--ink-soft);
+  --n-text-color-hover: var(--ink);
+  --n-text-color-pressed: var(--ink);
+  --n-text-color-focus: var(--ink);
+  padding: 0 var(--space-2);
+}
+/* 危险操作：仅在用户指向时才转红（R-109：不靠颜色单独承载语义，按钮本身有文字标签） */
+.roles-tab :deep(.row-action--danger) {
+  --n-text-color: var(--ink-faint);
+  --n-text-color-hover: var(--c-error);
+  --n-text-color-pressed: var(--c-error);
+  --n-text-color-focus: var(--c-error);
+}
+.roles-tab :deep(.row-action--danger.n-button--disabled) {
+  --n-text-color: var(--ink-faint);
+  --n-text-color-hover: var(--ink-faint);
+  --n-text-color-pressed: var(--ink-faint);
+  --n-text-color-focus: var(--ink-faint);
+  opacity: .45;
+}
 </style>

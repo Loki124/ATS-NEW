@@ -110,7 +110,7 @@ function formatCondition(it: ConditionItem): string {
 .title-left {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -130,7 +130,7 @@ function formatCondition(it: ConditionItem): string {
   background: var(--surface);
   border: 1px solid var(--brand);
   color: var(--brand-fg);
-  padding: 0 14px;
+  padding: 0 8px;
   height: 30px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-12);
@@ -167,7 +167,7 @@ function formatCondition(it: ConditionItem): string {
 }
 .rule-table th {
   background: var(--g1);  /* 原型表头 #f4f5f7 → --g1 #F1F5F9 接近 */
-  padding: 8px 12px;
+  padding: 8px 8px;
   text-align: left;
   font-weight: 500;
   font-size: 12px;  /* 原型表头 12px */
@@ -176,7 +176,7 @@ function formatCondition(it: ConditionItem): string {
   white-space: nowrap;
 }
 .rule-table td {
-  padding: 8px 12px;
+  padding: 8px 8px;
   font-size: 12.5px;  /* 原型表格内容 12.5px */
   color: var(--ink);
   border-bottom: 1px solid var(--border-hairline);  /* 原型浅边框 #eaebef */
@@ -187,7 +187,7 @@ function formatCondition(it: ConditionItem): string {
 .rule-table__empty {
   text-align: center;
   color: var(--ink-faint);
-  padding: 14px !important;
+  padding: 8px !important;
   font-style: italic;
 }
 
@@ -196,7 +196,7 @@ function formatCondition(it: ConditionItem): string {
   line-height: 1.6;
 }
 .rule-condition__group + .rule-condition__group {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 .rule-condition__group-label {
   color: var(--ink-soft);

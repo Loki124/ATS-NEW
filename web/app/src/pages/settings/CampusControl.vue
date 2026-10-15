@@ -1086,7 +1086,7 @@ const detailMatrixColumns: DataTableColumns<any> = [
 ]
 function renderDetailExpand(row: any) {
   return h('div', { style: 'display:grid; grid-template-columns:repeat(6,1fr); gap:8px; padding:4px 0;' },
-    MONTH_LABELS.map((m, i) => h('div', { style: 'display:flex; flex-direction:column; align-items:center; padding:6px; background:var(--brand-tint); border-radius:6px;' }, [
+    MONTH_LABELS.map((m, i) => h('div', { style: 'display:flex; flex-direction:column; align-items:center; padding:8px; background:var(--brand-tint); border-radius:6px;' }, [
       h('span', { style: 'font-size:12px; color:var(--n-text-color-3,#999);' }, m),
       h('span', { style: 'font-weight:600;' }, String(row.monthlyTargets[i] || 0)),
     ])),
@@ -1634,11 +1634,11 @@ onMounted(async () => {
 .form-section-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: var(--fs-13);
   font-weight: 600;
   color: var(--ink);
-  margin: 2px 0 10px;
+  margin: 2px 0 8px;
   letter-spacing: 0.2px;
 }
 .form-section-title .dot {
@@ -1659,7 +1659,7 @@ onMounted(async () => {
 .scope-row {
   display: flex;
   align-items: flex-end;
-  gap: 14px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .scope-field {
@@ -1684,7 +1684,7 @@ onMounted(async () => {
 .monthly-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px 6px;
+  gap: 8px 8px;
 }
 .monthly-grid--rule {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1709,7 +1709,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .monthly-foot {
   display: flex;
@@ -1728,7 +1728,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: var(--space-3);
   margin-top: var(--space-3);
-  padding: 10px 14px;
+  padding: 8px 8px;
   border-radius: var(--radius-md);
   transition: background 0.2s ease, border-color 0.2s ease;
 }
@@ -1798,7 +1798,7 @@ onMounted(async () => {
 .dim-edit-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   padding: var(--space-1) 0;
 }
 .dim-edit-form .scope-field {
@@ -1845,7 +1845,7 @@ onMounted(async () => {
 }
 .rule-modal :deep(.n-card__footer),
 .dim-ruleset-modal :deep(.n-card__footer) {
-  padding: 10px 20px 14px !important;
+  padding: 8px 16px 8px !important;
 }
 .rule-modal :deep(.n-card-header__main),
 .dim-ruleset-modal :deep(.n-card-header__main) {
@@ -1854,7 +1854,7 @@ onMounted(async () => {
 }
 .rule-modal :deep(.n-form-item),
 .dim-ruleset-modal :deep(.n-form-item) {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .rule-modal :deep(.n-form-item-label),
 .dim-ruleset-modal :deep(.n-form-item-label) {
@@ -1882,7 +1882,7 @@ onMounted(async () => {
 }
 .import-errors {
   margin: var(--space-2) 0 0;
-  padding-left: 18px;
+  padding-left: 16px;
   max-height: 240px;
   overflow: auto;
 }

@@ -828,12 +828,12 @@ function confirm() {
 </script>
 
 <style scoped>
-.group-list { display: flex; flex-direction: column; gap: 12px; }
+.group-list { display: flex; flex-direction: column; gap: 8px; }
 
 .group-card {
   border: 1px solid var(--border-hairline, #e2e8f0);
   border-radius: 10px;
-  padding: 12px;
+  padding: 8px;
   /* 2026-10-11 暗色修复：原为硬编码 #fff，深色模式下与已反转的浅色文字令牌冲突。
      --surface 浅色下恒为 #FFFFFF（零变化），深色下为 #1E293B。 */
   background: var(--surface);
@@ -842,11 +842,11 @@ function confirm() {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .drag-handle { color: var(--ink-soft, #94a3b8); font-size: 14px; cursor: grab; }
 .group-badge { font-weight: 700; }
-.group-head-actions { margin-left: auto; display: flex; gap: 6px; }
+.group-head-actions { margin-left: auto; display: flex; gap: 8px; }
 
 .cond-row {
   display: flex;
@@ -909,19 +909,19 @@ function confirm() {
 .expr-check.bad { color: var(--c-error-deep); }
 
 .inter-block {
-  margin-top: 14px;
-  padding: 12px;
+  margin-top: 8px;
+  padding: 8px;
   border-radius: 10px;
   background: var(--brand-soft, rgba(99, 102, 241, 0.08));
   border: 1px solid var(--brand-tint, rgba(99, 102, 241, 0.2));
 }
 .expr-row.inter { margin-top: 0; }
-.add-group-btn { margin-top: 10px; }
+.add-group-btn { margin-top: 8px; }
 
 /* 权限模板引用区：与条件组列表视觉分层（品牌浅底 + 虚线），表明它是「快捷入口」而非条件本身 */
 .tpl-box {
-  margin-top: 14px;
-  padding: 10px 12px;
+  margin-top: 8px;
+  padding: 8px 8px;
   border: 1px dashed var(--brand-tint, rgba(99, 102, 241, 0.2));
   border-radius: 10px;
   background: var(--brand-soft, rgba(99, 102, 241, 0.08));
@@ -935,24 +935,24 @@ function confirm() {
 .empty-state {
   border: 1px dashed var(--border-hairline, #cbd5e1);
   border-radius: 10px;
-  padding: 28px 16px;
+  padding: 24px 16px;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 .empty-text { margin: 0; font-size: 13px; color: var(--ink-soft, #64748b); }
 
 .preview-box {
-  margin-top: 14px;
-  padding: 10px 12px;
+  margin-top: 8px;
+  padding: 8px 8px;
   background: var(--g1, #f8fafc);
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.6;
   word-break: break-word;
 }
-.preview-prefix { font-weight: 700; color: var(--ink, #1e293b); margin-right: 6px; }
+.preview-prefix { font-weight: 700; color: var(--ink, #1e293b); margin-right: 8px; }
 .preview-text { color: var(--ink-soft, #475569); }
 </style>

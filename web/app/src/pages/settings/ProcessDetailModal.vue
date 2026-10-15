@@ -1603,7 +1603,7 @@ function scrollToSection(id: string) {
   backdrop-filter: blur(var(--glass-blur-card));
   -webkit-backdrop-filter: blur(var(--glass-blur-card));
   border-bottom: 1px solid var(--g2);
-  margin: 0 -20px 12px;
+  margin: 0 -16px 8px;
 }
 .dp-topbar-inner {
   max-width: 920px;
@@ -1733,7 +1733,7 @@ function scrollToSection(id: string) {
   display: flex;
   flex-direction: column;
   align-items: flex-start; /* C: 校验简历评分/是否启用 左对齐 */
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
 }
 .dp-field.span-full { grid-column: 1 / -1; }
@@ -1747,7 +1747,7 @@ function scrollToSection(id: string) {
 .scope-row-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 /* 行本身无边框无底色 (对齐示例图): 视觉单元是控件自身, 行间仅留白 */
@@ -1755,7 +1755,7 @@ function scrollToSection(id: string) {
   display: grid;
   grid-template-columns: 20px minmax(110px, 140px) minmax(92px, 112px) 1fr 28px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .scope-row__no {
   width: 20px;
@@ -1795,10 +1795,10 @@ function scrollToSection(id: string) {
 .scope-row__add {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   align-self: flex-start;
   margin-top: 4px;
-  padding: 6px 14px;
+  padding: 8px 8px;
   border: 1px solid var(--brand-a32);
   border-radius: var(--radius-md);
   background: var(--brand-tint);
@@ -1816,7 +1816,7 @@ function scrollToSection(id: string) {
   margin-top: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .scope-expr :deep(.n-input) { width: 100%; }
 .scope-expr__summary {
@@ -1827,7 +1827,7 @@ function scrollToSection(id: string) {
 }
 .scope-expr__summary-label {
   margin-right: 8px;
-  padding: 1px 6px;
+  padding: 1px 8px;
   border-radius: 4px;
   background: var(--brand-soft);
   color: var(--brand-fg);
@@ -1870,7 +1870,7 @@ function scrollToSection(id: string) {
   margin-bottom: var(--space-2);
 }
 .header-left { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.header-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .stage-no {
   width: 26px;
@@ -1912,7 +1912,7 @@ function scrollToSection(id: string) {
   font-weight: 600;
   color: var(--n-450);
   letter-spacing: .4px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .config-item .item-body {
   display: flex;
@@ -1931,7 +1931,7 @@ function scrollToSection(id: string) {
   min-width: 0;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -1962,7 +1962,7 @@ function scrollToSection(id: string) {
 .feature-empty {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: var(--fs-12);
   color: var(--n-450);
   min-height: 40px;
@@ -1970,8 +1970,8 @@ function scrollToSection(id: string) {
 .feature-empty :deep(.n-icon) { font-size: var(--fs-13); color: var(--n-350); }
 
 /* 自动化子网格 */
-.auto-grid { display: flex; flex-direction: column; gap: 5px; width: 100%; }
-.auto-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.auto-grid { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.auto-item { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .auto-item .label {
   flex: 0 0 64px;
   font-size: var(--fs-12);
@@ -1986,7 +1986,7 @@ function scrollToSection(id: string) {
   color: var(--ink);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .status-dot {

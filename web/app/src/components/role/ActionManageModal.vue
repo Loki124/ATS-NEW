@@ -297,7 +297,7 @@ async function submitForm() {
 
 <style scoped>
 .am-modal { max-width: 92vw; }
-.am-desc { margin-bottom: 12px; }
+.am-desc { margin-bottom: 8px; }
 .preset-block { margin-top: 16px; }
 .preset-head {
   display: flex;
@@ -308,6 +308,6 @@ async function submitForm() {
 .preset-title { font-size: 13px; font-weight: 700; color: var(--ink, #1e293b); }
 .preset-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .preset-tag { padding-right: 4px; }
-.preset-edit { margin-left: 6px; }
-.op-btn { margin-right: 10px; }
+.preset-edit { margin-left: 8px; }
+.op-btn { margin-right: 8px; }
 </style>

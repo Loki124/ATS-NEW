@@ -1648,7 +1648,7 @@ const batchColumns = computed(() => [
   { type: 'selection' as const },
   {
     title: t('pages.settings.DynamicFieldManager.s164'), key: 'label', minWidth: 150,
-    render: (row: FieldDefinition) => h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
+    render: (row: FieldDefinition) => h('span', { style: 'display:inline-flex;align-items:center;gap:8px' }, [
       row.label,
       row.isLocked
         ? h(NTag, { size: 'small', type: 'error', bordered: false }, () => t('pages.settings.DynamicFieldManager.s224'))
@@ -2305,7 +2305,7 @@ onMounted(async () => {
   font-size: var(--text-meta);
 }
 .field-key-readonly code {
-  padding: 2px 6px; border-radius: 4px;
+  padding: 2px 8px; border-radius: 4px;
   background: var(--g1); color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
 }

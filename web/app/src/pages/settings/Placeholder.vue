@@ -8,7 +8,7 @@
       <div class="err-right">
         <h2 class="err-title">{{ meta.title }}</h2>
         <p class="err-desc">{{ meta.description }}</p>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="placeholder-tag">{{ t('pages.settings.Placeholder.s1') }}</span>
           <span class="placeholder-eta">ETA: {{ meta.eta }}</span>
         </div>
@@ -58,6 +58,6 @@ const meta = computed(() => {
 /* v2 bugfix P1-B: .err-* CSS 已统一抽到 styles/glass.css（DRY 修复）
    此处仅保留占位页专属样式（.placeholder-icon / .placeholder-tag / .placeholder-eta）。 */
 .placeholder-icon { font-size: 48px; background: none; -webkit-background-clip: initial; background-clip: initial; -webkit-text-fill-color: initial; color: var(--ink); font-feature-settings: normal; letter-spacing: 0; }
-.placeholder-tag { display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); background: var(--c-info-soft); color: var(--c-info-deep); font-size: var(--text-meta); font-weight: 500; }
+.placeholder-tag { display: inline-flex; align-items: center; gap: 8px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); background: var(--c-info-soft); color: var(--c-info-deep); font-size: var(--text-meta); font-weight: 500; }
 .placeholder-eta { font-size: var(--text-small); color: var(--ink-soft); font-family: monospace; }
 </style>

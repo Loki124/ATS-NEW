@@ -344,7 +344,7 @@ watch(
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 6px 0;
+  padding: 8px 0;
   font-size: 13px;
   cursor: pointer;
 }
@@ -367,7 +367,7 @@ watch(
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 6px 0;
+  padding: 8px 0;
   font-size: 13px;
   border-bottom: 1px dashed var(--g4);
 }

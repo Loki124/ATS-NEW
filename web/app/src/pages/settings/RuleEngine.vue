@@ -408,7 +408,7 @@ onMounted(loadList)
 .cell-label { color: var(--ink-soft); font-size: var(--fs-12); }
 .cell-value { color: var(--ink); font-size: var(--fs-14); }
 .json-section { margin-top: var(--space-3); }
-.json-section h4 { margin: 0 0 6px 0; color: var(--ink-soft); font-size: var(--fs-13); font-weight: 500; }
+.json-section h4 { margin: 0 0 8px 0; color: var(--ink-soft); font-size: var(--fs-13); font-weight: 500; }
 .json-pre {
   margin: 0; padding: var(--space-3);
   background: var(--n-code-color, var(--glass-bg-elevated));

@@ -1040,7 +1040,7 @@ function renderOrderEvents(r: OrderRow) {
   }
   return h(
     'div',
-    { style: { padding: '8px 6px', fontFamily: 'monospace', fontSize: '12px' } },
+    { style: { padding: '8px 8px', fontFamily: 'monospace', fontSize: '8px' } },
     r.events.map((ev) =>
       h(
         'div',
@@ -1354,8 +1354,8 @@ onMounted(() => {
   font-size: var(--fs-13);
   font-weight: 600;
   color: var(--ink-soft);
-  margin: 6px 0 10px;
-  padding-left: 10px;
+  margin: 8px 0 8px;
+  padding-left: 8px;
   border-left: 3px solid var(--brand);
 }
 /* 审计抽屉统计条（复用全局玻璃令牌，暗色安全） */
@@ -1375,7 +1375,7 @@ onMounted(() => {
 /* 接口说明文档抽屉（变量化，暗色安全） */
 .doc-p { color: var(--ink-soft); font-size: var(--fs-13); line-height: 1.7; margin: var(--space-1) 0 var(--space-2); }
 .doc-p code, .doc-code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-.doc-p code { background: var(--g1); padding: 1px 6px; border-radius: 4px; font-size: var(--fs-12); color: var(--brand-fg); }
+.doc-p code { background: var(--g1); padding: 1px 8px; border-radius: 4px; font-size: var(--fs-12); color: var(--brand-fg); }
 .doc-h { font-size: var(--fs-14); font-weight: 600; color: var(--ink); margin: var(--space-4) 0 var(--space-2); }
 .doc-code {
   background: var(--g1);
@@ -1389,6 +1389,6 @@ onMounted(() => {
 /* 字段宽度与微间距收敛（替代散落的 width:NNNpx / margin-bottom:NNNpx 行内样式） */
 .es-input-search    { width: 240px; }
 .es-input-select    { width: 150px; }
-.es-toolbar-spacing { margin-bottom: 12px; }
+.es-toolbar-spacing { margin-bottom: 8px; }
 .es-form-no-margin  { margin-bottom: 0; }
 </style>

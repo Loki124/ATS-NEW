@@ -528,7 +528,7 @@ onMounted(() => {
 }
 .portal-link {
   font-size: var(--fs-12);
-  padding: 2px 10px;
+  padding: 2px 8px;
   border: 1px solid;
   border-radius: var(--radius-pill);
 }

@@ -448,7 +448,7 @@ watch(() => route.path, () => {
      真正的滚动视口下放到各页 .page-body（单一滚动职责，防双重滚动）。
      若改回 overflow: auto 会与 .page-body 形成双重滚动。 */
   overflow: hidden;
-  padding: 20px;
+  padding: 16px;
 }
 @media (max-width: 767px) {
   .settings-scroll { overflow: auto; }

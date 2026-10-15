@@ -524,7 +524,7 @@ onMounted(async () => {
    theme-overrides 是首选，此处 !important 兜底防 HMR/特异性竞态 */
 .recruitment-stage :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
   vertical-align: middle;
-  padding: 6px 12px !important;
+  padding: 8px 8px !important;
 }
 
 /* === 2026-09-08 弹窗修复（P0-3 / P1-4）=== */

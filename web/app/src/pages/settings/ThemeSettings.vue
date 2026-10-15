@@ -454,7 +454,7 @@ onUnmounted(() => {
   font-family: var(--font-mono);
   font-size: 11px;
   background: var(--glass-bg-input);
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-radius: var(--radius-sm);
 }
 

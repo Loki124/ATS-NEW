@@ -296,7 +296,7 @@ onMounted(async () => { await loadDepartments(); loadList() })
 /* 2026-08-30 UX 三改：padding 6px 12px 让 row-height=44 真正生效（Naive 未暴露 tdPadding 变量，scoped 兜底） */
 .recruitment-process :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
   vertical-align: middle;
-  padding: 6px 12px !important;
+  padding: 8px 8px !important;
 }
 /* 表头：小号灰字 + 字距（ quieter header → 数据更突出，CampusControl 同款层次） */
 .recruitment-process :deep(.n-data-table-th) {

@@ -183,7 +183,7 @@ function actionLabel(a: SkipRule['action']) {
   align-items: flex-end;
 }
 .flow-condition-row + .flow-condition-row {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 .flow-field {
   flex: 1;
@@ -206,7 +206,7 @@ function actionLabel(a: SkipRule['action']) {
 .opt-item {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   font-size: var(--fs-13);
   color: var(--ink);
   cursor: pointer;
@@ -235,7 +235,7 @@ function actionLabel(a: SkipRule['action']) {
   background: var(--surface);
   border: 1px solid var(--brand);
   color: var(--brand-fg);
-  padding: 0 14px;
+  padding: 0 8px;
   height: 30px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-12);
@@ -259,7 +259,7 @@ function actionLabel(a: SkipRule['action']) {
   background: transparent;
   border: 1px dashed var(--g6);
   color: var(--ink-soft);
-  padding: 0 14px;
+  padding: 0 8px;
   height: 30px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-12);
@@ -303,7 +303,7 @@ function actionLabel(a: SkipRule['action']) {
 }
 .action-btns {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .action-btns a {
@@ -337,7 +337,7 @@ function actionLabel(a: SkipRule['action']) {
 @media (max-width: 767px) {
   .flow-condition-row {
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 }
 </style>

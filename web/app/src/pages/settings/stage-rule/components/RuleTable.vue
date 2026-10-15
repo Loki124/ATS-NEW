@@ -59,7 +59,7 @@ function rowKey(row: T, idx: number): string {
 <style scoped>
 .rule-table-wrap {
   overflow-x: auto;
-  margin-top: 6px;
+  margin-top: 8px;
   border-radius: var(--radius-sm);
   scrollbar-width: thin;
 }
@@ -102,7 +102,7 @@ function rowKey(row: T, idx: number): string {
 .rule-table__empty {
   text-align: center;
   color: var(--ink-faint);
-  padding: 14px !important;
+  padding: 8px !important;
   font-style: italic;
 }
 </style>

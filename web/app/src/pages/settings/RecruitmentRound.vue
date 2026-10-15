@@ -225,6 +225,6 @@ onMounted(() => loadList())
    全靠此 scoped CSS 兜底。 */
 .interview-round :deep(.n-data-table .n-data-table-tr .n-data-table-td) {
   vertical-align: middle;
-  padding: 6px 12px !important;
+  padding: 8px 8px !important;
 }
 </style>

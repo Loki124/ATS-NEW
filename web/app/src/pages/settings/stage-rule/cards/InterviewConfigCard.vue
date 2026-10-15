@@ -87,7 +87,7 @@ function toggle(list: string[], v: string, checked: boolean) {
 .title-left {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -107,7 +107,7 @@ function toggle(list: string[], v: string, checked: boolean) {
   font-size: var(--fs-13);
   font-weight: 600;
   color: var(--ink);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .option-grid {
   display: flex;
@@ -118,7 +118,7 @@ function toggle(list: string[], v: string, checked: boolean) {
 .opt-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   font-size: var(--fs-13);
   color: var(--ink);
   cursor: pointer;

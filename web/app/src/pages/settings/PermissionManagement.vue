@@ -79,7 +79,8 @@ const templatesModal = reactive({ show: false })
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  /* 2026-10-15 兵哥：间距朝更小收敛（16px → 8px），页头与内容靠 8px 轻隔即可分层 */
+  gap: var(--space-2);
 }
 
 /* 标题行：左标题 + 右操作（模板管理入口右对齐） */
@@ -94,14 +95,15 @@ const templatesModal = reactive({ show: false })
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
-  padding-bottom: 2px;
 }
 
 .permission-management {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
-/* 玻璃面板作为内容根时撑满高度（规范：仿 CampusControl 范式 .glass-panel flex 撑满） */
-.permission-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-4); }
+/* 玻璃面板作为内容根时撑满高度。
+ * ⚠️ 2026-10-15 兵哥：内边距 16px → 8px（面板已无投影 + 无页头分隔线，
+   再叠 16px 内衬会让内容框显小、行密度虚低）。 */
+.permission-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-2); }
 </style>

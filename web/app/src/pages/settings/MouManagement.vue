@@ -958,26 +958,26 @@ onMounted(() => {
 /* 融合弹窗内：组织/人员数据范围读出行 */
 .detail-range-readout {
   margin-top: var(--space-2);
-  padding: 6px 10px;
+  padding: 8px 8px;
   background: var(--g1);
   border-radius: 6px;
 }
 /* 需求 E：配置人员范围 → 实际人员表（姓名/邮箱/组织 + 筛选） */
 .person-resolved {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 .person-resolved-toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 /* 北森式范围区块：开关 + 标题 + 右侧操作 + 可收起（紧凑版，压缩竖向冗余） */
 .scope-block {
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  padding: 10px 12px;              /* 原 12px 16px：收窄上下内边距，提升信息密度 */
-  margin-bottom: 10px;             /* 原 12px：区块间距收紧 */
+  padding: 8px 8px;              /* 原 12px 16px：收窄上下内边距，提升信息密度 */
+  margin-bottom: 8px;             /* 原 12px：区块间距收紧 */
 }
 .scope-block-header {
   display: flex;
@@ -1048,7 +1048,7 @@ onMounted(() => {
 .meta-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .meta-item label {
   color: var(--ink-faint);

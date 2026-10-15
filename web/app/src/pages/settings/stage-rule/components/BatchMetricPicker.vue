@@ -110,7 +110,7 @@ function confirm() {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .bmp-opt {
   display: flex;
@@ -119,7 +119,7 @@ function confirm() {
   font-size: var(--fs-13);
   color: var(--ink-soft);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
 }
 .bmp-opt:hover {
@@ -136,7 +136,7 @@ function confirm() {
   font-size: var(--fs-12);
   color: var(--ink-faint);
   padding: 8px 0;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .bmp-panel__actions {
   display: flex;

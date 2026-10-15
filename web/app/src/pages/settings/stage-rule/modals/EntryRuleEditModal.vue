@@ -245,7 +245,7 @@ function onSave() {
   display: block;
   font-size: var(--fs-13);
   color: var(--ink);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-weight: 500;
 }
 .required-mark {
@@ -274,7 +274,7 @@ function onSave() {
   color: var(--g6);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-elevated);  /* 原 var(--shadow-elev) 未定义，阴影被丢弃 */
-  padding: 11px 13px;
+  padding: 8px 8px;
   z-index: 30;
   font-size: var(--fs-12);
   line-height: 1.65;
@@ -304,7 +304,7 @@ function onSave() {
 .group-block {
   background: var(--g1);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 8px 8px;
   margin-bottom: var(--space-3);
   border: 1px solid var(--g2);
 }
@@ -387,7 +387,7 @@ function onSave() {
   align-items: center;
   margin-top: 8px;
 }
-.group-inner-row + .group-inner-row { margin-top: 6px; }
+.group-inner-row + .group-inner-row { margin-top: 8px; }
 .inner-label {
   font-size: var(--fs-12);
   color: var(--ink-soft);
@@ -408,7 +408,7 @@ function onSave() {
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  margin-top: 10px;
+  margin-top: 8px;
   transition: color var(--duration-fast) var(--ease-out);
 }
 .add-link:hover { color: var(--brand-fg-hover); }
@@ -432,7 +432,7 @@ function onSave() {
 .field-hint {
   color: var(--ink-soft);
   font-size: var(--fs-12);
-  margin: 6px 0 0;
+  margin: 8px 0 0;
 }
 
 /* ===== Footer ===== */

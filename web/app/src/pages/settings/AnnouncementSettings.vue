@@ -641,7 +641,7 @@ onMounted(() => {
   flex-shrink: 0;
   background: var(--glass-bg-card);
   border-right: 1px solid var(--glass-border);
-  padding: 20px 0;
+  padding: 16px 0;
 }
 
 .policy-admin__side-header {
@@ -660,7 +660,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 10px 20px;
+  padding: 8px 16px;
   margin: 0 var(--space-2);
   border-radius: 6px;
   cursor: pointer;
@@ -694,7 +694,7 @@ onMounted(() => {
 .policy-tree__count {
   font-size: var(--fs-12);
   color: var(--n-380);
-  background: var(--g1);  padding: 1px 6px;
+  background: var(--g1);  padding: 1px 8px;
   border-radius: 10px;
 }
 
@@ -834,7 +834,7 @@ onMounted(() => {
 .policy-place {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .policy-place__none {
@@ -845,7 +845,7 @@ onMounted(() => {
 .policy-doc-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .policy-doc-icon {
@@ -881,7 +881,7 @@ onMounted(() => {
   font-size: 11px;
   color: var(--c-error-deep);
   background: var(--c-error-soft);
-  padding: 1px 6px;
+  padding: 1px 8px;
   border-radius: 4px;
 }
 
@@ -894,7 +894,7 @@ onMounted(() => {
 .policy-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* 抽屉内样式 */
@@ -938,7 +938,7 @@ onMounted(() => {
 .attach-name em {
   color: var(--ink-faint);
   font-style: normal;
-  margin-left: 6px;
+  margin-left: 8px;
 }
 
 .attach-hint {

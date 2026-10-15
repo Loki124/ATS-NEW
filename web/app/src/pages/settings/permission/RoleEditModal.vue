@@ -798,7 +798,7 @@ async function onSubmit() {
   display: none;
 }
 .edit-tabs :deep(.n-tabs-tab) {
-  padding: 12px 4px;
+  padding: 8px 4px;
 }
 /* pane 承载内容：水平与页签栏文字左对齐（24px），上下留白走间距令牌 */
 .edit-tabs :deep(.n-tab-pane) {
@@ -808,7 +808,7 @@ async function onSubmit() {
 .tab-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 /* 未保存标记：--c-error-deep 对白底 8.31:1（旧 fallback #ef4444 仅 3.76:1，
    圆点在白底上判读吃力，且色觉障碍下与纯装饰圆点难区分） */
@@ -900,7 +900,7 @@ async function onSubmit() {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .pg-name {
   font-size: 14px;
@@ -1002,7 +1002,7 @@ async function onSubmit() {
 .dp-cards {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
 }
 .dp-card-slot {
   scroll-margin: 16px;

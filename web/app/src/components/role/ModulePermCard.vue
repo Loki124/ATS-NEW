@@ -323,14 +323,14 @@ const driftTags = computed(() =>
    比卡片底更暗，会被读成"凹陷"而非"禁用"。 */
 .module-card.disabled { opacity: 0.6; }
 
-.card-head { margin-bottom: 12px; }
+.card-head { margin-bottom: 8px; }
 .card-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .card-title { font-size: 15px; font-weight: 700; color: var(--ink, #1e293b); }
 .lock-tag { font-weight: 600; }
 /* 模板状态偏差标记：与 lock-tag 同级，靠文字+颜色双通道表达 */
 .drift-tag { font-weight: 600; max-width: 100%; }
 .orphan-hint {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   font-size: 12px;
   line-height: 1.6;
   color: var(--c-error-deep, #b91c1c);
@@ -345,12 +345,12 @@ const driftTags = computed(() =>
 .mode-group { width: 100%; }
 
 .rule-summary {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px dashed var(--border-hairline, #e2e8f0);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .inline-error { margin: 0; }
 .summary-line { display: flex; }
@@ -364,8 +364,8 @@ const driftTags = computed(() =>
 
 /* ===== v2 写范围区 ===== */
 .write-section {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px dashed var(--border-hairline, #e2e8f0);
 }
 .write-head {
@@ -382,11 +382,11 @@ const driftTags = computed(() =>
   font-size: 12px;
   color: var(--ink-soft, #64748b);
 }
-.write-alert { margin: 10px 0 0; }
-.write-mode-group { width: 100%; margin-top: 10px; }
-.preset-select { margin-top: 10px; max-width: 260px; }
+.write-alert { margin: 8px 0 0; }
+.write-mode-group { width: 100%; margin-top: 8px; }
+.preset-select { margin-top: 8px; max-width: 260px; }
 .action-checks {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;

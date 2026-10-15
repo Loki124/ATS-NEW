@@ -969,7 +969,7 @@ onUnmounted(() => {
 .hint-bar-icon { color: var(--c-warning-deep); font-size: var(--fs-14); flex-shrink: 0; }
 .hint-bar-text { color: var(--ink-soft); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hint-bar-more { color: var(--brand-fg); padding: 0 var(--space-1); }
-.hint-pop-list { margin: 0; padding-left: 18px; font-size: var(--fs-13); max-width: 360px; }
+.hint-pop-list { margin: 0; padding-left: 16px; font-size: var(--fs-13); max-width: 360px; }
 .hint-pop-list li { margin-bottom: var(--space-1); line-height: 1.6; }
 
 .hint { color: var(--n-350); font-size: var(--fs-12); margin-left: var(--space-2); }
