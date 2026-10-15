@@ -56,7 +56,7 @@ describe('column() —— 列工厂', () => {
     expect(col.width).toBe(150);
     expect(col.fixed).toBe('right');
     // column() 返回 DataTableColumn（联合类型），断言用 in 收窄避免误报
-    expect('title' in col && col.title).toBe('操作');
+    expect('title' in col && typeof col.title === 'function' && col.title).toBeTruthy();
   });
 
   it('不修改传入的原始对象（无副作用）', () => {
@@ -90,5 +90,52 @@ describe('OP_ACTION_BUTTON_SIZE —— 操作列字号规格', () => {
     // tiny 的 12px 比正文小 2px，即「不像一个层级」的成因。
     expect(OP_ACTION_BUTTON_SIZE).toBe('small');
     expect(OP_ACTION_BUTTON_SIZE).not.toBe('tiny');
+  });
+});
+
+/**
+ * 🔴 表头居中回归护栏（兵哥 2026-10-15 反馈「标题行没跟着居中」）
+ *
+ * 背景与实测结论：
+ *   naive 会把 `titleAlign || align` 写进 `<th style="text-align:center">`，
+ *   但 `.n-data-table-th__title` 是**块级子元素** —— text-align 只对行内内容生效，
+ *   块级子元素内部另起一行按左对齐排 ⇒ th 行内居中、**视觉上标题仍偏左**。
+ *
+ * 本组测试锁死工厂的解法：title 被渲染为**带 text-align 的块级 span**，
+ * 与正文对齐同源，不依赖 CSS 继承 / :has() / th class（后者根本不存在）。
+ */
+describe('表头对齐 —— 与正文同源（渲染级验证）', () => {
+  it('title 被包装成函数式 VNode（而非裸字符串）', () => {
+    // column() 返回 DataTableColumn 联合类型，title 不在所有成员上 ⇒ 收窄到结构类型访问
+    const col = column({ title: '身份编码', key: 'code' }, 'short') as { title?: unknown };
+    expect(typeof col.title).toBe('function');
+  });
+
+  it('titleAlign 与 align 同步（双保险，naive 源码取 titleAlign||align）', () => {
+    const c = column({ title: '编码', key: 'code' }, 'short');
+    expect(c.align).toBe('center');
+    expect(c.titleAlign).toBe('center');
+  });
+
+  it('D 档长文本列：表头也是 left，与正文一致', () => {
+    const c = column({ title: '描述', key: 'desc' }, 'text');
+    expect(c.align).toBe('left');
+    expect(c.titleAlign).toBe('left');
+  });
+
+  it('title VNode 实际渲染出 text-align 行内样式', async () => {
+    const { h } = await import('vue');
+    const c = column({ title: '身份编码', key: 'code' }, 'short') as { title?: () => unknown };
+    const vnode = c.title!();
+    const props = (vnode as { props?: Record<string, unknown> }).props;
+    expect(props).toBeDefined();
+    expect(props!.style).toMatchObject({ textAlign: 'center', display: 'block' });
+    expect(h).toBeDefined();
+  });
+
+  it('非字符串标题（函数式标题）不被强行包裹，保留调用方自定义', () => {
+    const customTitle = () => null;
+    const c = column({ title: customTitle, key: 'code' }, 'short') as { title?: unknown };
+    expect(c.title).toBe(customTitle);
   });
 });

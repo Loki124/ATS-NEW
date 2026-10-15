@@ -1196,33 +1196,52 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info-deep);    background:
  *   A 短值/枚举/标识 → center    B 控件/操作 → center
  *   C 数值           → center    D 长文本     → left（长 SQL/描述居中会毁掉扫读）
  *
- * 【为什么有 CSS 兜底又有工厂】
- *   n-data-table 的 align 最终渲染为【行内 style="text-align:..."】，
- *   行内样式优先级高于任何 CSS 规则 ⇒ 全局样式表【无法】把默认左对齐改成居中。
- *   （td 虽同时带 .n-data-table-td--center-align class 可作钩子，
- *     但 th 只有行内 style、无对应 class，无法对称实现。）
- *   ⇒ 真正的对齐真源是【列定义层】useTableColumns.column()，各页按需显式声明。
- *   下方 CSS 只负责「td 内容垂直居中 + 表头一致性」这类 CSS 能覆盖的部分，
- *   以及给未改造页面提供基础对齐暗示（不期望它能翻转 align）。
+ * 🔴 【实测出来的 DOM 真相 —— 上一版写错了，勿再改回】
+ *   n-data-table 真实结构（vitest mount 打印 outerHTML 验证）：
+ *     <th style="text-align:center">
+ *       <div class="n-data-table-th__title-wrapper">
+ *         <div class="n-data-table-th__title">标题文字</div>   ← block 元素！
+ *       </div>
+ *     </th>
+ *     <td style="text-align:center" class="...n-data-table-td--center-align">裸文本</td>
+ *
+ *   两个致命细节：
+ *   1. **th 的行内 text-align 透不进 title** —— title 是块级子元素，
+ *      行内 text-align 只对【行内内容】生效，块级子元素内部仍按左对齐排。
+ *      ⇒ 表头必须对 `.n-data-table-th__title` 自身设 text-align，
+ *        不能指望 th 上的行内 style。
+ *   2. **td 内没有 `.n-data-table-td__content` 包裹层** —— 旧版规则里那个
+ *      选择器根本不存在，永远不命中（静默失效）。
+ *
+ *   ⚠️ 但【td 的居中是有效的】：td 是直接承载文本的叶子容器，
+ *      行内 text-align 在 td 上正常生效。所以正文只需补「垂直居中」。
  */
 
-/* 表头与正文内容垂直居中：按钮列/开关列/标签列行高不齐时视觉会飘 */
-.settings-scroll .n-data-table-th .n-data-table-th__title,
-.n-data-table-th .n-data-table-th__title {
-  display: flex;
-  align-items: center;
-  justify-content: inherit;
+/* 🔴 表头对齐已由【列工厂】useTableColumns 下发（title VNode 带 text-align），
+ *    此处【不要】再写 CSS 试图翻转表头对齐 —— 已实测全部无效：
+ *      · th 上的行内 text-align 透不进块级 .n-data-table-th__title；
+ *      · td 有 --center-align class，th 没有；
+ *      · text-align:inherit 在 inline→block 链上不可靠。
+ *    下方只保留【垂直居中】与【行高基线】这类 CSS 确实能覆盖的部分。 */
+
+/* 表头/正文垂直居中：按钮列、开关列、标签列行高不齐时视觉会飘 */
+.n-data-table-th,
+.settings-scroll .n-data-table-th,
+.table-wrap .n-data-table-th,
+.settings-scroll .n-data-table-td,
+.table-wrap .n-data-table-td {
+  vertical-align: middle;
+}
+/* 行高基线统一到正文刻度，避免表头比正文高一档显得「不是一个层级」 */
+.settings-scroll .n-data-table-td > *,
+.table-wrap .n-data-table-td > * {
   line-height: var(--text-body);
 }
-.settings-scroll .n-data-table-td .n-data-table-td__content,
-.table-wrap .n-data-table-td .n-data-table-td__content {
-  display: flex;
-  align-items: center;
-  line-height: var(--text-body);
-}
-/* ⚠️ 长文本列豁免：内容是 SQL/多行描述时，flex 会压缩换行语义，
- *    故留 `--cell-hug-content` 类由长文本列显式挂上（见 useTableColumns D 档说明）。 */
-.settings-scroll .n-data-table-td .n-data-table-td__content > .cell-hug-content {
+
+/* ⚠️ 长文本列豁免：D 档列由 useTableColumns 声明 align:'left'，
+ *    若该列内含多行结构需保持块级排版，可挂 `.cell-hug-content` 标记。 */
+.settings-scroll .n-data-table-td > .cell-hug-content,
+.table-wrap .n-data-table-td > .cell-hug-content {
   display: block;
   text-align: left;
 }

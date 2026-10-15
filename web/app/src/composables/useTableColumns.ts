@@ -42,7 +42,8 @@
  *   （操作列用 quaternary + type=primary/error 文字按钮，不堆实心）
  */
 import type { DataTableColumn, DataTableRowKey } from 'naive-ui';
-import type { TableBaseColumn } from 'naive-ui/es/data-table/src/interface';
+import { h } from 'vue';
+import type { TableBaseColumn, TableColumnTitle } from 'naive-ui/es/data-table/src/interface';
 
 /** 列内容类型 → 对齐档位（见文件头四档规则表） */
 export type ColumnAlignTier = 'short' | 'control' | 'numeric' | 'text';
@@ -80,7 +81,47 @@ export type ColumnInput<T = any> = Omit<TableBaseColumn<T>, 'align'> & {
 export const OP_ACTION_BUTTON_SIZE = 'small' as const;
 
 /**
+ * 🔴 表头对齐的真正解法（实测得出，勿改回 CSS-only 方案）
+ *
+ * naive 源码 `TableParts/Header.mjs:243`：
+ *     textAlign: column.titleAlign || column.align
+ * ⇒ align:'center' 确实被写进 `<th style="text-align:center">` 的行内样式。
+ *
+ * 但实测 DOM 结构是：
+ *     <th style="text-align:center">
+ *       <div class="n-data-table-th__title-wrapper">
+ *         <div class="n-data-table-th__title">标题</div>   ← 块级子元素
+ *       </div>
+ *     </th>
+ *
+ * ⚠️ **text-align 只对【行内内容】生效**，而 title 是块级子元素、
+ *    内部另起一行按左对齐排 ⇒ th 行内是 center，**视觉上标题仍偏左**。
+ *    这就是「表头没跟着正文一起居中」的根因。
+ *
+ * ❌ CSS-only 方案全部无效（已逐一验证）：
+ *    · `text-align: inherit` —— jsdom 与部分浏览器对 inline→block 继承链解析不可靠，
+ *      且 CSS 无法读取 th 的行内值来判断该不该居中；
+ *    · `.n-data-table-th--center-align` —— **该 class 只存在于 td，th 没有**；
+ *    · `:has()` —— 能用但需维护一份「哪些 th 居中」的状态，与列工厂重复且易漂移。
+ *
+ * ✅ 正解：把 title 渲染为**带 text-align 的块级元素**，
+ *    由列工厂直接产出 VNode。对齐与内容绑定在一起，不依赖任何继承或外部状态。
+ */
+function buildTitle(title: TableColumnTitle | undefined, align: 'left' | 'center'): TableColumnTitle | undefined {
+  // 非字符串标题（函数式/自定义 VNode）交还调用方自行处理，不强行包裹
+  if (typeof title !== 'string') return title;
+  return () =>
+    h(
+      'span',
+      { style: { display: 'block', textAlign: align } },
+      { default: () => title },
+    );
+}
+
+/**
  * 列工厂：声明列内容类型，自动套用对应档位的对齐。
+ *
+ * 对齐同时作用于【表头与正文】—— 见 buildTitle() 的实测说明。
  *
  * 用法（替代裸对象数组）：
  * ```ts
@@ -97,7 +138,14 @@ export const OP_ACTION_BUTTON_SIZE = 'small' as const;
 export function column<T = any>(col: ColumnInput<T>, tier: ColumnAlignTier = 'short'): DataTableColumn<T> {
   // 已显式声明 align 的列以调用方为准（尊重个别页的例外），否则按档位套用
   const align = col.align ?? ALIGN_BY_TIER[tier];
-  return { ...col, align } as DataTableColumn<T>;
+  return {
+    ...col,
+    align,
+    // 表头同步对齐（naive 会把 titleAlign||align 写进 th 行内样式，但那是块级 title 的父级，
+    // 视觉不生效，故额外用 titleAlign 声明一次，与 buildTitle 的 VNode 形成双保险）
+    titleAlign: col.titleAlign ?? align,
+    title: buildTitle(col.title, align),
+  } as DataTableColumn<T>;
 }
 
 /**

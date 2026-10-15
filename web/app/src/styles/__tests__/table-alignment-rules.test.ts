@@ -15,18 +15,26 @@ const GLASS_CSS = path.resolve(__dirname, '../glass.css');
 const css = fs.readFileSync(GLASS_CSS, 'utf8');
 
 describe('glass.css — 数据列表对齐规则', () => {
-  it('存在 td 内容垂直居中规则', () => {
-    expect(css).toContain('.n-data-table-td .n-data-table-td__content');
+  it('存在 td/th 垂直居中规则', () => {
+    expect(css).toMatch(/\.n-data-table-td[^{]*\{[^}]*vertical-align:\s*middle/);
+    expect(css).toMatch(/\.n-data-table-th[^{]*\{[^}]*vertical-align:\s*middle/);
   });
 
   it('存在长文本列豁免钩子 .cell-hug-content', () => {
     expect(css).toContain('.cell-hug-content');
   });
 
-  it('注释中记录了「align 是行内样式、CSS 无法翻转」这一关键约束', () => {
-    // 防止后人误以为全局 CSS 能改 align，加 !important 硬刚（无效且误导）
-    expect(css).toMatch(/行内\s*style/);
+  it('注释中记录了「表头对齐由列工厂下发，CSS 翻转无效」这一关键约束', () => {
+    // 防止后人再写 CSS 试图翻转表头（已实测：th 行内 text-align 透不进块级 title；
+    // td 有 --center-align class 而 th 没有）
+    expect(css).toMatch(/titleAlign\s*\|\|\s*align|块级/);
     expect(css).toContain('useTableColumns');
+  });
+
+  it('不再存在错误的 td__content 选择器（实测该 DOM 结构不存在）', () => {
+    // 注释里会以反引号引用这个名称作说明，不能裸 toContain 判负；
+    // 钉死「不存在真正的 CSS 规则块」即可（选择器后跟 { 才是生效规则，注释里的反引号引用不算）
+    expect(css).not.toMatch(/\.n-data-table-td__content\s*\{/);
   });
 });
 
