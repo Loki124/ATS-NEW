@@ -119,6 +119,32 @@
 - 弹窗/抽屉：跟随 Naive UI 主题默认（勿手写）。
 - **禁止**手写 `border-radius: 8px`、`border-radius: 10px` 等硬编码值。
 
+**1.8.5 多选框溢出折叠（`max-tag-count`）**
+
+所有多选 `<n-select multiple>` 在**选项值总宽度超过选择框宽度**时，必须自动折叠为 `+1`、`+2` 样式，禁止标签换行撑破布局或截断不可读。
+
+| 场景 | 规则 |
+| --- | --- |
+| 宽度自适应折叠 | `max-tag-count="responsive"`（Naive UI 按容器宽度自动计算并显示 `+N`） |
+| 固定数量折叠 | 仅在设计稿明确要求固定显示 N 个标签时使用 `max-tag-count="N"`（N 为数字） |
+| 不换行 | 禁止手写 `white-space: nowrap` + 省略号冒充折叠；统一走 Naive UI 原生 `+N` |
+| 小尺寸多选 | size="small" 与 `max-tag-count="responsive"` 可同时使用 |
+
+**示例**：
+```vue
+<n-select
+  v-model:value="selectedIds"
+  :options="options"
+  size="small"
+  multiple
+  filterable
+  clearable
+  max-tag-count="responsive"
+/>
+```
+
+**已落地检查点**：RuleConfigModal 的条件值 / 属性条件多选均已配置 `max-tag-count="responsive"`。新增多选框时必须遵守本条；Code Review 把 `multiple` 缺少 `max-tag-count` 视为阻塞项。
+
 ---
 
 ## 2. 已落地的强制实现（Implementation）

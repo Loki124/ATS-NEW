@@ -67,6 +67,7 @@
             拆成两个位置才是真 bug。
           -->
           <template v-if="!isAttr(c)">
+            <!-- 第 1 位·指标项 -->
             <n-select
               :value="c.dimension"
               :options="dimensionOptions"
@@ -74,49 +75,45 @@
               class="cond-dim"
               @update:value="(v: string) => onDimensionChange(c, v)"
             />
-            <!-- 第 2 位·静态：运算符（属于 / 不属于） -->
+            <!-- 第 2 位·运算符：始终显示；user 维度给 等于/不等于，dept 维度给包含关系族 -->
             <n-select
-              v-if="!isDynamic(c)"
-              :value="c.operator"
-              :options="operatorOptions"
+              :value="unifiedOperatorValue(c)"
+              :options="unifiedOperatorOptions(c)"
               size="small"
               class="cond-verb"
-              @update:value="(v: Operator) => (c.operator = v)"
+              @update:value="(v: string) => onUnifiedOperatorChange(c, v)"
             />
-            <!-- 第 2 位·动态：包含关系（仅部门类维度有树语义，user/unit 维度无 relation） -->
-            <n-select
-              v-else-if="hasDeptRelation(c)"
-              :value="c.relation || 'exact'"
-              :options="relationOptions"
-              size="small"
-              class="cond-verb"
-              @update:value="(v: DynamicRelation) => (c.relation = v)"
-            />
-            <!-- 第 3 位·取值来源：仅 contextKeys 非空的维度支持动态取值（M03） -->
+            <!-- 第 3 位·校验值范围（取值来源）：维度支持动态取值时才显示，可缺省 -->
             <n-select
               v-if="supportsDynamic(c)"
-              :value="valueSourceValue(c)"
-              :options="valueSourceOptions(c)"
+              :value="rangeValue(c)"
+              :options="rangeOptions(c)"
               size="small"
-              class="cond-src"
-              @update:value="(v: string) => onValueSourceChange(c, v)"
+              class="cond-range"
+              @update:value="(v: string) => onRangeChange(c, v)"
             />
-            <!-- 第 4 位·取值：仅静态态需要手选业务值 -->
+            <!-- 第 4 位·校验值：始终显示；静态可编辑，动态只读展示当前范围 -->
             <n-select
-              v-if="!isDynamic(c)"
+              v-if="isStatic(c)"
               :value="validValueIds(c)"
               :options="valueOptions(c)"
               size="small"
               multiple
               filterable
               clearable
+              max-tag-count="responsive"
               class="cond-val"
               :placeholder="t('dataperm.modal.valuesPlaceholder')"
               @update:value="(ids: Array<string | number>) => onValuesChange(c, ids)"
             />
-            <span v-if="dynamicNote(c)" class="dynamic-hint">
-              {{ dynamicNote(c) }}
-            </span>
+            <n-tag
+              v-else
+              size="small"
+              :bordered="false"
+              class="cond-val-readonly"
+            >
+              {{ rangeLabel(c) }}
+            </n-tag>
             <n-tag
               v-for="sv in staleValues(c)"
               :key="sv.id"
@@ -172,6 +169,7 @@
             <template v-else-if="attrValueMode(c) === 'enum-multi'">
               <n-select
                 multiple
+                max-tag-count="responsive"
                 :value="attrMultiValueIds(c)"
                 :options="attrEnumOptions(c)"
                 size="small"
@@ -343,7 +341,6 @@ import {
   newCondition, uid, validateExpr, previewOf,
   ATTR_NOVALUE_OPS, ATTR_LIST_OPS,
   dynamicSourceOptions, resolveValueSource, DYNAMIC_RELATION_OPTIONS, DYNAMIC_RELATION_LABELS,
-  DYNAMIC_SOURCE_NOTES,
   type DimensionMeta, type Operator, type PermCondition, type PermConditionGroup, type AttributeField, type PermValue,
   type DynamicRelation,
 } from '@/composables/useRoleDataPerm'
@@ -417,9 +414,20 @@ watch(
 const dimensionOptions = computed(() =>
   props.dimensions.map((d) => ({ label: d.label, value: d.key })),
 )
-const operatorOptions = [
-  { label: t('dataperm.operator.in'), value: 'in' as Operator },
-  { label: t('dataperm.operator.not_in'), value: 'not_in' as Operator },
+/** 静态/动态统一运算符选项：第 2 位始终显示。 */
+const UNIFIED_USER_OPERATORS = [
+  { label: '等于', value: 'eq' },
+  { label: '不等于', value: 'neq' },
+]
+const UNIFIED_DEPT_OPERATORS = [
+  { label: '属于', value: 'in:exact' },
+  { label: '不属于', value: 'not_in:exact' },
+  { label: '属于（含下级）', value: 'in:in_subtree' },
+  { label: '不属于（含下级）', value: 'not_in:in_subtree' },
+  { label: '包含', value: 'in:contains' },
+  { label: '不包含', value: 'not_in:contains' },
+  { label: '包含或属于', value: 'in:overlap' },
+  { label: '不包含或属于', value: 'not_in:overlap' },
 ]
 
 function firstDim(): string {
@@ -482,14 +490,60 @@ function isDynamic(c: PermCondition): boolean {
   return c.valueSource === 'dynamic'
 }
 
+function isStatic(c: PermCondition): boolean {
+  return !isDynamic(c)
+}
+
+/** 当前维度值类型。 */
+function dimValueType(c: PermCondition): string {
+  return dimMetaOf(c.dimension || '')?.valueType || ''
+}
+
+/** 统一运算符下拉选项（user/dept 各自一套，指标项切换时联动）。 */
+function unifiedOperatorOptions(c: PermCondition) {
+  const vt = dimValueType(c)
+  if (vt === 'department') return UNIFIED_DEPT_OPERATORS
+  if (vt === 'user') return UNIFIED_USER_OPERATORS
+  // 其它值类型按 user 处理（人员类维度均走此分支）
+  return UNIFIED_USER_OPERATORS
+}
+
 /**
- * 取值来源下拉的当前绑定值。
+ * 统一运算符当前值：把后端的 operator + relation 组合成前端一个 value。
+ * 如 dept 动态 + relation=contains + operator=not_in → 'not_in:contains'。
+ */
+function unifiedOperatorValue(c: PermCondition): string {
+  const op = c.operator || 'in'
+  const rel = c.relation || 'exact'
+  const vt = dimValueType(c)
+  if (vt === 'department') {
+    return `${op}:${rel}`
+  }
+  // user 维度：operator='in' 展示为'等于'，'not_in' 展示为'不等于'
+  return op === 'not_in' ? 'neq' : 'eq'
+}
+
+/** 统一运算符变更：解析组合 value 写回 operator / relation。 */
+function onUnifiedOperatorChange(c: PermCondition, v: string) {
+  const vt = dimValueType(c)
+  if (vt === 'department') {
+    const [op, rel] = v.split(':') as [string, DynamicRelation]
+    c.operator = op as Operator
+    c.relation = rel
+  } else {
+    c.operator = v === 'neq' ? 'not_in' : 'in'
+    c.relation = undefined
+  }
+}
+
+/**
+ * 校验值范围（取值来源）下拉的当前绑定值。
  *
- * 必须与 valueSourceOptions 的选项 value **同构**（'static' 或某个 contextKey）：
+ * 必须与 rangeOptions 的选项 value **同构**（'static' 或某个 contextKey）：
  * 若直接绑 `c.valueSource`（'static'|'dynamic'），动态态下 'dynamic' 匹配不到任何
  * 选项，n-select 会显示空白，看起来像"没选上"。
  */
-function valueSourceValue(c: PermCondition): string {
+function rangeValue(c: PermCondition): string {
   return c.valueSource === 'dynamic' ? (c.dynamicKey || 'static') : 'static'
 }
 
@@ -503,13 +557,25 @@ function valueSourceValue(c: PermCondition): string {
  *    （解析的是运行时登录成员，不是配置人 —— 见 context_resolvers.responsible_department_ids）。
  *  - 下拉宽度 .cond-src 已从 150px 放宽到 190px，「该成员的负责部门及其下级」不再被截断。
  */
-function valueSourceOptions(c: PermCondition) {
+function rangeOptions(c: PermCondition) {
   const meta = dimMetaOf(c.dimension || '')
   const dimLabel = meta?.label || ''
   return [
     { label: t('dataperm.modal.staticSource', { dim: dimLabel }), value: 'static' },
     ...dynamicSourceOptions(meta?.contextKeys),
   ]
+}
+
+/** 第 3 位·校验值范围变更：直接复用取值来源切换逻辑（保持 relation/operator 不被静默重置）。 */
+function onRangeChange(c: PermCondition, v: string) {
+  onValueSourceChange(c, v)
+}
+
+/** 动态态下「校验值」只读标签：展示当前选中的动态来源文案（如「该成员的负责部门及其下级」）。 */
+function rangeLabel(c: PermCondition): string {
+  const v = rangeValue(c)
+  const opt = rangeOptions(c).find((o) => o.value === v)
+  return opt?.label ?? v
 }
 
 const relationOptions = DYNAMIC_RELATION_OPTIONS
@@ -647,21 +713,6 @@ function onValueSourceChange(c: PermCondition, v: string) {
     c.operator = 'in'
   }
   c.values = []     // 静态值不再使用，清掉避免误提交
-}
-
-/**
- * 动态取值的行内补充说明。
- *
- * 🔴 「当前登录用户」(currentUser.id) 返回空串 → 模板不渲染提示 →
- *    既省掉一行、也不会把删除按钮挤到下一行（兵哥截图的塌陷）。
- *    该选项字面已自解释，额外提示反而像在暗示它也有歧义。
- */
-function dynamicNote(c: PermCondition): string {
-  if (!isDynamic(c)) return ''
-  const note = DYNAMIC_SOURCE_NOTES[c.dynamicKey || ''] ?? ''
-  if (note) return note
-  // 无专属说明时给通用兜底（对应 t('dataperm.modal.dynamicHint')，保留 i18n）
-  return t('dataperm.modal.dynamicHint')
 }
 
 function onValuesChange(c: PermCondition, ids: Array<string | number>) {
@@ -891,31 +942,23 @@ function confirm() {
 .group-block {
   /* 第 1 组：品牌紫底（**不能留 --g1 中性灰** —— 只 1 组时看起来就是"没上色"）。
      🔴 2026-10-15 根因修正：此前模板写的 class 是 `group-card`，而本 CSS 全部
-     命中 `.group-block` —— class 名对不上，**整套配色（含底色+左侧 accent bar）
-     一次都没生效**，所以用户看到的永远是"无底色+无边框"的白块。先修 class 名
-     （模板 group-card → group-block），配色才真正落地。
-     底色用 brand-600 18% 的令牌配比（非 --brand-soft 的 12%），让单组也明显有色；
-     仍只引用语义令牌 --brand-600，暗色下随 body.dark 重排，不硬编码 hex。 */
+     命中 `.group-block` —— class 名对不上，**整套配色（含底色+边框）一次都没生效**，
+     所以用户看到的永远是"无底色+无边框"的白块。先修 class 名（group-card → group-block），
+     配色才真正落地。兵哥 2026-10-15 二次反馈要求**移除左侧加重边线**，故只保留
+     1px 细边框 + 圆角浅色底，不再使用 3px accent bar。
+     底色用 brand-600 18% 的令牌配比，单组也明显有色；仍只引用语义令牌 --brand-600，
+     暗色下随 body.dark 重排，不硬编码 hex。 */
   background: color-mix(in oklch, var(--brand-600) 18%, transparent);
   border: 1px solid var(--g2);
-  border-left: 3px solid var(--brand-fg);
   border-radius: var(--radius-sm);
   padding: 8px 8px 4px 8px;
   margin-bottom: var(--space-3);
 }
-/* 4 色循环：品牌紫 / 信息蓝 / 成功绿 / 警示橙，第 5 组回到品牌紫 */
-.group-block:nth-child(4n + 2) {
-  background: var(--c-info-soft);
-  border-left-color: var(--c-info-deep);
-}
-.group-block:nth-child(4n + 3) {
-  background: var(--c-success-soft);
-  border-left-color: var(--c-success-deep);
-}
-.group-block:nth-child(4n + 4) {
-  background: var(--c-warning-soft);
-  border-left-color: var(--c-warning-deep);
-}
+/* 4 色循环：品牌紫 / 信息蓝 / 成功绿 / 警示橙，第 5 组回到品牌紫。
+   左侧加重边线已按兵哥要求移除，循环只改浅色底。 */
+.group-block:nth-child(4n + 2) { background: var(--c-info-soft); }
+.group-block:nth-child(4n + 3) { background: var(--c-success-soft); }
+.group-block:nth-child(4n + 4) { background: var(--c-warning-soft); }
 .group-block:last-child { margin-bottom: 0; }
 
 .group-head {
@@ -990,22 +1033,6 @@ function confirm() {
 .cond-src { width: 190px; flex-shrink: 0; }
 .cond-val { flex: 1; min-width: 140px; }
 
-/*
- * 动态取值提示：点明「谁的部门」，消除配置人 vs 运行时成员的歧义。
- *
- * 🔴 2026-10-15 布局塌陷修复（兵哥「选择该成员本人时的提示内容会导致整个模块样式混乱」）：
- * 原 flex: 1 0 100% = basis 100%，提示独占一整行 ⇒ 同行末尾的删除按钮被
- * `margin-left:auto` 顶到下一行右侧，整行看起来"散架"。
- * 修法：允许收缩（basis auto），并给一个可容身下限让它与控件同行；
- * 真正放不下时自然换行，此时删除按钮仍紧随控件其后。
- */
-.dynamic-hint {
-  flex: 1 1 auto;
-  min-width: 120px;
-  font-size: var(--fs-12);
-  line-height: 1.5;
-  color: var(--ink-faint);
-}
 .stale-tag { flex-shrink: 0; background: var(--g2); color: var(--ink-soft); }
 .cond-deprecated { flex-shrink: 0; font-weight: 600; }
 
