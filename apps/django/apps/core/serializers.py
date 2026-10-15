@@ -7,6 +7,7 @@ T30.175 (V2 cutover follow-up):
 """
 import re
 
+from django.conf import settings
 from django.db import transaction
 from rest_framework import serializers
 
@@ -148,7 +149,9 @@ class UserSerializer(serializers.ModelSerializer):
             )
 
     def create(self, validated_data):
-        password = validated_data.pop('password', None) or 'Pass@1234'
+        # 新建用户默认初始密码: 未显式传 password 时使用 settings.DEFAULT_USER_PASSWORD
+        # (默认 Asd@12345678, 可用环境变量覆盖); 用户登录后可在「个人信息管理」自主修改。
+        password = validated_data.pop('password', None) or settings.DEFAULT_USER_PASSWORD
         # 2026-09-19: username 已在 fields 中, 必须从 validated_data 取出再显式传入,
         # 否则 **validated_data 重复传入 username -> create_user() 报 multiple values
         username = validated_data.pop('username')

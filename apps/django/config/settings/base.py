@@ -57,6 +57,10 @@ if env_example.exists() and not env_file.exists():
 # === 安全 ===
 SECRET_KEY = env('DJANGO_SECRET_KEY', default='insecure-dev-key-change-me')
 DEBUG = env('DJANGO_DEBUG')
+
+# 用户管理后台新建用户的默认初始密码（可用环境变量覆盖）。
+# 用户登录后可在「个人信息管理」中自主修改。需满足密码策略（≥12 位 + 复杂度）。
+DEFAULT_USER_PASSWORD = env.str('DEFAULT_USER_PASSWORD', default='Asd@12345678')
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS')
 
 # 2026-07-02: HTTPS / cookie 安全 (生产环境由 prod.py 强制开启)
