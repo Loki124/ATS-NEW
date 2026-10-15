@@ -1190,6 +1190,61 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info-deep);    background:
 .settings-scroll .n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:first-child { border-bottom-left-radius: var(--radius-md); }
 .settings-scroll .n-data-table-tbody .n-data-table-tr:last-child .n-data-table-td:last-child { border-bottom-right-radius: var(--radius-md); }
 
+/* === 2026-10-15 兵哥：数据列表对齐规则 + 操作列字号层级 ===
+ *
+ * 【对齐规则】四档，按【列的内容类型】分档（详见 composables/useTableColumns.ts）：
+ *   A 短值/枚举/标识 → center    B 控件/操作 → center
+ *   C 数值           → center    D 长文本     → left（长 SQL/描述居中会毁掉扫读）
+ *
+ * 【为什么有 CSS 兜底又有工厂】
+ *   n-data-table 的 align 最终渲染为【行内 style="text-align:..."】，
+ *   行内样式优先级高于任何 CSS 规则 ⇒ 全局样式表【无法】把默认左对齐改成居中。
+ *   （td 虽同时带 .n-data-table-td--center-align class 可作钩子，
+ *     但 th 只有行内 style、无对应 class，无法对称实现。）
+ *   ⇒ 真正的对齐真源是【列定义层】useTableColumns.column()，各页按需显式声明。
+ *   下方 CSS 只负责「td 内容垂直居中 + 表头一致性」这类 CSS 能覆盖的部分，
+ *   以及给未改造页面提供基础对齐暗示（不期望它能翻转 align）。
+ */
+
+/* 表头与正文内容垂直居中：按钮列/开关列/标签列行高不齐时视觉会飘 */
+.settings-scroll .n-data-table-th .n-data-table-th__title,
+.n-data-table-th .n-data-table-th__title {
+  display: flex;
+  align-items: center;
+  justify-content: inherit;
+  line-height: var(--text-body);
+}
+.settings-scroll .n-data-table-td .n-data-table-td__content,
+.table-wrap .n-data-table-td .n-data-table-td__content {
+  display: flex;
+  align-items: center;
+  line-height: var(--text-body);
+}
+/* ⚠️ 长文本列豁免：内容是 SQL/多行描述时，flex 会压缩换行语义，
+ *    故留 `--cell-hug-content` 类由长文本列显式挂上（见 useTableColumns D 档说明）。 */
+.settings-scroll .n-data-table-td .n-data-table-td__content > .cell-hug-content {
+  display: block;
+  text-align: left;
+}
+
+/* === 操作列字号层级（2026-10-15 兵哥纠偏「文字和 icon 太小，不像一个层级」）===
+ * 实测 Naive UI common 主题刻度：
+ *   tiny  = 12px / height 22px  ← 旧写法，比表格正文(14px)小 2px，视觉矮一截
+ *   small = 14px / height 28px  ← 与正文同字号，操作列应取此档
+ *   medium= 14px / height 34px  ← 工具栏按钮档
+ * 此处兜底把表格内 n-button 的最小可见字号托到 14px；
+ * 精确规格请在列定义里用 OP_ACTION_BUTTON_SIZE（useTableColumns 导出）。 */
+.settings-scroll .n-data-table-td .n-button--tiny-type,
+.table-wrap .n-data-table-td .n-button--tiny-type {
+  font-size: var(--fs-14);
+  min-height: 28px;
+}
+/* tiny 档 icon 同步放大到 14px，否则字大图小依旧不成层级 */
+.settings-scroll .n-data-table-td .n-button--tiny-type .n-button__icon,
+.table-wrap .n-data-table-td .n-button--tiny-type .n-button__icon {
+  font-size: var(--fs-14);
+}
+
 /* === 弹窗统一：页面居中 + 高度自适应屏幕（超出 90vh 内部滚动）===
  * 范本：CampusControl .rule-modal / .import-modal / .dim-modal
  * 同时兜底 范本的 :bordered=false（去全局 .n-card 边框）+ :segmented

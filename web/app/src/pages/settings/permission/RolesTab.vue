@@ -130,6 +130,8 @@ import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } fro
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
 import { listAclRules } from '@/api/field-acl'
 import { localPagination } from '@/composables/useTablePagination'
+// 列对齐与操作列规格的单一真源（四档规则见该文件头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import RoleEditModal from './RoleEditModal.vue'
 import ActionManageModal from '@/components/role/ActionManageModal.vue'
 import { useUserStore } from '@/stores/user'
@@ -191,17 +193,19 @@ const scopeTypeLabels: Record<string, string> = {
   ALL: '全公司',
 }
 
+// 列对齐统一走 useTableColumns 工厂（四档规则，A 短值/B 控件/C 数值 居中，D 长文本 左对齐）。
+// 依据 useTableColumns.ts 文件头规则表；勿在本页另立对齐口径。
 const columns = [
-  { title: '身份编码', key: 'roleCode', width: 160, render: (r: RoleV2) => r.roleCode || '—' },
-  { title: '身份名称', key: 'roleName', width: 160, render: (r: RoleV2) => r.roleName || '—' },
-  { title: '模板来源', key: 'templateCode', width: 140, render: (r: RoleV2) => r.templateCode || '—' },
-  {
+  column({ title: '身份编码', key: 'roleCode', width: 160, render: (r: RoleV2) => r.roleCode || '—' }, 'short'),
+  column({ title: '身份名称', key: 'roleName', width: 160, render: (r: RoleV2) => r.roleName || '—' }, 'short'),
+  column({ title: '模板来源', key: 'templateCode', width: 140, render: (r: RoleV2) => r.templateCode || '—' }, 'short'),
+  column({
     title: '默认数据范围',
     key: 'defaultDataScopeType',
     width: 140,
     render: (r: RoleV2) => scopeTypeLabels[r.defaultDataScopeType ?? ''] ?? '—',
-  },
-  {
+  }, 'short'),
+  column({
     // 状态列内联 NSwitch 启停（对齐 CampusControl 指标管理「启用」列写法）
     title: '状态',
     key: 'status',
@@ -221,41 +225,42 @@ const columns = [
           }
         },
       }),
-  },
-  {
-    // 来源标签：2026-10-15 单色化 —— 预置/自定义均为中性灰标签，不再用 primary 撞品牌色。
-    // 两者语义同级（同为「来源说明」而非状态），用文字本身承载差异，颜色不再参与区分。
+  }, 'control'),
+  column({
+    // 来源标签：中性灰，不参与语义区分（预置/自定义语义同级，用文字承载）。
+    // 原 primary 紫与品牌按钮撞色确属问题，此项收敛保留。
     title: '来源',
     key: 'isSystem',
     width: 90,
     render: (r: RoleV2) =>
       h(NTag, { bordered: false, size: 'small', class: 'neutral-tag' },
         { default: () => (r.isSystem === 1 ? '预置' : '自定义') }),
-  },
-  {
+  }, 'short'),
+  column({
     title: '权限码数',
     key: 'permissionCodes',
     width: 100,
     render: (r: RoleV2) => r.permissionCodes?.length ?? 0,
-  },
-  {
+  }, 'numeric'),
+  column({
     // 行内操作：按 frontend-DESIGN §Data Table —— quaternary 文字按钮，
-    // 编辑 type=primary、删除 type=error（危险色是规范要求的安全信号，不做单色化）。
-    // §1.8.1：同组按钮统一带 14–16px outline icon。
+    // 编辑 type=primary、删除 type=error（危险色是安全信号，不做单色化）。
+    // §1.8.1：同组按钮统一带 14–16px outline icon；size 取 OP_ACTION_BUTTON_SIZE
+    // （small=14px，与表格正文同层级；旧 tiny=12px 比正文小 2px 会「矮一截」）。
     title: '操作',
     key: 'actions',
-    width: 150,
+    width: 176,
     fixed: 'right' as const,
     render(row: RoleV2) {
       return h(NSpace, { size: 8, wrap: false }, () => [
         h(NButton, {
-          size: 'tiny',
+          size: OP_ACTION_BUTTON_SIZE,
           quaternary: true,
           type: 'primary',
           onClick: () => onEdit(row),
         }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => '编辑' }),
         h(NButton, {
-          size: 'tiny',
+          size: OP_ACTION_BUTTON_SIZE,
           quaternary: true,
           type: 'error',
           disabled: row.isSystem === 1,
@@ -263,7 +268,7 @@ const columns = [
         }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => '删除' }),
       ])
     },
-  },
+  }, 'control'),
 ]
 
 const cloneModal = reactive({
