@@ -29,68 +29,119 @@
     </div>
 
     <template v-else>
-      <!-- KPI 统计条（前端真实聚合） -->
-      <div class="kpi-row">
-        <div class="kpi-card">
-          <span class="kpi-label">{{ t('pages.demand.DemandList.s51') }}</span>
-          <span class="kpi-value">{{ kpi.total }}</span>
+      <!-- ① 高级筛选区 -->
+      <div class="filter-region">
+        <div class="filter-row">
+          <n-select
+            v-model:value="departmentFilter"
+            :placeholder="'需求部门'"
+            style="width: 180px"
+            clearable
+            :options="departmentOptions"
+            @update:value="() => (page = 1)"
+          />
+          <n-select
+            v-model:value="hrbpFilter"
+            placeholder="HRBP"
+            style="width: 150px"
+            clearable
+            :options="personNameOptions('hrbp_name')"
+            @update:value="() => (page = 1)"
+          />
+          <n-select
+            v-model:value="hiringManagerFilter"
+            placeholder="用人经理"
+            style="width: 150px"
+            clearable
+            :options="personNameOptions('hiring_manager_name')"
+            @update:value="() => (page = 1)"
+          />
+          <n-select
+            v-model:value="hiringManagerSuperiorFilter"
+            placeholder="用人经理上级"
+            style="width: 160px"
+            clearable
+            :options="personNameOptions('hiring_manager_superior_name')"
+            @update:value="() => (page = 1)"
+          />
+          <n-input
+            v-model:value="searchText"
+            placeholder="搜索需求名称 / 编号 / 部门"
+            style="width: 260px"
+            clearable
+            @input="onSearchInput"
+            @keyup.enter="handleSearch"
+          >
+            <template #prefix><n-icon :component="SearchOutline" /></template>
+          </n-input>
+          <n-button quaternary @click="showAdvanced = !showAdvanced">
+            {{ showAdvanced ? '收起筛选' : '高级筛选' }}
+          </n-button>
         </div>
-        <div class="kpi-card">
-          <span class="kpi-label">{{ t('pages.demand.DemandList.s52') }}</span>
-          <span class="kpi-value">{{ kpi.inProgress }}</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">{{ t('pages.demand.DemandList.s53') }}</span>
-          <span class="kpi-value">{{ kpi.pending }}</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">{{ t('pages.demand.DemandList.s54') }}</span>
-          <span class="kpi-value">{{ kpi.planned }}</span>
+        <div v-if="showAdvanced" class="filter-row filter-row--advanced">
+          <n-select
+            v-model:value="priorityFilter"
+            placeholder="优先级"
+            style="width: 150px"
+            clearable
+            :options="priorityOptions"
+            @update:value="() => (page = 1)"
+          />
+          <n-select
+            v-model:value="demandTypeFilter"
+            placeholder="招聘类型"
+            style="width: 150px"
+            clearable
+            :options="demandTypeFilterOptions"
+            @update:value="() => (page = 1)"
+          />
         </div>
       </div>
 
-      <!-- 工具条 -->
-      <div class="toolbar">
-        <n-input
-          v-model:value="searchText"
-          :placeholder="t('pages.demand.DemandList.s2')"
-          style="width: 260px"
-          clearable
-          @input="onSearchInput"
-          @keyup.enter="handleSearch"
+      <!-- ② 双层状态页签 -->
+      <div class="tab-strip">
+        <div class="tab-group">
+          <n-button
+            v-for="tab in processTabs"
+            :key="'p-' + tab.key"
+            size="small"
+            :type="activeProcess === tab.key ? 'primary' : 'default'"
+            secondary
+            @click="activeProcess = tab.key; page = 1"
+          >
+            {{ tab.label }}
+            <n-badge :value="processTabCounts[tab.key]" :show-zero="false" :max="9999" class="tab-badge" />
+          </n-button>
+        </div>
+        <div class="tab-divider"></div>
+        <div class="tab-group">
+          <n-button
+            v-for="tab in approvalTabs"
+            :key="'a-' + tab.key"
+            size="small"
+            :type="activeApproval === tab.key ? 'primary' : 'default'"
+            secondary
+            @click="activeApproval = tab.key; page = 1"
+          >
+            {{ tab.label }}
+            <n-badge :value="approvalTabCounts[tab.key]" :show-zero="false" :max="9999" class="tab-badge" />
+          </n-button>
+        </div>
+      </div>
+
+      <!-- ③ 批量操作栏 -->
+      <div class="batch-bar">
+        <n-checkbox
+          :checked="selectAllChecked"
+          :indeterminate="selectSomeChecked"
+          @update:checked="toggleSelectAll"
         >
-          <template #prefix>
-            <n-icon :component="SearchOutline" />
-          </template>
-        </n-input>
-        <n-select
-          v-model:value="filterStatus"
-          :placeholder="t('pages.demand.DemandList.s3')"
-          style="width: 120px"
-          clearable
-          :options="statusFilterOptions"
-          @update:value="onFilterChange"
-        />
-        <n-select
-          v-model:value="filterType"
-          :placeholder="t('pages.demand.DemandList.s6')"
-          style="width: 120px"
-          clearable
-          :options="demandTypeFilterOptions"
-          @update:value="onFilterChange"
-        />
-        <n-select
-          v-model:value="sortKey"
-          :placeholder="t('pages.demand.DemandList.s57')"
-          style="width: 160px"
-          :options="sortOptions"
-          @update:value="onFilterChange"
-        />
-        <div class="toolbar-spacer"></div>
-        <n-radio-group :value="viewMode" @update:value="onViewModeChange">
-          <n-radio-button value="card">{{ t('pages.demand.DemandList.s55') }}</n-radio-button>
-          <n-radio-button value="table">{{ t('pages.demand.DemandList.s56') }}</n-radio-button>
-        </n-radio-group>
+          全选（{{ selectedIds.length }}/{{ processedDemands.length }}）
+        </n-checkbox>
+        <div class="batch-spacer"></div>
+        <n-button size="small" :disabled="!selectedIds.length" @click="openBatchPeople">
+          批量变更人员
+        </n-button>
       </div>
 
       <!-- 筛选无结果 -->
@@ -103,78 +154,110 @@
       </div>
 
       <template v-else>
-        <!-- 卡片视图 -->
-        <div v-if="viewMode === 'card'" class="demand-grid">
+        <!-- ④ 卡片列表 -->
+        <div class="demand-grid">
           <div
             v-for="item in pagedDemands"
             :key="item.id"
             class="demand-card"
             :class="{ 'selected': selectedDemand?.id === item.id }"
+            :style="{ '--state-bar': stateBarColor(item.state || item.demandStatus) }"
             tabindex="0"
             @click="handleCardClick(item)"
             @keydown.enter="handleCardClick(item)"
           >
-            <!-- 主信息区（左，自适应） -->
-            <div class="card-main">
-              <div class="card-headline">
-                <span class="demand-code">{{ item.code }}</span>
-                <span class="priority-pill" :class="priorityPillClass(item.priority)">{{ item.priority }}</span>
-                <n-tag :type="item.demandType === 'SOCIAL' ? 'info' : 'success'" size="small">
-                  {{ item.demandType === 'SOCIAL' ? t('pages.demand.DemandList.s70') : t('pages.demand.DemandList.s71') }}
-                </n-tag>
-                <n-tag v-if="item.approvalStatus" :type="getApprovalType(item.approvalStatus)" size="small">{{ getApprovalText(item.approvalStatus) }}</n-tag>
-              </div>
-              <div class="card-title" :title="item.name">{{ item.name }}</div>
-              <div class="card-facts">
-                <div class="fact">
-                  <span class="fact-label">{{ t('pages.demand.DemandList.s84') }}</span>
-                  <span class="fact-value" :title="item.departmentName || item.department?.name || '-'">{{ item.departmentName || item.department?.name || '-' }}</span>
-                </div>
-                <div class="fact">
-                  <span class="fact-label">{{ t('pages.demand.DemandList.s59') }}</span>
-                  <span class="fact-value">{{ item.hrName || '-' }}</span>
-                </div>
-                <div class="fact">
-                  <span class="fact-label">{{ t('pages.demand.DemandList.s60') }}</span>
-                  <span class="fact-value" :title="absoluteTime(item)">{{ relativeTime(item) }}</span>
-                </div>
-              </div>
+            <div class="card-check">
+              <n-checkbox
+                :checked="selectedIds.includes(item.id)"
+                @update:checked="(v: boolean) => toggleCard(item.id, v)"
+                @click.stop
+              />
             </div>
 
-            <!-- 状态、进度与操作区（右，定宽） -->
-            <div class="card-side">
-              <div class="card-side__status">
-                <n-tag :type="getStatusType(item.demandStatus)" size="small">{{ getStatusText(item.demandStatus) }}</n-tag>
+            <!-- ⑤ 单卡信息：标题行 + 三栏 -->
+            <div class="card-body">
+              <!-- 标题行 -->
+              <div class="card-headline">
+                <span class="demand-code">{{ item.code }}</span>
+                <span class="demand-title" :title="item.title || item.name">{{ item.title || item.name }}</span>
+                <n-tag :type="priorityTagType(item.priority)" size="small" :bordered="false">{{ item.priority }}</n-tag>
+                <n-tag :type="item.demandType === 'SOCIAL' ? 'info' : 'success'" size="small" :bordered="false">
+                  {{ item.demandType === 'SOCIAL' ? '社会招聘' : '校园招聘' }}
+                </n-tag>
+                <div class="headline-spacer"></div>
+                <!-- 右上角流程状态直切下拉 -->
+                <n-dropdown
+                  trigger="click"
+                  :options="transitionDropdownOptions(item.state || item.demandStatus)"
+                  @select="(k: string) => changeState(item, k)"
+                  @click.stop
+                >
+                  <n-tag size="small" :type="getStatusType(item.state || item.demandStatus)" class="state-dropdown">
+                    {{ getStatusText(item.state || item.demandStatus) }}
+                    <n-icon :component="ChevronDownOutline" />
+                  </n-tag>
+                </n-dropdown>
               </div>
-              <div class="card-progress">
-                <div class="progress-text">
-                  {{ t('pages.demand.DemandList.s8') }} {{ filledOf(item) }} / {{ t('pages.demand.DemandList.s20') }} {{ headcountOf(item) }}
+
+              <!-- 三栏 -->
+              <div class="card-cols">
+                <!-- 左栏：任职要求 + 责任人 -->
+                <div class="card-col">
+                  <div class="req-line">
+                    <span v-if="item.talentNature" class="req-chip">{{ talentNatureText(item.talentNature) }}</span>
+                    <span v-if="item.educationRequirement" class="req-chip">{{ item.educationRequirement }}</span>
+                    <span v-if="item.experienceRequirement" class="req-chip">{{ item.experienceRequirement }}</span>
+                    <span v-if="item.salaryRange" class="req-chip">{{ item.salaryRange }}</span>
+                    <span v-if="item.positionSequence" class="req-chip">{{ item.positionSequence }}</span>
+                    <span v-if="!hasRequirement(item)" class="req-chip req-chip--muted">未填写任职要求</span>
+                  </div>
+                  <div class="people-block">
+                    <div class="people-row"><span class="people-label">HRBP</span><span class="people-value">{{ item.hrbpName || '—' }}</span></div>
+                    <div class="people-row"><span class="people-label">用人经理</span><span class="people-value">{{ item.hiringManagerName || '—' }}</span></div>
+                    <div class="people-row"><span class="people-label">用人经理上级</span><span class="people-value">{{ item.hiringManagerSuperiorName || '—' }}</span></div>
+                  </div>
                 </div>
-                <div class="bar">
-                  <span
-                    :style="{ width: progressPct(item) + '%', background: progressPct(item) >= 100 ? 'var(--c-success)' : 'var(--brand)' }"
-                  ></span>
+
+                <!-- 中栏：部门 + 关联职位 -->
+                <div class="card-col">
+                  <div class="meta-row"><span class="meta-label">所属部门</span><span class="meta-value" :title="item.departmentName || item.department?.name">{{ item.departmentName || item.department?.name || '—' }}</span></div>
+                  <div class="meta-row meta-row--top">
+                    <span class="meta-label">关联职位</span>
+                    <span class="meta-value">
+                      <template v-if="item.positionCodes && item.positionCodes.length">
+                        <n-tag
+                          v-for="code in item.positionCodes"
+                          :key="code"
+                          size="tiny"
+                          :bordered="false"
+                          class="position-tag"
+                        >{{ code }}</n-tag>
+                      </template>
+                      <span v-else class="meta-muted">暂无关联职位</span>
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div class="card-actions">
-                <n-button text type="primary" size="small" @click.stop="handleCardClick(item)">{{ t('pages.demand.DemandList.s9') }}</n-button>
-                <n-button text size="small" @click.stop="handleEdit(item)">{{ t('pages.demand.DemandList.s50') }}</n-button>
-                <n-button v-if="item.demandStatus === 'DRAFT'" text type="primary" size="small" @click.stop="handleSubmitFromCard(item)">{{ t('pages.demand.DemandList.s43') }}</n-button>
+
+                <!-- 右栏：进度 -->
+                <div class="card-col card-col--progress">
+                  <div class="date-line">
+                    <n-icon :component="CalendarOutline" class="date-icon" />
+                    <span v-if="item.dateRange && item.dateRange.length === 2">{{ item.dateRange[0] }} ~ {{ item.dateRange[1] }}</span>
+                    <span v-else class="meta-muted">未设置起止日期</span>
+                  </div>
+                  <div v-if="timeProgress(item) !== null" class="progress-line">
+                    <div class="bar"><span :style="{ width: timeProgress(item) + '%' }"></span></div>
+                    <span class="progress-pct" :class="{ 'progress-pct--warn': (timeProgress(item) || 0) > 80 }">{{ timeProgress(item) }}%</span>
+                  </div>
+                  <div class="funnel">
+                    <div class="funnel-item"><span class="funnel-num">{{ headcountOf(item) }}</span><span class="funnel-label">需求</span></div>
+                    <div class="funnel-item"><span class="funnel-num">{{ item.applicantCount ?? 0 }}</span><span class="funnel-label">应聘</span></div>
+                    <div class="funnel-item funnel-item--ok"><span class="funnel-num">{{ filledOf(item) }}</span><span class="funnel-label">入职</span></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- 表格视图 -->
-        <div v-else class="demand-table">
-          <n-data-table
-            :columns="columns"
-            :data="pagedDemands"
-            :row-key="(row: any) => row.id"
-            :bordered="false"
-            :single-line="false"
-            size="small"
-          />
         </div>
 
         <!-- 分页 -->
@@ -200,12 +283,12 @@
           <div class="drawer-header">
             <div class="drawer-header__main">
               <span class="drawer-code">{{ selectedDemand?.code }}</span>
-              <span class="drawer-name" :title="selectedDemand?.name">{{ selectedDemand?.name }}</span>
-              <n-tag :type="getStatusType(selectedDemand?.demandStatus)" size="small">{{ getStatusText(selectedDemand?.demandStatus) }}</n-tag>
-              <n-tag v-if="selectedDemand?.approvalStatus" :type="getApprovalType(selectedDemand?.approvalStatus)" size="small">{{ getApprovalText(selectedDemand?.approvalStatus) }}</n-tag>
+              <span class="drawer-name" :title="selectedDemand?.name || selectedDemand?.title">{{ selectedDemand?.name || selectedDemand?.title }}</span>
+              <n-tag :type="getStatusType(selectedDemand?.state || selectedDemand?.demandStatus)" size="small">{{ getStatusText(selectedDemand?.state || selectedDemand?.demandStatus) }}</n-tag>
+              <n-tag v-if="selectedDemand?.approvalStatus || selectedDemand?.approval_status" :type="getApprovalType(selectedDemand?.approvalStatus || selectedDemand?.approval_status)" size="small">{{ getApprovalText(selectedDemand?.approvalStatus || selectedDemand?.approval_status) }}</n-tag>
             </div>
             <div class="drawer-header__actions">
-              <n-button v-if="selectedDemand?.state === 'DRAFT'" type="primary" size="small" @click="handleSubmitApproval">{{ t('pages.demand.DemandList.s43') }}</n-button>
+              <n-button v-if="(selectedDemand?.state || selectedDemand?.demandStatus) === 'DRAFT'" type="primary" size="small" @click="handleSubmitApproval">{{ t('pages.demand.DemandList.s43') }}</n-button>
               <n-button size="small" @click="handleEdit(selectedDemand)">{{ t('pages.demand.DemandList.s50') }}</n-button>
             </div>
           </div>
@@ -215,7 +298,6 @@
           <n-skeleton :repeat="3" />
         </div>
         <template v-else-if="selectedDemand">
-          <!-- 概览条 -->
           <div class="overview-bar">
             <div class="overview-item">
               <span class="ov-num">{{ headcountOf(selectedDemand) }}</span>
@@ -226,11 +308,11 @@
               <span class="ov-label">{{ t('pages.demand.DemandList.s8') }}</span>
             </div>
             <div class="overview-item">
-              <span class="ov-num">{{ selectedDemand.pendingCount ?? 0 }}</span>
-              <span class="ov-label">{{ t('pages.demand.DemandList.s22') }}</span>
+              <span class="ov-num">{{ selectedDemand.applicantCount ?? 0 }}</span>
+              <span class="ov-label">应聘</span>
             </div>
             <div class="overview-item">
-              <span class="ov-num">{{ selectedDemand._count?.positions ?? 0 }}</span>
+              <span class="ov-num">{{ selectedDemand._count?.positions ?? selectedDemand.positionCodes?.length ?? 0 }}</span>
               <span class="ov-label">{{ t('pages.demand.DemandList.s19') }}</span>
             </div>
             <div class="overview-bar__progress">
@@ -243,7 +325,6 @@
           </div>
 
           <n-tabs v-model:value="activeTab" type="line" class="detail-tabs">
-            <!-- 基本信息（配置驱动） -->
             <n-tab-pane name="detail" :tab="t('pages.demand.DemandList.s13')">
               <div v-for="b in formBuckets" :key="b.key" class="detail-section">
                 <div class="section-header">
@@ -278,7 +359,6 @@
               </div>
             </n-tab-pane>
 
-            <!-- JD 与任职要求 -->
             <n-tab-pane name="jd" :tab="t('pages.demand.DemandList.s63')">
               <div class="detail-section">
                 <div class="section-header">
@@ -332,7 +412,6 @@
                 :required="item.required"
                 :class="{ 'form-item--wide': WIDE_TYPES.includes(item.field.fieldType) }"
               >
-                <!-- 模型映射字段: 直接绑 formData[prop] -->
                 <template v-if="item.binding">
                   <n-input
                     v-if="item.binding.kind === 'text'"
@@ -384,7 +463,6 @@
                   />
                 </template>
 
-                <!-- 扩展(动态)字段: 绑 formValues[fieldKey] -->
                 <template v-else>
                   <RichEditor
                     v-if="item.field.fieldType === 'RICH_TEXT'"
@@ -407,7 +485,6 @@
                     :placeholder="item.field.placeholder || '请输入数字'"
                     style="width: 100%"
                   />
-                  <!-- 范围数字 (RANGE_NUMBER, 2026-09-28 兵哥): 最小值/最大值 双输入 -->
                   <n-space
                     v-else-if="item.field.fieldType === 'RANGE_NUMBER'"
                     align="center" :size="8" style="width: 100%"
@@ -429,7 +506,6 @@
                     />
                     <n-text v-if="(item.field.validation as any)?.unit" depth="3">{{ (item.field.validation as any).unit }}</n-text>
                   </n-space>
-                  <!-- 选项类 (含 人员/部门 引用) -->
                   <n-select
                     v-else-if="isOptionType(item.field.fieldType)"
                     v-model:value="formValues[item.field.fieldKey]"
@@ -438,7 +514,6 @@
                     :placeholder="item.field.placeholder || '请选择'"
                     style="width: 100%"
                   />
-                  <!-- 日期 / 日期范围 -->
                   <n-date-picker
                     v-else-if="isDateType(item.field.fieldType)"
                     :value="dateValue(item.field)"
@@ -448,15 +523,12 @@
                     :is-date-disabled="dateDisabled(item.field) || undefined"
                     @update:value="(v: number | [number, number] | null) => onDateInput(item.field, v)"
                   />
-                  <!-- 布尔 -->
                   <n-switch v-else-if="item.field.fieldType === 'BOOLEAN'" v-model:value="formValues[item.field.fieldKey]" />
-                  <!-- 附件: 标准上传器, 值存 AttachmentItem[] (2026-10-13 兵哥: 附件字段不再降级为 URL 输入框) -->
                   <AttachmentUploader
                     v-else-if="item.field.fieldType === 'ATTACHMENT'"
                     :model-value="asAttachmentList(formValues[item.field.fieldKey])"
                     @update:model-value="(v: AttachmentItem[]) => (formValues[item.field.fieldKey] = v)"
                   />
-                  <!-- 其他: URL 文本 -->
                   <n-input
                     v-else
                     v-model:value="formValues[item.field.fieldKey]"
@@ -477,14 +549,42 @@
         </div>
       </template>
     </n-modal>
+
+    <!-- 批量变更人员弹窗 -->
+    <n-modal
+      v-model:show="batchPeopleModal"
+      preset="card"
+      title="批量变更人员"
+      :style="{ width: 'min(520px, 94vw)' }"
+      :mask-closable="false"
+    >
+      <n-form label-placement="top">
+        <n-form-item label="HRBP">
+          <n-select v-model:value="batchPeople.hrbp" :options="userPersonOptions" clearable placeholder="不修改则留空" />
+        </n-form-item>
+        <n-form-item label="用人经理">
+          <n-select v-model:value="batchPeople.hiringManager" :options="userPersonOptions" clearable placeholder="不修改则留空" />
+        </n-form-item>
+        <n-form-item label="用人经理上级">
+          <n-select v-model:value="batchPeople.hiringManagerSuperior" :options="userPersonOptions" clearable placeholder="不修改则留空" />
+        </n-form-item>
+        <p class="batch-hint">将应用到已选中的 {{ selectedIds.length }} 条需求（留空的字段保持不变）。</p>
+      </n-form>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+          <n-button @click="batchPeopleModal = false">取消</n-button>
+          <n-button type="primary" :loading="batchSaving" :disabled="!selectedIds.length" @click="applyBatchPeople">确定</n-button>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue'
-import { NButton, NTag, useMessage, type DataTableColumns } from 'naive-ui'
-import { AddOutline, SearchOutline } from '@vicons/ionicons5'
+import { NButton, NTag, NBadge, useMessage, type DataTableColumns } from 'naive-ui'
+import { AddOutline, SearchOutline, ChevronDownOutline, CalendarOutline } from '@vicons/ionicons5'
 import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
 import RichEditor from '../../components/RichEditor.vue'
@@ -503,20 +603,12 @@ const { t } = useI18n()
 const message = useMessage()
 
 // --- 需求字段管理配置 (resource=Demand) + 表单设置 (FormConfig) ---
-// ★ 2026-09-28 (兵哥): 详情页与编辑表单统一由「招聘需求表单设置」驱动 —
-// 分组顺序 / 字段显隐 / 必填均与表单设置实时一致。
 const demandFields = ref<FieldDefinition[]>([])
 const demandGroups = ref<FieldGroup[]>([])
 const demandFormConfig = ref<FormConfig>({ fields: [], groupOrder: [] })
 const dynamicValues = ref<Record<string, any>>({})
 const formValues = reactive<Record<string, any>>({})
 
-// 系统字段 / 核心描述字段: 模型映射字段取 demand 对象, 其余扩展字段取 DynamicFieldValue。
-// 模型映射字段: field_key → 在 demand 详情对象上的属性名(camelCase, 经后端渲染)。
-// jd/requirements 由固定「描述信息」区块承载, 不在此映射。
-// jd/requirements 已纳入系统字段注册表(0022 种子), 值存 Demand 模型列, 经此映射取值。
-// 2026-10-12 字段结构对齐规范: talent_level/talent_nature/date_range/sharers
-// 为新增预置模型列(demand 迁移 0006/0007), 同样经此映射取值。
 const MODEL_ATTR_MAP: Record<string, string> = {
   headcount: 'headcount',
   priority: 'priority',
@@ -530,21 +622,15 @@ const MODEL_ATTR_MAP: Record<string, string> = {
   sharers: 'sharers',
 }
 
-// 系统字段取值特例 (非简单属性映射): 部门/HR 取序列化后的 *Name
 const SYSTEM_VALUE_GETTERS: Record<string, (d: any) => any> = {
   code: (d) => d?.code,
-  title: (d) => d?.name,
-  state: (d) => d?.state,
+  title: (d) => d?.title || d?.name,
+  state: (d) => d?.state || d?.demandStatus,
   demand_type: (d) => d?.demandType,
   department: (d) => d?.departmentName || d?.department?.name,
   hr: (d) => d?.hrName,
 }
 
-// 编辑表单: field_key → formData 属性绑定 (模型字段复用既有 formData 结构)。
-// jd/requirements 已纳入系统字段注册表(0022 种子, 2026-09-28 兵哥),
-// 随 editSections 走表单设置驱动; 值存 Demand 模型列, 经 binding 回填/收集。
-// 2026-10-12 字段结构对齐规范: 新增 talent_level(文本) / talent_nature(下拉) /
-// date_range(日期范围, kind=daterange) / sharers(多选人员, kind=multiselect)。
 const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number' | 'select' | 'department' | 'textarea' | 'daterange' | 'multiselect' }> = {
   title: { prop: 'name', kind: 'text' },
   department: { prop: 'departmentId', kind: 'department' },
@@ -560,8 +646,6 @@ const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number'
   date_range: { prop: 'dateRange', kind: 'daterange' },
   sharers: { prop: 'sharers', kind: 'multiselect' },
 }
-// 编辑表单不渲染的系统字段: 编号(只读标识) / 状态(流程管控) / 负责HR(流程指派) /
-// 审批状态(流程派生, 由 submit/approve 动作推进, 2026-10-12)
 const EDIT_SKIP_KEYS = new Set(['code', 'state', 'hr', 'approval_status'])
 
 const loading = ref(false)
@@ -574,16 +658,19 @@ const submitting = ref(false)
 const detailLoading = ref(false)
 const activeTab = ref('detail')
 
-// 列表筛选 / 排序 / 视图 / 分页
+// 列表筛选 / 分页 / 选中
 const searchText = ref('')
 const keyword = ref('')
-const filterStatus = ref<string | null>('')
-const filterType = ref<string>('ALL')
-const sortKey = ref<'updated' | 'priority' | 'headcount'>('updated')
+const departmentFilter = ref<string | null>(null)
+const hrbpFilter = ref<string | null>(null)
+const hiringManagerFilter = ref<string | null>(null)
+const hiringManagerSuperiorFilter = ref<string | null>(null)
+const priorityFilter = ref<string | null>(null)
+const demandTypeFilter = ref<string | null>(null)
+const showAdvanced = ref(false)
 const pageSize = 12
 const page = ref(1)
-const VIEW_STORAGE_KEY = 'ats-demand-view'
-const viewMode = ref<'card' | 'table'>(readInitialView())
+const selectedIds = ref<string[]>([])
 
 const formData = ref<any>({
   id: '',
@@ -596,19 +683,32 @@ const formData = ref<any>({
   jobLevel: '',
   description: '',
   requirements: '',
-  // 2026-10-12 字段结构对齐规范: 新增预置列 (dateRange 为 [start, end] ISO 串数组或 null)
   talentLevel: '',
   talentNature: '',
   dateRange: null,
   sharers: [],
 })
 
-const statusFilterOptions = [
-  { label: '草稿', value: 'DRAFT' },
-  { label: '进行中', value: 'IN_PROGRESS' },
-  { label: '已完成', value: 'COMPLETED' },
-  { label: '已暂停', value: 'PAUSED' },
+// 双层状态页签定义（与后端 DemandState 对齐；审批状态为 state 派生值）
+const processTabs = [
+  { key: '', label: '全部' },
+  { key: 'DRAFT', label: '草稿' },
+  { key: 'PENDING', label: '待审批' },
+  { key: 'APPROVED', label: '已通过' },
+  { key: 'RECRUITING', label: '招聘中' },
+  { key: 'PAUSED', label: '已暂停' },
+  { key: 'COMPLETED', label: '已完成' },
+  { key: 'CANCELLED', label: '已取消' },
+  { key: 'REJECTED', label: '已驳回' },
 ]
+const approvalTabs = [
+  { key: '', label: '全部' },
+  { key: 'PENDING', label: '审批中' },
+  { key: 'REJECTED', label: '已拒绝' },
+  { key: 'APPROVED', label: '已通过' },
+]
+const activeProcess = ref('')
+const activeApproval = ref('')
 
 const priorityOptions = [
   { label: 'P0-战略', value: 'P0' },
@@ -617,49 +717,51 @@ const priorityOptions = [
 ]
 
 const departmentOptions = computed(() =>
-  departments.value.map(d => ({ label: d.name, value: d.id }))
+  departments.value.map(d => ({ label: d.name, value: d.id })),
 )
 
-// 视图偏好持久化（localStorage，异常静默兜底）
-function readInitialView(): 'card' | 'table' {
-  try {
-    const v = localStorage.getItem(VIEW_STORAGE_KEY)
-    if (v === 'card' || v === 'table') return v
-  } catch (e) {
-    /* localStorage 不可用时回退默认 */
-  }
-  return 'card'
-}
-function onViewModeChange(v: 'card' | 'table') {
-  viewMode.value = v
-  page.value = 1
-  try {
-    localStorage.setItem(VIEW_STORAGE_KEY, v)
-  } catch (e) {
-    /* localStorage 不可用时忽略 */
-  }
-}
-
 const demandTypeFilterOptions = computed(() => ([
-  { label: t('pages.demand.DemandList.s69'), value: 'ALL' },
-  { label: t('pages.demand.DemandList.s70'), value: 'SOCIAL' },
-  { label: t('pages.demand.DemandList.s71'), value: 'CAMPUS' },
+  { label: '全部类型', value: null },
+  { label: '社会招聘', value: 'SOCIAL' },
+  { label: '校园招聘', value: 'CAMPUS' },
 ]))
 
-// 编辑表单「需求类型」下拉项 (不含 ALL 过滤项): SOCIAL / CAMPUS
-const demandTypeOptions = computed(() => ([
-  { label: t('pages.demand.DemandList.s70'), value: 'SOCIAL' },
-  { label: t('pages.demand.DemandList.s71'), value: 'CAMPUS' },
-]))
+// 人员筛选下拉项：从已加载需求里抽取去重姓名
+function personNameOptions(key: string) {
+  const set = new Set<string>()
+  for (const d of demands.value) {
+    const v = d[key]
+    if (v) set.add(v)
+  }
+  return [...set].map(v => ({ label: v, value: v }))
+}
 
-const sortOptions = computed(() => ([
-  { label: t('pages.demand.DemandList.s72'), value: 'updated' },
-  { label: t('pages.demand.DemandList.s73'), value: 'priority' },
-  { label: t('pages.demand.DemandList.s74'), value: 'headcount' },
-]))
+// 批量变更人员：复用 hrbp 字段的 options_source（internal_user 已解析为 {value:id,label:姓名}）
+const userPersonOptions = computed(() => {
+  const f = demandFields.value.find(x => x.fieldKey === 'hrbp')
+  return (f?.options || []).map((o: any) => ({ label: o.label || o.value, value: o.value }))
+})
 
-// ★ 2026-09-28 (兵哥): 表单设置聚合 — 字段 × FormConfig(显隐/必填) → 启用字段按分组顺序桶。
-// 与「系统设置 → 招聘需求表单设置」的实时预览完全同源 (mergeFields + groupFieldsByGroup)。
+const processTabCounts = computed(() => {
+  const c: Record<string, number> = {}
+  for (const tab of processTabs) c[tab.key] = 0
+  for (const d of demands.value) {
+    const k = d.state || d.demandStatus || ''
+    c['']++
+    if (k in c) c[k]++
+  }
+  return c
+})
+
+const approvalTabCounts = computed(() => {
+  const c: Record<string, number> = { '': demands.value.length }
+  for (const d of demands.value) {
+    const k = d.approvalStatus || d.approval_status || ''
+    if (k in c) c[k]++
+  }
+  return c
+})
+
 const formBuckets = computed(() =>
   groupFieldsByGroup(
     mergeFields(demandFields.value, demandFormConfig.value).filter(m => m.enabled),
@@ -668,7 +770,6 @@ const formBuckets = computed(() =>
   ).filter(b => b.fields.length > 0),
 )
 
-// 编辑表单区块: 启用字段按表单设置分组; 模型字段绑 formData, 其余绑 formValues
 const editSections = computed(() => formBuckets.value
   .map(b => ({
     key: b.key,
@@ -684,15 +785,12 @@ const editSections = computed(() => formBuckets.value
   .filter(s => s.fields.length > 0),
 )
 
-// 编辑表单中的动态(非模型绑定)字段 — 用于 formValues 初始化/回填/提交收集
 const dynamicFormFields = computed(() =>
   editSections.value.flatMap(s => s.fields.filter(m => !m.binding).map(m => m.field)),
 )
 
-// 跨列字段（富文本 / 多行文本 / 日期范围 / 地址）
 const WIDE_TYPES = ['RICH_TEXT', 'MULTILINE_TEXT', 'DATE_RANGE', 'ADDRESS']
 
-// --- 类型判断 (与动态字段字段类型对齐) ---
 const NUMBER_TYPES = ['NUMBER']
 const OPTION_TYPES = ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT']
 const DATE_TYPES = ['DATE', 'DATE_RANGE']
@@ -703,7 +801,6 @@ const isDateType = (t: string) => DATE_TYPES.includes(t)
 const isPlainTextType = (t: string) => PLAIN_TEXT_TYPES.includes(t)
 const isMultiType = (t: string) => t === 'MULTISELECT' || t === 'LIST_MULTI'
 
-// 附件值统一为 AttachmentItem[]; 兼容旧版「URL 文本输入」存下的字符串值 (2026-10-13)
 function asAttachmentList(v: unknown): AttachmentItem[] {
   if (Array.isArray(v)) return v as AttachmentItem[]
   if (typeof v === 'string' && v) return [{ id: v, name: v, url: v }]
@@ -716,18 +813,18 @@ function selectOptions(f: FieldDefinition): { label: string; value: any }[] {
   }))
 }
 
-// 编辑表单中「模型映射 + 选项类」字段的下拉项。
-// demand_type / priority 用既有本地选项(带本地化标签); 其余(talent_nature 静态选项 /
-// sharers 内部用户 options_source 解析回填)直接取字段注册表 options — 序列化层已把
-// options_source={type:internal_user} 解析为 {value: 用户id, label: 姓名}。
 function editBindingOptions(f: FieldDefinition): { label: string; value: any }[] {
-  // demandTypeOptions 是 computed，需取 .value；priorityOptions 是普通数组
-  if (f.fieldKey === 'demand_type') return demandTypeOptions.value
+  if (f.fieldKey === 'demand_type') return demandTypeOptions
   if (f.fieldKey === 'priority') return priorityOptions
   return selectOptions(f)
 }
 
-// 日期选择器受控: ISO 字符串 <-> 时间戳
+// 编辑表单「需求类型」下拉项
+const demandTypeOptions = [
+  { label: '社会招聘', value: 'SOCIAL' },
+  { label: '校园招聘', value: 'CAMPUS' },
+]
+
 function dateValue(f: FieldDefinition): number | [number, number] | null {
   const v = formValues[f.fieldKey]
   if (!v) return null
@@ -745,9 +842,6 @@ function onDateInput(f: FieldDefinition, v: number | [number, number] | null) {
     : new Date(v).toISOString()
 }
 
-// 模型绑定字段的日期范围 (date_range, 2026-10-12 字段结构对齐规范):
-// formData[prop] 存 [start, end] ISO 串数组(与后端 Demand.date_range JSONField 对齐),
-// n-date-picker 受控值需转时间戳; 单值形态兜底按单日期处理。
 function formDateRangeValue(prop: string): [number, number] | null {
   const v = formData.value[prop]
   if (!Array.isArray(v) || v.length !== 2) return null
@@ -761,7 +855,6 @@ function onFormDateRangeInput(prop: string, v: number | [number, number] | null)
     : new Date(v).toISOString()
 }
 
-// 日期可选范围: 禁用区间外的日期 (minDate/maxDate 可为 YYYY-MM-DD 或相对表达式 T±N)。
 function dateDisabled(f: FieldDefinition): ((current: number) => boolean) | undefined {
   const v = f.validation as { minDate?: string | null; maxDate?: string | null } | null
   const lo = resolveDateBound(v?.minDate)
@@ -776,7 +869,6 @@ function dateDisabled(f: FieldDefinition): ((current: number) => boolean) | unde
   }
 }
 
-// 详情页某字段的取值: 系统字段取值特例 → 模型映射属性 → 动态字段值
 function fieldValue(f: FieldDefinition): any {
   const getter = SYSTEM_VALUE_GETTERS[f.fieldKey]
   if (getter) return getter(selectedDemand.value)
@@ -795,7 +887,6 @@ function formatDateVal(v: any): string {
   return dayjs(v).format('YYYY-MM-DD')
 }
 
-// 详情页字段值的展示文本 (按类型格式化)
 function displayText(f: FieldDefinition, value: any): string {
   if (value == null || value === '') return '-'
   const t = f.fieldType
@@ -831,15 +922,17 @@ function displayText(f: FieldDefinition, value: any): string {
   return String(value)
 }
 
-// 状态颜色（映射为 naive 的 tag type）
+// 状态颜色（naive tag type + 整卡色条）
 const getStatusType = (status: string): any => {
   const types: Record<string, string> = {
     'DRAFT': 'default',
-    'NOT_STARTED': 'default',
-    'IN_PROGRESS': 'info',
-    'COMPLETED': 'success',
+    'PENDING': 'info',
+    'APPROVED': 'success',
+    'RECRUITING': 'success',
     'PAUSED': 'warning',
-    'STOPPED': 'error'
+    'COMPLETED': 'default',
+    'CANCELLED': 'error',
+    'REJECTED': 'error',
   }
   return types[status] || 'default'
 }
@@ -847,33 +940,80 @@ const getStatusType = (status: string): any => {
 const getStatusText = (status: string) => {
   const texts: Record<string, string> = {
     'DRAFT': '草稿',
-    'NOT_STARTED': '未开始',
-    'IN_PROGRESS': '进行中',
-    'COMPLETED': '已完成',
+    'PENDING': '待审批',
+    'APPROVED': '已通过',
+    'RECRUITING': '招聘中',
     'PAUSED': '已暂停',
-    'STOPPED': '已停招'
+    'COMPLETED': '已完成',
+    'CANCELLED': '已取消',
+    'REJECTED': '已驳回',
   }
   return texts[status] || status
 }
 
 const getApprovalType = (status: string): any => {
   const types: Record<string, string> = {
-    'NOT_STARTED': 'default',
+    'NONE': 'default',
     'PENDING': 'info',
     'APPROVED': 'success',
-    'REJECTED': 'error'
+    'REJECTED': 'error',
   }
   return types[status] || 'default'
 }
 
 const getApprovalText = (status: string) => {
   const texts: Record<string, string> = {
-    'NOT_STARTED': '未发起',
+    'NONE': '未发起',
     'PENDING': '审批中',
     'APPROVED': '已通过',
-    'REJECTED': '已拒绝'
+    'REJECTED': '已拒绝',
   }
   return texts[status] || status
+}
+
+// 整卡状态色条
+const STATE_BAR_COLOR: Record<string, string> = {
+  DRAFT: 'var(--c-gray-600, #888780)',
+  PENDING: 'var(--c-blue-600, #185FA5)',
+  APPROVED: 'var(--c-teal-600, #0F6E56)',
+  RECRUITING: 'var(--brand, #534AB7)',
+  PAUSED: 'var(--c-amber-600, #854F0B)',
+  COMPLETED: 'var(--c-green-600, #3B6D11)',
+  CANCELLED: 'var(--c-red-600, #A32D2D)',
+  REJECTED: 'var(--c-red-600, #A32D2D)',
+}
+function stateBarColor(state: string): string {
+  return STATE_BAR_COLOR[state] || 'var(--c-gray-600, #888780)'
+}
+
+// FSM 流转：当前 state → 可执行的下一步动作
+const TERMINAL_STATES = new Set(['COMPLETED', 'CANCELLED'])
+const FSM_TRANSITIONS: Record<string, { action: string; label: string }[]> = {
+  DRAFT: [{ action: 'submit', label: '提交审批' }],
+  PENDING: [{ action: 'approve', label: '通过' }, { action: 'reject', label: '驳回' }],
+  APPROVED: [{ action: 'start_recruiting', label: '开始招聘' }],
+  RECRUITING: [{ action: 'pause', label: '暂停' }],
+  PAUSED: [{ action: 'resume', label: '恢复' }],
+}
+function transitionOptions(state: string) {
+  const base = FSM_TRANSITIONS[state] || []
+  const extra: { action: string; label: string }[] = []
+  if (!TERMINAL_STATES.has(state)) {
+    extra.push({ action: 'complete', label: '标记完成' }, { action: 'cancel', label: '取消需求' })
+  }
+  return [...base, ...extra]
+}
+function transitionDropdownOptions(state: string) {
+  return transitionOptions(state).map(o => ({ label: o.label, key: o.action }))
+}
+async function changeState(item: any, action: string) {
+  try {
+    await post(`/demands/${item.id}/transition`, { action, reason: '' })
+    message.success('状态已更新')
+    fetchDemands()
+  } catch (error: any) {
+    message.error(extractApiError(error, '操作失败'))
+  }
 }
 
 // ===== 列表展示辅助 =====
@@ -881,7 +1021,7 @@ function headcountOf(item: any): number {
   return item?.headcount ?? item?.positionCount ?? 0
 }
 function filledOf(item: any): number {
-  return item?.filledCount ?? item?.hiredCount ?? 0
+  return item?.filledCount ?? item?.filled_count ?? item?.hiredCount ?? 0
 }
 function progressPct(item: any): number {
   const h = headcountOf(item)
@@ -894,51 +1034,31 @@ function priorityRank(p: string): number {
   if (p === 'P2') return 2
   return 9
 }
-function priorityPillClass(p: string): string {
-  if (p === 'P0') return 'priority-pill--error'
-  if (p === 'P1') return 'priority-pill--warning'
-  if (p === 'P2') return 'priority-pill--info'
-  return 'priority-pill--default'
-}
 function priorityTagType(p: string): any {
   if (p === 'P0') return 'error'
   if (p === 'P1') return 'warning'
   if (p === 'P2') return 'info'
   return 'default'
 }
-function timeValueOf(item: any): number {
-  const raw = item?.updatedAt ?? item?.updated_at ?? item?.createdAt ?? item?.created_at
-  const ts = raw ? Date.parse(raw) : NaN
-  return isNaN(ts) ? 0 : ts
+// 时间进度%：起止日期区间内当前所处比例
+function timeProgress(item: any): number | null {
+  const dr = item?.dateRange || item?.date_range
+  if (!Array.isArray(dr) || dr.length !== 2) return null
+  const s = Date.parse(dr[0]); const e = Date.parse(dr[1])
+  if (isNaN(s) || isNaN(e) || e <= s) return null
+  const now = Date.now()
+  const pct = ((now - s) / (e - s)) * 100
+  return Math.max(0, Math.min(100, Math.round(pct)))
 }
-function relativeTime(item: any): string {
-  const raw = item?.updatedAt ?? item?.updated_at ?? item?.createdAt ?? item?.created_at
-  if (!raw) return '-'
-  const d = dayjs(raw)
-  if (!d.isValid()) return '-'
-  const diffMin = dayjs().diff(d, 'minute')
-  if (diffMin < 1) return t('pages.demand.DemandList.s75')
-  if (diffMin < 60) return t('pages.demand.DemandList.s76', { n: diffMin })
-  const diffHr = dayjs().diff(d, 'hour')
-  if (diffHr < 24) return t('pages.demand.DemandList.s77', { n: diffHr })
-  const diffDay = dayjs().diff(d, 'day')
-  if (diffDay < 30) return t('pages.demand.DemandList.s78', { n: diffDay })
-  return d.format('YYYY-MM-DD')
+function talentNatureText(v: string): string {
+  const map: Record<string, string> = {
+    FULLTIME: '全职', PARTTIME: '兼职', INTERN: '实习', OUTSOURCE: '外包',
+  }
+  return map[v] || v
 }
-function absoluteTime(item: any): string {
-  const raw = item?.updatedAt ?? item?.updated_at ?? item?.createdAt ?? item?.created_at
-  if (!raw) return '-'
-  const d = dayjs(raw)
-  return d.isValid() ? d.format('YYYY-MM-DD HH:mm') : '-'
+function hasRequirement(item: any): boolean {
+  return !!(item.talentNature || item.educationRequirement || item.experienceRequirement || item.salaryRange || item.positionSequence)
 }
-
-// KPI（前端真实聚合）
-const kpi = computed(() => ({
-  total: demands.value.length,
-  inProgress: demands.value.filter(d => d.demandStatus === 'IN_PROGRESS').length,
-  pending: demands.value.filter(d => d.approvalStatus === 'PENDING' || d.approval_status === 'PENDING').length,
-  planned: demands.value.reduce((s, d) => s + headcountOf(d), 0),
-}))
 
 // 搜索防抖（300ms）
 let searchTimer: ReturnType<typeof setTimeout> | undefined
@@ -955,47 +1075,45 @@ function handleSearch() {
   page.value = 1
 }
 
-function onFilterChange() {
-  page.value = 1
-}
 function clearFilters() {
   searchText.value = ''
   keyword.value = ''
-  filterStatus.value = ''
-  filterType.value = 'ALL'
-  sortKey.value = 'updated'
+  departmentFilter.value = null
+  hrbpFilter.value = null
+  hiringManagerFilter.value = null
+  hiringManagerSuperiorFilter.value = null
+  priorityFilter.value = null
+  demandTypeFilter.value = null
+  activeProcess.value = ''
+  activeApproval.value = ''
   page.value = 1
 }
 
-// 前端筛选 + 排序
+// 前端筛选（列表已全量加载，与既有模式一致）
 const processedDemands = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
-  let list = demands.value
-  if (kw) {
-    list = list.filter(d => {
-      const hay = [d.code, d.name, d.departmentName, d.department?.name, d.hrName]
+  return demands.value.filter(d => {
+    if (kw) {
+      const hay = [d.code, d.title || d.name, d.departmentName, d.department?.name, d.hrName,
+        d.hrbpName, d.hiringManagerName, d.hiringManagerSuperiorName]
         .filter(Boolean).join(' ').toLowerCase()
-      return hay.includes(kw)
-    })
-  }
-  if (filterStatus.value) {
-    list = list.filter(d => d.demandStatus === filterStatus.value)
-  }
-  if (filterType.value && filterType.value !== 'ALL') {
-    list = list.filter(d => d.demandType === filterType.value)
-  }
-  const sorted = [...list]
-  if (sortKey.value === 'priority') {
-    sorted.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
-  } else if (sortKey.value === 'headcount') {
-    sorted.sort((a, b) => headcountOf(b) - headcountOf(a))
-  } else {
-    sorted.sort((a, b) => timeValueOf(b) - timeValueOf(a))
-  }
-  return sorted
+      if (!hay.includes(kw)) return false
+    }
+    if (departmentFilter.value && (d.department === departmentFilter.value || d.departmentId === departmentFilter.value)) {
+      // department 列表返回的是 id
+    }
+    if (departmentFilter.value && d.department !== departmentFilter.value) return false
+    if (hrbpFilter.value && d.hrbpName !== hrbpFilter.value) return false
+    if (hiringManagerFilter.value && d.hiringManagerName !== hiringManagerFilter.value) return false
+    if (hiringManagerSuperiorFilter.value && d.hiringManagerSuperiorName !== hiringManagerSuperiorFilter.value) return false
+    if (priorityFilter.value && d.priority !== priorityFilter.value) return false
+    if (demandTypeFilter.value && d.demandType !== demandTypeFilter.value) return false
+    if (activeProcess.value && (d.state || d.demandStatus) !== activeProcess.value) return false
+    if (activeApproval.value && (d.approvalStatus || d.approval_status) !== activeApproval.value) return false
+    return true
+  })
 })
 
-// 前端分页
 const pagedDemands = computed(() => {
   const start = (page.value - 1) * pageSize
   return processedDemands.value.slice(start, start + pageSize)
@@ -1005,80 +1123,80 @@ function onPageChange(p: number) {
   page.value = p
 }
 
+// 批量选中
+const selectAllChecked = computed(() => processedDemands.value.length > 0 && selectedIds.value.length === processedDemands.value.length)
+const selectSomeChecked = computed(() => selectedIds.value.length > 0 && !selectAllChecked.value)
+function toggleCard(id: string, v: boolean) {
+  if (v) {
+    if (!selectedIds.value.includes(id)) selectedIds.value = [...selectedIds.value, id]
+  } else {
+    selectedIds.value = selectedIds.value.filter(x => x !== id)
+  }
+}
+function toggleSelectAll(v: boolean) {
+  if (v) selectedIds.value = processedDemands.value.map(d => d.id)
+  else selectedIds.value = []
+}
+
+// 批量变更人员
+const batchPeopleModal = ref(false)
+const batchSaving = ref(false)
+const batchPeople = reactive({ hrbp: '', hiringManager: '', hiringManagerSuperior: '' })
+function openBatchPeople() {
+  if (!selectedIds.value.length) {
+    message.warning('请先勾选需求')
+    return
+  }
+  batchPeople.hrbp = ''
+  batchPeople.hiringManager = ''
+  batchPeople.hiringManagerSuperior = ''
+  batchPeopleModal.value = true
+}
+async function applyBatchPeople() {
+  const ids = [...selectedIds.value]
+  if (!ids.length) return
+  const payload: any = {}
+  if (batchPeople.hrbp) payload.hrbp = batchPeople.hrbp
+  if (batchPeople.hiringManager) payload.hiringManager = batchPeople.hiringManager
+  if (batchPeople.hiringManagerSuperior) payload.hiringManagerSuperior = batchPeople.hiringManagerSuperior
+  if (!Object.keys(payload).length) {
+    message.warning('请至少选择一个要变更的人员')
+    return
+  }
+  batchSaving.value = true
+  let ok = 0
+  let fail = 0
+  for (const id of ids) {
+    try {
+      await saveDynamicFieldValues('Demand', id, payload)
+      ok++
+    } catch (e) {
+      fail++
+    }
+  }
+  batchSaving.value = false
+  batchPeopleModal.value = false
+  message.success(`已更新 ${ok} 条${fail ? `，失败 ${fail} 条` : ''}`)
+  fetchDemands()
+}
+
 // 表格列定义
-// DataTableColumns<T> 本身已是数组类型，不能再套一层 [] （否则变成「数组的数组」）
 const columns = computed<DataTableColumns<any>>(() => [
-  {
-    title: t('pages.demand.DemandList.s79'),
-    key: 'code',
-    width: 120,
-    render: (row: any) => h('span', { class: 'cell-code', title: row.code }, row.code),
-  },
-  {
-    title: t('pages.demand.DemandList.s80'),
-    key: 'name',
-    minWidth: 180,
-    ellipsis: { tooltip: true },
-    render: (row: any) => h('span', { title: row.name }, row.name),
-  },
-  {
-    title: t('pages.demand.DemandList.s5'),
-    key: 'department',
-    width: 140,
-    render: (row: any) => row.departmentName || row.department?.name || '-',
-  },
-  {
-    title: t('pages.demand.DemandList.s6'),
-    key: 'demandType',
-    width: 90,
-    render: (row: any) => h(NTag, { size: 'small', type: row.demandType === 'SOCIAL' ? 'info' : 'success' }, { default: () => (row.demandType === 'SOCIAL' ? t('pages.demand.DemandList.s70') : t('pages.demand.DemandList.s71')) }),
-  },
-  {
-    title: t('pages.demand.DemandList.s58'),
-    key: 'priority',
-    width: 90,
-    render: (row: any) => h(NTag, { size: 'small', type: priorityTagType(row.priority) }, { default: () => row.priority || '-' }),
-  },
-  {
-    title: t('pages.demand.DemandList.s20'),
-    key: 'headcount',
-    width: 100,
-    align: 'right',
-    render: (row: any) => headcountOf(row),
-  },
-  {
-    title: t('pages.demand.DemandList.s8'),
-    key: 'filled',
-    width: 100,
-    align: 'right',
-    render: (row: any) => filledOf(row),
-  },
-  {
-    title: t('pages.demand.DemandList.s81'),
-    key: 'status',
-    width: 100,
-    render: (row: any) => h(NTag, { size: 'small', type: getStatusType(row.demandStatus) }, { default: () => getStatusText(row.demandStatus) }),
-  },
-  {
-    title: t('pages.demand.DemandList.s82'),
-    key: 'approval',
-    width: 100,
-    render: (row: any) => row.approvalStatus
-      ? h(NTag, { size: 'small', type: getApprovalType(row.approvalStatus) }, { default: () => getApprovalText(row.approvalStatus) })
-      : '-',
-  },
-  {
-    title: t('pages.demand.DemandList.s83'),
-    key: 'actions',
-    width: 130,
-    render: (row: any) => h('div', { class: 'cell-actions' }, [
-      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleCardClick(row) }, { default: () => t('pages.demand.DemandList.s9') }),
-      h(NButton, { text: true, size: 'small', onClick: () => handleEdit(row) }, { default: () => t('pages.demand.DemandList.s50') }),
-    ]),
-  },
+  { title: t('pages.demand.DemandList.s79'), key: 'code', width: 120, render: (row: any) => h('span', { class: 'cell-code', title: row.code }, row.code) },
+  { title: t('pages.demand.DemandList.s80'), key: 'name', minWidth: 180, ellipsis: { tooltip: true }, render: (row: any) => h('span', { title: row.title || row.name }, row.title || row.name) },
+  { title: t('pages.demand.DemandList.s5'), key: 'department', width: 140, render: (row: any) => row.departmentName || row.department?.name || '-' },
+  { title: t('pages.demand.DemandList.s6'), key: 'demandType', width: 90, render: (row: any) => h(NTag, { size: 'small', type: row.demandType === 'SOCIAL' ? 'info' : 'success' }, { default: () => (row.demandType === 'SOCIAL' ? '社会招聘' : '校园招聘') }) },
+  { title: t('pages.demand.DemandList.s58'), key: 'priority', width: 90, render: (row: any) => h(NTag, { size: 'small', type: priorityTagType(row.priority) }, { default: () => row.priority || '-' }) },
+  { title: t('pages.demand.DemandList.s20'), key: 'headcount', width: 100, align: 'right', render: (row: any) => headcountOf(row) },
+  { title: t('pages.demand.DemandList.s8'), key: 'filled', width: 100, align: 'right', render: (row: any) => filledOf(row) },
+  { title: t('pages.demand.DemandList.s81'), key: 'status', width: 100, render: (row: any) => h(NTag, { size: 'small', type: getStatusType(row.state || row.demandStatus) }, { default: () => getStatusText(row.state || row.demandStatus) }) },
+  { title: t('pages.demand.DemandList.s82'), key: 'approval', width: 100, render: (row: any) => (row.approvalStatus || row.approval_status) ? h(NTag, { size: 'small', type: getApprovalType(row.approvalStatus || row.approval_status) }, { default: () => getApprovalText(row.approvalStatus || row.approval_status) }) : '-' },
+  { title: t('pages.demand.DemandList.s83'), key: 'actions', width: 130, render: (row: any) => h('div', { class: 'cell-actions' }, [
+    h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => handleCardClick(row) }, { default: () => t('pages.demand.DemandList.s9') }),
+    h(NButton, { text: true, size: 'small', onClick: () => handleEdit(row) }, { default: () => t('pages.demand.DemandList.s50') }),
+  ]) },
 ])
 
-// 抽屉宽度自适应
 const drawerWidth = ref(680)
 function syncDrawerWidth() {
   drawerWidth.value = Math.min(1080, Math.max(720, Math.round(window.innerWidth * 0.72)))
@@ -1089,7 +1207,11 @@ const fetchDemands = async () => {
   try {
     const res = await get('/demands/')
     if (res.data.success) {
-      demands.value = (res.data.data || []).map(normalizeDemand)
+      const list = (res.data.data || []).map(normalizeDemand)
+      // 切回全量时清空过期选中
+      const valid = new Set(list.map((d: any) => d.id))
+      selectedIds.value = selectedIds.value.filter(id => valid.has(id))
+      demands.value = list
     }
   } catch (error) {
     message.error('获取需求列表失败')
@@ -1098,20 +1220,13 @@ const fetchDemands = async () => {
   }
 }
 
-// 列表/详情模板用的是旧契约别名(name/positionCount/demandStatus/hiredCount)。
-// 后端经 CamelCaseJSONRenderer 输出 camelCase 键(demandType/filledCount),
-// 旧代码读 snake 键(demand_type/filled_count)恒 undefined → 卡片类型恒显校招、
-// 入职数恒 0。这里对两种键名都兜底, 并保证 detail 合并后别名不被
-// serializer 的 position_count(关联职位数)覆盖 positionCount(需求人数=headcount)。
 function normalizeDemand(d: any) {
   return {
     ...d,
-    name: d.title,
-    positionCount: d.headcount,
-    demandStatus: d.state,
+    name: d.title || d.name,
+    positionCount: d.headcount ?? d.positionCount,
+    demandStatus: d.state || d.demandStatus,
     demandType: d.demandType ?? d.demand_type,
-    hiredCount: d.filledCount ?? d.filled_count ?? 0,
-    onBoardCount: d.filledCount ?? d.filled_count ?? 0,
   }
 }
 
@@ -1126,7 +1241,6 @@ const fetchDepartments = async () => {
   }
 }
 
-// 并行加载: 字段定义 / 分组 / 表单设置, 任一失败都不阻断其余(独立容错)。
 const loadDemandFields = async () => {
   const [f, g, c] = await Promise.allSettled([
     listFields('Demand'),
@@ -1138,7 +1252,6 @@ const loadDemandFields = async () => {
   demandFormConfig.value = c.status === 'fulfilled' ? c.value : { fields: [], groupOrder: [] }
 }
 
-// 打开详情: 拉取完整详情(含 JD/任职要求) + 动态字段值
 const handleCardClick = async (item: any) => {
   selectedDemand.value = item
   detailVisible.value = true
@@ -1148,9 +1261,6 @@ const handleCardClick = async (item: any) => {
     const res = await get(`/demands/${item.id}/`)
     const detail = res.data?.data ?? res.data
     if (detail && detail.id) {
-      // 合并后重新归一化: 详情 serializer 的 positionCount 是「关联职位数」,
-      // 会覆盖列表别名 positionCount(需求人数=headcount); 统一以 headcount 为准,
-      // 并对 camelCase 键兜底。
       selectedDemand.value = normalizeDemand({ ...item, ...detail })
     }
   } catch (error) {
@@ -1200,22 +1310,17 @@ const handleCreate = () => {
 }
 
 const handleEdit = async (item: any) => {
-  // 拉取完整详情, 保证部门 id / JD / 任职要求 / 职级 / 职位系列 / 人数 / 优先级 / 类型
-  // 等都正确回填 (列表项与抽屉 selectedDemand 不一定含这些字段)。
-  // 注意: serializer 的 positionCount 是「关联职位数」, 需求人数应取 headcount。
   let d: any = item || {}
   try {
     const res = await get(`/demands/${item.id}/`)
     const detail = res.data?.data ?? res.data
     if (detail && detail.id) d = detail
   } catch (error) {
-    // 兜底用传入项 (已 normalize): 列表项/抽屉项至少含 id / headcount / demandType 等
+    // 兜底用传入项
   }
   formData.value = {
     id: d.id ?? item?.id ?? '',
     name: d.title ?? d.name ?? '',
-    // department 在列表/详情序列化里是外键 PK 字符串(非嵌套对象), 故 d.department 即 id;
-    // 兼容个别嵌套场景: 对象取 .id, 字符串直接当 id。
     departmentId: (typeof d.department === 'object' ? d.department?.id : d.department)
       ?? (typeof item?.department === 'object' ? item?.department?.id : item?.department)
       ?? '',
@@ -1226,7 +1331,6 @@ const handleEdit = async (item: any) => {
     jobLevel: d.level ?? '',
     description: d.jd ?? '',
     requirements: d.requirements ?? '',
-    // 2026-10-12 字段结构对齐规范: 新增预置列回填 (dateRange 容错非数组)
     talentLevel: d.talentLevel ?? d.talent_level ?? '',
     talentNature: d.talentNature ?? d.talent_nature ?? '',
     dateRange: Array.isArray(d.dateRange) ? d.dateRange : (Array.isArray(d.date_range) ? d.date_range : null),
@@ -1244,7 +1348,6 @@ const handleEdit = async (item: any) => {
   modalVisible.value = true
 }
 
-// 卡片上的「提交审批」：先选中再提交
 const handleSubmitFromCard = (item: any) => {
   selectedDemand.value = item
   handleSubmitApproval()
@@ -1256,12 +1359,10 @@ const handleSave = async () => {
     return
   }
 
-  // 收集动态(非模型映射)配置字段值
   const dyn: Record<string, any> = {}
   for (const f of dynamicFormFields.value) {
     const v = formValues[f.fieldKey]
     if (v === '' || v == null || (Array.isArray(v) && v.length === 0)) continue
-    // 范围数字: 两端皆空视为空, 跳过 (否则落 {"min":null,"max":null})
     if (f.fieldType === 'RANGE_NUMBER' && v && v.min == null && v.max == null) continue
     dyn[f.fieldKey] = v
   }
@@ -1278,8 +1379,6 @@ const handleSave = async () => {
       priority: formData.value.priority,
       jd: formData.value.description || '',
       requirements: formData.value.requirements || '',
-      // 2026-10-12 字段结构对齐规范: 新增预置列(后端 DemandCreateSerializer 已收)。
-      // date_range/sharers 为 JSONField(default=list, 无 null), 空值送 [] 而非 null。
       talent_level: formData.value.talentLevel || '',
       talent_nature: formData.value.talentNature || '',
       date_range: formData.value.dateRange || [],
@@ -1296,7 +1395,6 @@ const handleSave = async () => {
       message.success('创建成功')
     }
 
-    // 扩展字段走权威动态值接口落库; 若后端返回 skipped(字段定义已不存在), 明确提示, 避免静默丢数据。
     if (demandId && Object.keys(dyn).length) {
       const sv: any = await saveDynamicFieldValues('Demand', demandId, dyn)
       if (sv && Array.isArray(sv.skipped) && sv.skipped.length) {
@@ -1342,7 +1440,7 @@ onUnmounted(() => {
 .demand-container {
   padding: var(--space-6);
   min-height: 100%;
-  background: transparent; /* 让 --aurora-base 透出 */
+  background: transparent;
   animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
 }
 
@@ -1350,7 +1448,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-5);
 }
 
 .page-title {
@@ -1359,64 +1457,113 @@ onUnmounted(() => {
   margin: 0;
 }
 
-/* KPI 条 */
-.kpi-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--space-3);
+/* ① 高级筛选区 */
+.filter-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--glass-bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   margin-bottom: var(--space-4);
 }
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.filter-row--advanced {
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--glass-border);
+}
 
-/* 工具条 */
-.toolbar-spacer {
+/* ② 双层状态页签 */
+.tab-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+.tab-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+.tab-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--glass-border);
+}
+.tab-badge {
+  margin-left: 4px;
+}
+
+/* ③ 批量操作栏 */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--glass-bg-input);
+  border-radius: var(--radius-md);
+}
+.batch-spacer {
   flex: 1;
 }
 
-/* 卡片网格 —— 单列垂直: 每个需求卡片独占整行宽度 */
+/* ④ 卡片列表 */
 .demand-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-3);
 }
 
-/* 卡片内部横向分布: 左 = 主信息(自适应) | 右 = 状态/进度/操作(定宽) */
 .demand-card {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
-  align-items: center;
-  gap: var(--space-3) var(--space-6);
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: var(--space-3);
   background: var(--glass-bg-card);
   border: 1px solid var(--glass-border);
+  border-left: 4px solid var(--state-bar, var(--c-gray-600, #888780));
   border-radius: var(--radius-md);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   cursor: pointer;
   transition: transform var(--duration-base) var(--ease-out),
     box-shadow var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out);
 }
-
 .demand-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-card);
   border-color: var(--brand-a22);
 }
-
 .demand-card:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
-
 .demand-card.selected {
   border-color: var(--brand);
 }
+.card-check {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+}
 
-.card-main {
+.card-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
 }
 
+/* 标题行 */
 .card-headline {
   display: flex;
   align-items: center;
@@ -1424,138 +1571,180 @@ onUnmounted(() => {
   flex-wrap: wrap;
   min-width: 0;
 }
-
 .demand-code {
   color: var(--c-info-deep);
   font-weight: 600;
   font-size: var(--fs-13);
 }
-
-.priority-pill {
-  font-size: var(--fs-12);
-  font-weight: 600;
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  line-height: 1.6;
-}
-
-.priority-pill--error {
-  background: var(--c-error-soft);
-  color: var(--c-error-deep);
-}
-
-.priority-pill--warning {
-  background: var(--c-warning-soft);
-  color: var(--c-warning-deep);
-}
-
-.priority-pill--info {
-  background: var(--c-info-soft);
-  color: var(--c-info-deep);
-}
-
-.priority-pill--default {
-  background: var(--g1);
-  color: var(--ink-soft);
-}
-
-.card-title {
+.demand-title {
   font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 320px;
+}
+.headline-spacer {
+  flex: 1;
+}
+.state-dropdown {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
-/* 事实栏 —— 等宽多列, 列数随可用宽度自适应, 水平均匀铺开 */
-.card-facts {
+/* 三栏 */
+.card-cols {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--space-1) var(--space-4);
-  font-size: var(--fs-13);
-  min-width: 0;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
 }
-
-.fact {
+.card-col {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
 }
+.card-col--progress {
+  gap: var(--space-1);
+}
 
-.fact-label {
-  flex: none;
+.req-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.req-chip {
+  font-size: var(--fs-12);
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--g1);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.req-chip--muted {
   color: var(--ink-faint);
 }
 
-.fact-value {
+.people-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.people-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--fs-13);
+}
+.people-label {
+  flex: none;
+  width: 88px;
+  color: var(--ink-faint);
+}
+.people-value {
   color: var(--ink-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.card-side {
+.meta-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-width: 0;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--fs-13);
 }
-
-.card-side__status {
-  display: flex;
-  justify-content: flex-end;
+.meta-row--top {
+  align-items: flex-start;
 }
-
-.card-progress {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.progress-text {
-  font-size: var(--fs-12);
+.meta-label {
+  flex: none;
+  width: 64px;
   color: var(--ink-faint);
 }
+.meta-value {
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.meta-muted {
+  color: var(--ink-faint);
+}
+.position-tag {
+  background: var(--c-info-soft);
+  color: var(--c-info-deep);
+}
 
+/* 右栏进度 */
+.date-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-13);
+  color: var(--ink-soft);
+}
+.date-icon {
+  font-size: 14px;
+  color: var(--ink-faint);
+}
+.progress-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
 .bar {
-  width: 100%;
+  flex: 1;
   height: 6px;
   border-radius: var(--radius-pill);
   background: var(--glass-bg-input);
   overflow: hidden;
 }
-
 .bar > span {
   display: block;
   height: 100%;
   border-radius: var(--radius-pill);
+  background: var(--brand);
   transition: width var(--duration-base) var(--ease-out);
 }
-
-.card-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+.progress-pct {
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
+  white-space: nowrap;
 }
-
-/* 表格视图 */
-.demand-table {
-  width: 100%;
-}
-
-.cell-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.cell-code {
-  color: var(--c-info-deep);
+.progress-pct--warn {
+  color: var(--c-red-deep);
   font-weight: 600;
+}
+.funnel {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: 2px;
+}
+.funnel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.funnel-num {
+  font-size: var(--fs-16);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.funnel-item--ok .funnel-num {
+  color: var(--c-green-deep);
+}
+.funnel-label {
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
 }
 
 /* 分页 */
@@ -1565,13 +1754,12 @@ onUnmounted(() => {
   margin-top: var(--space-4);
 }
 
-/* 加载骨架 —— 与卡片网格同源单列 */
+/* 加载骨架 */
 .demand-skeleton {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-4);
 }
-
 .skeleton-card {
   background: var(--glass-bg-card);
   border: 1px solid var(--glass-border);
@@ -1581,11 +1769,24 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--space-3);
 }
-
 .empty-wrapper {
   display: flex;
   justify-content: center;
   padding: 60px;
+}
+
+/* 表格视图 */
+.demand-table {
+  width: 100%;
+}
+.cell-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.cell-code {
+  color: var(--c-info-deep);
+  font-weight: 600;
 }
 
 /* 抽屉 */
@@ -1596,21 +1797,18 @@ onUnmounted(() => {
   gap: var(--space-3);
   width: 100%;
 }
-
 .drawer-header__main {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
 }
-
 .drawer-code {
   color: var(--c-info-deep);
   font-weight: 600;
   font-size: var(--fs-13);
   flex-shrink: 0;
 }
-
 .drawer-name {
   font-size: var(--fs-16);
   font-weight: 600;
@@ -1619,25 +1817,21 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .drawer-header__actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
 }
-
 .drawer-skeleton {
   padding: var(--space-2) 0;
 }
-
 .overview-bar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
-
 .overview-item {
   display: flex;
   align-items: baseline;
@@ -1647,38 +1841,31 @@ onUnmounted(() => {
   background: var(--glass-bg-input);
   border-radius: var(--radius-sm);
 }
-
 .ov-num {
   font-size: var(--fs-16);
   font-weight: 600;
   line-height: 1.3;
   color: var(--ink);
 }
-
 .ov-label {
   font-size: var(--fs-12);
   line-height: 1.3;
   color: var(--ink-faint);
   white-space: nowrap;
 }
-
 .overview-bar__progress {
   grid-column: 1 / -1;
   margin-top: var(--space-1);
 }
-
 .rich-block {
   margin-top: var(--space-2);
 }
-
 .detail-tabs :deep(.n-tabs-nav) {
   margin-bottom: var(--space-4);
 }
-
 .detail-section {
   margin-bottom: var(--space-6);
 }
-
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -1687,34 +1874,28 @@ onUnmounted(() => {
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--border-hairline);
 }
-
 .section-title {
   font-size: var(--fs-14);
   font-weight: 600;
   color: var(--ink);
 }
-
 .info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--space-3) var(--space-6);
 }
-
 .info-item {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
 }
-
 .info-item--wide {
   grid-column: 1 / -1;
 }
-
 .info-label {
   font-size: var(--fs-12);
   color: var(--ink-faint);
 }
-
 .info-value {
   font-size: var(--fs-14);
   color: var(--ink);
@@ -1726,17 +1907,14 @@ onUnmounted(() => {
   overflow-y: auto;
   padding-right: var(--space-1);
 }
-
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 var(--space-5);
 }
-
 .form-grid .form-item--wide {
   grid-column: 1 / -1;
 }
-
 .form-group-header {
   grid-column: 1 / -1;
   font-size: var(--fs-14);
@@ -1746,33 +1924,25 @@ onUnmounted(() => {
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--border-hairline);
 }
-
 .form-group-header:first-child {
   margin-top: 0;
 }
-
-.rich-editor-wrap {
-  max-height: 280px;
-  overflow: auto;
-  width: 100%;
+.batch-hint {
+  margin: 0;
+  font-size: var(--fs-12);
+  color: var(--ink-faint);
 }
 
-/* 卡片在窄屏下由「左右两栏」塌缩为「上下堆叠」，保证内容不被挤压 */
-@media (max-width: 1024px) {
-  .demand-card {
+/* 响应式：窄屏三栏塌缩为单列 */
+@media (max-width: 1100px) {
+  .card-cols {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .card-side__status,
-  .card-actions {
-    justify-content: flex-start;
-  }
 }
-
 @media (max-width: 768px) {
   .form-grid { grid-template-columns: 1fr; }
   .overview-bar { grid-template-columns: repeat(2, 1fr); }
   .demand-card { padding: var(--space-3) var(--space-4); }
-  .card-title { white-space: normal; }
+  .demand-title { white-space: normal; max-width: none; }
 }
 </style>

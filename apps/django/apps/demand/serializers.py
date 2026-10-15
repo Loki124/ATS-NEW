@@ -1,7 +1,35 @@
 """Demand Serializers (PRD v4 §14.1)"""
 from rest_framework import serializers
 
+from apps.core.models import User
+from apps.dynamic_field.models import DynamicFieldValue
+
 from .models import Demand, DemandApproval
+
+
+# 列表卡片需展示、但存于动态字段（Demand 资源）的键：
+#   - 责任人三件套（PERSON 类型，value = 用户 id）
+#   - 任职要求摘要（学历/经验/薪资/地点/职位序列，文本或选项值）
+DEMAND_DFV_KEYS = (
+    'hrbp', 'hiring_manager', 'hiring_manager_superior',
+    'education_requirement', 'experience_requirement', 'salary_range',
+    'work_location', 'position_sequence',
+)
+_PERSON_KEYS = {'hrbp', 'hiring_manager', 'hiring_manager_superior'}
+
+# 与 DemandDetailSerializer 同源的「FSM state → 派生审批状态」映射
+_STATE_TO_APPROVAL = {
+    'DRAFT': 'NONE', 'PENDING': 'PENDING', 'APPROVED': 'APPROVED',
+    'RECRUITING': 'APPROVED', 'PAUSED': 'APPROVED', 'COMPLETED': 'APPROVED',
+    'REJECTED': 'REJECTED', 'CANCELLED': 'REJECTED',
+}
+
+
+def derive_approval_status(obj) -> str:
+    """审批状态：模型列有值优先，否则按 FSM state 派生（与详情序列化器一致）。"""
+    if getattr(obj, 'approval_status', ''):
+        return obj.approval_status
+    return _STATE_TO_APPROVAL.get(obj.state, 'NONE')
 
 
 class DemandListSerializer(serializers.ModelSerializer):
@@ -23,6 +51,7 @@ class DemandListSerializer(serializers.ModelSerializer):
             'level', 'position_title',
             'process', 'process_version',
             'state', 'state_display', 'priority', 'demand_type',
+            'approval_status', 'date_range',
             'submitted_at', 'approved_at',
             'position_count',
             'created_at',
@@ -33,6 +62,66 @@ class DemandListSerializer(serializers.ModelSerializer):
 
     def get_position_count(self, obj) -> int:
         return obj.positions.filter(deleted_at__isnull=True).count() if hasattr(obj, 'positions') else 0
+
+    def to_representation(self, obj):
+        """在父类输出上注入「列表卡片」所需的派生字段，保证真实不造假：
+
+        - 审批状态（派生）
+        - 责任人三件套姓名（来自动态字段 PERSON，解析为用户姓名）
+        - 任职要求摘要（学历/经验/薪资/地点/职位序列，来自动态字段）
+        - 关联职位编号列表、应聘人数（聚合，失败降级 0）
+        """
+        rep = super().to_representation(obj)
+        rep['approval_status'] = derive_approval_status(obj)
+
+        # 一次查询取齐该需求所有需要的动态字段值，避免逐字段 N 次查询。
+        dfvs = DynamicFieldValue.objects.filter(
+            resource='Demand', entity_id=obj.id, field_key__in=DEMAND_DFV_KEYS,
+        )
+        valmap: dict = {}
+        for dfv in dfvs:
+            valmap[dfv.field_key] = dfv.value
+
+        # 责任人三件套：PERSON value = 用户 id，批量解析为姓名。
+        person_ids = [v for k, v in valmap.items() if k in _PERSON_KEYS and v]
+        names: dict = {}
+        if person_ids:
+            names = {
+                str(u.id): (u.get_full_name() or u.username)
+                for u in User.objects.filter(id__in=person_ids)
+            }
+        rep['hrbp_name'] = names.get(str(valmap.get('hrbp')), '') if valmap.get('hrbp') else ''
+        rep['hiring_manager_name'] = (
+            names.get(str(valmap.get('hiring_manager')), '') if valmap.get('hiring_manager') else ''
+        )
+        rep['hiring_manager_superior_name'] = (
+            names.get(str(valmap.get('hiring_manager_superior')), '')
+            if valmap.get('hiring_manager_superior') else ''
+        )
+
+        # 任职要求摘要（文本/选项原始值，列表卡片直接展示）
+        rep['education_requirement'] = valmap.get('education_requirement') or ''
+        rep['experience_requirement'] = valmap.get('experience_requirement') or ''
+        rep['salary_range'] = valmap.get('salary_range') or ''
+        rep['work_location'] = valmap.get('work_location') or ''
+        rep['position_sequence'] = valmap.get('position_sequence') or ''
+
+        # 关联职位编号（J 编号）
+        rep['position_codes'] = list(
+            obj.positions.filter(deleted_at__isnull=True).values_list('code', flat=True)
+        )
+
+        # 应聘人数：该需求关联职位的投递总数；任何异常（跨 app 未就绪等）降级为 0，绝不 500。
+        try:
+            from apps.application.models import Application
+            pos_ids = list(obj.positions.filter(deleted_at__isnull=True).values_list('id', flat=True))
+            rep['applicant_count'] = (
+                Application.objects.filter(position_id__in=pos_ids).count() if pos_ids else 0
+            )
+        except Exception:
+            rep['applicant_count'] = 0
+
+        return rep
 
 
 class DemandDetailSerializer(DemandListSerializer):

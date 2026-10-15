@@ -47,7 +47,7 @@ class DemandViewSet(BaseModelViewSet):
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['state', 'department', 'hr', 'requested_by', 'priority']
+    filterset_fields = ['state', 'department', 'hr', 'requested_by', 'priority', 'approval_status']
     search_fields = ['code', 'title', 'position_title']
     ordering_fields = ['code', 'created_at', 'submitted_at']
     ordering = ['-created_at']
@@ -73,6 +73,7 @@ class DemandViewSet(BaseModelViewSet):
         qs = super().get_queryset()
         qs = qs.filter(deleted_at__isnull=True)
         qs = qs.select_related('department', 'requested_by', 'hr', 'process')
+        qs = qs.prefetch_related('positions')
         # IDOR scope 过滤 (Fix 1)
         qs = self.scope_queryset(qs)
         return qs
