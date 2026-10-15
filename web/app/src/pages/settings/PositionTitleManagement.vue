@@ -215,6 +215,8 @@ import {
 } from 'naive-ui';
 import RichEditor from '../../components/RichEditor.vue';
 import { localPagination } from '../../composables/useTablePagination';
+// 列对齐与操作列规格的单一真源（四档规则见 useTableColumns.ts 头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns';
 import {
   listPositionDictionaryItems,
   listJobTitles,
@@ -522,19 +524,19 @@ const renderDictCell = (raw: any) => {
 
 const renderActions = (row: JobTitle) => {
   const enabled = isRowEnabled(row);
-  return h(NSpace, { size: 'small' }, {
+  return h(NSpace, { size: 8, wrap: false }, {
     default: () => [
       h(
         NButton,
         {
-          text: true,
+          quaternary: true,
           type: 'primary',
-          size: 'small',
+          size: OP_ACTION_BUTTON_SIZE,
           onClick: () => startEdit(row),
         },
         {
           default: () => t('pages.settings.PositionTitleManagement.s16'),
-          icon: () => h(NIcon, { component: CreateOutline }),
+          icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
         },
       ),
       enabled
@@ -550,10 +552,10 @@ const renderActions = (row: JobTitle) => {
               trigger: () =>
                 h(
                   NButton,
-                  { text: true, type: 'warning', size: 'small' },
+                  { quaternary: true, type: 'warning', size: OP_ACTION_BUTTON_SIZE },
                   {
                     default: () => t('pages.settings.PositionTitleManagement.s17'),
-                    icon: () => h(NIcon, { component: PowerOutline }),
+                    icon: () => h(NIcon, null, { default: () => h(PowerOutline) }),
                   },
                 ),
             },
@@ -561,14 +563,14 @@ const renderActions = (row: JobTitle) => {
         : h(
             NButton,
             {
-              text: true,
+              quaternary: true,
               type: 'primary',
-              size: 'small',
+              size: OP_ACTION_BUTTON_SIZE,
               onClick: () => handleToggleEnabled(row),
             },
             {
               default: () => t('pages.settings.PositionTitleManagement.s18'),
-              icon: () => h(NIcon, { component: PowerOutline }),
+              icon: () => h(NIcon, null, { default: () => h(PowerOutline) }),
             },
           ),
     ],
@@ -576,20 +578,20 @@ const renderActions = (row: JobTitle) => {
 };
 
 const columns = computed(() => [
-  {
+  column({
     title: t('pages.settings.PositionTitleManagement.s10'),
     key: 'name',
     width: 220,
     render: (row: JobTitle) =>
       h('span', { style: 'font-weight: 500; color: var(--ink)' }, row.name || '—'),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.PositionTitleManagement.s11'),
     key: 'jobFamily',
     width: 180,
     render: (row: JobTitle) => renderDictCell(row.jobFamily),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.PositionTitleManagement.s12'),
     key: 'isKeyPosition',
     width: 110,
@@ -606,14 +608,16 @@ const columns = computed(() => [
         },
       );
     },
-  },
-  {
+  }, 'short'),
+  column({
+    // 行内操作：编辑 type=primary、启停 type=warning/primary（语义色保留，不单色化）；
+    // 本页无删除按钮。NSpace wrap:false，size 取 OP_ACTION_BUTTON_SIZE。
     title: t('pages.settings.PositionTitleManagement.s13'),
     key: 'actions',
     width: 160,
     fixed: 'right' as const,
     render: (row: JobTitle) => renderActions(row),
-  },
+  }, 'control'),
 ]);
 
 /* ============================ CSV 导出（utf-8-sig BOM，Excel 友好）============================ */

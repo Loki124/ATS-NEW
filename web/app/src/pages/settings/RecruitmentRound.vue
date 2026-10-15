@@ -61,9 +61,10 @@ import { useI18n } from 'vue-i18n'
 import { localPagination } from '@/composables/useTablePagination'
 import { ref, reactive, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSwitch, NForm, NFormItem, NModal, NDataTable } from 'naive-ui'
-import { AddOutline, PowerOutline, SearchOutline } from '@vicons/ionicons5'
+import { AddOutline, PowerOutline, SearchOutline, CreateOutline } from '@vicons/ionicons5'
 import { listRounds, createRound, updateRound, updateRoundStatus } from '../../api/recruitment-process'
 import { useCloseGuard } from '@/composables/useCloseGuard'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 const { t } = useI18n()
 
 const message = useMessage()
@@ -96,31 +97,41 @@ const form = reactive({
 })
 
 const columns = [
-  { title: t('pages.settings.RecruitmentRound.s15'), key: 'code', width: 100 },
-  { title: t('pages.settings.RecruitmentRound.s5'), key: 'name', width: 140 },
-  { title: t('pages.settings.RecruitmentRound.s7'), key: 'evaluationFormName', width: 160, render: (r: any) => r.evaluationFormName || '-' },
-  {
+  column({ title: t('pages.settings.RecruitmentRound.s15'), key: 'code', width: 100 }, 'short'),
+  column({ title: t('pages.settings.RecruitmentRound.s5'), key: 'name', width: 140 }, 'short'),
+  column({ title: t('pages.settings.RecruitmentRound.s7'), key: 'evaluationFormName', width: 160, render: (r: any) => r.evaluationFormName || '-' }, 'short'),
+  column({
     title: t('pages.settings.RecruitmentRound.s18'),
     key: 'isUniversal',
     width: 110,
     render: (r: any) => r.isUniversal ? h(NTag, { type: 'warning', size: 'small' }, { default: () => t('pages.settings.RecruitmentRound.s19') }) : '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.RecruitmentRound.s20'),
     key: 'status',
     width: 90,
     render: (r: any) => h(NTag, { type: r.status === 'ACTIVE' ? 'success' : 'default', size: 'small' }, { default: () => r.status === 'ACTIVE' ? t('pages.settings.RecruitmentRound.s21') : t('pages.settings.RecruitmentRound.s22') }),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.RecruitmentRound.s23'),
     key: 'action',
     width: 200,
     fixed: 'right' as const,
-    render: (row: any) => h(NSpace, { size: 'small' }, () => [
-      h(NButton, { size: 'small', text: true, onClick: () => handleEdit(row) }, { default: () => t('pages.settings.RecruitmentRound.s24') }),
-      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row) }, { default: () => row.status === 'ACTIVE' ? t('pages.settings.RecruitmentRound.s22') : t('pages.settings.RecruitmentRound.s21') }),
+    render: (row: any) => h(NSpace, { size: 8, wrap: false }, () => [
+      h(NButton, {
+        size: OP_ACTION_BUTTON_SIZE,
+        quaternary: true,
+        type: 'primary',
+        onClick: () => handleEdit(row),
+      }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.RecruitmentRound.s24') }),
+      h(NButton, {
+        size: OP_ACTION_BUTTON_SIZE,
+        quaternary: true,
+        type: 'primary',
+        onClick: () => handleToggleStatus(row),
+      }, { icon: () => h(NIcon, null, { default: () => h(PowerOutline) }), default: () => row.status === 'ACTIVE' ? t('pages.settings.RecruitmentRound.s22') : t('pages.settings.RecruitmentRound.s21') }),
     ]),
-  },
+  }, 'control'),
 ]
 
 async function loadList() {

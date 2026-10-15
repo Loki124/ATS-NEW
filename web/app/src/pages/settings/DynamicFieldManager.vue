@@ -943,6 +943,8 @@ import {
   listDictionaryTypes, listDictionaryItems,
   type DictionaryType,
 } from '@/api/dictionary';
+// 列对齐与操作列规格的单一真源（四档规则见 useTableColumns.ts 文件头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns';
 const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
@@ -1340,32 +1342,32 @@ const groupedFields = computed(() => {
 });
 
 const fieldColumns = computed(() => [
-  { title: t('pages.settings.DynamicFieldManager.s164'), key: 'label', minWidth: 140, render: (row: FieldDefinition) => row.label },
-  {
+  column({ title: t('pages.settings.DynamicFieldManager.s164'), key: 'label', minWidth: 140, render: (row: FieldDefinition) => row.label }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s165'), key: 'labelEn', minWidth: 140,
     render: (row: FieldDefinition) => row.labelEn || '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s166'), key: 'fieldType', width: 100,
     render: (row: FieldDefinition) => h(NTag, { size: 'small', type: FIELD_TYPE_COLOR[row.fieldType] || 'default' }, () => FIELD_TYPE_LABEL[row.fieldType] || row.fieldType),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s167'), key: 'system', width: 120,
     render: (row: FieldDefinition) => {
       if (row.isLocked) return h(NTag, { size: 'small', type: 'error', bordered: false }, () => t('pages.settings.DynamicFieldManager.s224'));
       if (row.isSystem) return h(NTag, { size: 'small', type: 'info', bordered: false }, () => t('pages.settings.DynamicFieldManager.s225'));
       return h(NTag, { size: 'small', type: 'default', bordered: false }, () => t('pages.settings.DynamicFieldManager.s226'));
     },
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s168'), key: 'visibilityPermission', width: 130,
     render: (row: FieldDefinition) => {
       const v = row.visibilityPermission || 'ALL_VISIBLE';
       const type = v === 'MANAGER_HIDDEN' ? 'warning' : 'success';
       return h(NTag, { size: 'small', type, bordered: false }, () => VISIBILITY_PERMISSION_LABEL[v]);
     },
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s169'), key: 'action', width: 320, fixed: 'right' as const,
     render: (row: FieldDefinition) => {
       const disabled = row.status === 'inactive';
@@ -1375,23 +1377,23 @@ const fieldColumns = computed(() => [
       const locked = !!row.isLocked;
       const system = !!row.isSystem;
       const children: any[] = [
-        h(NButton, { size: 'tiny', quaternary: true, onClick: () => openPermissionModal(row) }, { default: () => t('pages.settings.DynamicFieldManager.s227'), icon: () => h(ShieldCheckmarkOutline) }),
-        h(NButton, { size: 'tiny', quaternary: true, onClick: () => openFieldEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s228'), icon: () => h(CreateOutline) }),
+        h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openPermissionModal(row) }, { default: () => t('pages.settings.DynamicFieldManager.s227'), icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) }),
+        h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openFieldEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s228'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
         h(NButton, {
-          size: 'tiny', quaternary: true,
+          size: OP_ACTION_BUTTON_SIZE, quaternary: true,
           type: disabled ? 'primary' : 'default',
           disabled: locked,
           onClick: () => toggleFieldStatus(row),
-        }, { default: () => (disabled ? t('pages.settings.DynamicFieldManager.s242') : t('pages.settings.DynamicFieldManager.s243')), icon: () => disabled ? h(PlayOutline) : h(BanOutline) }),
+        }, { default: () => (disabled ? t('pages.settings.DynamicFieldManager.s242') : t('pages.settings.DynamicFieldManager.s243')), icon: () => h(NIcon, null, { default: () => disabled ? h(PlayOutline) : h(BanOutline) }) }),
       ];
       if (!system) {
         children.push(
-          h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => confirmDeleteField(row) }, { default: () => t('pages.settings.DynamicFieldManager.s229'), icon: () => h(TrashOutline) }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteField(row) }, { default: () => t('pages.settings.DynamicFieldManager.s229'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
         );
       }
       return h(NSpace, { size: 4, wrap: false }, { default: () => children });
     },
-  },
+  }, 'control'),
 ]);
 
 function onCreateOption() { return { value: '', label: '' }; }
@@ -1646,7 +1648,7 @@ function selectAllBatchVisible() {
 
 const batchColumns = computed(() => [
   { type: 'selection' as const },
-  {
+  column({
     title: t('pages.settings.DynamicFieldManager.s164'), key: 'label', minWidth: 150,
     render: (row: FieldDefinition) => h('span', { style: 'display:inline-flex;align-items:center;gap:8px' }, [
       row.label,
@@ -1656,19 +1658,19 @@ const batchColumns = computed(() => [
           ? h(NTag, { size: 'small', type: 'info', bordered: false }, () => t('pages.settings.DynamicFieldManager.s225'))
           : null,
     ].filter(Boolean)),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s165'), key: 'labelEn', minWidth: 120,
     render: (row: FieldDefinition) => row.labelEn || '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s166'), key: 'fieldType', width: 110,
     render: (row: FieldDefinition) => h(NTag, { size: 'small', type: FIELD_TYPE_COLOR[row.fieldType] || 'default' }, () => FIELD_TYPE_LABEL[row.fieldType] || row.fieldType),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s339'), key: 'groupName', minWidth: 140,
     render: (row: FieldDefinition) => row.group?.name || row.groupName || t('pages.settings.DynamicFieldManager.s274'),
-  },
+  }, 'short'),
 ]);
 
 function openBatchModal() {
@@ -1811,24 +1813,24 @@ const moduleForm = reactive<{
 }>({ code: '', name: '', description: '', orderIndex: 0, isActive: true });
 
 const moduleColumns = computed(() => [
-  { title: t('pages.settings.DynamicFieldManager.s176'), key: 'orderIndex', width: 70, render: (row: FieldModule) => row.orderIndex },
-  { title: t('pages.settings.DynamicFieldManager.s177'), key: 'code', width: 140, render: (row: FieldModule) => row.code },
-  { title: t('pages.settings.DynamicFieldManager.s178'), key: 'name', width: 180, render: (row: FieldModule) => row.name },
-  { title: t('pages.settings.DynamicFieldManager.s179'), key: 'description', width: 240, render: (row: FieldModule) => row.description || '-' },
-  {
+  column({ title: t('pages.settings.DynamicFieldManager.s176'), key: 'orderIndex', width: 70, render: (row: FieldModule) => row.orderIndex }, 'numeric'),
+  column({ title: t('pages.settings.DynamicFieldManager.s177'), key: 'code', width: 140, render: (row: FieldModule) => row.code }, 'short'),
+  column({ title: t('pages.settings.DynamicFieldManager.s178'), key: 'name', width: 180, render: (row: FieldModule) => row.name }, 'short'),
+  column({ title: t('pages.settings.DynamicFieldManager.s179'), key: 'description', width: 240, render: (row: FieldModule) => row.description || '-' }, 'text'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s180'), key: 'isActive', width: 90,
     render: (row: FieldModule) => row.isActive ? h(NTag, { type: 'success', size: 'small' }, () => t('pages.settings.DynamicFieldManager.s230')) : h(NTag, { size: 'small' }, () => t('pages.settings.DynamicFieldManager.s231')),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s181'), key: 'action', width: 160, fixed: 'right' as const,
     render: (row: FieldModule) =>
-      h(NSpace, { size: 4 }, {
+      h(NSpace, { size: 4, wrap: false }, {
         default: () => [
-          h(NButton, { size: 'tiny', quaternary: true, onClick: () => openModuleEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s232'), icon: () => h(CreateOutline) }),
-          h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => confirmDeleteModule(row) }, { default: () => t('pages.settings.DynamicFieldManager.s233'), icon: () => h(TrashOutline) }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openModuleEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s232'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteModule(row) }, { default: () => t('pages.settings.DynamicFieldManager.s233'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
         ],
       }),
-  },
+  }, 'control'),
 ]);
 
 async function reloadModules() {
@@ -1908,24 +1910,24 @@ const groupFilterOptions = computed(() => {
 });
 
 const groupColumns = computed(() => [
-  { title: t('pages.settings.DynamicFieldManager.s186'), key: 'orderIndex', width: 70, render: (row: FieldGroup) => row.orderIndex },
-  { title: t('pages.settings.DynamicFieldManager.s187'), key: 'module', width: 140, render: (row: FieldGroup) => row.module?.name || '-' },
-  { title: t('pages.settings.DynamicFieldManager.s188'), key: 'code', width: 140, render: (row: FieldGroup) => row.code },
-  { title: t('pages.settings.DynamicFieldManager.s189'), key: 'name', width: 180, render: (row: FieldGroup) => row.name },
-  {
+  column({ title: t('pages.settings.DynamicFieldManager.s186'), key: 'orderIndex', width: 70, render: (row: FieldGroup) => row.orderIndex }, 'numeric'),
+  column({ title: t('pages.settings.DynamicFieldManager.s187'), key: 'module', width: 140, render: (row: FieldGroup) => row.module?.name || '-' }, 'short'),
+  column({ title: t('pages.settings.DynamicFieldManager.s188'), key: 'code', width: 140, render: (row: FieldGroup) => row.code }, 'short'),
+  column({ title: t('pages.settings.DynamicFieldManager.s189'), key: 'name', width: 180, render: (row: FieldGroup) => row.name }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s190'), key: 'isActive', width: 90,
     render: (row: FieldGroup) => row.isActive ? h(NTag, { type: 'success', size: 'small' }, () => t('pages.settings.DynamicFieldManager.s234')) : h(NTag, { size: 'small' }, () => t('pages.settings.DynamicFieldManager.s235')),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s191'), key: 'action', width: 160, fixed: 'right' as const,
     render: (row: FieldGroup) =>
-      h(NSpace, { size: 4 }, {
+      h(NSpace, { size: 4, wrap: false }, {
         default: () => [
-          h(NButton, { size: 'tiny', quaternary: true, onClick: () => openGroupEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s236'), icon: () => h(CreateOutline) }),
-          h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => confirmDeleteGroup(row) }, { default: () => t('pages.settings.DynamicFieldManager.s237'), icon: () => h(TrashOutline) }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openGroupEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s236'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteGroup(row) }, { default: () => t('pages.settings.DynamicFieldManager.s237'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
         ],
       }),
-  },
+  }, 'control'),
 ]);
 
 async function reloadGroups() {
@@ -2045,22 +2047,22 @@ function linkageConditionSummary(row: FieldLinkageRule): string {
 }
 
 const linkageColumns = computed(() => [
-  { title: t('pages.settings.DynamicFieldManager.s196'), key: 'name', width: 160, render: (row: FieldLinkageRule) => row.name || '-' },
-  { title: t('pages.settings.DynamicFieldManager.s197'), key: 'summary', render: (row: FieldLinkageRule) => linkageConditionSummary(row) },
-  {
+  column({ title: t('pages.settings.DynamicFieldManager.s196'), key: 'name', width: 160, render: (row: FieldLinkageRule) => row.name || '-' }, 'short'),
+  column({ title: t('pages.settings.DynamicFieldManager.s197'), key: 'summary', render: (row: FieldLinkageRule) => linkageConditionSummary(row) }, 'text'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s198'), key: 'isActive', width: 90,
     render: (row: FieldLinkageRule) => row.isActive ? h(NTag, { type: 'success', size: 'small' }, () => t('pages.settings.DynamicFieldManager.s238')) : h(NTag, { size: 'small' }, () => t('pages.settings.DynamicFieldManager.s239')),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DynamicFieldManager.s199'), key: 'action', width: 160, fixed: 'right' as const,
     render: (row: FieldLinkageRule) =>
-      h(NSpace, { size: 4 }, {
+      h(NSpace, { size: 4, wrap: false }, {
         default: () => [
-          h(NButton, { size: 'tiny', quaternary: true, onClick: () => openLinkageEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s240'), icon: () => h(CreateOutline) }),
-          h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => confirmDeleteLinkage(row) }, { default: () => t('pages.settings.DynamicFieldManager.s241'), icon: () => h(TrashOutline) }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openLinkageEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s240'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteLinkage(row) }, { default: () => t('pages.settings.DynamicFieldManager.s241'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
         ],
       }),
-  },
+  }, 'control'),
 ]);
 
 function conditionValueOptions(fieldKey: string) {

@@ -444,6 +444,7 @@ import {
   type DataTableColumns,
   type FormRules,
 } from 'naive-ui'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import {
   SearchOutline,
   AddOutline,
@@ -809,23 +810,23 @@ function resetFilter() {
 
 // ===================== 表格列 =====================
 const columns: DataTableColumns<Supplier> = [
-  { title: t('pages.settings.ExternalSettings.s131'), key: 'name', width: 160, fixed: 'left', render: (row) => h('span', { style: { fontWeight: '600' } }, row.name) },
-  { title: t('pages.settings.ExternalSettings.s132'), key: 'category', width: 120, render: (row) => h(NTag, { size: 'small', type: 'default', bordered: false }, { default: () => categoryLabel(row.category) }) },
-  {
+  column({ title: t('pages.settings.ExternalSettings.s131'), key: 'name', width: 160, fixed: 'left', render: (row) => h('span', { style: { fontWeight: '600' } }, row.name) }, 'short'),
+  column({ title: t('pages.settings.ExternalSettings.s132'), key: 'category', width: 120, render: (row) => h(NTag, { size: 'small', type: 'default', bordered: false }, { default: () => categoryLabel(row.category) }) }, 'short'),
+  column({
     title: t('pages.settings.ExternalSettings.s133'),
     key: 'env',
     width: 100,
     render: (row) =>
       h(NTag, { size: 'small', type: row.env === 'production' ? 'warning' : 'info' }, { default: () => (row.env === 'production' ? t('pages.settings.ExternalSettings.s210') : t('pages.settings.ExternalSettings.s211')) }),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.ExternalSettings.s134'),
     key: 'enabled',
     width: 90,
     render: (row) =>
       h(NTag, { size: 'small', type: row.enabled ? 'success' : 'error' }, { default: () => (row.enabled ? t('pages.settings.ExternalSettings.s212') : t('pages.settings.ExternalSettings.s213')) }),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.ExternalSettings.s135'),
     key: 'cap',
     minWidth: 220,
@@ -836,22 +837,22 @@ const columns: DataTableColumns<Supplier> = [
         ' · ',
         row.productsQueryEnabled ? t('pages.settings.ExternalSettings.s242') : t('pages.settings.ExternalSettings.s243'),
       ]),
-  },
-  {
+  }, 'text'),
+  column({
     title: t('pages.settings.ExternalSettings.s136'),
     key: 'lastSync',
     width: 165,
     render: (row) =>
       h('span', { style: { color: row.syncStatus === 'error' ? 'var(--c-error)' : 'var(--ink-soft)', fontSize: '13px' } }, row.lastSync),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.ExternalSettings.s137'),
     key: 'syncStatus',
     width: 100,
     render: (row) =>
       h(NTag, { size: 'small', type: row.syncStatus === 'error' ? 'error' : 'success' }, { default: () => (row.syncStatus === 'error' ? t('pages.settings.ExternalSettings.s214') : t('pages.settings.ExternalSettings.s215')) }),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.ExternalSettings.s138'),
     key: 'actions',
     width: 300,
@@ -862,18 +863,18 @@ const columns: DataTableColumns<Supplier> = [
         { size: 4, align: 'center', wrap: false },
         {
           default: () => [
-            h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => t('pages.settings.ExternalSettings.s216'), icon: () => h(NIcon, { component: CreateOutline }) }),
-            h(NButton, { size: 'small', onClick: () => testOne(row) }, { default: () => t('pages.settings.ExternalSettings.s217'), icon: () => h(NIcon, { component: PulseOutline }) }),
-            h(NButton, { size: 'small', onClick: () => openAudit(row) }, { default: () => t('pages.settings.ExternalSettings.s218'), icon: () => h(NIcon, { component: TimeOutline }) }),
+            h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openEdit(row) }, { default: () => t('pages.settings.ExternalSettings.s216'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
+            h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => testOne(row) }, { default: () => t('pages.settings.ExternalSettings.s217'), icon: () => h(NIcon, null, { default: () => h(PulseOutline) }) }),
+            h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openAudit(row) }, { default: () => t('pages.settings.ExternalSettings.s218'), icon: () => h(NIcon, null, { default: () => h(TimeOutline) }) }),
             h(
               NButton,
-              { size: 'small', type: 'error', onClick: () => confirmDelete(row) },
-              { default: () => t('pages.settings.ExternalSettings.s219'), icon: () => h(NIcon, { component: TrashOutline }) },
+              { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDelete(row) },
+              { default: () => t('pages.settings.ExternalSettings.s219'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) },
             ),
           ],
         },
       ),
-  },
+  }, 'control'),
 ]
 
 // ===================== 弹窗与表单 =====================

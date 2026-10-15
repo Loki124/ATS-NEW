@@ -74,6 +74,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { localPagination } from '@/composables/useTablePagination'
+// 列对齐与操作列规格的单一真源（四档规则见 useTableColumns.ts 文件头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import { ref, h, onMounted } from 'vue'
 import { useMessage, type DataTableColumns, NTag, NButton, NSpace, NIcon } from 'naive-ui'
 import { RefreshOutline, CheckmarkOutline, CloseOutline } from '@vicons/ionicons5'
@@ -114,48 +116,50 @@ const statusMeta: Record<RegApp['status'], { text: string; type: 'warning' | 'su
   REJECTED: { text: t('pages.settings.RegistrationApproval.s12'), type: 'error' },
 }
 
+// 列对齐统一走 useTableColumns 工厂（四档规则，短值/枚举居中，长文本左对齐）。
 const columns: DataTableColumns<RegApp> = [
-  { title: t('pages.settings.RegistrationApproval.s14'), key: 'email', minWidth: 200, render: (row) => h('div', [
+  column({ title: t('pages.settings.RegistrationApproval.s14'), key: 'email', minWidth: 200, render: (row) => h('div', [
     h('div', { style: 'font-weight: 600; color: var(--ink);' }, row.email),
     h('div', { style: 'font-size: 12px; color: var(--ink-faint);' }, row.username),
-  ]) },
+  ]) }, 'short'),
   // 后端 camelCase：字段名是 fullName / emailVerified，写成 full_name 会永远取不到值
-  { title: t('pages.settings.RegistrationApproval.s15'), key: 'fullName', minWidth: 110,
-    render: (row) => row.fullName || h('span', { style: 'color: var(--ink-faint);' }, '—') },
-  { title: t('pages.settings.RegistrationApproval.s16'), key: 'status', width: 100,
+  column({ title: t('pages.settings.RegistrationApproval.s15'), key: 'fullName', minWidth: 110,
+    render: (row) => row.fullName || h('span', { style: 'color: var(--ink-faint);' }, '—') }, 'short'),
+  column({ title: t('pages.settings.RegistrationApproval.s16'), key: 'status', width: 100,
     render: (row) => h(NTag, { type: statusMeta[row.status].type, size: 'small', round: true },
-      { default: () => statusMeta[row.status].text }) },
-  { title: t('pages.settings.RegistrationApproval.s17'), key: 'emailVerified', width: 100,
+      { default: () => statusMeta[row.status].text }) }, 'short'),
+  column({ title: t('pages.settings.RegistrationApproval.s17'), key: 'emailVerified', width: 100,
     render: (row) => row.emailVerified
       ? h(NTag, { type: 'success', size: 'small', round: true }, { default: () => t('pages.settings.RegistrationApproval.s18') })
-      : h(NTag, { type: 'default', size: 'small', round: true }, { default: () => t('pages.settings.RegistrationApproval.s19') }) },
-  { title: t('pages.settings.RegistrationApproval.s20'), key: 'createdAt', width: 170,
-    render: (row) => new Date(row.createdAt).toLocaleString('zh-CN', { hour12: false }) },
-  { title: t('pages.settings.RegistrationApproval.s21'), key: 'reviewedByName', width: 110,
-    render: (row) => row.reviewedByName || h('span', { style: 'color: var(--ink-faint);' }, '—') },
-  { title: t('pages.settings.RegistrationApproval.s22'), key: 'rejectReason', minWidth: 160,
-    render: (row) => row.rejectReason || h('span', { style: 'color: var(--ink-faint);' }, '—') },
-  {
+      : h(NTag, { type: 'default', size: 'small', round: true }, { default: () => t('pages.settings.RegistrationApproval.s19') }) }, 'short'),
+  column({ title: t('pages.settings.RegistrationApproval.s20'), key: 'createdAt', width: 170,
+    render: (row) => new Date(row.createdAt).toLocaleString('zh-CN', { hour12: false }) }, 'short'),
+  column({ title: t('pages.settings.RegistrationApproval.s21'), key: 'reviewedByName', width: 110,
+    render: (row) => row.reviewedByName || h('span', { style: 'color: var(--ink-faint);' }, '—') }, 'short'),
+  // 拒绝理由：自由文本（长文本），tier=text 强制左对齐（勿居中）
+  column({ title: t('pages.settings.RegistrationApproval.s22'), key: 'rejectReason', minWidth: 160,
+    render: (row) => row.rejectReason || h('span', { style: 'color: var(--ink-faint);' }, '—') }, 'text'),
+  column({
     title: t('pages.settings.RegistrationApproval.s23'), key: 'actions', width: 150, fixed: 'right',
     render: (row) => {
       if (row.status !== 'PENDING') {
         return h('span', { style: 'color: var(--ink-faint); font-size: 13px;' }, t('pages.settings.RegistrationApproval.s24'))
       }
-      return h(NSpace, { size: 8 }, {
+      return h(NSpace, { size: 8, wrap: false }, {
         default: () => [
           h(NButton, {
-            size: 'small', type: 'primary',
+            size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary',
             onClick: () => onApprove(row),
           }, { default: () => t('pages.settings.RegistrationApproval.s25'), icon: () => h(NIcon, null, { default: () => h(CheckmarkOutline) }) }),
           h(NButton, {
-            size: 'small', type: 'error',
+            size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error',
             onClick: () => openReject(row),
           }, { default: () => t('pages.settings.RegistrationApproval.s26'), icon: () => h(NIcon, null, { default: () => h(CloseOutline) }) }),
         ],
       })
     },
-  },
-]
+  }, 'control'),
+] as DataTableColumns<RegApp>
 
 const loadList = async () => {
   loading.value = true

@@ -53,11 +53,12 @@
 import { useI18n } from 'vue-i18n'
 import { ref, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NIcon, NDataTable, NPopconfirm, NSpace } from 'naive-ui'
-import { AddOutline, SearchOutline } from '@vicons/ionicons5'
+import { AddOutline, SearchOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { listProcesses, deleteProcess } from '../../api/recruitment-process'
 import api from '../../api/auth'
 import ProcessDetailModal from './ProcessDetailModal.vue'
 import { localPagination } from '@/composables/useTablePagination'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 const { t } = useI18n()
 
 const message = useMessage()
@@ -88,30 +89,29 @@ const tableMaxHeight = computed(() => {
 })
 
 const columns = computed(() => [
-  {
+  column({
     title: t('pages.settings.RecruitmentProcess.s5'),
     key: 'code',
     width: 110,
     // 视觉重塑：流程编号渲染为等宽字体品牌浅底 chip（替代裸文本，增强扫读锚点）
     render: (r: any) => h('span', { class: 'code-chip' }, String(r.code ?? '-')),
-  },
-  { title: t('pages.settings.RecruitmentProcess.s6'), key: 'name', width: 200, ellipsis: true, ellipsisProps: { tooltip: true } },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.RecruitmentProcess.s6'), key: 'name', width: 200, ellipsis: true }, 'short'),
+  column({
     title: t('pages.settings.RecruitmentProcess.s7'),
     key: 'applicableScope',
     width: 150,
     ellipsis: true,
-    ellipsisProps: { tooltip: true },
     render: (r: any) => formatScopeDepts(r.applicableScope),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.RecruitmentProcess.s8'),
     key: 'stageCount',
     width: 90,
     // 视觉重塑：阶段数渲染为中性玻璃 pill（tabular-nums 对齐）
     render: (row: any) => h('span', { class: 'stage-count' }, String(row.stageCount ?? row._count?.links ?? 0)),
-  },
-  {
+  }, 'numeric'),
+  column({
     title: t('pages.settings.RecruitmentProcess.s9'),
     key: 'status',
     width: 90,
@@ -120,21 +120,21 @@ const columns = computed(() => [
       // 视觉重塑：round + 无边框 = 现代胶囊状态签（语义色仍走 Naive success/default，暗色由 tokens 联动）
       return h(NTag, { type: enabled ? 'success' : 'default', round: true, bordered: false, size: 'small' }, { default: () => enabled ? t('pages.settings.RecruitmentProcess.s10') : t('pages.settings.RecruitmentProcess.s11') })
     },
-  },
-  { title: t('pages.settings.RecruitmentProcess.s12'), key: 'updatedBy', width: 120, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => r.updatedBy?.realName || r.updatedBy?.username || '-' },
-  { title: t('pages.settings.RecruitmentProcess.s13'), key: 'updatedAt', width: 170, ellipsis: true, ellipsisProps: { tooltip: true }, render: (r: any) => formatDate(r.updatedAt) },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.RecruitmentProcess.s12'), key: 'updatedBy', width: 120, ellipsis: true, render: (r: any) => r.updatedBy?.realName || r.updatedBy?.username || '-' }, 'short'),
+  column({ title: t('pages.settings.RecruitmentProcess.s13'), key: 'updatedAt', width: 170, ellipsis: true, render: (r: any) => formatDate(r.updatedAt) }, 'short'),
+  column({
     title: t('pages.settings.RecruitmentProcess.s14'),
     key: 'action',
     width: 160,
     fixed: 'right' as const,
-    render: (row: any) => h(NSpace, { size: 'small' }, () => [
+    render: (row: any) => h(NSpace, { size: 8, wrap: false }, () => [
       h(NButton, {
-        size: 'small',
+        size: OP_ACTION_BUTTON_SIZE,
+        quaternary: true,
         type: 'primary',
-        text: true,
         onClick: () => openProcessModal(row),
-      }, { default: () => t('pages.settings.RecruitmentProcess.s15') }),
+      }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.RecruitmentProcess.s15') }),
       // 2026-09-08: 流程增加删除入口。is_template=True 的流程不可删（属预置模板），
       // 被需求引用的不可删（后端 PermissionDenied 兜底，FE 用 referenceCount 提前禁用）。
       h(NPopconfirm, {
@@ -142,11 +142,11 @@ const columns = computed(() => [
         disabled: row.isTemplate || (row.referenceCount ?? 0) > 0,
       }, {
         trigger: () => h(NButton, {
-          size: 'small',
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
           type: 'error',
-          text: true,
           disabled: row.isTemplate || (row.referenceCount ?? 0) > 0,
-        }, { default: () => t('pages.settings.RecruitmentProcess.s16') }),
+        }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.RecruitmentProcess.s16') }),
         default: () => row.isTemplate
           ? t('pages.settings.RecruitmentProcess.s17')
           : (row.referenceCount ?? 0) > 0
@@ -154,7 +154,7 @@ const columns = computed(() => [
             : t('pages.settings.RecruitmentProcess.s19'),
       }),
     ]),
-  },
+  }, 'control'),
 ])
 
 function formatDate(s: string) {

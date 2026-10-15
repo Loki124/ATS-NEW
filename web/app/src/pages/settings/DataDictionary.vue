@@ -363,7 +363,9 @@ import {
   type DictionaryItem,
 } from '../../api/dictionary'
 import { extractApiError } from '../../api/dynamic-field'
-import { SearchOutline, InformationCircleOutline, CloseOutline } from '@vicons/ionicons5'
+// 列对齐与操作列规格的单一真源（四档规则见 useTableColumns.ts 文件头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
+import { SearchOutline, InformationCircleOutline, CloseOutline, CreateOutline, TrashOutline, PowerOutline } from '@vicons/ionicons5'
 const { t } = useI18n()
 
 const message = useMessage()
@@ -501,20 +503,22 @@ async function loadList() {
   }
 }
 
+// 列对齐统一走 useTableColumns 工厂（四档规则，短值/枚举居中，长文本左对齐）。
 const listColumns: DataTableColumns<DictionaryType> = [
-  { title: '字典编号', key: 'dictNumber', width: 100 },
-  { title: '字典名称', key: 'name', minWidth: 120 },
-  { title: '字典代码', key: 'code', width: 180 },
-  { title: '英文名称', key: 'englishName', minWidth: 120 },
-  { title: '字典描述', key: 'description', minWidth: 160, ellipsis: { tooltip: true } },
-  {
+  column({ title: '字典编号', key: 'dictNumber', width: 100 }, 'short'),
+  column({ title: '字典名称', key: 'name', minWidth: 120 }, 'short'),
+  column({ title: '字典代码', key: 'code', width: 180 }, 'short'),
+  column({ title: '英文名称', key: 'englishName', minWidth: 120 }, 'short'),
+  // 字典描述：自由文本（长文本），tier=text 强制左对齐（勿居中）
+  column({ title: '字典描述', key: 'description', minWidth: 160, ellipsis: { tooltip: true } }, 'text'),
+  column({
     title: '类型',
     key: 'isSystem',
     width: 110,
     render: (row: DictionaryType) =>
       h(NTag, { size: 'small', type: row.isSystem ? 'warning' : 'success' }, { default: () => (row.isSystem ? '系统预置' : '自定义') }),
-  },
-  {
+  }, 'short'),
+  column({
     title: '启用状态',
     key: 'isEnabled',
     width: 100,
@@ -524,8 +528,8 @@ const listColumns: DataTableColumns<DictionaryType> = [
         { size: 'small', type: row.isEnabled ? 'success' : 'error' },
         { default: () => (row.isEnabled ? '启用' : '停用') },
       ),
-  },
-  {
+  }, 'short'),
+  column({
     title: '创建人 / 时间',
     key: 'created',
     width: 170,
@@ -534,8 +538,8 @@ const listColumns: DataTableColumns<DictionaryType> = [
         h('div', {}, row.createdByName || '-'),
         h('div', { style: { color: '#888', fontSize: '12px' } }, formatDateTime(row.createdAt)),
       ]),
-  },
-  {
+  }, 'short'),
+  column({
     title: '修改人 / 时间',
     key: 'updated',
     width: 170,
@@ -544,8 +548,8 @@ const listColumns: DataTableColumns<DictionaryType> = [
         h('div', {}, row.updatedByName || '-'),
         h('div', { style: { color: '#888', fontSize: '12px' } }, formatDateTime(row.updatedAt)),
       ]),
-  },
-  {
+  }, 'short'),
+  column({
     title: '操作',
     key: 'actions',
     width: 220,
@@ -557,16 +561,18 @@ const listColumns: DataTableColumns<DictionaryType> = [
         {
           default: () => {
             const btns = [
-              h(NButton, { size: 'small', onClick: () => enterEdit(row) }, { default: () => '编辑' }),
+              h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => enterEdit(row), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }, { default: () => '编辑' }),
             ]
             if (!row.isSystem) {
               btns.push(
                 h(
                   NButton,
                   {
-                    size: 'small',
+                    size: OP_ACTION_BUTTON_SIZE,
+                    quaternary: true,
                     type: row.isEnabled ? 'warning' : 'success',
                     onClick: () => toggleType(row),
+                    icon: () => h(NIcon, null, { default: () => h(PowerOutline) }),
                   },
                   { default: () => (row.isEnabled ? '停用' : '启用') },
                 ),
@@ -574,7 +580,7 @@ const listColumns: DataTableColumns<DictionaryType> = [
               btns.push(
                 h(
                   NButton,
-                  { size: 'small', type: 'error', onClick: () => confirmDeleteType(row) },
+                  { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteType(row), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) },
                   { default: () => '删除' },
                 ),
               )
@@ -583,7 +589,7 @@ const listColumns: DataTableColumns<DictionaryType> = [
           },
         },
       ),
-  },
+  }, 'control'),
 ]
 
 async function toggleType(row: DictionaryType) {

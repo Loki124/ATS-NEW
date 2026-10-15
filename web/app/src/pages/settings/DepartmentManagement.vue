@@ -333,6 +333,8 @@ import {
 import api from '../../api/auth';
 import { extractApiError } from '../../api/dynamic-field';
 import { localPagination } from '../../composables/useTablePagination';
+// 列对齐与操作列规格的单一真源（四档规则见 useTableColumns.ts 头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns';
 const { t } = useI18n()
 
 const message = useMessage();
@@ -724,19 +726,19 @@ const renderName = (row: Department) => {
 };
 
 const columns = computed(() => [
-  {
+  column({
     title: t('pages.settings.DepartmentManagement.s60'),
     key: 'name',
     width: 220,
     render: (row: Department) => renderName(row),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DepartmentManagement.s61'),
     key: 'parent',
     width: 180,
     render: (row: Department) => renderParent(row),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DepartmentManagement.s62'),
     key: 'level',
     width: 100,
@@ -744,26 +746,26 @@ const columns = computed(() => [
       const lvl = levelMap.value[row.id] ?? 0;
       return h(NTag, { type: 'info', size: 'small', bordered: false }, { default: () => t('pages.settings.DepartmentManagement.s79', { n: lvl }) });
     },
-  },
-  {
+  }, 'numeric'),
+  column({
     title: t('pages.settings.DepartmentManagement.s63'),
     key: 'managerId',
     width: 130,
     render: (row: Department) => renderUser(row.managerId),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DepartmentManagement.s64'),
     key: 'hrbpId',
     width: 130,
     render: (row: Department) => renderUser(row.hrbpId),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.DepartmentManagement.s65'),
     key: 'sortOrder',
     width: 90,
     render: (row: Department) => (row.sortOrder != null ? String(row.sortOrder) : h('span', { style: 'color:#bfbfbf' }, '—')),
-  },
-  {
+  }, 'numeric'),
+  column({
     title: t('pages.settings.DepartmentManagement.s66'),
     key: 'status',
     width: 90,
@@ -776,26 +778,29 @@ const columns = computed(() => [
       const item = map[status] || { type: 'default', label: status };
       return h(NTag, { type: item.type, size: 'small' }, { default: () => item.label });
     },
-  },
-  {
+  }, 'short'),
+  column({
+    // 行内操作：按 frontend-DESIGN §Data Table —— quaternary 文字按钮，
+    // 编辑/添加下级 type=primary、删除 type=error（危险色是安全信号，不做单色化）。
+    // 同组按钮统一带 outline icon；size 取 OP_ACTION_BUTTON_SIZE（small=14px，与正文同层级）。
     title: t('pages.settings.DepartmentManagement.s67'),
     key: 'actions',
     width: 200,
     fixed: 'right' as const,
     render: (row: Department) =>
-      h(NSpace, { size: 'small' }, {
+      h(NSpace, { size: 8, wrap: false }, {
         default: () => [
           h(
             NButton,
             {
-              text: true,
+              quaternary: true,
               type: 'primary',
-              size: 'small',
+              size: OP_ACTION_BUTTON_SIZE,
               onClick: () => openCreateChildModal(row),
             },
             {
               default: () => t('pages.settings.DepartmentManagement.s94'),
-              icon: () => h(NIcon, { component: AddOutline }),
+              icon: () => h(NIcon, null, { default: () => h(AddOutline) }),
             }
           ),
           h(
@@ -810,17 +815,17 @@ const columns = computed(() => [
               trigger: () =>
                 h(
                   NButton,
-                  { text: true, type: 'error', size: 'small' },
+                  { quaternary: true, type: 'error', size: OP_ACTION_BUTTON_SIZE },
                   {
                     default: () => t('pages.settings.DepartmentManagement.s97'),
-                    icon: () => h(NIcon, { component: TrashOutline }),
+                    icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
                   }
                 ),
             }
           ),
         ],
       }),
-  },
+  }, 'control'),
 ]);
 
 /* ============================ 部门导入 / 导出 ============================ */

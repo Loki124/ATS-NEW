@@ -122,7 +122,8 @@ import { ref, reactive, onMounted, computed, watch, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSelect, NCheckbox, NCheckboxGroup, NForm, NFormItem, NModal, NDataTable, NAlert, NTooltip, NEmpty, NText } from 'naive-ui'
 import { useFormDraft } from '../../composables/useFormDraft'
 import { useCloseGuard } from '@/composables/useCloseGuard'
-import { AddOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
+import { AddOutline, TrashOutline, SearchOutline, CreateOutline, PowerOutline } from '@vicons/ionicons5'
 import { listStages, createStage, updateStage, deleteStage, disableStage, enableStage } from '../../api/recruitment-process'
 // 2026-08-17 PR #69: 阶段类型改从后端数据字典 (apps/dictionary) 读取, single source of truth.
 //   旧 api/dict.ts 是占位 stub (永远返回 []), 现在接真端点 /api/v1/dictionary-items/?type_code=recruitment_stage_type.
@@ -259,9 +260,9 @@ const OPTIONAL_FEATURE_CATALOG: Record<string, string[]> = {
 const featureLabelMap: Record<string, string> = { ...FEATURE_LABELS }
 
 const columns = computed(() => [
-  { title: '阶段编号', key: 'code', width: 100 },
-  { title: '阶段名称', key: 'name', width: 160 },
-  {
+  column({ title: '阶段编号', key: 'code', width: 100 }, 'short'),
+  column({ title: '阶段名称', key: 'name', width: 160 }, 'short'),
+  column({
     title: '类型',
     key: 'stageType',
     width: 100,
@@ -271,16 +272,16 @@ const columns = computed(() => [
       const opt = stageTypeOptions.value.find((o) => o.value === row.stageType)
       return h(NTag, { type: 'info', size: 'small' }, { default: () => opt?.label ?? row.stageType })
     },
-  },
-  {
+  }, 'short'),
+  column({
     title: '阶段来源',
     key: 'source',
     width: 100,
     render: (row: any) => (row.isBuiltin ?? row.isSystem)
       ? h(NTag, { type: 'warning', size: 'small' }, { default: () => '系统预置' })
       : h(NTag, { type: 'default', size: 'small' }, { default: () => '自定义' }),
-  },
-  {
+  }, 'short'),
+  column({
     title: '使用',
     key: 'links',
     width: 80,
@@ -288,14 +289,14 @@ const columns = computed(() => [
       const count = row.referenceCount ?? row._count?.links ?? 0
       return h(NTag, { type: count > 0 ? 'success' : 'default', size: 'small' }, { default: () => `${count} 流程` })
     },
-  },
-  {
+  }, 'short'),
+  column({
     title: '状态',
     key: 'status',
     width: 90,
     render: (row: any) => h(NTag, { type: row.status === 'ENABLED' ? 'success' : 'default', size: 'small' }, { default: () => row.status === 'ENABLED' ? '启用' : '停用' }),
-  },
-  { title: '功能项', key: 'features', width: 280,
+  }, 'short'),
+  column({ title: '功能项', key: 'features', width: 280,
     ellipsis: { tooltip: false },
     render: (row: any) => {
     // 合并「默认功能(default_features) + 可选功能(optional_features)」全部以中文名展示
@@ -317,21 +318,37 @@ const columns = computed(() => [
       trigger: () => h(NSpace, { size: 'small', wrap: false }, () => tags),
       default: () => `全部功能项（${labels.length}）：${labels.join('、')}`,
     })
-  }},
-  {
+  }}, 'short'),
+  column({
     title: '操作',
     key: 'action',
     width: 220,
     fixed: 'right' as const,
-    render: (row: any) => h(NSpace, { size: 'small' }, () => [
-      h(NButton, { size: 'small', text: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
-      h(NButton, { size: 'small', text: true, onClick: () => handleToggleStatus(row), disabled: row.isBuiltin ?? row.isSystem }, { default: () => row.status === 'ENABLED' ? '停用' : '启用' }),
+    render: (row: any) => h(NSpace, { size: 8, wrap: false }, () => [
+      h(NButton, {
+        size: OP_ACTION_BUTTON_SIZE,
+        quaternary: true,
+        type: 'primary',
+        onClick: () => handleEdit(row),
+      }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => '编辑' }),
+      h(NButton, {
+        size: OP_ACTION_BUTTON_SIZE,
+        quaternary: true,
+        type: 'primary',
+        onClick: () => handleToggleStatus(row),
+        disabled: row.isBuiltin ?? row.isSystem,
+      }, { icon: () => h(NIcon, null, { default: () => h(PowerOutline) }), default: () => row.status === 'ENABLED' ? '停用' : '启用' }),
       h(NPopconfirm, { onPositiveClick: () => handleDelete(row), disabled: (row.isBuiltin ?? row.isSystem) || ((row.referenceCount ?? row._count?.links ?? 0) > 0) }, {
-        trigger: () => h(NButton, { size: 'small', text: true, type: 'error', disabled: (row.isBuiltin ?? row.isSystem) || ((row.referenceCount ?? row._count?.links ?? 0) > 0) }, { default: () => '删除' }),
+        trigger: () => h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'error',
+          disabled: (row.isBuiltin ?? row.isSystem) || ((row.referenceCount ?? row._count?.links ?? 0) > 0),
+        }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => '删除' }),
         default: () => (row.isBuiltin ?? row.isSystem) ? '系统预置阶段不可删除' : (row.referenceCount ?? row._count?.links ?? 0) > 0 ? `被 ${row.referenceCount ?? row._count?.links} 个流程引用，请先在流程中移除` : '确定要删除吗？',
       }),
     ]),
-  },
+  }, 'control'),
 ])
 
 const filteredStages = computed(() => {

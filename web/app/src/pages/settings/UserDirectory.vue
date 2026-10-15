@@ -184,6 +184,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { localPagination } from '@/composables/useTablePagination'
+// 列对齐与操作列规格的单一真源（四档规则见 useTableColumns.ts 文件头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import { ref, reactive, onMounted, computed, h } from 'vue';
 import {
   AddOutline,
@@ -671,12 +673,14 @@ const actionsColumn = {
   title: '操作',
   key: 'actions',
   width: 160,
+  fixed: 'right' as const,
   render: (row: User) => {
-    return h(NSpace, { size: 'small', wrap: false }, {
+    return h(NSpace, { size: 8, wrap: false }, {
       default: () => [
         h(NButton, {
           type: 'primary',
-          size: 'small',
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
           onClick: () => {
             editingUser.value = row;
             Object.assign(formState, {
@@ -694,7 +698,7 @@ const actionsColumn = {
             loadUserRoles(row.id);
             userModalVisible.value = true;
           }
-        }, { default: () => '编辑', icon: () => h(NIcon, { component: CreateOutline }) }),
+        }, { default: () => '编辑', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
         h(NPopconfirm, {
           onPositiveClick: () => handleDeleteUser(row.id),
           positiveText: '确认',
@@ -703,8 +707,9 @@ const actionsColumn = {
           default: () => '确认删除此用户？',
           trigger: () => h(NButton, {
             type: 'error',
-            size: 'small',
-          }, { default: () => '删除', icon: () => h(NIcon, { component: TrashOutline }) }),
+            size: OP_ACTION_BUTTON_SIZE,
+            quaternary: true,
+          }, { default: () => '删除', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
         }),
       ],
     });
@@ -712,11 +717,12 @@ const actionsColumn = {
 };
 
 // 统一列（整合后展示全部用户，用户类型字段区分内外）
+// 列对齐统一走 useTableColumns 工厂（四档规则，短值/枚举居中，长文本左对齐）。
 const columns = [
-  { title: '花名', key: 'username', width: 160, ellipsis: true },
-  { title: '姓名', key: 'realName', width: 120, ellipsis: true },
-  { title: '工号', key: 'employeeId', width: 110, ellipsis: true, render: (row: User) => row.employeeId || '-' },
-  {
+  column({ title: '花名', key: 'username', width: 160, ellipsis: true }, 'short'),
+  column({ title: '姓名', key: 'realName', width: 120, ellipsis: true }, 'short'),
+  column({ title: '工号', key: 'employeeId', width: 110, ellipsis: true, render: (row: User) => row.employeeId || '-' }, 'short'),
+  column({
     title: '任职部门',
     key: 'departmentName',
     width: 150,
@@ -734,11 +740,11 @@ const columns = [
       if (!full || full === name) return text;
       return h(NTooltip, null, { trigger: () => text, default: () => full });
     }
-  },
-  userTypeColumn,
-  statusColumn,
-  ownedRolesColumn,
-  actionsColumn,
+  }, 'short'),
+  column(userTypeColumn, 'short'),
+  column(statusColumn, 'short'),
+  column(ownedRolesColumn, 'short'),
+  column(actionsColumn, 'control'),
 ];
 
 // 生命周期

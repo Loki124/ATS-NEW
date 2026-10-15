@@ -194,6 +194,8 @@ import JobLevelCategoryModal from './components/JobLevelCategoryModal.vue';
 import JobLevelGradeModal from './components/JobLevelGradeModal.vue';
 import JobLevelSequenceModal from './components/JobLevelSequenceModal.vue';
 import { localPagination } from '../../composables/useTablePagination';
+// 列对齐与操作列规格的单一真源（四档规则见 useTableColumns.ts 头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns';
 import {
   listJobLevels,
   createJobLevel,
@@ -438,19 +440,19 @@ const handleToggleEnabled = async (row: JobLevel) => {
 // ===== 表格列 =====
 const renderActions = (row: JobLevel) => {
   const enabled = isRowEnabled(row);
-  return h(NSpace, { size: 'small' }, {
+  return h(NSpace, { size: 8, wrap: false }, {
     default: () => [
       h(
         NButton,
         {
-          text: true,
+          quaternary: true,
           type: 'primary',
-          size: 'small',
+          size: OP_ACTION_BUTTON_SIZE,
           onClick: () => startEdit(row),
         },
         {
           default: () => t('pages.settings.JobLevelManagement.s21'),
-          icon: () => h(NIcon, { component: CreateOutline }),
+          icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
         },
       ),
       enabled
@@ -466,10 +468,10 @@ const renderActions = (row: JobLevel) => {
               trigger: () =>
                 h(
                   NButton,
-                  { text: true, type: 'warning', size: 'small' },
+                  { quaternary: true, type: 'warning', size: OP_ACTION_BUTTON_SIZE },
                   {
                     default: () => t('pages.settings.JobLevelManagement.s22'),
-                    icon: () => h(NIcon, { component: PowerOutline }),
+                    icon: () => h(NIcon, null, { default: () => h(PowerOutline) }),
                   },
                 ),
             },
@@ -477,14 +479,14 @@ const renderActions = (row: JobLevel) => {
         : h(
             NButton,
             {
-              text: true,
+              quaternary: true,
               type: 'primary',
-              size: 'small',
+              size: OP_ACTION_BUTTON_SIZE,
               onClick: () => handleToggleEnabled(row),
             },
             {
               default: () => t('pages.settings.JobLevelManagement.s23'),
-              icon: () => h(NIcon, { component: PowerOutline }),
+              icon: () => h(NIcon, null, { default: () => h(PowerOutline) }),
             },
           ),
     ],
@@ -492,40 +494,41 @@ const renderActions = (row: JobLevel) => {
 };
 
 const columns = computed(() => [
-  {
+  column({
     title: t('pages.settings.JobLevelManagement.s15'),
     key: 'name',
     width: 200,
     render: (row: JobLevel) =>
       h('span', { style: 'font-weight: 500; color: var(--ink)' }, row.name || '—'),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.JobLevelManagement.s16'),
     key: 'category',
     width: 160,
     render: (row: JobLevel) =>
       h('span', {}, row.categoryName || resolveCategoryLabel(row.category) || '—'),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.JobLevelManagement.s17'),
     key: 'grade',
     width: 100,
     render: (row: JobLevel) => h('span', {}, String(row.grade ?? '—')),
-  },
-  {
+  }, 'numeric'),
+  column({
     title: t('pages.settings.JobLevelManagement.s18'),
     key: 'sortOrder',
     width: 110,
     render: (row: JobLevel) => h('span', {}, String(row.sortOrder ?? '—')),
-  },
-  {
+  }, 'numeric'),
+  column({
+    // 备注为长文本/描述，按四档规则 D 档强制左对齐（不居中），保留 ellipsis
     title: t('pages.settings.JobLevelManagement.s19'),
     key: 'remark',
     width: 200,
     ellipsis: { tooltip: true },
     render: (row: JobLevel) => h('span', {}, row.remark || '—'),
-  },
-  {
+  }, 'text'),
+  column({
     title: t('pages.settings.JobLevelManagement.s49'),
     key: 'status',
     width: 100,
@@ -541,14 +544,16 @@ const columns = computed(() => [
         },
       );
     },
-  },
-  {
+  }, 'short'),
+  column({
+    // 行内操作：编辑 type=primary、启停 type=warning/primary（语义色保留，不单色化）；
+    // 本页无删除按钮。NSpace wrap:false，size 取 OP_ACTION_BUTTON_SIZE。
     title: t('pages.settings.JobLevelManagement.s20'),
     key: 'actions',
     width: 160,
     fixed: 'right' as const,
     render: (row: JobLevel) => renderActions(row),
-  },
+  }, 'control'),
 ]);
 
 /* ============================ CSV 导出（utf-8-sig BOM，Excel 友好）============================ */
