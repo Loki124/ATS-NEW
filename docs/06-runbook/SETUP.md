@@ -16,8 +16,8 @@ mysql -u root -e "CREATE DATABASE IF NOT EXISTS ats_db CHARACTER SET utf8mb4;"
 mysql -u root -e "CREATE USER 'ats_user'@'localhost' IDENTIFIED BY 'ats_password';"
 mysql -u root -e "GRANT ALL ON ats_db.* TO 'ats_user'@'localhost';"
 
-# 1b. 数据库 (SQLite 方式, 5 分钟跑通)
-#   跳过 mysql 步骤, 在 .env 设 DATABASE_URL=sqlite:///db.sqlite3
+# 1b. 数据库（开发/测试统一使用 MySQL，已禁用 SQLite）
+#   必须执行上方 MySQL 建库步骤，在 .env 设 DATABASE_URL=mysql://ats_user:ats_password@localhost:3306/ats_db
 
 # 2. 后端
 cd apps/django
@@ -94,8 +94,8 @@ DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1        # 生产列明确域名
 DATABASE_URL=mysql://ats_user:ats_password@localhost:3306/ats_db
 # 选项 2: PostgreSQL
 DATABASE_URL=postgres://ats_user:ats_password@localhost:5432/ats_db
-# 选项 3: SQLite (dev / test)
-DATABASE_URL=sqlite:///db.sqlite3
+# 选项 3: SQLite (dev / test) —— 已禁用，开发/测试统一使用 MySQL
+# DATABASE_URL=sqlite:///db.sqlite3   # 已禁用
 
 # === Redis (Celery broker + cache + Channels) ===
 REDIS_URL=redis://localhost:6379/0

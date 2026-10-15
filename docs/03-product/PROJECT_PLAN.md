@@ -7,7 +7,7 @@
 > **当前实际技术栈** (2026-08-03):
 > - 后端: Django 6.0.6 + DRF 3.15 + Celery 5.4 + Channels 4.1 (不是 Django 4.2+)
 > - 前端: Vue 3 + Vite 5 + **Naive UI 2.44 + UnoCSS** (不是 Tailwind + DaisyUI)
-> - 数据库: MySQL 8 (生产) / SQLite 3 (dev + test)
+> - 数据库: MySQL 8（生产/开发/测试统一，已禁用 SQLite）
 > - Python: 3.14 (不是 3.10+)
 > - 目录: `apps/django/` + `web/app/` (不是 `backend/` + `frontend/`)
 > - 35 个 app / 60+ 端点 / 70 张表 / 7 业务状态机 / pytest + vitest 全量持续全过（2026-10-02 基线 1873 pytest / 0 failed / 1 skipped，详见 CHANGELOG）
@@ -36,7 +36,7 @@
 ### 后端技术栈 ✅ 已更新
 - **框架**: ~~Django 4.2+~~ **Django 6.0.6** (实际, 2026-07 解锁主版本锁)
 - **API框架**: Django REST Framework 3.15
-- **数据库**: ~~PostgreSQL~~ **MySQL 8** (生产) / **SQLite 3** (dev + test)
+- **数据库**: ~~PostgreSQL~~ **MySQL 8**（生产/开发/测试统一，已禁用 SQLite）
 - **认证**: JWT (djangorestframework-simplejwt)
 - **ORM**: Django ORM
 - **文档**: Swagger/OpenAPI (drf-spectacular)

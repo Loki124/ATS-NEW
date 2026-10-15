@@ -264,7 +264,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5212,http://127.0.0.1:5212
 ### T-5.1: pytest 报 `no such column: user_roles.role_code`
 
 **症状**: V2 业务代码 (permission_check / role_v2_query) 查 `user_roles.role_code` 列不存在
-**原因**: sqlite 测试 DB 是 V1 schema, conftest 应补 V2 列
+**原因**: 测试 DB（原默认 sqlite，现已禁用、统一 MySQL）是 V1 schema，conftest 应补 V2 列
 **解法**:
 - 验证 conftest.py 的 `_ensure_v2_schema_on_sqlite` 跑过 (stdout 应有 `[conftest] seeded N role_permission rows`)
 - 如果 schema 改了, 同步更新 conftest 里的 `v2_roles_cols` / `v2_ur_cols` 字典

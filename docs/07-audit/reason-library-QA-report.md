@@ -1,7 +1,7 @@
 # 原因库（Reason Library）QA 测试报告
 > 最后更新：2026-09-20（依据 git 最后提交）
 
-> 测试日期：2026-09-20 ｜ 环境：Django 6.0.6 + DRF 3.17.1（managed venv）+ MySQL（dev）/ SQLite（test）
+> 测试日期：2026-09-20 ｜ 环境：Django 6.0.6 + DRF 3.17.1（managed venv）+ MySQL（dev/test 统一，已禁用 SQLite）
 > 结果：**37 passed / 37 total（100%）** ⚠️ **待刷新**：当前 reason_library 测试已远超 37 例（新增 rule_version / preset_default / scenerule_tip_talent_pool / noqa_intent_audit / zz_qa_probe / tag_io 等），且种子已由 3 条预置规则改为 1 条；本报告未重跑，数字仅供参考，以 PRD 与代码为准。
 
 ---

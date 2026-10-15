@@ -32,7 +32,7 @@
 | 状态 | 详情 |
 |---|---|
 | ✅ 启动 | `python -m gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 2` |
-| ✅ 数据库 | MySQL 8 (生产) / SQLite 3 (dev + test) |
+| ✅ 数据库 | MySQL 8（生产/开发/测试统一，已禁用 SQLite） |
 | ✅ 认证 | JWT 双 token 流程 (access 60min + refresh 7d, ROTATE enabled) |
 | ✅ API | 60+ 端点 (gunicorn 4 workers + DRF) |
 | ✅ 文档 | `/api/docs/` (drf-spectacular Swagger UI) |

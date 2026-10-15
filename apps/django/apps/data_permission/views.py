@@ -227,7 +227,7 @@ def _rule_references_action(key: str) -> bool:
     """动作 key 是否被任何 WRITE 规则的 actions 引用（删除护栏）。
 
     规则量级小（每角色每模块至多两行），Python 侧遍历即可；不用 JSONField __contains
-    （SQLite 测试库不支持该 lookup）。
+    （跨库行为不一致，且数据量小遍历更简单）。
     """
     return any(
         isinstance(r.actions, list) and key in r.actions

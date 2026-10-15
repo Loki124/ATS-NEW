@@ -1,6 +1,4 @@
 """测试环境配置"""
-import os
-
 from .base import *  # noqa
 
 DEBUG = True
@@ -8,40 +6,28 @@ DEBUG = True
 # 测试环境允许所有 host
 ALLOWED_HOSTS = ['*']
 
-# 2026-10-15: 全仓约定 —— 开发/测试统一用 MySQL, 不再默认 SQLite。
+# 2026-10-15: 全仓约定 —— 开发/测试统一用 MySQL, SQLite 已完全移除。
 #   根因教训: 此前本地/单测默认 SQLite, 掩盖了 0024 "RemoveField+AddField 同名列在 MySQL 上
 #   DROP 整列丢数据" 的差异 (SQLite 整表重建会拷贝数据), 导致 "本地/CI 全绿、生产 1452"。
 #   此后测试默认走 MySQL (本地 ats_test / CI mysql:8.0), 让 MySQL 特有行为差异在开发期就暴露。
-#   SQLite 仅作为 DB_ENGINE=sqlite 的**显式**逃生口保留 (纯静态检查等场景), 正常测试不再使用。
-if os.environ.get('DB_ENGINE', 'mysql') == 'mysql':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.environ.get('DB_NAME', 'ats_test'),
-            # 本地默认复用 dev 库同款账号 (apps/django/.env), pytest 开箱即用;
-            # CI 用 mysql:8.0 service 的 root + 密钥覆盖。
-            'USER': os.environ.get('DB_USER', 'ats_dev'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', 'AtsDev2026!'),
-            'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
-            'PORT': os.environ.get('DB_PORT', '3306'),
-            'OPTIONS': {'charset': 'utf8mb4'},
-            'TEST': {
-                'CHARSET': 'utf8mb4',
-                'COLLATION': 'utf8mb4_unicode_ci',
-            },
-        }
+#   项目已禁用 SQLite, 此处不再保留任何 SQLite / DB_ENGINE 分支。
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('DB_NAME', 'ats_test'),
+        # 本地默认复用 dev 库同款账号 (apps/django/.env), pytest 开箱即用;
+        # CI 用 mysql:8.0 service 的 root + 密钥覆盖。
+        'USER': os.environ.get('DB_USER', 'ats_dev'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'AtsDev2026!'),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
+        'OPTIONS': {'charset': 'utf8mb4'},
+        'TEST': {
+            'CHARSET': 'utf8mb4',
+            'COLLATION': 'utf8mb4_unicode_ci',
+        },
     }
-else:
-    # 仅 DB_ENGINE=sqlite 显式设定才走此分支 (非默认); 用于不需要真实 DB 交互的纯静态检查。
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.environ.get('DJANGO_DB_NAME', str(BASE_DIR / 'dev_db.sqlite3')),
-            'TEST': {
-                'NAME': ':memory:',
-            },
-        }
-    }
+}
 
 # 关闭密码哈希，加速测试
 PASSWORD_HASHERS = [

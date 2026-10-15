@@ -438,7 +438,7 @@ def upgrade_demand_process(demand, actor, target_process=None):
     |---|---|---|
     | 1 | **MySQL 版本下限** | Django `mysql/features.py` 门槛为 `not mariadb and storage_engine != 'MyISAM' and mysql_version >= (8, 0, 13)`。本项目实测 `mysql_version=(9, 6, 0)`、`mysql_is_mariadb=False`、`storage_engine=InnoDB` → `supports_expression_indexes=True`，**远超门槛，无版本风险**。⚠️ 但这是**软门槛**：若未来迁 MariaDB 或把表引擎改成 MyISAM，Django 会**静默跳过**该约束（与 partial index 同款陷阱）→ 故 §6.3 / T1 的「MySQL 真实索引核对」检查**必须保留**，它同时兜住了这个退化场景。 |
     | 2 | **SQLite 测试库支持** | `supports_expression_indexes=True`（sqlite3 3.53.3）。**端到端实测：索引真建（`sqlite_master` 可查）、正常路径与 `.update()` 旁路均抛 `IntegrityError`**。→ **不会静默跳过、不会报错**，测试库与生产**行为一致**。这是 (d) 相对原 C3 partial unique 的关键优势：C3 在 SQLite 真建 / MySQL 静默跳过，制造"假绿"；(d) 两库都真建，**CI 绿 == 生产绿**。 |
-    | 3 | **测试策略影响** | 因两库行为一致，C3' 的唯一性拦截测试**可以在默认 SQLite 测试库上写并可信**。但 §1 中「约束是否真建」的核对仍须在 MySQL 上做一次（防第 1 行的退化场景），保留 T1 的 `information_schema.STATISTICS` 检查。 |
+    | 3 | **测试策略影响** | 因两库行为一致，C3' 的唯一性拦截测试**可以在测试库（现已禁用 SQLite，统一 MySQL）上写并可信**。但 §1 中「约束是否真建」的核对仍须在 MySQL 上做一次（防第 1 行的退化场景），保留 T1 的 `information_schema.STATISTICS` 检查。 |
     | 4 | **`makemigrations` 产出** | `deconstruct()` / `MigrationWriter` 序列化正常，migration 文件仅需 `from django.db import models`，无额外 import：`models.UniqueConstraint(models.Case(models.When(is_latest=True, then=models.F('code')), default=models.Value(None)), name='uniq_one_latest_per_code')`。`constraint.contains_expressions=True`。 |
     | 5 | **`sqlmigrate` / `AddConstraint` 行为** | 对**已有数据**的表执行 `AddConstraint` 实测成功；若存量数据违反不变量（同 code 两行 `is_latest=True`），**`AddConstraint` 明确抛 `IntegrityError` 让 migration 变红，不静默通过** → 回填顺序错误会被立刻发现。 |
     | 6 | **是否仍需 `is_latest` 普通索引** | **需要，且应改为复合索引。** 表达式索引**不能**服务普通查询：MySQL `EXPLAIN` 实测 `WHERE is_latest=1 AND code='W001'` 在只有表达式索引时是 `Table scan`；加 `(code, is_latest)` 复合索引后变为 `Covering index lookup`。→ 建议 `is_latest` **去掉** `db_index=True`（低基数布尔单列索引近乎无用），改在 `Meta.indexes` 加 `models.Index(fields=['code', 'is_latest'], name='idx_process_code_latest')`，服务 §1.3/§4.2 的主力查询 `filter(code=..., is_latest=True, status=..., deleted_at__isnull=True)`。 |
@@ -470,7 +470,7 @@ def upgrade_demand_process(demand, actor, target_process=None):
   7. `full_clean()` 对重复 latest 抛 `ValidationError`，且对历史版本 / 不同 code / 自身重存**无误报**。
   8. `list_process_versions` 默认 `is_latest=True` 过滤仍正确。
 - **⚠️ DB 约束验收（随 (d) 终裁大幅简化，但 MySQL 核对不取消）**：
-  - **好消息**：(d) 在 **SQLite 与 MySQL 上行为完全一致**（均真建索引、均拦截 `.update()` 旁路，架构师双库实测）→ 上述 1~8 号功能性用例**可以在默认 SQLite 测试库上写，且结论对生产可信**。这正是 (d) 相对原 C3 partial unique 的关键价值：**不再需要"CI 绿但生产未必"的免责声明**。
+  - **好消息**：(d) 在 **SQLite 与 MySQL 上行为完全一致**（均真建索引、均拦截 `.update()` 旁路，架构师双库实测）→ 上述 1~8 号功能性用例**可以在测试库（现已禁用 SQLite，统一 MySQL）上写，且结论对生产可信**。这正是 (d) 相对原 C3 partial unique 的关键价值：**不再需要"CI 绿但生产未必"的免责声明**。
   - **仍须保留的 MySQL 检查**：`supports_expression_indexes` 是**软门槛**（依赖 `非 MariaDB + 非 MyISAM + >=8.0.13`）。若未来换库/换引擎，Django 会**静默跳过**该约束。故仍须一条在 MySQL 上核对 `information_schema.STATISTICS` 真实索引存在性的检查——建议二选一：(1) 一个 pytest 用例（MySQL 测试库）断言 `uniq_one_latest_per_code` 存在于 `STATISTICS` 且其 `EXPRESSION` 列非空；(2) 一个 CI 步骤，migrate 后 `SELECT` 该索引名，缺失即失败。**推荐同时核对 `connection.features.supports_expression_indexes is True`，一旦退化立即红。**
 - **⚠️ 硬前置依赖边（发现 6，实证）**：本任务「去 `code` unique + 建 3 约束」是 **T3 clone 跑通的硬前置**。`clone_process_with_new_version` 第一步即 `versioning.py:98` `code=process.code` 创建新行；而当前 `code` 仍 `unique=True`，dev 实时复现 `IntegrityError: Duplicate entry 'W001' for key 'recruitment_processes.code'`，**未去 unique 前 clone 根本无法执行**。故 migration 执行顺序**必须 T1 先于 T3**，依赖图「T1→T3」边画实（非虚）。反向坐实：clone 路径此前**从未被真实执行**（零测试覆盖 + 实测必炸），故 T3/T4 测试**必须端到端覆盖 clone→upgrade 全链路**，不能只做单测（见 T3 / T4）。
 
@@ -657,7 +657,7 @@ def reverse(apps, schema_editor):
 
 **⚠️ 必须在有真实数据的 fresh DB 上验证**：
 1. 本项目踩过 `:memory:` 空库让 RunPython 的 bug 完全不显形、生产一跑就 `AttributeError` 的坑。空测试库 `backfill` 直接 no-op，无法暴露真实数据异常（如 `code` 为 None、同 `created_at` 多行、`current_version` 格式异常）。
-2. 验证步骤（强制）：用 `dev_db.sqlite3`（3 行、code 互异）或生产脱敏 dump 灌入 fresh DB → 跑 migration → 断言：
+2. 验证步骤（强制）：用生产脱敏 MySQL dump（或开发库导出）灌入 fresh MySQL DB → 跑 migration → 断言：
    - 每个 `code` 恰 1 行 `is_latest=True`
    - `version_seq` 全局唯一（per code）
    - `current_version` 全部规范为 `V{n}.0` 形态；若有 coerced 告警，记录于 migration 日志并人工复核（见 §6.3 回填）

@@ -44,46 +44,20 @@ def _make_candidate(**kw) -> Candidate:
 def _create_role_v2_with_scope(code: str, name: str, scope_type: str) -> RoleV2:
     """建一个指定 default_data_scope_type 的 V2 角色 (fixtures_common 的版本写死 ALL).
 
-    2026-08-03 T01.1 (寇豆码): 适配 V2 fresh schema — 没有 V1 列 (code/name/is_builtin/is_active).
-    T01.1 前: 写 V1+V2 hybrid (id=VARCHAR(32) PK + V1 列 + V2 列).
-    T01.1 后: 写 V2 only (id=BigAuto + system_code/role_code/...).
-
-    检测: 看 `code` 列是否存在. V1 hybrid 有, V2 fresh 无.
+    测试库统一 V2 fresh schema（MySQL），只写 V2 列（id=BigAuto + system_code/role_code/...）。
+    V1 / SQLite 历史分支已随「禁用 SQLite」移除。
     """
-    import uuid
-
     from django.utils import timezone
 
     with connection.cursor() as c:
-        # 探测 roles 是否有 code 列 (V1 hybrid schema 才有).
-        # MySQL 统一走 V2 fresh schema, 无 code 列; 仅 SQLite escape-hatch 路径需 PRAGMA 探测.
-        has_code_col = False
-        if connection.vendor == 'sqlite':
-            c.execute('PRAGMA table_info(roles)')
-            cols = {row[1] for row in c.fetchall()}
-            has_code_col = 'code' in cols
-
-        if has_code_col:
-            # V1 hybrid (历史) — 写 V1 + V2 列
-            c.execute(
-                """INSERT INTO roles
-                   (id, code, name, description, is_builtin, is_active, role_code, role_name,
-                    system_code, status, default_data_scope_type, created_at, updated_at)
-                   VALUES (%s, %s, %s, '', 0, 1, %s, %s, 'recruit', 1, %s, %s, %s)""",
-                [
-                    f'role-{code.lower()}-{uuid.uuid4().hex[:8]}', code, name, code, name,
-                    scope_type, timezone.now(), timezone.now(),
-                ],
-            )
-        else:
-            # V2 fresh schema (T01.1 后) — 只写 V2 列
-            c.execute(
-                """INSERT INTO roles
-                   (system_code, role_code, role_name, description,
-                    is_system, status, default_data_scope_type, created_at, updated_at)
-                   VALUES ('recruit', %s, %s, '', 0, 1, %s, %s, %s)""",
-                [code, name, scope_type, timezone.now(), timezone.now()],
-            )
+        # 测试库统一 V2 fresh schema（MySQL），只写 V2 列
+        c.execute(
+            """INSERT INTO roles
+               (system_code, role_code, role_name, description,
+                is_system, status, default_data_scope_type, created_at, updated_at)
+               VALUES ('recruit', %s, %s, '', 0, 1, %s, %s, %s)""",
+            [code, name, scope_type, timezone.now(), timezone.now()],
+        )
     return RoleV2.objects.get(role_code=code, system_code='recruit')
 
 

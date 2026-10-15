@@ -30,7 +30,7 @@
 
 1. **源码定位**（file:line）
 2. **运行时探针**：pytest + `--ds=config.settings.test`，探针文件跑完即删（`tests/test_arch_probe_tmp.py`、`tests/test_arch_probe2_tmp.py`，已删除）
-3. **数据库实测**：`apps/django/dev_db.sqlite3` 现存数据抽样
+3. **数据库实测**：开发库（原 `dev_db.sqlite3`，现已统一 MySQL）现存数据抽样
 
 ### 1.1 关键探针输出存档
 
@@ -94,7 +94,7 @@
 
 --- S5: atomic 内吞异常是否触发 TransactionManagementError ---
   TransitionNotAllowed 被吞后仍可正常查询并提交 → 结果 'ok'
-  原始 DB OperationalError 被吞后仍可查询      → 结果 'ok'（SQLite）
+  原始 DB OperationalError 被吞后仍可查询      → 结果 'ok'（原 SQLite 测试库，现已禁用，统一 MySQL）
 ```
 
 ### 1.2 死代码实测
@@ -219,7 +219,7 @@ class RecruitmentProcess(FullAuditModel):
 |---|---|
 | 一次性关掉 4 条缺陷 | **V1**（唯一键冲突）、**V3**（`'1.0+1+1'` 与 max_length 溢出）、**V4**（`int(minor)` ValueError）、**V9**（字典序排序）。版本号改为 `f'V{version_seq}.0'` 从整数派生，**根本不再解析旧字符串**，V3/V4 的失败模式在结构上不存在了 |
 | 保住列表端点语义 | `/processes/` 默认 `filter(is_latest=True)` → 对外行为与今天完全一致（今天每个 code 恰好 1 行），前端零改动 |
-| DB 级完整性 | partial unique 保证"每个 code 恰有一个当前版本"，不靠应用层自觉。**同仓已有先例**：`RecruitmentStage` 的 `uniq_only_one_start_stage`/`uniq_only_one_end_stage`（`models.py:102-111`）就是 partial UniqueConstraint，且在 SQLite 测试库上跑通——技术可行性已被本项目自身验证 |
+| DB 级完整性 | partial unique 保证"每个 code 恰有一个当前版本"，不靠应用层自觉。**同仓已有先例**：`RecruitmentStage` 的 `uniq_only_one_start_stage`/`uniq_only_one_end_stage`（`models.py:102-111`）就是 partial UniqueConstraint，且在测试库上跑通（原 SQLite，现已禁用、统一 MySQL；注意该先例在 MySQL 生产实际未生效，详见 VERSIONING_INCREMENT ADR）——技术可行性已被本项目自身验证 |
 | 排序确定性 | `order_by('code', 'version_seq')` 是整数序，V9 的 `'V10.0' < 'V2.0'` 问题消失 |
 | 与 `id` 分工清晰 | `id`=行标识（机器用），`code`=流程线标识（人用），`version_seq`=该流程线内的第几版，`is_latest`=当前版本指针。四者语义不重叠 |
 
@@ -257,7 +257,7 @@ class RecruitmentProcess(FullAuditModel):
 **dev 库实测佐证**：3 行、code 互异、version 全为 `'1.0'` → 全部约束成立。
 
 **平台兼容性**：
-- partial UniqueConstraint 需要 MySQL ≥ 8.0.13 / PostgreSQL ≥ 12 / SQLite ≥ 3.8。
+- partial UniqueConstraint 需要 MySQL ≥ 8.0.13 / PostgreSQL ≥ 12（SQLite 已禁用，不再作为目标引擎）。
 - 本项目**已在生产模型上使用该特性**（`RecruitmentStage.uniq_only_one_start_stage`，`models.py:102`），且 `models.py:99-101` 的注释已显式记录了"部署前确认 MySQL ≥ 8.0.13"这一前置条件。**不引入新的平台要求。**
 
 **唯一真实风险点（必须一并处理）**：
@@ -271,7 +271,7 @@ class RecruitmentProcess(FullAuditModel):
 | X2 | `versioning.py:114` `process.stage_links.all()` | clone 未过滤 `deleted_at__isnull=True`，会把软删的 link 一并克隆进新版本 |
 | X3 | `models.py:212` `reference_count = self.demands.count()` | 未过滤 `deleted_at__isnull=True`，而同文件 `is_process_referenced`（`versioning.py:25`）过滤了。同一语义两套口径 |
 | X4 | `versioning.py` clone 未复制 `automation_rules` | `AutomationRule.process` 是 CASCADE FK；克隆新版本后自动化规则全丢。是否应复制**需产品确认**（见 §5.2-Q3） |
-| X5 | `dev_db.sqlite3` 中 `status='draft'` | 不在 `STATUS_CHOICES` (`ENABLED`/`ARCHIVED`) 内，Prisma 时代遗留脏数据 |
+| X5 | 开发库（原 `dev_db.sqlite3`，现已统一 MySQL）中 `status='draft'` | 不在 `STATUS_CHOICES` (`ENABLED`/`ARCHIVED`) 内，Prisma 时代遗留脏数据 |
 
 ---
 
@@ -889,7 +889,7 @@ QA 已提交 3 个未跟踪测试文件锁定 FSM 缺陷：
 | 前端不用 `code` | `grep "process.code\|processCode\|process_code" web/app/src` → 无匹配 |
 | 前端不调 clone/versions/bump | `grep "clone-version\|/versions\|bump-version" web/app/src` → 无匹配 |
 | 三端点零测试覆盖 | `grep "clone-version\|clone_process\|list_versions\|bump-version\|/versions" tests/ apps/*/tests/` → 无匹配 |
-| partial UniqueConstraint 在本项目可行 | `apps/process/models.py:102-111` 已在用，测试库 SQLite 上通过 |
+| partial UniqueConstraint（仅 SQLite 测试库可见，MySQL 生产未生效，详见 VERSIONING_INCREMENT ADR；已统一 MySQL） | `apps/process/models.py:102-111` 曾在用，测试库（原 SQLite）上通过 |
 | 迁移可证明安全 | 迁移前 `code UNIQUE` ⟹ `(code, X) UNIQUE` 对任意 X 成立 |
 | dev 库现状 | 3 行、code 互异、version 全 `'1.0'` |
 | `TalentPoolEntry` 无 FSMField | `grep FSMField apps/talent_pool/models.py` → 无输出 |

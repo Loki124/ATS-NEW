@@ -366,9 +366,23 @@ jobs:
     #   - test-backend / test-migrations 都是**全新空库**跑 migrate,
     #     全新库天然没有漂移, 查不出"改了模型没生成迁移"。
     #   - 全仓 grep: CI 此前完全没有 `makemigrations --check`。
-    # 这一步不需要数据库 —— autodetector 只比对 models.py 与迁移历史状态。
+    # 这一步本质不需要数据库（autodetector 只比对 models.py 与迁移历史状态），
+    # 但为与全仓统一仍挂 mysql:8.0 service 并走 MySQL 设置，杜绝任何 SQLite 回落。
     name: Migration Drift Gate
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ats_drift
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
 
@@ -391,10 +405,9 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.dev
           DJANGO_SECRET_KEY: ci-drift-gate-placeholder-secret-key-0000
-          # 用 SQLite 仅作 settings 引导: makemigrations --check 只比对 models.py 与迁移状态,
-          #   全程不发起任何 DB 连接, 引擎选择与此步骤无关; 故无需挂 MySQL service。
-          #   真实 DB 行为差异由 test-backend / e2e 两个 MySQL job 负责暴露。
-          DATABASE_URL: sqlite:///:memory:
+          # 统一走 MySQL（与 test-backend / e2e / test-migrations 一致），不再用 SQLite 引导；
+          # makemigrations --check 只比对 models.py 与迁移状态, 不发起业务查询, 复用本 job 的 mysql service。
+          DATABASE_URL: mysql://root:${{ secrets.CI_MYSQL_ROOT_PASSWORD }}@127.0.0.1:3306/ats_drift
         run: |
           . .venv/bin/activate
           # --check 语义: 有未生成的迁移就非零退出, 不会真的写盘。

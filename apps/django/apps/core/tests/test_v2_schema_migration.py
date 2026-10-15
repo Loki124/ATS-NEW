@@ -15,23 +15,15 @@
 - pytest-django --create-db 已自动跑全量迁移 (含 0004), 不需要测试内 migrate
 - 不调 call_command('migrate') — SQLite + 事务内 + schema_editor + FK check = NotSupportedError
 - 每个测试用 fresh transaction, 通过 @pytest.mark.django_db
-- 不依赖全局 conftest.py 的 _ensure_v2_schema_on_sqlite (那是 V1 fallback),
+- 不依赖全局 conftest.py 的 V2 schema 兼容占位 (V1 / SQLite 分支已移除),
   本测试专注 fresh DB 的 V2 路径
 """
 import pytest
 from django.db import IntegrityError, connection
 
 
-def _sqlite_vendor():
-    return connection.vendor == 'sqlite'
-
-
 def _column_names(table):
-    """跨 DB vendor 取表的物理列名集合."""
-    if _sqlite_vendor():
-        with connection.cursor() as c:
-            c.execute(f'PRAGMA table_info("{table}")')
-            return {r[1] for r in c.fetchall()}
+    """取表的物理列名集合（测试库统一 MySQL，走 information_schema）。"""
     with connection.cursor() as c:
         c.execute(
             "SELECT column_name FROM information_schema.columns "
@@ -43,10 +35,7 @@ def _column_names(table):
 
 def _table_names():
     with connection.cursor() as c:
-        if _sqlite_vendor():
-            c.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        else:
-            c.execute("SELECT table_name FROM information_schema.tables")
+        c.execute("SELECT table_name FROM information_schema.tables")
         return {r[0] for r in c.fetchall()}
 
 

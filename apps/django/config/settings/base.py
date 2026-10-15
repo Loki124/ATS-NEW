@@ -21,6 +21,7 @@ except ImportError:
     pass
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 # 探测可选依赖
 try:
@@ -212,9 +213,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
 # === 数据库 ===
-# 优先级：MySQL > PostgreSQL > SQLite
-# 通过 DATABASE_URL 前缀识别（mysql://, postgres://, sqlite:///）
-DATABASE_URL = env('DATABASE_URL', default='sqlite:///db.sqlite3')
+# 支持 MySQL / PostgreSQL；SQLite 已禁用（开发/测试环境统一使用 MySQL，见 test.py / ci.yml）。
+# 通过 DATABASE_URL 前缀识别（mysql://, postgres://）。
+DATABASE_URL = env('DATABASE_URL', default='mysql://ats_user:ats_password@localhost:3306/ats_db')
 
 if DATABASE_URL.startswith('mysql'):
     # MySQL 配置（生产推荐）
@@ -257,22 +258,11 @@ elif DATABASE_URL.startswith('postgres'):
         'default': env.db('DATABASE_URL'),
     }
 else:
-    # SQLite - 仅用于本地开发/测试
-    # 解析 sqlite:/// 后的路径（支持绝对和相对）
-    if DATABASE_URL.startswith('sqlite:////'):
-        # sqlite:////abs/path → 绝对路径
-        db_name = DATABASE_URL[len('sqlite:///'):]
-    elif DATABASE_URL.startswith('sqlite:///'):
-        # sqlite:///rel/path → 相对 BASE_DIR
-        db_name = str(BASE_DIR / DATABASE_URL[len('sqlite:///'):])
-    else:
-        db_name = str(BASE_DIR / 'db.sqlite3')
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': db_name,
-        }
-    }
+    # 仅支持 MySQL / PostgreSQL；SQLite 已在开发/测试环境禁用，不允许回落到 SQLite。
+    raise ImproperlyConfigured(
+        f"不支持的数据库后端: DATABASE_URL={DATABASE_URL!r}。\n"
+        "  仅支持 MySQL / PostgreSQL；SQLite 已在开发/测试环境禁用（统一 MySQL）。"
+    )
 
 # 2026-10-08: 连接复用 + 健康检查。
 #   Django 默认 CONN_MAX_AGE=0 —— 每个请求结束就断开, 高并发下 MySQL 的 TCP 三次握手

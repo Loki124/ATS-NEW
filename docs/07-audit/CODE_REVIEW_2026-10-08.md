@@ -449,7 +449,7 @@ assert response.status_code in (200, 503)
 
 | Job | 是否真跑 | 问题 |
 |---|---|---|
-| test-backend `:17-66` | ✅ `pytest --tb=short -v --maxfail=10 ${{ env.QUARANTINE }}` | ❌ **无 `--cov`**；⚠️ `--maxfail=10` 早停；⚠️ **起了 MySQL 8 service 但 `DJANGO_SETTINGS_MODULE=config.settings.test` 是 SQLite → service 完全没被用到** |
+| test-backend `:17-66` | ✅ `pytest --tb=short -v --maxfail=10 ${{ env.QUARANTINE }}` | ❌ **无 `--cov`**；⚠️ `--maxfail=10` 早停；⚠️ **起了 MySQL 8 service 但 `DJANGO_SETTINGS_MODULE=config.settings.test` 是 SQLite → service 完全没被用到**（现已禁用 SQLite，CI 已对齐 MySQL） |
 | test-frontend `:68-108` | ✅ build(typecheck) + vitest + `lint:ci`（`--max-warnings=0` 硬门禁） | stylelint 仅 warn |
 | e2e `:135-233` | ✅ Playwright + 后端 health 轮询 | |
 | test-migrations `:235-313` | ✅ MySQL apply + 幂等 + 表数 ≥50 | |
@@ -539,7 +539,7 @@ assert response.status_code in (200, 503)
 
 **测试 / CI**
 25. 加覆盖率门禁：`apps/django/.coveragerc`（`fail_under` 先设当前值再按季上调）+ CI `--cov=apps --cov-fail-under=60`；前端加 `thresholds` 并在 CI 用 `--coverage`
-26. CI 测试 DB 对齐生产：复用已起的 MySQL 8 service（现白起），SQLite 保留为本地快速通道
+26. CI 测试 DB 对齐生产：复用已起的 MySQL 8 service（现白起），开发/测试统一使用 MySQL（已禁用 SQLite 本地快速通道）
 27. 接 Python lint 门禁（ruff/flake8），并修正 `docs/01-wiki/08-测试体系.md:81` 的表述
 28. 清空 QUARANTINE 变量，把 deselect 改为代码内可见的 `pytest.ini` marker
 29. 给 `gdpr` / `field_acl` / `code_table` 补最小测试（这三个有真实业务且零 app 级测试）

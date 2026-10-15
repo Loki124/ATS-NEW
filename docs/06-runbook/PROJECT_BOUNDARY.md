@@ -10,7 +10,7 @@
 
 | 仓库 | 职责 | 含 |
 |------|------|----|
-| **ATS-NEW**（业务仓，Gitee `loki126/ATS-NEW`） | 业务代码 + 数据 + 文档 | Django 6.0.6 + DRF 后端；Vue 3 + Naive UI 前端；MySQL/SQLite 数据；`docs/` 项目文档；`.workbuddy/` 内部记忆 |
+| **ATS-NEW**（业务仓，Gitee `loki126/ATS-NEW`） | 业务代码 + 数据 + 文档 | Django 6.0.6 + DRF 后端；Vue 3 + Naive UI 前端；MySQL 数据（已禁用 SQLite）；`docs/` 项目文档；`.workbuddy/` 内部记忆 |
 | **ats-deploy-infra**（部署仓） | 部署基础设施 | `docker-compose.yml` / `nginx.conf` / `systemd/*.service` / `webhook-deploy.sh` / `bin/webhook-receiver.py` (stdlib) |
 
 **红线**：业务仓不写部署代码、部署仓不写业务代码。混入会污染 review + 误改风险。

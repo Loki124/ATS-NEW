@@ -11,9 +11,7 @@
   `ValueError: Plugin already registered under a different name`.
   改名为非 conftest 模块后只有 plugin 一种身份, 且对全量测试生效.
 
-T30.175 (V2 cutover follow-up): fixtures 同时支持 V1 (test DB SQLite, V1 migrations)
-和 V2 (dev MySQL, V2 cutover applied). 通过探测 roles 表是否有 role_code 列
-动态选择路径. 这保证单测在切库前/切库后都能跑.
+T30.175 (V2 cutover follow-up): fixtures 仅支持 V2 path（V1 / SQLite 历史分支已随「开发/测试禁用 SQLite」移除，测试库统一为 MySQL）。
 
 2026-08-03: 把 _v2_schema_present() 改返 True (测试环境统一走 V2 path) + session 级
 fixture 强制 V1 UserRole 写 V2 列. 修 7 个 fail:
@@ -34,77 +32,17 @@ _FORCE_V2 = True  # 2026-08-03: 强制 V2 path, 跟真实 MySQL 一致
 
 
 def _v2_schema_present() -> bool:
-    """探测 V2 schema 是否就绪. 2026-08-03 改成强制返 True (测试环境统一走 V2 path)."""
-    if _FORCE_V2:
-        return True
-    try:
-        with connection.cursor() as c:
-            if connection.vendor == 'sqlite':
-                c.execute("PRAGMA table_info(roles)")
-            else:
-                c.execute("DESCRIBE roles")
-            cols = {row[1] for row in c.fetchall()}
-        return 'role_code' in cols
-    except Exception:
-        return False
+    """V2 schema 在测试环境始终就绪（V1 / SQLite 分支已移除，测试库统一 MySQL + V2 fresh schema）。"""
+    return True
 
 
-def _ensure_v2_schema_on_sqlite():
-    """session 级: 给 sqlite 测试 DB 的 user_roles / roles 表补 V2 列.
+def _ensure_v2_schema_compat():
+    """session 级占位: V2 schema 由迁移 0004_v2_apply_schema 真建，测试库统一 MySQL，无需运行时补列。
 
-    原因: V1 `UserRole.managed=False` + V2 `UserRoleV2.managed=True` 共用 db_table='user_roles',
-    但 0002_v2_init 用 SeparateDatabaseAndState 不真建表. V2 业务代码 (permission_check.py
-    / role_v2_query.py) 查 user_roles.role_code 会抛 no such column → 403.
-
-    schema 不兼容点 (V1 vs V2):
-    - roles.id: VARCHAR(32) (V1) vs BigAuto (V2). SQLite 不能直接改 PK 类型, 我们给 V1 表加 V2 列,
-      V1 fixtures 通过 model save() 走 V1 INSERT (依赖 V1 role.id PK 写), role.id 是 nanoid 字符串
-      也 OK. 走 V2 path 时 model save() 用 BigAuto, 但底层表 id 是 VARCHAR(32) — 我们要保证 V2
-      fixtures 不显式 set id, 走 AUTO. SQLite 的 INTEGER PRIMARY KEY = rowid 整数, 但 V1 表是
-      VARCHAR(32) PRIMARY KEY. 所以 V2 fixtures 必须显式给 id.
-    - user_roles.role_id (FK) NOT NULL (V1) vs 不存在 (V2). 兼容: V1 fixtures 必填 role_id, V2
-      fixtures 走 raw SQL INSERT (不依赖 model, 不触发 NOT NULL).
-
-    这里:
-    1. roles 表加 V2 列 (role_code/system_code/role_name/...), V1 PK 不动
-    2. user_roles 表加 V2 列 (role_code/system_code/management_unit_ids/...), V1 列保留 NOT NULL
-       (V1 fixtures 仍能用)
-    3. 提供 _raw_attach_v2_role helper 用 raw SQL 写 V2 path, 绕过 V1 NOT NULL 约束
+    旧实现在 SQLite 测试库上用 ALTER TABLE 补 V2 列（V1 hybrid schema 兼容）；
+    SQLite 已禁用后该分支为死代码，保留为 no-op 仅作 session fixture 占位。
     """
-    if connection.vendor != 'sqlite':
-        return  # MySQL: 真实 V2 schema 已 apply, 不动
-    with connection.cursor() as c:
-        c.execute("PRAGMA table_info(roles)")
-        roles_cols = {row[1] for row in c.fetchall()}
-        v2_roles_cols = {
-            'role_name': 'VARCHAR(64)',
-            'role_code': 'VARCHAR(64)',
-            'system_code': "VARCHAR(32) DEFAULT 'recruit'",
-            'template_code': 'VARCHAR(64)',
-            'default_data_scope_type': 'VARCHAR(32)',
-            'description': 'VARCHAR(255)',
-            'is_system': 'SMALLINT DEFAULT 0',
-            'status': 'SMALLINT DEFAULT 1',
-            'created_at': 'DATETIME',
-            'updated_at': 'DATETIME',
-        }
-        for col, decl in v2_roles_cols.items():
-            if col not in roles_cols:
-                c.execute(f"ALTER TABLE roles ADD COLUMN {col} {decl}")
-
-        c.execute("PRAGMA table_info(user_roles)")
-        ur_cols = {row[1] for row in c.fetchall()}
-        v2_ur_cols = {
-            'role_code': 'VARCHAR(64)',
-            'system_code': "VARCHAR(32) DEFAULT 'recruit'",
-            'management_unit_ids': 'TEXT',
-            'valid_from': 'DATE',
-            'valid_to': 'DATE',
-            'updated_at': 'DATETIME',
-        }
-        for col, decl in v2_ur_cols.items():
-            if col not in ur_cols:
-                c.execute(f"ALTER TABLE user_roles ADD COLUMN {col} {decl}")
+    return
 
 
 def _raw_attach_v2_role(user, role):
@@ -129,31 +67,14 @@ def _raw_attach_v2_role(user, role):
             raise RuntimeError(f'V2 role {role.role_code} not in roles table — call _create_role_v2 first')
         role_pk = row[0]
 
-        # 探测 user_roles 是否有 role_id 列 (V1 hybrid schema 才有).
-        # MySQL 统一走 V2 fresh schema, 无 role_id 列; 仅 SQLite escape-hatch 路径需 PRAGMA 探测.
-        has_role_id = False
-        if connection.vendor == 'sqlite':
-            c.execute("PRAGMA table_info(user_roles)")
-            cols = {row[1] for row in c.fetchall()}
-            has_role_id = 'role_id' in cols
-
-        if has_role_id:
-            # V1 hybrid schema (T01.1 前): 写 V1 FK + V2 列
-            c.execute(
-                """INSERT INTO user_roles
-                   (user_id, role_id, role_code, system_code, granted_at)
-                   VALUES (%s, %s, %s, 'recruit', CURRENT_TIMESTAMP)""",
-                [user.pk, role_pk, role.role_code],
-            )
-        else:
-            # V2 fresh schema (T01.1 后): 只写 V2 列
-            now = timezone.now()
-            c.execute(
-                """INSERT INTO user_roles
-                   (user_id, role_code, system_code, granted_by_id, granted_at, updated_at)
-                   VALUES (%s, %s, 'recruit', %s, %s, %s)""",
-                [user.pk, role.role_code, user.pk, now, now],
-            )
+        # 测试库统一 V2 fresh schema（MySQL），无 role_id 列，只写 V2 列
+        now = timezone.now()
+        c.execute(
+            """INSERT INTO user_roles
+               (user_id, role_code, system_code, granted_by_id, granted_at, updated_at)
+               VALUES (%s, %s, 'recruit', %s, %s, %s)""",
+            [user.pk, role.role_code, user.pk, now, now],
+        )
 
 
 # 缓存所有 ViewSet 声明的 resource_code 集合 (进程内计算一次即可, 重 seed 时直接复用,
@@ -297,12 +218,11 @@ def _ensure_v2_schema(django_db_setup, django_db_blocker):
     - seed role_permission 表 (V2 业务 has_perm 查这个, 没 seed 永远 403)
 
     2026-08-03 T01.1 (寇豆码): 移除 `call_command('migrate', run_syncdb=True)` —
-    pytest-django --create-db 已经跑过 migrate, 重复调用会触发 SQLite FK check
-    报错 (NotSupportedError). 同时 T01.1 把 0004_v2_apply_schema 加进迁移图,
-    pytest-django 自然会 apply, 不需要这里手动 migrate.
+    pytest-django --create-db 已经跑过 migrate, 重复调用不必要. 同时 T01.1 把
+    0004_v2_apply_schema 加进迁移图, pytest-django 自然会 apply, 不需要这里手动 migrate.
     """
     with django_db_blocker.unblock():
-        _ensure_v2_schema_on_sqlite()
+        _ensure_v2_schema_compat()
         # 2026-08-03 T01.1 (寇豆码): 不再在 session 起始 seed permission_resources /
         # permission_templates (那会破坏 test_bootstrap 测试 — 它假设空 DB).
         # test_sync_resources_t29 改由 test_sync_resources_empty_array_clears 显式
@@ -364,46 +284,20 @@ def super_admin_role(db):
 def _create_role_v2(code: str, name: str):
     """V2 fixtures: 用 raw SQL 写 roles 表, V2 schema (T01.1 后真表).
 
-    T01.1 前 (V1 path): roles 表是 V1 schema (id VARCHAR(32) + code/name/is_builtin/is_active
-    + role_code/role_name/system_code 同时存在, 由 conftest session fixture 临时 ALTER
-    ADD COLUMN 补 V2 列). 写时既要写 V1 列又要写 V2 列.
-
-    T01.1 后 (V2 path, fresh DB): roles 表是 V2 schema (id BigAuto + system_code/role_code/
-    role_name 等, 无 V1 列). 用 BigAuto 自动 PK, 只需写 V2 列.
-
-    检测方法: 看 `code` 列是否存在. V1 有, V2 无.
+    测试库统一 V2 fresh schema（MySQL），只写 V2 列（id=BigAuto + system_code/role_code/
+    role_name 等，无 V1 列）。V1 / SQLite 历史分支已随「禁用 SQLite」移除。
     """
     from django.utils import timezone
-    import uuid
     now = timezone.now()
     with connection.cursor() as c:
-        # 探测 roles 是否有 code 列 (V1 hybrid schema 才有).
-        # MySQL 统一走 V2 fresh schema, 无 code 列; 仅 SQLite escape-hatch 路径需 PRAGMA 探测.
-        has_code_col = False
-        if connection.vendor == 'sqlite':
-            c.execute('PRAGMA table_info(roles)')
-            cols = {row[1] for row in c.fetchall()}
-            has_code_col = 'code' in cols
-
-        if has_code_col:
-            # V1 fallback (历史代码路径): 同时写 V1 + V2 列
-            c.execute(
-                """INSERT INTO roles
-                   (id, code, name, description, is_builtin, is_active, role_code, role_name,
-                    system_code, status, default_data_scope_type, created_at, updated_at)
-                   VALUES (%s, %s, %s, '', 0, 1, %s, %s, 'recruit', 1, 'ALL', %s, %s)""",
-                [f'role-{code.lower()}-{uuid.uuid4().hex[:8]}', code, name, code, name,
-                 now, now],
-            )
-        else:
-            # V2 fresh schema (T01.1 后): 只写 V2 列
-            c.execute(
-                """INSERT INTO roles
-                   (system_code, role_code, role_name, description,
-                    is_system, status, default_data_scope_type, created_at, updated_at)
-                   VALUES ('recruit', %s, %s, '', 0, 1, 'ALL', %s, %s)""",
-                [code, name, now, now],
-            )
+        # 测试库统一 V2 fresh schema（MySQL），只写 V2 列
+        c.execute(
+            """INSERT INTO roles
+               (system_code, role_code, role_name, description,
+                is_system, status, default_data_scope_type, created_at, updated_at)
+               VALUES ('recruit', %s, %s, '', 0, 1, 'ALL', %s, %s)""",
+            [code, name, now, now],
+        )
     return RoleV2.objects.get(role_code=code, system_code='recruit')
 
 
@@ -421,16 +315,8 @@ def attach_super_admin(user):
 
 
 def _attach_role(user, role) -> None:
-    """T30.175: V2 → raw SQL 写 user_roles (兼容 V1 表 NOT NULL 约束);
-    V1 → user.user_roles. 根据 role 类型自动分支.
-
-    2026-08-03: V2 path 改用 raw SQL (因为 V1 user_roles.role_id NOT NULL, model 走不通)
-    """
-    if isinstance(role, RoleV2):
-        _raw_attach_v2_role(user, role)
-    else:
-        # V1 path (test DB on SQLite still runs V1 migrations)
-        user.user_roles.create(role=role, department=None)
+    """V2 → raw SQL 写 user_roles（V1 / SQLite 路径已移除，统一走 V2 fresh schema）。"""
+    _raw_attach_v2_role(user, role)
 
 
 @pytest.fixture

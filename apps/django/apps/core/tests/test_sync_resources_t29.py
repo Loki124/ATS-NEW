@@ -37,22 +37,14 @@ def seed_templates(db):
 
 def _v2_schema_ready():
     """探测 V2 roles + role_permission 表是否已有 V2-only 列 (T17-applied).
-    如果未应用, 表是 V1 schema, 跳过这些测试.
+    如果未应用, 表是 V1 schema, 跳过这些测试. 测试库统一 MySQL (DESCRIBE).
     """
     try:
         from django.db import connection
         with connection.cursor() as c:
-            # roles 表 V2 列: role_code / role_name / template_code / default_data_scope_type
-            if 'sqlite' in connection.vendor:
-                c.execute("PRAGMA table_info(roles)")
-            else:
-                c.execute("DESCRIBE roles")
+            c.execute("DESCRIBE roles")
             roles_cols = {row[1] for row in c.fetchall()}
-
-            if 'sqlite' in connection.vendor:
-                c.execute("PRAGMA table_info(role_permission)")
-            else:
-                c.execute("DESCRIBE role_permission")
+            c.execute("DESCRIBE role_permission")
             rp_cols = {row[1] for row in c.fetchall()}
         # 必须 V2 列都已存在
         return {'role_code'}.issubset(roles_cols) and {'resource_code'}.issubset(rp_cols)

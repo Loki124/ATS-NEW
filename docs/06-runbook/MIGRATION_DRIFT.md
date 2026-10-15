@@ -46,8 +46,8 @@ python manage.py showmigrations | grep process
 
 | 环境 | migrations 应用？ | RunPython 回调跑？ | 结论 |
 |------|------------------|--------------------|------|
-| `:memory:` SQLite + 无数据 | ✅（自动） | ⚠️ RunPython 走空循环 | 假绿 |
-| `:memory:` SQLite + ≥1 行数据 | ✅ | ✅（真跑） | 真绿 |
+| `:memory:` SQLite + 无数据（**已禁用 SQLite**，原默认测试库） | ✅（自动） | ⚠️ RunPython 走空循环 | 假绿 |
+| `:memory:` SQLite + ≥1 行数据（**已禁用 SQLite**，原默认测试库） | ✅ | ✅（真跑） | 真绿 |
 | dev MySQL + migrate 跑了 | ✅ | ✅ | 真绿 |
 | dev MySQL + migrate 漏跑 | ❌ | ❌ | 报 500 / NotImplemented |
 | 生产 MySQL + migrate 跑了 | ✅ | ✅ | 真绿 |
@@ -64,7 +64,7 @@ def backfill(apps, schema_editor):
         stage.save()
 ```
 
-- `:memory:` SQLite + 无数据 → `for` 不执行 → 函数返回成功。
+- `:memory:` SQLite + 无数据（**已禁用 SQLite**，原默认测试库）→ `for` 不执行 → 函数返回成功。
 - 生产 MySQL + ≥1 行数据 → `for` 执行，但代码逻辑有 bug → AttributeError / IntegrityError → 整个 migrate 失败。
 
 **migrate 类集成测试必须用 fresh DB + ≥1 行真实数据**，否则遮蔽类 bug 永远看不见。

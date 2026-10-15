@@ -47,8 +47,7 @@ graph TB
   end
 
   subgraph Data["数据层"]
-    MY[("MySQL 8<br/>70 张表")]
-    SQ[("SQLite<br/>dev/test")]
+    MY[("MySQL 8<br/>70 张表（生产/开发/测试统一，已禁用 SQLite）")]
     RD[("Redis 7<br/>cache + broker + layer")]
   end
 
@@ -276,7 +275,7 @@ V1 备份表（4 张, T01.1 RENAME 保留救援路径）
 > 以下 6 条为系统级关键决策，原载于已归档合并的 `ARCHITECTURE.md`，经核验为 Django 栈正确内容，保留于此作为唯一权威源。
 
 ### 9.1 V1/V2 权限双轨 (T30 cutover)
-V1 (legacy) 与 V2 (current) **模型并存**：`apps/core/models.py` (V1, managed=False) + `apps/core/models_permission_v2.py` (V2, managed=True)。V2 切库 `T17 v2_apply_schema` 后 V1 表 drop。当前 fixtures 兼容双 schema（V2 列经 conftest `_ensure_v2_schema_on_sqlite` 补到 sqlite 测试库）。
+V1 (legacy) 与 V2 (current) **模型并存**：`apps/core/models.py` (V1, managed=False) + `apps/core/models_permission_v2.py` (V2, managed=True)。V2 切库 `T17 v2_apply_schema` 后 V1 表 drop。当前 fixtures 兼容双 schema（V2 列经 conftest `_ensure_v2_schema_on_sqlite` 补到测试库）。
 
 ### 9.2 snake_case ↔ camelCase 自动桥 (DRF + djangorestframework-camel-case)
 API 出 Python snake_case → JSON camelCase（前端直接消费）；API 入前端 camelCase → DRF serializer snake_case。单词字段 (id/username/access/refresh) 与字典 key 不变。

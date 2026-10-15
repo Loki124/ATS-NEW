@@ -1,12 +1,12 @@
 """
-ATS-NEW 修复 verify 脚本（一次性, 不进 git）。
+ATS-NEW 修复 verify 脚本（MySQL 版）。
 
-跑法（从 apps/django/ 下）:
-  DATABASE_URL=sqlite:///verify_audit.db \
+跑法（从 apps/django/ 下, 需本地 MySQL 可达, DATABASE_URL 由 config.settings.test 解析）:
   INTEGRATION_FERNET_KEY=$(python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())") \
   .venv/bin/python scripts/verify_audit_fixes.py
 
 输出每个 Fix 的 PASS/FAIL, 末尾汇总。
+注: 项目已统一 MySQL（禁用 SQLite）, 本脚本复用 test settings 的 MySQL 配置（本地 ats_test / CI mysql:8.0）。
 """
 import os
 import sys
@@ -17,8 +17,7 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.test')
-# force sqlite 持久
-os.environ['DATABASE_URL'] = 'sqlite:///' + str(BASE / 'verify_audit.db')
+# 复用 test settings 的 MySQL 配置（项目已禁用 SQLite, 不再强制 sqlite）
 # 生成一个本地 Fernet key 给本验证
 if not os.environ.get('INTEGRATION_FERNET_KEY'):
     from cryptography.fernet import Fernet
@@ -30,11 +29,6 @@ from django.test.utils import setup_test_environment
 from django.contrib.auth.hashers import make_password
 from rest_framework.test import APIClient
 
-# 清掉 verify_audit.db, 跑 migration
-db_file = BASE / 'verify_audit.db'
-if db_file.exists():
-    db_file.unlink()
-print(f"[setup] DB: {db_file}")
 print(f"[setup] INTEGRATION_FERNET_KEY: {os.environ['INTEGRATION_FERNET_KEY'][:8]}...")
 print('[setup] running migrate...')
 call_command('migrate', '--noinput', verbosity=0)

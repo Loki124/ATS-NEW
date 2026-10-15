@@ -12,7 +12,7 @@
 
 - **Python 3.14+**（项目 `.venv` 是 3.14.6）
 - **Node.js 20+** + npm（项目用 `package-lock.json`，**不要再用 pnpm**）
-- **MySQL 8**（生产一致）或 **SQLite**（dev/test 兜底）
+- **MySQL 8**（生产/开发/测试统一，已禁用 SQLite）
 - **Redis 7**（限流 + Celery + Channels）
 
 ```bash
@@ -36,7 +36,7 @@ pip install -r requirements.txt
 # 3. 配 .env
 cp .env.example .env
 # 编辑 .env:
-#   DATABASE_URL=sqlite:///db.sqlite3   (开发用 sqlite, 生产用 mysql)
+#   DATABASE_URL=mysql://ats_user:***@localhost:3306/ats_db   (开发/测试统一使用 MySQL，已禁用 SQLite)
 #   DJANGO_SECRET_KEY=<50+ 字符随机串>  (生产必须)
 #   DJANGO_DEBUG=True
 #   REDIS_URL=redis://localhost:6379/0 (本地有 redis 起就 OK, 未起会 LocMemCache fallback)
@@ -238,7 +238,7 @@ git checkout <last-green-sha>  # 重建 venv, 重 migrate
 
 - **生产 systemd**: `ats-django.service` (gunicorn 4w) + `ats-celery.service` + `ats-celery-beat.service`
 - **HTTPS**: Cloudflare Tunnel (`ats.lokisong.cloud` → `127.0.0.1:8000`)
-- **生产数据库**: MySQL 8 (强依赖, dev/test SQLite 兜底)
+- **生产数据库**: MySQL 8（强依赖，dev/test 统一使用 MySQL，已禁用 SQLite）
 - **生产缓存**: Redis 7 (Celery broker + Channels layer + 限流, 强依赖)
 - **Docker Compose**: 部署编排（docker-compose / Dockerfile / nginx.conf / webhook 接收器 / systemd unit）已迁移到独立仓库 **[ats-deploy-infra](https://gitee.com/loki126/ats-deploy-infra.git)**，本仓库不再跟踪 `ops/`。生产栈的 R4 修复（mysql+redis+backend，0720247）现位于该仓库 `compose/docker-compose.yml`。
 

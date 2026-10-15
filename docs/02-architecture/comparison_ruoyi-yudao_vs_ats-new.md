@@ -21,13 +21,13 @@
 |---|---|---|---|
 | 语言/运行时 | Java 17（运行 21-jre） | Python 3.14 + Django | 生态不同，仅可借鉴思想 |
 | 后端框架 | Spring Boot + MyBatis-Plus | Django + DRF | 各有 ORM；我们缺"统一响应/分页/异常"体系（已在补 envelope） |
-| 数据库/ORM | MySQL + MyBatis + dynamic-datasource(多数据源) | MySQL8(生产)/SQLite(开发) + Django ORM | 对等 |
+| 数据库/ORM | MySQL + MyBatis + dynamic-datasource(多数据源) | MySQL 8（生产/开发/测试统一，已禁用 SQLite）+ Django ORM | 对等 |
 | 实时/异步 | WebSocket starter + Redis-MQ/RabbitMQ | Channels 4.3 + Celery 5.6 + Redis | 我们已覆盖 |
 | 认证/权限 | Spring Security + 数据权限注解 | SimpleJWT + V2 权限(L1-L4 Scope) + data_permission app | 我们已有雏形，可借鉴"注解化数据权限" |
 | 前端 UI | Ant Design Vue（另有 Element/Naive/TDesign 变体） | **Naive UI（已固定，不引入其它库）** | 我们已锁定单库，**适配器多库模式当前收益低** |
 | 状态机/工作流 | Flowable BPM | django-fsm-2（状态机） | 路线不同：我们是轻量 FSM，非 BPMN |
 | 监控 | SkyWalking / Spring Boot Admin / OTel | sentry-sdk + django-prometheus | 我们已覆盖 |
-| 测试 | JUnit5 + Mockito + H2 | pytest + vitest + Playwright + a11y | 对等，我们 SQLite 对标其 H2 |
+| 测试 | JUnit5 + Mockito + H2 | pytest + vitest + Playwright + a11y | 对等，我们 MySQL 对标其 H2（SQLite 已禁用） |
 | 部署 | Dockerfile + compose(mysql+redis+server+admin) + 初始化SQL | 独立仓库 ats-deploy-infra（Docker/compose/nginx/webhook/systemd） | 我们更干净（业务/运维分离） |
 
 ---
@@ -82,7 +82,7 @@
 
 | 项 | yudao | ATS-NEW | 对标情况 |
 |---|---|---|---|
-| 后端单测 | JUnit5 + Mockito-inline + H2 内存库 | pytest + SQLite（`--create-db` 真实迁移） | 我们对标 H2 用 SQLite，且 CI 跑 MySQL8 更严 |
+| 后端单测 | JUnit5 + Mockito-inline + H2 内存库 | pytest + MySQL（`--create-db` 真实迁移） | 我们对标 H2 用 MySQL，且 CI 跑 MySQL8 更严（已禁用 SQLite） |
 | 造数 | podam 随机造数 | 可用 **factory_boy** | 建议引入工厂，降测试样板 |
 | 前端 | Vitest + happy-dom + Playwright + **lefthook**(git 钩子) | Vitest + happy-dom + Playwright + @axe-core | 我们缺 **git 钩子(lint-staged/husky/lefthook)**，建议补 |
 | 隔离机制 | test-classes 下 `sql/{create,clean}.sql` | 我们有 `quarantine` marker 隔离不稳定用例 | 我们机制已先进 |

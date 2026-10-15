@@ -11,7 +11,7 @@
 
 - **后端**：Django app + DRF ViewSet（tag / rule / scene 三组）+ 3 个 service（向导事务、业务态查询、版本化）
 - **前端**：SettingsLayout 下 2 路由 + 1 向导弹窗（modal-lg 920px）+ 11 组件
-- **存储**：MySQL（dev）/ SQLite :memory:（test）；标签 name UNIQUE 含软删
+- **存储**：MySQL（dev/test 统一，已禁用 SQLite）；标签 name UNIQUE 含软删
 
 ## 2. 技术栈
 

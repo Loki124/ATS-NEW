@@ -1,5 +1,5 @@
 # 工程铁律与代码假绿坑（项目级编码反模式）
-> 最后更新：2026-09-20（依据 git 最后提交）
+> 最后更新：2026-10-15（依据 git 最后提交）
 
 > 适用：ATS-NEW 后端（Django + DRF）与前端（Vue 3 + Naive UI）的编码规则与反模式汇总。
 > 收录范围：实战中翻车过的、或看似 work 但实际假绿的工程问题。每条都附 commit 实证或源码定位。
@@ -27,8 +27,9 @@
 
 ## 4. PUT → PATCH 线上 BUG
 
-- `updateManagementUnit` 等端点仅传部分字段时，**真实服务器返 400**，但 `:memory:` 测试库掩盖（SQLite 允许更宽松的赋值）。
-- 修法：改 PATCH（partial=True），且后端改模型/字段后须真实 MySQL migrate + live curl 实测，不能只信 `:memory:` 测试。
+- `updateManagementUnit` 等端点仅传部分字段时，**真实 MySQL 服务器返 400**，但 SQLite / `:memory:` 测试库曾掩盖（SQLite 允许更宽松的赋值）。
+- 修法：改 PATCH（partial=True），且后端改模型/字段后须真实 MySQL migrate + live curl 实测，不能只信 SQLite / `:memory:` 测试。
+- 现项目已**禁用 SQLite**（见 §13），测试库统一 MySQL，此类掩盖从根上消除。
 
 ## 5. CSV 导出/导入协同（BOM + 超长单元格截断）
 
@@ -171,3 +172,28 @@ CSV_TRUNCATION_MARK = '…[已截断'
 - BOM CSV BugFix 完整审计 → `docs/07-audit/BOM_CSV_BUGFIX.md`
 - 数据字典重组 → `docs/03-product/DATA_DICTIONARY_RESTRUCTURING.md`
 - 迁移漂移假绿 → `docs/06-runbook/MIGRATION_DRIFT.md`
+
+## 13. 🔴 数据库：开发/测试统一 MySQL，禁用 SQLite（兵哥定调 2026-10-15）
+
+> 项目级硬约束：**开发 / 测试 / CI 全部统一使用 MySQL 8，严禁 SQLite（含 `:memory:` 测试库）。**
+
+### 13.1 根因教训（为什么禁用 SQLite）
+- SQLite 会**掩盖 MySQL 特有行为差异**，导致「本地 / CI 全绿、生产炸」：
+  - 迁移 `RemoveField`+`AddField` **同名列**：MySQL 上 `DROP COLUMN` 丢数据，SQLite 整表重建会拷贝数据 → 生产 1452。
+  - `:memory:` 测试库对更宽松的赋值「放行」，掩盖 PUT→PATCH 类 400 bug（见 §4）。
+  - InnoDB FULLTEXT 对**未提交事务不可见**，SQLite 无此约束 → 召回逻辑在测试里假绿。
+  - `PRAGMA table_info(...)` 是 SQLite 专有 SQL，在 MySQL 上直接 `1064`。
+- 结论：测试若跑 SQLite，等于没测 MySQL 行为，等于没测生产。
+
+### 13.2 落法（代码层面已执行）
+- `config/settings/test.py`：测试库**无条件 MySQL**（本地 `ats_test` / CI `mysql:8.0`），不保留任何 SQLite / `DB_ENGINE` 分支。
+- `config/settings/base.py`：`DATABASE_URL` 默认 MySQL；非 `mysql`/`postgres` 前缀直接 `ImproperlyConfigured` 拦死，不再回落 SQLite。
+- `config/settings/dev.py`：由 `DATABASE_URL` 决定，统一 MySQL。
+- `prod.py`：启动校验已禁止 SQLite（保留，作为生产护栏）。
+- CI：`test-backend` / `e2e` / `test-migrations` 复用 `mysql:8.0` service；`migration-drift` 也改 MySQL（不再用 `sqlite:///:memory:` 引导）。
+- 测试 fixtures / 单测：移除 `connection.vendor == 'sqlite'` 死分支，统一走 V2 fresh schema（MySQL）。
+- 已应用的迁移里残留的 `if vendor != 'mysql'` / SQLite 分支为**历史死代码**（仅 MySQL 会跑），不回改已应用迁移。
+
+### 13.3 验证纪律
+- 任何涉及**迁移 / 字段 / 索引 / 查询**的改动，必须在**真实 MySQL**（本地或 CI）上跑通，不能只信 SQLite / `:memory:` 测试。
+- 本地起测前确认 `.env` 的 `DATABASE_URL` 指向本地 MySQL；CI 三处 MySQL job 是真实链路闸门。

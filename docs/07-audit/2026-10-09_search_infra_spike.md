@@ -76,7 +76,7 @@
   让全量测试跑在 MySQL 上**（`config/settings/test.py:29` 支持该开关，
   2026-10-08 #26 对齐生产 MySQL 8）。因此 FULLTEXT / ngram 行为**可在现有 CI 直接验证**，
   无需新增验证环境。
-- 本地快速通道默认仍是 SQLite（`DB_ENGINE` 缺省 = `sqlite`），要本地验证 FULLTEXT 只需：
+- 本地快速通道默认已是 MySQL（`DB_ENGINE` 缺省 = `mysql`，已禁用 SQLite），要本地验证 FULLTEXT 只需：
   `DB_ENGINE=mysql DB_NAME=ats_test DB_USER=root DB_HOST=127.0.0.1 DB_PORT=3306 pytest ...`
   （或设 `DATABASE_URL=mysql://...`），指向与 CI 同款的 MySQL 8。
 - 结论：**方案 A 无验证阻塞**。把 `keyword_q` 切到 `MATCH...AGAINST` 时，
@@ -90,7 +90,7 @@
     `MATCH(\`table\`.\`col\`) AGAINST (%s) > 0`（ngram），关联字段 / 非安全标识符回退 `icontains`；
   - `config/settings/base.py`：新增 `SEARCH_BACKEND`（默认 `auto` → MySQL 走 FULLTEXT、其余回退 LIKE）；
   - `apps/candidate/migrations/0013_*`、`apps/application/migrations/0007_*`：MySQL-only 的 FULLTEXT 索引
-    （`WITH PARSER ngram`），SQLite/Postgres 自动跳过（RunPython 按 vendor 守卫）；
+    （`WITH PARSER ngram`），SQLite（现已禁用）/Postgres 自动跳过（RunPython 按 vendor 守卫）；
   - `apps/common/tests/test_search.py`：MySQL 门控用例，验证中文 ngram 召回与关联字段回退。
 - 验证：本地 MySQL 9.6 与 CI `mysql:8.0` 同款语义，用例全部通过。
 

@@ -9,7 +9,7 @@
 | 层级 | 技术选型 |
 |------|----------|
 | 后端 | Django 6.0.6 + DRF 3.17.1 + Celery 5.6.3 + Channels 4.3.2 |
-| 数据库 | MySQL 8 (生产) / SQLite (开发/测试) |
+| 数据库 | MySQL 8（生产/开发/测试统一，已禁用 SQLite） |
 | 认证 | JWT (SimpleJWT) + V2 权限 (L1-L4 Scope) |
 | 前端 | Vue 3 + Vite 5 + Pinia 2 + Vue Router 4 |
 | UI 组件 | Naive UI 2.44 + UnoCSS |
@@ -34,7 +34,7 @@ ATS-NEW/
 ### 前置依赖
 - **Python 3.14+**
 - **Node.js 20+** + npm
-- **MySQL 8** (或 SQLite 作为开发兜底)
+- **MySQL 8**
 - **Redis 7**
 
 ### 使用 Docker 启动全栈

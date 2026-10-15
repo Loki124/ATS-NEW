@@ -71,7 +71,7 @@ django-celery-results==2.6.0
 PyMySQL==1.2.0
 # mysqlclient==2.2.4   # 生产性能备选 (C 扩展, 需编译环境: mysql-client / libmysqlclient-dev)
 psycopg2-binary==2.9.12
-# SQLite 是 Python 内置, dev/test 用, 生产被 prod.py 的启动校验禁止
+# 备注: SQLite 已禁用（开发/测试环境统一 MySQL）。psycopg2 仅 PostgreSQL 备选驱动保留。
 
 # === Data Import ===
 # 库表导入命令读 xlsx: apps/library 的院校库(院校库.xlsx)用 openpyxl;
