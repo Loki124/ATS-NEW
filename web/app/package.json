@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "npm@11.9.0",
+  "engines": {
+    "node": ">=20 <25"
+  },
   "scripts": {
     "dev": "vite",
+    "prepare": "cd ../.. && git config core.hooksPath .husky",
     "postinstall": "patch-package",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -49,12 +54,15 @@
     "@types/node": "^20.19.39",
     "@unocss/reset": "^66.7.0",
     "@vitejs/plugin-vue": "^5.0.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "@vue/test-utils": "^2.4.11",
     "culori": "^4.0.2",
     "eslint": "^9.39.4",
     "eslint-plugin-vue": "^9.33.0",
     "globals": "^15.15.0",
     "happy-dom": "^15.11.7",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
     "patch-package": "^8.0.1",
     "postcss": "^8.5.26",
     "postcss-html": "^1.8.1",
@@ -66,5 +74,13 @@
     "vite": "^5.0.0",
     "vitest": "^2.1.9",
     "vue-tsc": "^2.2.12"
+  },
+  "lint-staged": {
+    "*.{ts,js,vue}": [
+      "eslint --max-warnings=0"
+    ],
+    "*.{vue,css}": [
+      "stylelint"
+    ]
   }
 }

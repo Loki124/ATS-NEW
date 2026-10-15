@@ -17,7 +17,7 @@ install:  ## Install backend + frontend dependencies
 	@echo "→ backend deps"
 	cd apps/django && python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
 	@echo "→ frontend deps"
-	cd web/app && pnpm install
+	cd web/app && npm install
 
 # ────── Run locally ──────
 
@@ -25,7 +25,7 @@ backend:  ## Run Django backend on :8000
 	cd apps/django && . .venv/bin/activate && python manage.py runserver 0.0.0.0:8000
 
 web:  ## Run Vue frontend on :5212
-	cd web/app && pnpm dev
+	cd web/app && npm run dev
 
 # ────── Docker stack ──────
 # 部署编排 (docker-compose / Dockerfile / nginx.conf / webhook 接收器 / systemd unit)
@@ -45,7 +45,7 @@ status:  ## Show git status + service health
 
 test:  ## Run backend + frontend test suites
 	cd apps/django && . .venv/bin/activate && pytest -m "not quarantine" --cov=apps --cov-report=term-missing --cov-fail-under=70
-	cd web/app && pnpm test
+	cd web/app && npm test
 
 # 2026-10-15: 防止"新 app 忘了跑 migrate"导致全站 500。
 # 事故: position_title/job_level 已注册 INSTALLED_APPS + 迁移在仓, 但本地库未 applied,
@@ -63,7 +63,7 @@ doctor:  ## 检查迁移漂移 + 待应用迁移 + 服务健康
 
 lint:  ## Run Python (ruff) + frontend (eslint) linters
 	cd apps/django && . .venv/bin/activate && ruff check apps
-	cd web/app && pnpm lint
+	cd web/app && npm run lint
 
 clean:  ## Remove caches and build artifacts
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

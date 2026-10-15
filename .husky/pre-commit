@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# 前端提交前门禁（2026-10-15 建立）
+#
+# 背景：此前仓库无任何 pre-commit，AGENTS.md §7 那 30 项交付前自检全靠自觉，
+#   导致 eslint warning（P0-2）、覆盖率依赖缺失（P0-1）这类问题能直接进主干。
+#
+# 只跑暂存文件，且只做「检查」不做「修改」——
+#   eslint 不带 --fix：CI 注释已说明，提交前自动改文件会造成
+#   「本地干净、CI 也绿，但改动没提交」的幽灵状态。
+#
+# 不放 typecheck：vue-tsc 全量约 50s，放进 pre-commit 太慢，
+#   类型安全由 CI 的 `npm run build`（含 vue-tsc）把关。
+cd "$(git rev-parse --show-toplevel)/web/app" || exit 1
+
+# 用本地二进制直跑，不走 npx（npx 会联网取包，离线/受限环境下会假失败）
+exec ./node_modules/.bin/lint-staged

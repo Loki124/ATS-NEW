@@ -22,9 +22,9 @@
             <div class="offer-head-right">
               <template v-if="availableActions(o).length > 0">
                 <n-button
+                  v-if="availableActions(o)[0] && !isDangerousAction(availableActions(o)[0])"
                   size="tiny"
                   type="primary"
-                  v-if="availableActions(o)[0] && !isDangerousAction(availableActions(o)[0])"
                   :loading="actingId === o.id"
                   @click="runAction(o, availableActions(o)[0])"
                 >

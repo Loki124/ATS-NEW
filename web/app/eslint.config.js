@@ -50,7 +50,13 @@ export default [
       },
     },
   },
-  // 忽略 dist / node_modules / 静态文件
+  // 忽略 dist / node_modules / 静态文件 / 构建与测试产物
+  //
+  // 2026-10-15: 补 coverage/**。此前 vitest 覆盖率门禁因缺 @vitest/coverage-v8
+  //   从未真正跑通过，coverage/ 目录不会生成，问题被掩盖。门禁修好后
+  //   `npm test -- --coverage` 会产出 coverage/（内含 sorter.js 等报告资产），
+  //   未忽略时 eslint 会把这些生成物当源码扫出 2 个 warning，
+  //   而 CI 顺序是「先 coverage 后 lint:ci（--max-warnings=0）」→ 直接红。
   {
     ignores: [
       'dist*/**',
@@ -58,6 +64,9 @@ export default [
       '**/*.min.js',
       'public/**',
       '*.cjs',
+      'coverage/**',
+      'playwright-report/**',
+      'test-results/**',
     ],
   },
 ];

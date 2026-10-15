@@ -19,13 +19,21 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
+      // 统计范围限定「有单测覆盖的逻辑层」。全量统计会把 176 个从未被测试 import
+      //   的 .vue 页面全计为 0%，把整体稀释到 16.84%，门禁失去灵敏度。
+      //   收窄后新增逻辑层文件（utils/api/... 下的 .ts）不带测试仍会被计入并稀释，
+      //   因此约束力保留；.vue 组件测试另行推进，不混入本门禁基数。
+      include: ['src/{utils,api,composables,stores,router,services,styles}/**/*.ts'],
       // 2026-10-08 (#25): 覆盖率门禁。低于阈值 → CI 失败, 防止"测试越写越少还判绿"。
-      //   门槛保守: 现状未知, 先锁 70/55/65/70, 后续随覆盖补齐再上调。
+      //   2026-10-15 修正: 原 70/55/65/70 是拍脑袋值, 从未真正跑通过（缺
+      //   @vitest/coverage-v8, 门禁一直静默失败）。现按实测基线锁定:
+      //   25.37/79.4/43.61/25.37 向下取整 → 25/79/43/25。
+      //   这是「防恶化」基线而非目标值, 后续只许上调不许下调。
       thresholds: {
-        statements: 70,
-        branches: 55,
-        functions: 65,
-        lines: 70,
+        statements: 25,
+        branches: 79,
+        functions: 43,
+        lines: 25,
       },
     },
   },
