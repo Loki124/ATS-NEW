@@ -163,35 +163,40 @@ def purge_residual_orphans(apps, schema_editor):
     roles 三表（备份是本删除唯一的兜底）。
     """
     db_alias = schema_editor.connection.alias
-    connection = schema_editor.connection
     User = apps.get_model('core', 'User')
     UserRoleV2 = apps.get_model('core', 'UserRoleV2')
 
-    # 🔴 半完成态防御：前次失败迁移可能已把 user_id 物理列 DROP 掉（MySQL 非事务 DDL）。
-    # 此时若直接查 user_id → (1054 Unknown column) 二次失败。列不在就无需清理，直接跳过。
-    if connection.vendor == 'mysql':
-        table = UserRoleV2._meta.db_table
-        with connection.cursor() as cur:
-            cur.execute(
-                """
-                SELECT COUNT(*) FROM information_schema.COLUMNS
-                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'user_id'
-                """,
-                [connection.settings_dict['NAME'], table],
-            )
-            if not cur.fetchone()[0]:
-                print('[P0-3/0024] user_id 物理列不存在（半完成态），跳过残留孤儿清理。')
-                return
-
-    valid_user_ids = set(User.objects.using(db_alias).values_list('id', flat=True))
-    orphans = UserRoleV2.objects.using(db_alias).exclude(user_id__in=valid_user_ids)
-    n = orphans.count()
-    if n:
-        detail = list(orphans.values_list('id', 'user_id', 'role_code')[:5])
-        print(f'[P0-3/0024] 删除残留孤儿授权 user_roles: {n} 条，样例={detail}')
-        orphans.delete()
-    else:
-        print('[P0-3/0024] 加 FK 前检查：无残留孤儿授权，跳过清理。')
+    # 🔴 2026-10-15 线上第三次翻车复盘：用 _meta.db_table + information_schema 预检查
+    # 是错的 —— 该迁移的 from_state 里 UserRoleV2 尚无 `user` 字段、db_table 解析不可靠，
+    # 预检查误判「列不存在」→ 直接 return 跳过清理 → 紧接着 AddField 照旧撞 1452。
+    # 改为：**不做任何预检查**，直接执行删除，让「列真不存在」这一种情形由异常兜底。
+    #
+    # 🔴 用 ORM 子查询而非 `DELETE ur FROM ... JOIN`（MySQL 多表删除语法）：
+    #    后者在 SQLite 下直接 `near "ur": syntax error`（实测），会把
+    #    test settings（SQLite）的建库流程整体搞崩 → 207 errors。
+    #    exclude(user_id__in=...) 是跨库通用写法，且天然「不按 is_active 过滤」。
+    try:
+        valid_user_ids = list(
+            User.objects.using(db_alias).values_list('id', flat=True)
+        )
+        orphans = UserRoleV2.objects.using(db_alias).exclude(
+            user_id__in=valid_user_ids
+        )
+        n = orphans.count()
+        if n:
+            detail = list(orphans.values_list('id', 'user_id', 'role_code')[:5])
+            print(f'[P0-3/0024] 删除残留孤儿授权 user_roles: {n} 条，样例={detail}')
+            orphans.delete()
+        else:
+            print('[P0-3/0024] 加 FK 前检查：无残留孤儿授权，跳过清理。')
+    except django.db.utils.DatabaseError as exc:
+        # 1054 Unknown column = user_id 物理列已被前次失败迁移 DROP（半完成态），
+        # 此时本就无需清理，放行让后续 AddField 重建该列。
+        msg = str(exc).lower()
+        if '1054' in msg or 'unknown column' in msg:
+            print('[P0-3/0024] user_id 物理列不存在（半完成态），跳过残留孤儿清理。')
+            return
+        raise
 
 
 class SafeRemoveConstraint(migrations.RemoveConstraint):
