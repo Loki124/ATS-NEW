@@ -18,6 +18,8 @@ from .field_map import (
     DIMENSION_META,
     MODULE_LABELS,
     MODULE_ORDER,
+    dimension_label,
+    hidden_dimensions_for,
     supported_dimensions,
 )
 from .models import DataPermissionRule
@@ -429,7 +431,18 @@ def options_payload() -> Dict:
     for mk in MODULE_ORDER:
         dim_metas = []
         for d in supported_dimensions(mk):
+            # 🔴 2026-10-15 兵哥拍板：去掉「管理单元」维度。
+            # 仅在此处**不下发** —— 后端 field_map / expr_compiler / context_resolvers
+            # 的 unit 映射与 iter_unit_scopes 展开逻辑**一行不动**，故存量规则里
+            # 已用 unit 的条件仍能正常回显（前端按 DIMENSION_META 兜底出文案）并照常执行。
+            # 禁前端过滤：前端拿到的是全量维度列表，隐藏逻辑散落两处反而更易漏。
+            if d in hidden_dimensions_for(mk):
+                continue
             meta = dict(DIMENSION_META[d])
+            # 模块化文案优先（需求部门/需求负责人/需求创建人），缺省回落通用名。
+            # 理由：同一个「部门」在不同模块指向不同实体 —— candidate 的 dept 其实是
+            # referrer__department_id（推荐人部门），照叫「部门」会误导。
+            meta['label'] = dimension_label(mk, d)
             if meta['valueType'] == 'department':
                 meta['options'] = dept_options
             elif meta['valueType'] == 'user':

@@ -29,7 +29,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.modal.dynamicHint': "Resolved at runtime by the employee who holds this role — NOT the administrator's own department",
   'dataperm.src.departments': "Departments this employee manages",
   'dataperm.src.deptSubtree': "Departments this employee manages + sub-departments",
-  'dataperm.src.id': 'The employee themself',
+  'dataperm.src.id': 'Current signed-in user',
   'dataperm.src.managedUnits': 'Management units of this employee',
   'dataperm.src.staticSuffix': 'Fixed {dim}',
   'dataperm.modal.staticSource': 'Fixed {dim}',

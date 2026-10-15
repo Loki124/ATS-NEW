@@ -65,13 +65,30 @@ export const ATTR_LIST_OPS = new Set(['IN', 'NOT_IN']);
  * "我的"指向不明 —— 管理员配置时看这三个选项，语义必须是**运行时登录的那个成员**，
  * 而不是配置人自己。证据：后端 responsible_department_ids(user) 的入参 user 是
  * 运行时登录用户（user.department ∪ Department.leader=user），每人取值不同。
- * 故改为「该成员…」，并在预览句中同步。
+ *
+ * 🔴 同日二次修正（兵哥「该成员本人改为当前登录用户」）：
+ *   currentUser.id 原为「该成员本人」，在「创建人/负责人」维度里读起来像在讲
+ *   第三人，而它的实际语义就是**当前正在操作系统的登录者本人**（编译为 pk__in=[当前用户]），
+ *   故改为「当前登录用户」。用词与系统其它位置（操作日志 / 登录态）保持一致，
+ *   管理员不必在同一产品里记两套说法。
  */
 export const DYNAMIC_SOURCE_LABELS: Record<string, string> = {
   'currentUser.departments': '该成员的负责部门',
   'currentUser.deptSubtree': '该成员的负责部门及其下级',
-  'currentUser.id': '该成员本人',
+  'currentUser.id': '当前登录用户',
   'currentUser.managedUnits': '该成员的管理单元',
+};
+
+/**
+ * 动态取值来源的补充说明（tooltip / 行内提示用）。
+ * 🔴 「当前登录用户」不需要提示 —— 它字面已自解释，再加"非管理员所在部门"反而
+ * 让人以为这里也有歧义；只有「该成员的负责部门」这类需要点明的才给说明。
+ */
+export const DYNAMIC_SOURCE_NOTES: Record<string, string> = {
+  'currentUser.departments': '运行时取该角色成员的负责部门',
+  'currentUser.deptSubtree': '运行时取该角色成员的负责部门及其下级',
+  'currentUser.id': '',
+  'currentUser.managedUnits': '运行时取该角色成员的管理单元',
 };
 
 /** 包含关系 -> 中文（与后端 context_resolvers.DYNAMIC_RELATIONS 对齐）。 */

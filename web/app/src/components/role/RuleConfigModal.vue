@@ -114,8 +114,8 @@
               :placeholder="t('dataperm.modal.valuesPlaceholder')"
               @update:value="(ids: Array<string | number>) => onValuesChange(c, ids)"
             />
-            <span v-if="isDynamic(c)" class="dynamic-hint">
-              {{ t('dataperm.modal.dynamicHint') }}
+            <span v-if="dynamicNote(c)" class="dynamic-hint">
+              {{ dynamicNote(c) }}
             </span>
             <n-tag
               v-for="sv in staleValues(c)"
@@ -343,6 +343,7 @@ import {
   newCondition, uid, validateExpr, previewOf,
   ATTR_NOVALUE_OPS, ATTR_LIST_OPS,
   dynamicSourceOptions, resolveValueSource, DYNAMIC_RELATION_OPTIONS, DYNAMIC_RELATION_LABELS,
+  DYNAMIC_SOURCE_NOTES,
   type DimensionMeta, type Operator, type PermCondition, type PermConditionGroup, type AttributeField, type PermValue,
   type DynamicRelation,
 } from '@/composables/useRoleDataPerm'
@@ -627,11 +628,40 @@ function onDimensionChange(c: PermCondition, v: string) {
 function onValueSourceChange(c: PermCondition, v: string) {
   const meta = dimMetaOf(c.dimension || '')
   const next = resolveValueSource(v, meta?.valueType)
+  const wasDynamic = isDynamic(c)
   c.valueSource = next.valueSource
   c.dynamicKey = next.dynamicKey
-  c.relation = next.relation
-  c.operator = 'in' // 动态模式下 operator 不参与编译，留合法默认值
+  // 🔴 2026-10-15（兵哥「选择该项的时候不要把判断条件去掉」）：
+  // 动态态内部再切来源（currentUser.departments ↔ deptSubtree ↔ currentUser.id）
+  // **不重置 relation**。此前每次切换都让 resolveValueSource 重算 relation，
+  // 导致管理员在「包含 / 属于（含下级）/ 包含或属于」之间选好的包含关系被悄悄
+  // 改回默认值 —— 界面上看得到、语义上已经变了，属于"看不见的数据损坏"。
+  // 只有从**静态**首次切进动态时才按新维度给默认 relation。
+  if (!wasDynamic) {
+    c.relation = next.relation
+  }
+  // 🔴 同理不再无条件覆写 operator：动态态下 operator 不参与编译
+  // （expr_compiler 走 relation 分支），保留管理员此前的选择，
+  // 仅当它为空/非法时才给合法默认值，避免"选了下拉却被重置"。
+  if (!c.operator) {
+    c.operator = 'in'
+  }
   c.values = []     // 静态值不再使用，清掉避免误提交
+}
+
+/**
+ * 动态取值的行内补充说明。
+ *
+ * 🔴 「当前登录用户」(currentUser.id) 返回空串 → 模板不渲染提示 →
+ *    既省掉一行、也不会把删除按钮挤到下一行（兵哥截图的塌陷）。
+ *    该选项字面已自解释，额外提示反而像在暗示它也有歧义。
+ */
+function dynamicNote(c: PermCondition): string {
+  if (!isDynamic(c)) return ''
+  const note = DYNAMIC_SOURCE_NOTES[c.dynamicKey || ''] ?? ''
+  if (note) return note
+  // 无专属说明时给通用兜底（对应 t('dataperm.modal.dynamicHint')，保留 i18n）
+  return t('dataperm.modal.dynamicHint')
 }
 
 function onValuesChange(c: PermCondition, ids: Array<string | number>) {
@@ -859,13 +889,16 @@ function confirm() {
  * 刻意**不用 --c-error**：红是删除/危险的专属信号（MEMORY.md：危险色不许当装饰用）。
  */
 .group-block {
-  background: var(--g1);
+  /* 第 1 组：品牌紫底（**不能留 --g1 中性灰** —— 只 1 组时看起来就是"没上色"，
+     兵哥 2026-10-15 实际踩到：4n+2/3/4 都有色，唯独第一组落回中性底） */
+  background: var(--brand-soft);
   border: 1px solid var(--g2);
   border-left: 3px solid var(--brand-fg);
   border-radius: var(--radius-sm);
   padding: 8px 8px 4px 8px;
   margin-bottom: var(--space-3);
 }
+/* 4 色循环：品牌紫 / 信息蓝 / 成功绿 / 警示橙，第 5 组回到品牌紫 */
 .group-block:nth-child(4n + 2) {
   background: var(--c-info-soft);
   border-left-color: var(--c-info-deep);
@@ -921,9 +954,9 @@ function confirm() {
   flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
-  background: var(--brand-a12, rgba(99, 102, 241, 0.12));
+  background: var(--brand-a12);
   color: var(--brand-fg);
-  font-size: var(--fs-12, 12px);
+  font-size: var(--fs-12);
   font-weight: 600;
 }
 .cond-del {
@@ -934,7 +967,9 @@ function confirm() {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  margin-left: auto;
+  /* 🔴 去掉 margin-left:auto —— 它会把删除按钮顶到行尾，提示换行后按钮被孤立到
+     下一行右侧（兵哥截图的"样式混乱"）。改用提示的 flex 收缩吸收剩余空间。 */
+  margin-left: 4px;
   padding: 0;
 }
 .cond-del:hover:not(:disabled) { color: var(--c-error-deep); }
@@ -950,12 +985,20 @@ function confirm() {
 .cond-src { width: 190px; flex-shrink: 0; }
 .cond-val { flex: 1; min-width: 140px; }
 
-/* 动态取值提示：点明「谁的部门」，消除配置人 vs 运行时成员的歧义 */
+/*
+ * 动态取值提示：点明「谁的部门」，消除配置人 vs 运行时成员的歧义。
+ *
+ * 🔴 2026-10-15 布局塌陷修复（兵哥「选择该成员本人时的提示内容会导致整个模块样式混乱」）：
+ * 原 flex: 1 0 100% = basis 100%，提示独占一整行 ⇒ 同行末尾的删除按钮被
+ * `margin-left:auto` 顶到下一行右侧，整行看起来"散架"。
+ * 修法：允许收缩（basis auto），并给一个可容身下限让它与控件同行；
+ * 真正放不下时自然换行，此时删除按钮仍紧随控件其后。
+ */
 .dynamic-hint {
-  flex: 1 0 100%;
-  min-width: 0;
-  font-size: var(--fs-12, 12px);
-  line-height: 1.6;
+  flex: 1 1 auto;
+  min-width: 120px;
+  font-size: var(--fs-12);
+  line-height: 1.5;
   color: var(--ink-faint);
 }
 .stale-tag { flex-shrink: 0; background: var(--g2); color: var(--ink-soft); }

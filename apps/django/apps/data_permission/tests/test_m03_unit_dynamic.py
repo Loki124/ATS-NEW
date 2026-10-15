@@ -14,7 +14,7 @@ from apps.core.models_permission_v2 import (
     UserRoleV2,
 )
 from apps.data_permission.expr_compiler import compile_scope_q, validate_scope_payload
-from apps.data_permission.role_scope_api import options_payload
+from apps.data_permission.role_scope_api import _unit_options, options_payload
 from apps.demand.models import Demand
 
 
@@ -203,9 +203,33 @@ class ValidateDimensionAdaptationTestCase(TestCase):
 
 
 class OptionsUnitShellTestCase(TestCase):
-    """role_scope_api.options_payload：unit 维度选项 + 空壳单元 emptyShell 标记（护栏一）。"""
+    """unit 维度空壳单元 emptyShell 标记（护栏一）。
+
+    🔴 2026-10-15 兵哥拍板「去掉管理单元」后，options_payload **不再下发 unit 维度**
+    （field_map.HIDDEN_DIMENSIONS 全局隐藏 unit，仅前端不可见，后端映射与
+    iter_unit_scopes 展开逻辑一行未动，存量规则仍可执行）。
+    故本用例拆成两条断言：
+      ① options_payload 里 unit 维度**应缺席**（新行为，防回归）；
+      ② emptyShell 空壳标记逻辑本身仍正确 —— 直接测 _unit_options()，
+         护栏一（选中空壳单元看不到任何数据）不能因为隐藏维度而失去覆盖。
+    """
+
+    def test_unit_dimension_hidden_from_options(self):
+        """去掉管理单元：options_payload 不应再下发 unit 维度。"""
+        _mk_dept('BG')
+        resp = options_payload()
+        modules = {m['moduleKey']: m for m in resp['modules']}
+        unit_dim = next(
+            (d for d in modules['demand']['dimensions'] if d['key'] == 'unit'), None,
+        )
+        self.assertIsNone(
+            unit_dim,
+            '兵哥 2026-10-15 决策：管理单元维度应从 UI 下拉隐藏，'
+            '后端仅不下发（HIDDEN_DIMENSIONS），不应出现在 dimensions 里',
+        )
 
     def test_unit_options_carry_empty_shell_flag(self):
+        """护栏一：emptyShell 标记仍正确（直接测取值函数，与是否下发解耦）。"""
         bg = _mk_dept('BG')
         u_ok = ManagementUnit.objects.create(
             unit_name='OK', org_scope=[{'deptId': str(bg.id)}], status=1,
@@ -213,12 +237,7 @@ class OptionsUnitShellTestCase(TestCase):
         u_shell = ManagementUnit.objects.create(
             unit_name='SHELL', org_scope=None, status=1,
         )
-        resp = options_payload()
-        modules = {m['moduleKey']: m for m in resp['modules']}
-        unit_opts = next(
-            (d['options'] for d in modules['demand']['dimensions'] if d['key'] == 'unit'), None,
-        )
-        self.assertIsNotNone(unit_opts, 'demand 应暴露 unit 维度选项')
+        unit_opts = _unit_options()
         by_id = {o['id']: o for o in unit_opts}
         self.assertIn(u_shell.id, by_id)
         self.assertTrue(by_id[u_shell.id].get('emptyShell'))

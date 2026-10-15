@@ -31,7 +31,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   // responsible_department_ids: user.department ∪ Department.leader=user），不是配置人。
   'dataperm.src.departments': '该成员的负责部门',
   'dataperm.src.deptSubtree': '该成员的负责部门及其下级',
-  'dataperm.src.id': '该成员本人',
+  'dataperm.src.id': '当前登录用户',
   'dataperm.src.managedUnits': '该成员的管理单元',
   'dataperm.src.staticSuffix': '固定{dim}',
   'dataperm.modal.staticSource': '固定{dim}',

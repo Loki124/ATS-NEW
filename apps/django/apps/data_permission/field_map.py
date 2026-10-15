@@ -63,9 +63,17 @@ MODULE_DIMENSION_FIELDS: dict[str, dict[str, str | bool | None]] = {
 # 维度元信息（供 options 接口下发前端展示名）。
 # contextKeys: 该维度可用的动态值来源（valueSource='dynamic' 时的快捷主体），
 #   前端渲染为值模式切换后的首组下拉；键集合与 context_resolvers.DYNAMIC_SOURCE_KEYS 对齐。
+#
+# 2026-10-15 文案与维度治理（兵哥「部门改为需求部门，负责人拆解为需求中设置的人员字段，
+# 创建人改为需求创建人，去掉管理单元」）：
+#   - dept/owner/creator 的 label 改为**模块化表述**（需求部门 / 需求负责人 / 需求创建人），
+#     消除「部门」在不同模块指向不同实体的歧义（candidate 的 dept 其实是
+#     referrer__department_id=推荐人部门，不是候选人本人部门）。
+#   - label 必须**按模块分派**：MODULE_DIMENSION_LABELS 优先，缺省回落 DIMENSION_META。
+#   - owner 的后端字段路径不变（demand=hr_id，即「需求中设置的人员字段」，与兵哥口径一致）。
 DIMENSION_META: dict[str, dict] = {
     'dept': {
-        'key': 'dept', 'label': '部门', 'valueType': 'department',
+        'key': 'dept', 'label': '所属部门', 'valueType': 'department',
         'contextKeys': ['currentUser.departments', 'currentUser.deptSubtree'],
     },
     'owner': {
@@ -81,6 +89,27 @@ DIMENSION_META: dict[str, dict] = {
         'contextKeys': ['currentUser.managedUnits'],
     },
     'process': {'key': 'process', 'label': '招聘流程', 'valueType': 'process'},
+}
+
+# 模块专属维度展示名（优先级高于 DIMENSION_META['label']）。
+# 🔴 需求模块（demand）：owner 对应 hr_id（需求单上设置的 HR / 负责人），故叫「需求负责人」；
+#    creator 对应 created_by_id，故叫「需求创建人」；dept 对应 department_id，故叫「需求部门」。
+MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
+    'demand': {
+        'dept': '需求部门',
+        'owner': '需求负责人',
+        'creator': '需求创建人',
+    },
+}
+
+# 🔴 兵哥拍板：**去掉「管理单元」维度**（2026-10-15）。
+# unit 是 M03 复合维度，值为 True 标记、编译期经 iter_unit_scopes 展开为
+# 「部门集合 ∪ 成员用户集合」—— 语义上等价于"按管理单元反查可见范围"，但管理员
+# 无法直���理解"管理单元"与"部门"的区别，且展开后与其余维度重叠、配置心智负担高。
+# 处置：**仅从 UI 下拉隐藏**（前端过滤），后端映射与展开逻辑**全部保留** ——
+# 存量规则若已用 unit 维度仍能正常回显与执行（前端按 label 兜底渲染，不静默改语义）。
+HIDDEN_DIMENSIONS: dict[str, frozenset[str]] = {
+    '*': frozenset({'unit'}),
 }
 
 # 模块顺序与展示名（抽屉内 5 张卡的顺序）
@@ -102,3 +131,17 @@ def supported_dimensions(entity: str) -> list[str]:
     """
     fields = MODULE_DIMENSION_FIELDS.get(entity, {})
     return [d for d, path in fields.items() if path]
+
+
+def hidden_dimensions_for(entity: str) -> frozenset[str]:
+    """该模块要从 UI 下拉中隐藏的维度（当前全局统一隐藏 unit，见 HIDDEN_DIMENSIONS）。"""
+    return HIDDEN_DIMENSIONS.get(entity, frozenset()) | HIDDEN_DIMENSIONS.get('*', frozenset())
+
+
+def dimension_label(entity: str, dimension: str) -> str:
+    """维度展示名：模块专属优先，缺省回落 DIMENSION_META 的通用名。"""
+    return (
+        MODULE_DIMENSION_LABELS.get(entity, {}).get(dimension)
+        or DIMENSION_META.get(dimension, {}).get('label')
+        or dimension
+    )
