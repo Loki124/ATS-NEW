@@ -16,23 +16,17 @@
         class="group-card"
       >
         <div class="group-head">
-          <span class="drag-handle">⠿</span>
-          <n-tag size="small" :bordered="false" type="primary" class="group-badge">
+          <span class="group-title">
+            <n-icon :component="ReorderFourOutline" />
             {{ t('dataperm.modal.groupTitle', { n: gi + 1 }) }}
-          </n-tag>
+          </span>
           <div class="group-head-actions">
-            <n-button size="small" tertiary @click="addCondition(g)">
-              + {{ t('dataperm.modal.addCondition') }}
-            </n-button>
-            <n-button
-              size="small"
-              tertiary
-              type="error"
-              :disabled="localGroups.length <= 1"
-              @click="delGroup(gi)"
-            >
-              {{ t('dataperm.modal.delGroup') }}
-            </n-button>
+            <a @click="addCondition(g)">
+              <n-icon :component="AddOutline" /> {{ t('dataperm.modal.addCondition') }}
+            </a>
+            <a v-if="localGroups.length > 1" class="danger" @click="delGroup(gi)">
+              <n-icon :component="TrashOutline" /> {{ t('dataperm.modal.delGroup') }}
+            </a>
           </div>
         </div>
 
@@ -42,51 +36,37 @@
           :key="c.id"
           class="cond-row"
         >
-          <div class="cond-top">
-            <span class="cond-idx">{{ ci + 1 }}</span>
-            <!--
-              条件类型：属性条件已下线（见 docs/EVAL_ARCH_指标行级过滤源_可行性评估.md
-              §2.3「context 右值三形态：静态 / 上下文变量 / 属性条件（下线保留代码）」）。
+          <span class="cond-seq">{{ ci + 1 }}</span>
+          <!--
+            关系维度条件：横排一行（维度 → 取值来源 → 包含关系 → 值），对齐
+            stage-rule/modals/EntryRuleEditModal.vue 的 cond-row 范式。
 
-              为什么不直接删掉 kind 字段：
-                - 后端 expr_compiler 仍按 kind 分派编译属性条件（存量快照仍能执行），
-                  前端必须能**读懂** kind='attribute' 的存量条件并原样回传，否则会
-                  在往返编辑中静默损坏已保存的规则；
-                - 权限系统里「看不见但仍在生效的规则」比「看不见且不能新建」更危险。
+            🔴 A档：原此处有一个 n-radio-group「关系维度」单选项，但只有 relationship
+            一个可选项且不可切换（属性条件已下线），纯装饰还占一行 —— 已删除，改为
+            直接铺控件。属性条件存量只读分支见下方 v-else。
 
-              因此这里保留单选的只读呈现（仅关系维度一个选项时无需渲染切换器），
-              属性条件本体分支（attr-body）保留为存量只读渲染，新建入口不再暴露。
-            -->
-            <n-radio-group
-              v-if="!isAttr(c)"
-              :value="c.kind || 'relationship'"
-              size="small"
-            >
-              <n-radio-button value="relationship">{{ t('dataperm.modal.condType.relationship') }}</n-radio-button>
-            </n-radio-group>
-            <n-tag
-              v-else
-              size="small"
-              :bordered="false"
-              type="warning"
-              class="cond-deprecated"
-            >
-              {{ t('dataperm.modal.condType.attribute') }} · {{ t('dataperm.modal.deprecatedBadge') }}
-            </n-tag>
-            <n-button
-              size="tiny"
-              tertiary
-              circle
-              class="cond-del"
-              :disabled="g.conditions.length <= 1"
-              @click="delCondition(g, ci)"
-            >
-              ×
-            </n-button>
-          </div>
+            为什么不能直接删掉 kind 字段：
+              - 后端 expr_compiler 仍按 kind 分派编译属性条件（存量快照仍能执行），
+                前端必须能**读懂** kind='attribute' 的存量条件并原样回传，否则会
+                在往返编辑中静默损坏已保存的规则；
+              - 权限系统里「看不见但仍在生效的规则」比「看不见且不能新建」更危险。
+          -->
 
-          <!-- 关系维度（沿用原逻辑：维度 -> 业务值） -->
-          <div v-if="!isAttr(c)" class="cond-body rel">
+          <!--
+            关系维度：控件顺序严格按**中文语义句语序**排：维度 → 关系 → 取值。
+            例：部门 包含 该成员的负责部门 / 部门 属于 智能BG。
+
+            🔴 A档修正（2026-10-15）：「包含关系」原先排在 `cond-src` 之后，
+            动态态渲染成「部门 | 该成员的负责部门 | 包含」—— 中文读起来
+            「部门 包含 …」的关系词被甩到末尾，语序错乱（上一轮只修了文案没动位置）。
+
+            现在关系词固定占第 2 位，且**静态/动态共用这一位**：
+              静态 operator（属于 / 不属于）—— 业务字段 ∈ 静态值集合
+              动态 relation（exact/in_subtree/contains/overlap）—— 业务字段 ∈ 运行时成员集合
+            二者语义同位（都是「字段与目标集合的关系」），只是目标来源不同，
+            拆成两个位置才是真 bug。
+          -->
+          <template v-if="!isAttr(c)">
             <n-select
               :value="c.dimension"
               :options="dimensionOptions"
@@ -94,15 +74,25 @@
               class="cond-dim"
               @update:value="(v: string) => onDimensionChange(c, v)"
             />
+            <!-- 第 2 位·静态：运算符（属于 / 不属于） -->
             <n-select
               v-if="!isDynamic(c)"
               :value="c.operator"
               :options="operatorOptions"
               size="small"
-              class="cond-op"
+              class="cond-verb"
               @update:value="(v: Operator) => (c.operator = v)"
             />
-            <!-- 取值来源：仅 contextKeys 非空的维度支持动态取值（M03） -->
+            <!-- 第 2 位·动态：包含关系（仅部门类维度有树语义，user/unit 维度无 relation） -->
+            <n-select
+              v-else-if="hasDeptRelation(c)"
+              :value="c.relation || 'exact'"
+              :options="relationOptions"
+              size="small"
+              class="cond-verb"
+              @update:value="(v: DynamicRelation) => (c.relation = v)"
+            />
+            <!-- 第 3 位·取值来源：仅 contextKeys 非空的维度支持动态取值（M03） -->
             <n-select
               v-if="supportsDynamic(c)"
               :value="valueSourceValue(c)"
@@ -111,15 +101,7 @@
               class="cond-src"
               @update:value="(v: string) => onValueSourceChange(c, v)"
             />
-            <!-- 包含关系：仅部门类维度有树语义（user/unit 维度动态条件无 relation） -->
-            <n-select
-              v-if="isDynamic(c) && hasDeptRelation(c)"
-              :value="c.relation || 'exact'"
-              :options="relationOptions"
-              size="small"
-              class="cond-rel"
-              @update:value="(v: DynamicRelation) => (c.relation = v)"
-            />
+            <!-- 第 4 位·取值：仅静态态需要手选业务值 -->
             <n-select
               v-if="!isDynamic(c)"
               :value="validValueIds(c)"
@@ -144,17 +126,23 @@
             >
               {{ sv.label }}（{{ t('dataperm.value.stale') }}）
             </n-tag>
-          </div>
+          </template>
 
           <!--
-            属性条件（已下线）—— **只读存量渲染**。
-
-            保留原因：expr_compiler 仍按 kind 分派编译属性条件，存量规则仍靠它执行；
+            属性条件（已下线）—— **只读存量渲染**，控件全 disabled。
+            保留原因见上方 cond-row 注释：expr_compiler 仍按 kind 分派编译它，
             前端必须能原样回传，不能在往返编辑中损坏已保存的规则。
-            全部控件 disabled：已下线的配置不允许再被修改（改了就等于变相"复活"该能力）。
-            新建入口见上方 cond-top —— 属性条件单选项已移除。
+            全部 disabled：已下线的配置不允许再被修改（改了就等于变相"复活"该能力）。
           -->
-          <div v-else class="cond-body attr is-deprecated">
+          <template v-else>
+            <n-tag
+              size="small"
+              :bordered="false"
+              type="warning"
+              class="cond-deprecated"
+            >
+              {{ t('dataperm.modal.condType.attribute') }} · {{ t('dataperm.modal.deprecatedBadge') }}
+            </n-tag>
             <n-select
               :value="c.field"
               :options="attrFieldOptions"
@@ -218,21 +206,29 @@
               />
             </template>
             <span v-else class="attr-no-val">{{ t('dataperm.modal.attrOperatorPlaceholder') }}</span>
-          </div>
+          </template>
+
+          <!-- 删除本条条件（对齐进入条件 cond-del：右侧垃圾桶，最后一条件时禁用） -->
+          <button
+            class="cond-del"
+            type="button"
+            :disabled="g.conditions.length <= 1"
+            @click="delCondition(g, ci)"
+          >
+            <n-icon :component="TrashOutline" />
+          </button>
         </div>
 
-        <!-- 组内表达式（用户手填，引用本组条件序号 1..N） -->
-        <div class="expr-row">
-          <span class="expr-label">{{ t('dataperm.modal.expr.intraLabel') }}</span>
+        <!-- 组内表达式（用户手填，引用本组条件序号 1..N；留空 = 且 AND） -->
+        <div class="group-inner-row">
+          <span class="inner-label">{{ t('dataperm.modal.expr.intraLabel') }}</span>
           <n-input
             v-model:value="g.expr"
             size="small"
             clearable
-            class="expr-input"
-            :status="intraError(g) ? 'error' : undefined"
-            :placeholder="t('dataperm.modal.expr.placeholder')"
+            :class="{ 'input-error': !!intraError(g) }"
+            :placeholder="t('dataperm.modal.expr.intraPlaceholder')"
           />
-          <span class="expr-sub">{{ t('dataperm.modal.expr.intraSub', { n: g.conditions.length }) }}</span>
           <span class="expr-check" :class="intraError(g) ? 'bad' : 'ok'">
             {{ intraError(g) ? t('dataperm.modal.expr.invalid', { reason: intraError(g) || '' }) : t('dataperm.modal.expr.valid') }}
           </span>
@@ -248,26 +244,26 @@
       </n-button>
     </div>
 
-    <!-- 组间组合（强调底色，引用条件组序号 1..N） -->
+    <!-- 添加条件组：文字链（对齐进入条件 add-link），放在组列表下方 -->
+    <a class="add-link" @click="addGroup">
+      <n-icon :component="AddOutline" /> {{ t('dataperm.modal.addGroup') }}
+    </a>
+
+    <!-- 组间组合（引用条件组序号 1..N；留空 = 或 OR） -->
     <div class="inter-block">
-      <div class="expr-row inter">
-        <span class="expr-label">{{ t('dataperm.modal.expr.interLabel') }}</span>
+      <div class="group-inner-row">
+        <span class="inner-label">{{ t('dataperm.modal.expr.interLabel') }}</span>
         <n-input
           v-model:value="localInter"
           size="small"
           clearable
-          class="expr-input inter-input"
-          :status="interError ? 'error' : undefined"
-          :placeholder="t('dataperm.modal.expr.placeholder')"
+          :class="{ 'input-error': !!interError }"
+          :placeholder="t('dataperm.modal.expr.interPlaceholder')"
         />
-        <span class="expr-sub">{{ t('dataperm.modal.expr.interSub', { n: localGroups.length }) }}</span>
         <span class="expr-check" :class="interError ? 'bad' : 'ok'">
           {{ interError ? t('dataperm.modal.expr.invalid', { reason: interError || '' }) : t('dataperm.modal.expr.valid') }}
         </span>
       </div>
-      <n-button size="small" type="primary" secondary block class="add-group-btn" @click="addGroup">
-        + {{ t('dataperm.modal.addGroup') }}
-      </n-button>
     </div>
 
     <!-- 从权限模板一键引用（2026-10-11） -->
@@ -337,9 +333,12 @@
  */
 import { computed, ref, watch } from 'vue'
 import {
-  NModal, NButton, NSpace, NSelect, NInput, NTag, NRadioGroup, NRadioButton,
+  NModal, NButton, NSpace, NSelect, NInput, NTag, NIcon,
   NInputNumber, useMessage,
 } from 'naive-ui'
+import {
+  AddOutline, TrashOutline, ReorderFourOutline,
+} from '@vicons/ionicons5'
 import {
   newCondition, uid, validateExpr, previewOf,
   ATTR_NOVALUE_OPS, ATTR_LIST_OPS,
@@ -493,12 +492,21 @@ function valueSourceValue(c: PermCondition): string {
   return c.valueSource === 'dynamic' ? (c.dynamicKey || 'static') : 'static'
 }
 
-/** 取值来源下拉：静态项 + 该维度可用的动态来源（contextKeys 驱动, M03）。 */
+/**
+ * 取值来源下拉：静态项 + 该维度可用的动态来源（contextKeys 驱动, M03）。
+ *
+ * 🔴 A档文案修正：
+ *  - "指定{dim}" → "固定{dim}"。原词"指定"与下面"仅指定部门"并列时语义打架
+ *    （都是"管理员手选"），改"固定"明确表达「写死一个值、不随登录人变」。
+ *  - 动态项标签已在上游 DYNAMIC_SOURCE_LABELS 改为「该成员…」，消除"我的"歧义
+ *    （解析的是运行时登录成员，不是配置人 —— 见 context_resolvers.responsible_department_ids）。
+ *  - 下拉宽度 .cond-src 已从 150px 放宽到 190px，「该成员的负责部门及其下级」不再被截断。
+ */
 function valueSourceOptions(c: PermCondition) {
   const meta = dimMetaOf(c.dimension || '')
   const dimLabel = meta?.label || ''
   return [
-    { label: `指定${dimLabel}`, value: 'static' },
+    { label: t('dataperm.modal.staticSource', { dim: dimLabel }), value: 'static' },
     ...dynamicSourceOptions(meta?.contextKeys),
   ]
 }
@@ -828,113 +836,208 @@ function confirm() {
 </script>
 
 <style scoped>
-.group-list { display: flex; flex-direction: column; gap: 8px; }
+/* ============================================================================
+   布局范式对齐 pages/settings/stage-rule/modals/EntryRuleEditModal.vue
+   （2026-10-15 A档 + 流程管理进入条件弹窗对齐）：
+     · 条件组 = 浅底 group-block 单层卡片，**不再组卡内嵌条件卡**（原三层嵌套已拆平）
+     · 条件行 = 序号圆点 + 横排控件 + 右侧垃圾桶（cond-row）
+     · 添加组 = 文字链（add-link），不再整块品牌色 button
+   ========================================================================= */
+.group-list { display: flex; flex-direction: column; }
 
-.group-card {
-  border: 1px solid var(--border-hairline, #e2e8f0);
-  border-radius: 10px;
-  padding: 8px;
-  /* 2026-10-11 暗色修复：原为硬编码 #fff，深色模式下与已反转的浅色文字令牌冲突。
-     --surface 浅色下恒为 #FFFFFF（零变化），深色下为 #1E293B。 */
-  background: var(--surface);
+/*
+ * 条件组区块配色：4 色循环（品牌紫 / 信息蓝 / 成功绿 / 警示橙）。
+ *
+ * 范式来源：frontend-DESIGN.md §侧栏 —— 「激活项 = 浅色底 + 左侧 3px accent bar」，
+ * 本处把它从「侧栏项」推广到「条件组区块」，用颜色区分并列的 OR 组（组间是「或」关系，
+ * 同色会读成一块整体，分色才看得出是几组各自独立成立）。
+ *
+ * 🔴 令牌铁律（SETTINGS_PAGE_STRUCTURE.md §4）：只用语义令牌，**禁硬编码 hex**，
+ * 且**不带 hex fallback**（对齐 EntryRuleEditModal 的 var(--g1) 写法）——
+ * 语义令牌在 body.dark 下会自动重配比，hex 不会，暗色必崩。
+ * 4 色取自既有语义族，不新造颜色：--brand-soft / --c-info-soft / --c-success-soft / --c-warning-soft。
+ * 刻意**不用 --c-error**：红是删除/危险的专属信号（MEMORY.md：危险色不许当装饰用）。
+ */
+.group-block {
+  background: var(--g1);
+  border: 1px solid var(--g2);
+  border-left: 3px solid var(--brand-fg);
+  border-radius: var(--radius-sm);
+  padding: 8px 8px 4px 8px;
+  margin-bottom: var(--space-3);
 }
+.group-block:nth-child(4n + 2) {
+  background: var(--c-info-soft);
+  border-left-color: var(--c-info-deep);
+}
+.group-block:nth-child(4n + 3) {
+  background: var(--c-success-soft);
+  border-left-color: var(--c-success-deep);
+}
+.group-block:nth-child(4n + 4) {
+  background: var(--c-warning-soft);
+  border-left-color: var(--c-warning-deep);
+}
+.group-block:last-child { margin-bottom: 0; }
+
 .group-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   margin-bottom: 8px;
 }
-.drag-handle { color: var(--ink-soft, #94a3b8); font-size: 14px; cursor: grab; }
-.group-badge { font-weight: 700; }
-.group-head-actions { margin-left: auto; display: flex; gap: 8px; }
+.group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-13, 13px);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.group-head-actions { display: flex; align-items: center; gap: var(--space-3, 12px); }
+.group-head-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-12, 12px);
+  color: var(--ink-faint);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--duration-fast, 0.15s) var(--ease-out, ease-out);
+}
+.group-head-actions a:hover { color: var(--brand-fg); }
+.group-head-actions a.danger:hover { color: var(--c-error-deep); }
 
+/* 条件行：横排，wrap 允许窄屏换行但优先单行 */
 .cond-row {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-  margin-bottom: 8px;
-  background: var(--g1, #f8fafc);
-  border-radius: 8px;
-}
-.cond-top {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
+  padding: 4px 0;
 }
-.cond-idx {
-  width: 20px; height: 20px;
+.cond-seq {
+  width: 22px; height: 22px;
   flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
-  background: var(--brand, #6366f1);
-  color: #fff;
-  font-size: 12px; font-weight: 700;
+  background: var(--brand-a12, rgba(99, 102, 241, 0.12));
+  color: var(--brand-fg);
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
 }
-.cond-del { flex-shrink: 0; font-size: 16px; line-height: 1; margin-left: auto; }
-
-.cond-body { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cond-dim { width: 110px; flex-shrink: 0; }
-.cond-op { width: 90px; flex-shrink: 0; }
-.cond-val { flex: 1; min-width: 0; }
-.cond-src { width: 150px; flex-shrink: 0; }
-.cond-rel { width: 130px; flex-shrink: 0; }
-/* 动态取值提示：说明该条件不由本表单决定值，改由登录用户在运行时决定 */
-.dynamic-hint {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--ink-soft, #64748b);
-}
-.stale-tag { flex-shrink: 0; background: var(--g2, #eef2f7); color: var(--ink-soft, #64748b); }
-
-.attr-field { width: 220px; flex-shrink: 0; }
-.attr-op { width: 120px; flex-shrink: 0; }
-.attr-val { flex: 1; min-width: 140px; }
-.attr-val-sm { width: 110px; flex-shrink: 0; }
-.attr-no-val { font-size: 12px; color: var(--ink-soft, #94a3b8); }
-
-.expr-row {
+.cond-del {
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0;
+}
+.cond-del:hover:not(:disabled) { color: var(--c-error-deep); }
+.cond-del:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cond-dim { width: 104px; flex-shrink: 0; }
+/*
+ * 第 2 位·关系词（静态 operator / 动态 relation 共用）。
+ * 宽度取 124px：`属于（含下级）` 6 字 + 图标 + 内边距，86px 会被截成「属于（含下…」。
+ */
+.cond-verb { width: 124px; flex-shrink: 0; }
+/* 🔴 由 150px 放宽到 190px ——「该成员的负责部门及其下级」13 字原来被截断成「…及其…」。 */
+.cond-src { width: 190px; flex-shrink: 0; }
+.cond-val { flex: 1; min-width: 140px; }
+
+/* 动态取值提示：点明「谁的部门」，消除配置人 vs 运行时成员的歧义 */
+.dynamic-hint {
+  flex: 1 0 100%;
+  min-width: 0;
+  font-size: var(--fs-12, 12px);
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+.stale-tag { flex-shrink: 0; background: var(--g2); color: var(--ink-soft); }
+.cond-deprecated { flex-shrink: 0; font-weight: 600; }
+
+.attr-field { width: 200px; flex-shrink: 0; }
+.attr-op { width: 116px; flex-shrink: 0; }
+.attr-val { flex: 1; min-width: 140px; }
+.attr-val-sm { width: 104px; flex-shrink: 0; }
+.attr-no-val { font-size: var(--fs-12, 12px); color: var(--ink-faint); }
+
+/* 组内表达式 / 组间组合：统一 label + input + 校验位的一行式 */
+.group-inner-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
   margin-top: 8px;
 }
-.expr-label { font-size: 12px; font-weight: 600; color: var(--ink, #1e293b); flex-shrink: 0; }
-.expr-input { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.expr-sub { font-size: 11px; color: var(--ink-soft, #94a3b8); flex-shrink: 0; }
-.expr-check { font-size: 12px; font-weight: 600; flex-shrink: 0; white-space: nowrap; }
+.inner-label {
+  font-size: var(--fs-12, 12px);
+  color: var(--ink-soft);
+  white-space: nowrap;
+  min-width: 72px;
+  flex-shrink: 0;
+}
+.group-inner-row :deep(.n-input) { flex: 1; min-width: 0; }
+
+.expr-check {
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .expr-check.ok { color: var(--c-success-deep); }
 .expr-check.bad { color: var(--c-error-deep); }
 
+/* 组间组合：极浅底，标示它是「组合方式」而非条件本身 */
 .inter-block {
-  margin-top: 8px;
-  padding: 8px;
-  border-radius: 10px;
-  background: var(--brand-soft, rgba(99, 102, 241, 0.08));
-  border: 1px solid var(--brand-tint, rgba(99, 102, 241, 0.2));
+  margin-top: var(--space-3, 12px);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--g1);
+  border: 1px solid var(--g2);
 }
-.expr-row.inter { margin-top: 0; }
-.add-group-btn { margin-top: 8px; }
+
+/* 添加条件组文字链 */
+.add-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brand-fg);
+  font-size: var(--fs-12, 12px);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--duration-fast, 0.15s) var(--ease-out, ease-out);
+}
+.add-link:hover { color: var(--brand-fg-hover); }
 
 /* 权限模板引用区：与条件组列表视觉分层（品牌浅底 + 虚线），表明它是「快捷入口」而非条件本身 */
 .tpl-box {
-  margin-top: 8px;
-  padding: 8px 8px;
+  margin-top: var(--space-3, 12px);
+  padding: 8px;
   border: 1px dashed var(--brand-tint, rgba(99, 102, 241, 0.2));
-  border-radius: 10px;
+  border-radius: var(--radius-sm, 8px);
   background: var(--brand-soft, rgba(99, 102, 241, 0.08));
 }
-.tpl-label { display: block; font-size: 12px; font-weight: 600; color: var(--ink, #1e293b); margin-bottom: 8px; }
+.tpl-label {
+  display: block;
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
 .tpl-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tpl-pick { width: 220px; flex-shrink: 0; }
 .tpl-bind { width: 150px; flex-shrink: 0; }
-.tpl-tip { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: var(--ink-soft, #64748b); }
+.tpl-tip { margin: 8px 0 0; font-size: var(--fs-12, 12px); line-height: 1.6; color: var(--ink-soft); }
 
 .empty-state {
-  border: 1px dashed var(--border-hairline, #cbd5e1);
-  border-radius: 10px;
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-sm, 8px);
   padding: 24px 16px;
   text-align: center;
   display: flex;
@@ -942,17 +1045,23 @@ function confirm() {
   gap: 8px;
   align-items: center;
 }
-.empty-text { margin: 0; font-size: 13px; color: var(--ink-soft, #64748b); }
+.empty-text { margin: 0; font-size: var(--fs-13, 13px); color: var(--ink-soft); }
 
 .preview-box {
-  margin-top: 8px;
-  padding: 8px 8px;
-  background: var(--g1, #f8fafc);
-  border-radius: 8px;
-  font-size: 13px;
+  margin-top: var(--space-3, 12px);
+  padding: 8px;
+  background: var(--g1);
+  border-radius: var(--radius-sm, 8px);
+  font-size: var(--fs-13, 13px);
   line-height: 1.6;
   word-break: break-word;
 }
-.preview-prefix { font-weight: 700; color: var(--ink, #1e293b); margin-right: 8px; }
-.preview-text { color: var(--ink-soft, #475569); }
+.preview-prefix { font-weight: 600; color: var(--ink); margin-right: 8px; }
+.preview-text { color: var(--ink-soft); }
+
+/* 输入错误态：对齐 EntryRuleEditModal 的 input-error（error 边框 + 浅红底） */
+.input-error :deep(.n-input__input-el) {
+  border-color: var(--c-error) !important;
+  background: var(--c-error-soft, rgba(239, 68, 68, 0.06));
+}
 </style>

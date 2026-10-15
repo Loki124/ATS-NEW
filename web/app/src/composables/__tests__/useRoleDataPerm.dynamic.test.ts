@@ -35,16 +35,16 @@ const scopeModule = (conditions: PermCondition[]): ModulePerm => ({
 describe('动态取值条件（data-permission）', () => {
   describe('previewOf 预览句', () => {
     // previewOf 按条件组包一层括号（既有行为，本次未改动），断言保持一致
-    it('含 contains 时渲染「部门 包含 我的负责部门」', () => {
-      expect(previewOf(scopeModule([dynamicCondition()]))).toBe('（部门 包含 我的负责部门）')
+    it('含 contains 时渲染「部门 包含 该成员的负责部门」', () => {
+      expect(previewOf(scopeModule([dynamicCondition()]))).toBe('（部门 包含 该成员的负责部门）')
     })
 
     it('四种包含关系分别渲染为对应中文', () => {
       const cases: Array<[PermCondition['relation'], string]> = [
-        ['exact', '（部门 属于 我的负责部门）'],
-        ['in_subtree', '（部门 属于（含下级） 我的负责部门）'],
-        ['contains', '（部门 包含 我的负责部门）'],
-        ['overlap', '（部门 包含或属于 我的负责部门）'],
+        ['exact', '（部门 属于 该成员的负责部门）'],
+        ['in_subtree', '（部门 属于（含下级） 该成员的负责部门）'],
+        ['contains', '（部门 包含 该成员的负责部门）'],
+        ['overlap', '（部门 包含或属于 该成员的负责部门）'],
       ]
       for (const [relation, expected] of cases) {
         expect(previewOf(scopeModule([dynamicCondition({ relation })]))).toBe(expected)
@@ -55,13 +55,13 @@ describe('动态取值条件（data-permission）', () => {
       const m = scopeModule([
         dynamicCondition({ dynamicKey: 'currentUser.deptSubtree', relation: 'in_subtree' }),
       ])
-      expect(previewOf(m)).toBe('（部门 属于（含下级） 我的负责部门及其下级）')
+      expect(previewOf(m)).toBe('（部门 属于（含下级） 该成员的负责部门及其下级）')
     })
 
     it('缺省 relation 退化为 exact（与存量 in 语义一致）', () => {
       const c = dynamicCondition()
       delete c.relation
-      expect(previewOf(scopeModule([c]))).toBe('（部门 属于 我的负责部门）')
+      expect(previewOf(scopeModule([c]))).toBe('（部门 属于 该成员的负责部门）')
     })
 
     it('关系标签表覆盖后端 DYNAMIC_RELATIONS 的四档', () => {
@@ -107,13 +107,13 @@ describe('动态取值条件（data-permission）', () => {
 
   /**
    * 回归：真实 bug —— 规则弹窗「取值来源」下拉选动态来源后立刻弹回「指定部门」，
-   * 表现为「我的负责部门」点不动、可见数据恒为空。
+   * 表现为「该成员的负责部门」点不动、可见数据恒为空。
    *
    * 病根：选项 value 是 contextKey，而处理器按 `v === 'dynamic'` 判分支，
    * 于是任何动态选项都落进 else 被写回 static。判据必须是 `v !== 'static'`。
    */
   describe('resolveValueSource（取值来源切换）', () => {
-    it('选「我的负责部门」应进入 dynamic，且不被回落为 static', () => {
+    it('选「该成员的负责部门」应进入 dynamic，且不被回落为 static', () => {
       const s = resolveValueSource('currentUser.departments', 'department')
       expect(s.valueSource).toBe('dynamic')
       expect(s.dynamicKey).toBe('currentUser.departments')

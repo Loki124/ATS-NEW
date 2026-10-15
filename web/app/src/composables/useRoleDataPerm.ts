@@ -58,12 +58,20 @@ export const ATTR_NOVALUE_OPS = new Set(['IS_EMPTY', 'IS_NOT_EMPTY']);
 /** 业务值为集合（多选）的运算符。 */
 export const ATTR_LIST_OPS = new Set(['IN', 'NOT_IN']);
 
-/** 动态取值来源 -> 中文（与后端 context_resolvers.DYNAMIC_SOURCE_KEYS 对齐）。 */
+/**
+ * 动态取值来源 -> 中文（与后端 context_resolvers.DYNAMIC_SOURCE_KEYS 对齐）。
+ *
+ * 🔴 A档文案修正（2026-10-15）：原文写「**我的**负责部门」，在权限配置语境下
+ * "我的"指向不明 —— 管理员配置时看这三个选项，语义必须是**运行时登录的那个成员**，
+ * 而不是配置人自己。证据：后端 responsible_department_ids(user) 的入参 user 是
+ * 运行时登录用户（user.department ∪ Department.leader=user），每人取值不同。
+ * 故改为「该成员…」，并在预览句中同步。
+ */
 export const DYNAMIC_SOURCE_LABELS: Record<string, string> = {
-  'currentUser.departments': '我的负责部门',
-  'currentUser.deptSubtree': '我的负责部门及其下级',
-  'currentUser.id': '当前登录用户',
-  'currentUser.managedUnits': '我的管理单元',
+  'currentUser.departments': '该成员的负责部门',
+  'currentUser.deptSubtree': '该成员的负责部门及其下级',
+  'currentUser.id': '该成员本人',
+  'currentUser.managedUnits': '该成员的管理单元',
 };
 
 /** 包含关系 -> 中文（与后端 context_resolvers.DYNAMIC_RELATIONS 对齐）。 */
