@@ -286,7 +286,11 @@ def _compile_dynamic_dept(cond: dict, field: str, dimension: str, *, user) -> Q:
 
     if not target_ids:
         return _deny_all()
-    return Q(**{f'{field}__in': sorted(target_ids)})
+    q = Q(**{f'{field}__in': sorted(target_ids)})
+    operator = str(cond.get('operator') or 'in').lower()
+    if operator in ('not_in', 'neq', '!=', 'not_eq'):
+        return ~q
+    return q
 
 
 def _compile_dynamic_user(cond: dict, field: str, dimension: str, *, user) -> Q:
@@ -313,7 +317,11 @@ def _compile_dynamic_user(cond: dict, field: str, dimension: str, *, user) -> Q:
     if not ids:
         logger.warning('[expr_compiler] 用户类动态值为空, fail-closed')
         return _deny_all()
-    return Q(**{f'{field}__in': sorted(ids)})
+    q = Q(**{f'{field}__in': sorted(ids)})
+    operator = str(cond.get('operator') or 'in').lower()
+    if operator in ('not_in', 'neq', '!=', 'not_eq'):
+        return ~q
+    return q
 
 
 def _compile_dynamic(cond: dict, field: str, dimension: str, *, user) -> Q:
@@ -344,7 +352,7 @@ def _compile_dynamic(cond: dict, field: str, dimension: str, *, user) -> Q:
     return _deny_all()
 
 
-def _compile_unit_condition(cond: dict, field_map: Dict[str, str | bool | None], *, user) -> Q | None:
+def _compile_unit_condition(cond: dict, field_map: Dict[str, dict | str | bool | None], *, user) -> Q | None:
     """unit 复合维度 -> Q（M03, ARCH §3.3.2）。
 
     管理单元是复合范围: 组织范围(org_scope + 成员 DEPT, 含子级展开) ∪ 人员范围
@@ -412,9 +420,78 @@ def _compile_unit_condition(cond: dict, field_map: Dict[str, str | bool | None],
     return q if q.children else Q(pk__in=[])
 
 
+def _norm_ids(cond) -> list:
+    """从条件里抽出业务值 id 列表（兼容 {id,label} 形态与单值 value）。"""
+    raw = cond.get('values') or []
+    if not raw and cond.get('value') is not None:
+        raw = [cond['value']]
+    return [v.get('id') if isinstance(v, dict) else v for v in raw]
+
+
+def _negate_if_needed(q, operator):
+    """operator 为 not_in/neq/!=/not_eq 时对 Q 取反（语义翻转）。"""
+    if str(operator or 'in').lower() in ('not_in', 'neq', '!=', 'not_eq'):
+        return ~q
+    return q
+
+
+def _compile_json_contains_condition(spec: dict, cond: dict, operator: str) -> Q | None:
+    """sharers 等多值 JSON 维度 -> Q(field__contains=[ids])。
+
+    sharers 是 JSONField 存用户 id 列表；__contains 表示「列表含全部给定 id」。
+    空集（未选值）-> None（no-op，与静态关系维度语义一致）。
+    """
+    ids = [v for v in _norm_ids(cond) if v not in (None, '')]
+    if not ids:
+        return None
+    return _negate_if_needed(Q(**{f"{spec['field']}__contains": ids}), operator)
+
+
+def _compile_dfv_condition(spec: dict, cond: dict, operator: str) -> Q | None:
+    """DynamicFieldValue PERSON 单值维度 -> 子查询命中 entity_id（demand.id）。
+
+    DynamicFieldValue 无反向 FK（按 resource+entity_id 字符串键），故用子查询：
+    找「本需求 + 指定 field_key + value ∈ 目标用户」的行，取其 entity_id 收口。
+    PERSON value 可能存 int 或 str（前端/历史差异），用 OR 兼容两种；
+    空集（未选值）-> None（no-op）。
+    """
+    from apps.dynamic_field.models import DynamicFieldValue
+    from django.db.models import OuterRef, Subquery
+
+    ids = [v for v in _norm_ids(cond) if v not in (None, '')]
+    if not ids:
+        return None
+    id_filter = Q(value__in=ids) | Q(value__in=[str(i) for i in ids])
+    subq = Subquery(
+        DynamicFieldValue.objects.filter(
+            resource=spec['resource'], field_key=spec['field_key'],
+            entity_id=OuterRef('id'),
+        ).filter(id_filter).values('entity_id')
+    )
+    return _negate_if_needed(Q(pk__in=subq), operator)
+
+
+def _compile_reverse_condition(spec: dict, cond: dict, operator: str) -> Q | None:
+    """resume_grabber 等多跳反向 FK 维度 -> 子查询收口，避免多对多放大 fan-out。
+
+    spec['field'] 是跨表 ORM 路径（如 positions__applications__grabbed_by_id）；
+    先用子查询把「命中路径的需求 id」算出来，再 Q(pk__in=subq) 收口，
+    杜绝 Demand→Position→Application 多对多展开导致的重复行。
+    空集（未选值）-> None（no-op）。
+    """
+    from apps.demand.models import Demand as _Demand
+    from django.db.models import Subquery
+
+    ids = [v for v in _norm_ids(cond) if v not in (None, '')]
+    if not ids:
+        return None
+    subq = Subquery(_Demand.objects.filter(**{f"{spec['field']}__in": ids}).values('id'))
+    return _negate_if_needed(Q(pk__in=subq), operator)
+
+
 def _compile_condition(
     cond: dict,
-    field_map: Dict[str, str | bool | None],
+    field_map: Dict[str, dict | str | bool | None],
     attribute_map: Dict[str, dict] | None = None,
     *,
     user=None,
@@ -464,6 +541,27 @@ def _compile_condition(
     if not field:
         return None
 
+    # ---- demand 人员类型字段（task #15）：dict spec 维度 ----
+    # field 既可能是字符串 ORM 路径（既有 dept/owner/creator 等），
+    # 也可能是 dict spec（json_contain / dfv / reverse）。
+    if isinstance(field, dict):
+        spec = field
+        # phase-1：这些维度不支持动态取值（contextKeys=[]，前端不出现动态框）；
+        # 万一传动态源，fail-closed（不放行也不静默降级），与保存期校验口径一致。
+        if str(cond.get('valueSource') or 'static') == 'dynamic':
+            logger.warning('[expr_compiler] 人员维度 "%s" 暂不支持动态取值, fail-closed', dimension)
+            return _deny_all()
+        kind = spec.get('kind')
+        if kind == 'json_contain':
+            return _compile_json_contains_condition(spec, cond, operator)
+        if kind == 'dfv':
+            return _compile_dfv_condition(spec, cond, operator)
+        if kind == 'reverse':
+            return _compile_reverse_condition(spec, cond, operator)
+        logger.warning('[expr_compiler] 未知维度 spec kind "%s", no-op', kind)
+        return None
+
+    # ---- 字符串路径维度（既有：dept/owner/creator 等）----
     # 动态取值分支：值来自当前用户上下文，不读配置里的 values。
     # 注意必须在 field 校验之后 —— 维度无真实 ORM 字段时 no-op（不放行也不报错）。
     if str(cond.get('valueSource') or 'static') == 'dynamic':

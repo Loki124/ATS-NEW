@@ -81,7 +81,7 @@ DYNAMIC_VALUE_TYPES: dict[str, str] = {
 # 的行为 —— 两者均引用本表，不得各自硬编码（防「校验放行但编译拒绝」分叉）。
 DYNAMIC_DIMENSION_RULES: dict[str, frozenset[str]] = {
     'dept': frozenset({'dept'}),
-    'user': frozenset({'owner', 'creator'}),
+    'user': frozenset({'owner', 'creator', 'hr', 'requested_by'}),
     'unit': frozenset({'unit'}),
 }
 

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 # 模块 key（前端 entity）-> { 维度: ORM 字段路径 | True(复合维度) | None }
 # unit 维度值为 True = 复合维度标记（见模块 docstring），非 ORM 路径。
-MODULE_DIMENSION_FIELDS: dict[str, dict[str, str | bool | None]] = {
+MODULE_DIMENSION_FIELDS: dict[str, dict[str, dict | str | bool | None]] = {
     'candidate': {
         'dept': 'referrer__department_id',
         'owner': 'referrer_id',
@@ -32,7 +32,14 @@ MODULE_DIMENSION_FIELDS: dict[str, dict[str, str | bool | None]] = {
     },
     'demand': {
         'dept': 'department_id',
-        'owner': 'hr_id',
+        'hr': 'hr_id',                                    # 可见：需求主责人
+        'owner': 'hr_id',                                 # 隐藏别名（向后兼容存量规则）
+        'requested_by': 'requested_by_id',                # 可见：需求提出人
+        'sharers': {'kind': 'json_contain', 'field': 'sharers'},
+        'hrbp': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hrbp'},
+        'hiring_manager': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager'},
+        'hiring_manager_superior': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager_superior'},
+        'resume_grabber': {'kind': 'reverse', 'field': 'positions__applications__grabbed_by_id'},
         'creator': 'created_by_id',
         'unit': True,
         'process': None,
@@ -84,6 +91,13 @@ DIMENSION_META: dict[str, dict] = {
         'key': 'creator', 'label': '创建人', 'valueType': 'user',
         'contextKeys': ['currentUser.id'],
     },
+    'hr': {'key': 'hr', 'label': '需求主责人', 'valueType': 'user', 'contextKeys': ['currentUser.id']},
+    'requested_by': {'key': 'requested_by', 'label': '需求提出人', 'valueType': 'user', 'contextKeys': ['currentUser.id']},
+    'sharers': {'key': 'sharers', 'label': '需求共享人', 'valueType': 'user', 'contextKeys': []},
+    'hrbp': {'key': 'hrbp', 'label': 'HRBP', 'valueType': 'user', 'contextKeys': []},
+    'hiring_manager': {'key': 'hiring_manager', 'label': '用人经理', 'valueType': 'user', 'contextKeys': []},
+    'hiring_manager_superior': {'key': 'hiring_manager_superior', 'label': '用人经理上级', 'valueType': 'user', 'contextKeys': []},
+    'resume_grabber': {'key': 'resume_grabber', 'label': '简历抢单人', 'valueType': 'user', 'contextKeys': []},
     'unit': {
         'key': 'unit', 'label': '管理单元', 'valueType': 'unit',
         'contextKeys': ['currentUser.managedUnits'],
@@ -97,8 +111,8 @@ DIMENSION_META: dict[str, dict] = {
 MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
     'demand': {
         'dept': '需求部门',
-        'owner': '需求负责人',
         'creator': '需求创建人',
+        'hr': '需求主责人',
     },
 }
 
@@ -110,6 +124,7 @@ MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
 # 存量规则若已用 unit 维度仍能正常回显与执行（前端按 label 兜底渲染，不静默改语义）。
 HIDDEN_DIMENSIONS: dict[str, frozenset[str]] = {
     '*': frozenset({'unit'}),
+    'demand': frozenset({'owner'}),
 }
 
 # 模块顺序与展示名（抽屉内 5 张卡的顺序）
