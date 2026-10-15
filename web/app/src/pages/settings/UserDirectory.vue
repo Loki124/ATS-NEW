@@ -103,18 +103,8 @@
               </n-form-item>
             </n-grid-item>
           </n-grid>
-          <n-grid v-if="!editingUser" :cols="2" :x-gap="24">
-            <n-grid-item>
-              <n-form-item :label="t('pages.settings.UserDirectory.s16')" required>
-                <n-input
-                  v-model:value="formState.password"
-                  type="password"
-                  show-password-on="click"
-                  :placeholder="t('pages.settings.UserDirectory.s17')"
-                />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
+          <!-- 密码字段已移除：新建用户统一使用系统预置初始密码（settings.DEFAULT_USER_PASSWORD），
+               用户登录后可在「个人信息管理」自主修改。避免"填了不生效"的误导。 -->
         </div>
 
         <!-- 任职信息 -->
@@ -302,7 +292,6 @@ const formState = reactive({
   realName: '',
   email: '',
   phone: '',
-  password: '',
   employeeId: '',
   uuid: '',
   roleIds: [] as string[],
@@ -505,7 +494,6 @@ const openCreateModal = () => {
     realName: '',
     email: '',
     phone: '',
-    password: '',
     employeeId: '',
     uuid: '',
     roleIds: [],
@@ -525,7 +513,6 @@ const closeUserModal = () => {
     realName: '',
     email: '',
     phone: '',
-    password: '',
     employeeId: '',
     uuid: '',
     roleIds: [],
@@ -697,7 +684,6 @@ const actionsColumn = {
               realName: row.realName,
               email: row.email || '',
               phone: row.phone || '',
-              password: '',
               employeeId: row.employeeId || '',
               uuid: row.uuid || '',
               roleIds: [],
