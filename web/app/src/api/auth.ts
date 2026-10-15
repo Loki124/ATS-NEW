@@ -127,4 +127,13 @@ export const del = (url: string) => {
   return api.delete(url);
 };
 
-export default api;
+// 2026-10-15: 默认导出改「活绑定」而非「值快照」。
+//   背景: request.ts -> stores/user.ts -> api/auth.ts -> request.ts 构成循环依赖。
+//   `export default api` 会在本模块求值那一刻快照 api 的当前值, 而该时刻
+//   request.ts 是否已执行到 `export const api = createApi()` 取决于模块加载顺序 ——
+//   某些顺序下快照到 undefined, 导致十余处 `import api from '../api/auth'`
+//   的调用方拿到坏绑定 (api.get is not a function / unhandledRejection)。
+//   `export { api as default }` 保持同一 AxiosInstance 的活绑定: 调用方真正发起
+//   请求时(远在所有模块求值完成后) api 必然已初始化。
+//   方案与验证: docs/plan-api-auth-circular-import.md
+export { api as default };
