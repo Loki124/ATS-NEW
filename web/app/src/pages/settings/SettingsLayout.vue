@@ -487,6 +487,25 @@ watch(() => route.path, () => {
 .settings-menu { padding: var(--space-2) 0 var(--space-4); }
 .settings-menu.collapsed { padding: var(--space-2) 0; }
 
+/* === 菜单对齐修复（2026-10-15）===
+   根因：naive-ui 的缩进算法（use-menu-child.mjs）对「根级子菜单」与「组内子项」取不同值：
+     - 组内一级项 padding-left = indent/2 + 组padding = 9 + 18 = 27px
+     - 根级子菜单 padding-left = rootIndent = 18px
+   本菜单中「组织管理」(g-org) 是唯一挂在 n-menu 根级、不在任何 type:group 内的可展开项，
+   因此其图标/文字比同层所有组内一级项（个人信息管理/候选人信息管理…）整体左偏 9px。
+   修复：把根级子菜单自身对齐到组内一级项层级(27)，其二级子项(+18→45)以匹配其它子菜单的二级缩进。
+   注意 .settings-menu 本身就是 .n-menu 元素（同一 DOM 节点），故用 `:deep(> .n-submenu …)` 子代选择器
+   精确命中「.settings-menu 的直属 .n-submenu」（组内子菜单嵌套在 .n-menu-item-group > .n-submenu-children 下，非直属，不会被命中）。
+   真正的折叠信号是 .n-menu--collapsed（菜单元素上）；naive-ui 给每个 item-content 挂的
+   n-menu-item-content--collapsed 不是菜单折叠信号，勿据此排除。折叠态由下方 .settings-sider.collapsed 的
+   padding-left:0 规则（源码更靠后、同等优先级+!important）接管，互不冲突。 */
+.settings-menu:not(.n-menu--collapsed) :deep(> .n-submenu > .n-menu-item > .n-menu-item-content) {
+  padding-left: 27px !important;
+}
+.settings-menu:not(.n-menu--collapsed) :deep(> .n-submenu .n-submenu-children .n-menu-item-content) {
+  padding-left: 45px !important;
+}
+
 /* === 折叠态 CSS 补丁：Naive UI 自身 .menu-item-group-title 在 :collapsed=true 下未做隐藏 ===
    现象：折叠 64px 时 group label "基本信息/过程管理/招聘提速/内容管理" 被 CSS 强竖排成「基/本/信/息」单字一行
    根因：MenuOptionGroup.mjs 第 47-53 行无条件渲染 group title；cssr.mjs 第 102 行只把 .n-menu-item-content-header 设 opacity:0
