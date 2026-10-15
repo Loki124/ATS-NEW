@@ -142,21 +142,33 @@ def test_demand_personnel_dimensions_all_match_and_negative_and_neq():
         f"dfv value 应存为用户 id（实测类型 {type(stored.value).__name__}）"
 
 
-def test_demand_personnel_dimension_dynamic_source_fail_closed():
-    """phase-1：人员维度不支持动态取值，传动态源必须 fail-closed（编译出空命中集）。"""
-    # 动态编译需要 user 上下文；这里直接验证编译结果是「不放行」的空集语义。
-    payload = {
-        "expr": "",
-        "groups": [{
-            "expr": "",
-            "conditions": [{
-                "dimension": "hrbp", "operator": "in",
-                "valueSource": "dynamic", "dynamicKey": "currentUser.id",
-                "values": [],
-            }],
-        }],
-    }
-    q = compile_scope_q(payload, "demand", user=_user("any"))
-    # _deny_all() -> Q(pk__in=[])：任何 Demand 都不命中
-    assert q is not None
-    assert not Demand.objects.filter(q).exists(), "动态取值的人员维度必须 fail-closed（零命中）"
+def test_demand_personnel_dimension_dynamic_source_resolves_for_current_user():
+    """2026-10-15：用户类维度（hrbp）现已支持 currentUser.id 动态源，应按当前登录用户命中。"""
+    dept = _dept()
+    process = _process()
+    u_hrbp = _user("hrbp")
+    other = _user("other")
+
+    demand = _make_demand(dept, u_hrbp, u_hrbp, process)
+    DynamicFieldValue.objects.create(resource="Demand", entity_id=demand.id, field_key="hrbp", value=u_hrbp.pk)
+
+    # 当前登录用户 = u_hrbp -> 应命中挂着自己 hrbp 的需求
+    q = compile_scope_q(
+        {"expr": "", "groups": [{"expr": "", "conditions": [{
+            "dimension": "hrbp", "operator": "in",
+            "valueSource": "dynamic", "dynamicKey": "currentUser.id", "values": [],
+        }]}]},
+        "demand", user=u_hrbp,
+    )
+    matched = set(Demand.objects.filter(q).values_list("pk", flat=True))
+    assert demand.pk in matched, "动态 hrbp(currentUser.id) 应命中当前登录用户作为 hrbp 的需求"
+
+    # 当前登录用户 = other（非该需求 hrbp）-> 不命中
+    q2 = compile_scope_q(
+        {"expr": "", "groups": [{"expr": "", "conditions": [{
+            "dimension": "hrbp", "operator": "in",
+            "valueSource": "dynamic", "dynamicKey": "currentUser.id", "values": [],
+        }]}]},
+        "demand", user=other,
+    )
+    assert demand.pk not in set(Demand.objects.filter(q2).values_list("pk", flat=True))

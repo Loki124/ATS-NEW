@@ -22,32 +22,58 @@ from __future__ import annotations
 
 # 模块 key（前端 entity）-> { 维度: ORM 字段路径 | True(复合维度) | None }
 # unit 维度值为 True = 复合维度标记（见模块 docstring），非 ORM 路径。
+# spec 形状（见 docs/DESIGN_数据权限规则弹窗选项表.md §0）：
+#   · 裸字符串      -> 普通列 / 正向 FK 路径（复用 static __in 分支，零新增编译器代码）
+#   · {'kind':'dfv','resource','field_key','via'} -> DynamicFieldValue 人员维度（hrbp 等）
+#     `via` = 「实体 → Demand」的 ORM 路径；实体自身即 Demand 时 via=''
+#   · {'kind':'path','field'} -> 跨表反向 FK 多值路径（统一 Q(pk__in=Subquery) 收口，
+#     杜绝 Candidate/Application 多对多 fan-out）
+#   · {'kind':'json_contain','field'} -> JSON 数组列（sharers）
+#   · {'kind':'lock_owner'} -> 简历锁定人复合条件 + 空值运算符
 MODULE_DIMENSION_FIELDS: dict[str, dict[str, dict | str | bool | None]] = {
     'candidate': {
-        'dept': 'referrer__department_id',
-        'owner': 'referrer_id',
+        # —— 兵哥表可见 9 项（2026-10-15）——
+        'uploaded_by': 'uploaded_by_id',                          # 简历上传人（正向 FK，无 fan-out）
+        'referrer': 'referrer_id',                                # 简历推荐人
+        'lock_owner': {'kind': 'lock_owner'},                     # 简历锁定人（复合 + 空值）
+        'demand_tbp': {'kind': 'path', 'field': 'applications__position__demand__hr_id'},
+        'demand_hrbp': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hrbp', 'via': 'applications__position__demand'},
+        'demand_creator': {'kind': 'path', 'field': 'applications__position__demand__created_by_id'},
+        'position_tbp': {'kind': 'path', 'field': 'applications__position__demand__hr_id'},
+        'position_hrbp': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hrbp', 'via': 'applications__position__demand'},
+        'position_creator': {'kind': 'path', 'field': 'applications__position__created_by_id'},
+        # —— 既有维度，UI 隐藏、后端保留兼容（存量规则仍可编译）——
         'creator': 'created_by_id',
+        'dept': 'referrer__department_id',
+        'owner': 'referrer_id',                                   # 隐藏别名（旧 = referrer_id）
         'unit': True,
         'process': None,
     },
     'demand': {
-        'dept': 'department_id',
-        'hr': 'hr_id',                                    # 可见：需求主责人
-        'owner': 'hr_id',                                 # 隐藏别名（向后兼容存量规则）
-        'requested_by': 'requested_by_id',                # 可见：需求提出人
+        # —— 兵哥表可见 4 项（2026-10-15）——
+        'tbp': 'hr_id',                                           # TBP（需求主负责人）
+        'hrbp': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hrbp', 'via': ''},
+        'creator': 'created_by_id',                                # 需求创建人
+        'dept': 'department_id',                                   # 需求部门
+        # —— UI 隐藏、后端保留兼容（存量规则）——
+        'owner': 'hr_id',                                          # 隐藏别名（向后兼容旧 owner 规则）
+        'hr': 'hr_id',                                             # 隐藏别名（向后兼容旧 hr 规则）
+        'requested_by': 'requested_by_id',
         'sharers': {'kind': 'json_contain', 'field': 'sharers'},
-        'hrbp': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hrbp'},
-        'hiring_manager': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager'},
-        'hiring_manager_superior': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager_superior'},
-        'resume_grabber': {'kind': 'reverse', 'field': 'positions__applications__grabbed_by_id'},
-        'creator': 'created_by_id',
+        'hiring_manager': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager', 'via': ''},
+        'hiring_manager_superior': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager_superior', 'via': ''},
+        'resume_grabber': {'kind': 'path', 'field': 'positions__applications__grabbed_by_id'},
         'unit': True,
         'process': None,
     },
     'position': {
-        'dept': 'department_id',
-        'owner': 'owner_id',
-        'creator': 'created_by_id',
+        # —— 兵哥表可见 4 项（2026-10-15）——
+        'tbp': 'demand__hr_id',                                    # TBP（= 其 demand 的 hr）
+        'hrbp': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hrbp', 'via': 'demand'},
+        'creator': 'created_by_id',                                # 职位创建人
+        'dept': 'department_id',                                   # 职位部门
+        # —— UI 隐藏、后端保留兼容（存量规则）——
+        'owner': 'owner_id',                                       # 隐藏别名
         'unit': True,
         'process': None,
     },
@@ -67,34 +93,81 @@ MODULE_DIMENSION_FIELDS: dict[str, dict[str, dict | str | bool | None]] = {
     },
 }
 
-# 维度元信息（供 options 接口下发前端展示名）。
+# 维度元信息（供 options 接口下发前端展示名 + 运算符 + 动态源）。
 # contextKeys: 该维度可用的动态值来源（valueSource='dynamic' 时的快捷主体），
 #   前端渲染为值模式切换后的首组下拉；键集合与 context_resolvers.DYNAMIC_SOURCE_KEYS 对齐。
-#
-# 2026-10-15 文案与维度治理（兵哥「部门改为需求部门，负责人拆解为需求中设置的人员字段，
-# 创建人改为需求创建人，去掉管理单元」）：
-#   - dept/owner/creator 的 label 改为**模块化表述**（需求部门 / 需求负责人 / 需求创建人），
-#     消除「部门」在不同模块指向不同实体的歧义（candidate 的 dept 其实是
-#     referrer__department_id=推荐人部门，不是候选人本人部门）。
-#   - label 必须**按模块分派**：MODULE_DIMENSION_LABELS 优先，缺省回落 DIMENSION_META。
-#   - owner 的后端字段路径不变（demand=hr_id，即「需求中设置的人员字段」，与兵哥口径一致）。
+# operators: 该维度可用的运算符（前端据其渲染运算符下拉）。
+#   - 用户类维度：包含 / 不包含（+ 简历锁定人额外支持 为空 / 不为空）
+#   - 部门类维度：不在此下发 operators，前端按其 valueType=department 走内置
+#     UNIFIED_DEPT_OPERATORS（属于 / 不属于 / 含下级 组合），与既有关系词模型一致。
+# 仅「可见」维度需在此登记 operators；隐藏维度仅保留 meta 作 label 兜底（前端不下发）。
 DIMENSION_META: dict[str, dict] = {
+    # —— 部门类（valueType=department，运算符走前端内置 UNIFIED_DEPT_OPERATORS）——
     'dept': {
-        'key': 'dept', 'label': '所属部门', 'valueType': 'department',
+        'key': 'dept', 'label': '部门', 'valueType': 'department',
         'contextKeys': ['currentUser.departments', 'currentUser.deptSubtree'],
     },
-    'owner': {
-        'key': 'owner', 'label': '负责人', 'valueType': 'user',
-        'contextKeys': ['currentUser.id'],
-    },
+    # —— 用户类（包含 / 不包含 + 动态 currentUser.id）——
     'creator': {
         'key': 'creator', 'label': '创建人', 'valueType': 'user',
         'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
     },
+    'tbp': {
+        'key': 'tbp', 'label': 'TBP', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'hrbp': {
+        'key': 'hrbp', 'label': 'HRBP', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'uploaded_by': {
+        'key': 'uploaded_by', 'label': '简历上传人', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'referrer': {
+        'key': 'referrer', 'label': '简历推荐人', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'demand_tbp': {
+        'key': 'demand_tbp', 'label': '所属需求的TBP', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'demand_hrbp': {
+        'key': 'demand_hrbp', 'label': '所属需求的HRBP', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'demand_creator': {
+        'key': 'demand_creator', 'label': '所属需求的需求创建人', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'position_tbp': {
+        'key': 'position_tbp', 'label': '所属职位的TBP', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'position_hrbp': {
+        'key': 'position_hrbp', 'label': '所属职位的HRBP', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'position_creator': {
+        'key': 'position_creator', 'label': '所属职位的职位创建人', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    # —— 简历锁定人（额外支持空值）——
+    'lock_owner': {
+        'key': 'lock_owner', 'label': '简历锁定人', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [
+            {'value': 'in', 'label': '包含'},
+            {'value': 'not_in', 'label': '不包含'},
+            {'value': 'is_empty', 'label': '为空'},
+            {'value': 'is_not_empty', 'label': '不为空'},
+        ],
+    },
+    # —— 隐藏维度：保留 meta 仅作 label 兜底（前端不下发、不校验 operators）——
+    'owner': {'key': 'owner', 'label': '负责人', 'valueType': 'user', 'contextKeys': ['currentUser.id']},
     'hr': {'key': 'hr', 'label': '需求主责人', 'valueType': 'user', 'contextKeys': ['currentUser.id']},
     'requested_by': {'key': 'requested_by', 'label': '需求提出人', 'valueType': 'user', 'contextKeys': ['currentUser.id']},
     'sharers': {'key': 'sharers', 'label': '需求共享人', 'valueType': 'user', 'contextKeys': []},
-    'hrbp': {'key': 'hrbp', 'label': 'HRBP', 'valueType': 'user', 'contextKeys': []},
     'hiring_manager': {'key': 'hiring_manager', 'label': '用人经理', 'valueType': 'user', 'contextKeys': []},
     'hiring_manager_superior': {'key': 'hiring_manager_superior', 'label': '用人经理上级', 'valueType': 'user', 'contextKeys': []},
     'resume_grabber': {'key': 'resume_grabber', 'label': '简历抢单人', 'valueType': 'user', 'contextKeys': []},
@@ -106,13 +179,31 @@ DIMENSION_META: dict[str, dict] = {
 }
 
 # 模块专属维度展示名（优先级高于 DIMENSION_META['label']）。
-# 🔴 需求模块（demand）：owner 对应 hr_id（需求单上设置的 HR / 负责人），故叫「需求负责人」；
-#    creator 对应 created_by_id，故叫「需求创建人」；dept 对应 department_id，故叫「需求部门」。
+# 🔴 需求/职位模块：TBP 对应 hr_id（需求单上设置的 HR / 主负责人），故叫「TBP（需求主负责人）」；
+#    creator 对应 created_by_id，故叫「需求创建人 / 职位创建人」；dept 对应 department_id，故叫「需求部门」。
 MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
     'demand': {
         'dept': '需求部门',
         'creator': '需求创建人',
-        'hr': '需求主责人',
+        'tbp': 'TBP（需求主负责人）',
+        'hrbp': 'HRBP',
+    },
+    'position': {
+        'dept': '需求部门',
+        'creator': '职位创建人',
+        'tbp': 'TBP（需求主负责人）',
+        'hrbp': 'HRBP',
+    },
+    'candidate': {
+        'uploaded_by': '简历上传人',
+        'referrer': '简历推荐人',
+        'lock_owner': '简历锁定人',
+        'demand_tbp': '所属需求的TBP',
+        'demand_hrbp': '所属需求的HRBP',
+        'demand_creator': '所属需求的需求创建人',
+        'position_tbp': '所属职位的TBP',
+        'position_hrbp': '所属职位的HRBP',
+        'position_creator': '所属职位的职位创建人',
     },
 }
 
@@ -122,9 +213,15 @@ MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
 # 无法直���理解"管理单元"与"部门"的区别，且展开后与其余维度重叠、配置心智负担高。
 # 处置：**仅从 UI 下拉隐藏**（前端过滤），后端映射与展开逻辑**全部保留** ——
 # 存量规则若已用 unit 维度仍能正常回显与执行（前端按 label 兜底渲染，不静默改语义）。
+#
+# 2026-10-15 维度治理（兵哥弹窗选项表）：需求模块仅暴露 tbp/hr/hrbp/creator/dept，
+# 其余（owner/hr/requested_by/sharers/hiring_manager/hiring_manager_superior/resume_grabber）
+# 移入隐藏、后端保留兼容；候选人的 creator/dept/owner 也隐藏（改用 demand_*/position_*/lock_owner 等）。
 HIDDEN_DIMENSIONS: dict[str, frozenset[str]] = {
     '*': frozenset({'unit'}),
-    'demand': frozenset({'owner'}),
+    'demand': frozenset({'owner', 'hr', 'requested_by', 'sharers', 'hiring_manager', 'hiring_manager_superior', 'resume_grabber'}),
+    'candidate': frozenset({'owner', 'creator', 'dept'}),
+    'position': frozenset({'owner'}),
 }
 
 # 模块顺序与展示名（抽屉内 5 张卡的顺序）

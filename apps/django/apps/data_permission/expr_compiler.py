@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List
 
-from django.db.models import Q
+from django.db.models import Q, Subquery
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,9 @@ from .context_resolvers import (
     ContextResolveError,
     resolve_dynamic,
     resolve_relation_dept_ids,
+    subtree_dept_ids,
 )
-from .field_map import MODULE_DIMENSION_FIELDS
+from .field_map import DIMENSION_META, MODULE_DIMENSION_FIELDS
 
 
 class ExprError(Exception):
@@ -435,65 +436,142 @@ def _negate_if_needed(q, operator):
     return q
 
 
-def _compile_json_contains_condition(spec: dict, cond: dict, operator: str) -> Q | None:
+def _entity_model(entity: str):
+    """按模块 key 取实体模型类（懒加载，避免模块级循环导入）。
+
+    返回 None 表示未知模块（调用方应 fail-closed）。
+    """
+    from apps.candidate.models import Candidate
+    from apps.demand.models import Demand
+    from apps.position.models import Position
+
+    return {
+        'candidate': Candidate,
+        'demand': Demand,
+        'position': Position,
+    }.get(entity)
+
+
+def _resolve_user_ids(cond: dict, dimension: str, *, user) -> list | None:
+    """统一解析用户类维度的目标 id 集合（静态 values 或 动态 currentUser.id）。
+
+    返回字符串 id 列表（与 dfv/JSON 的 `str(i)` 形态对齐，规避 JSON 字面量跨库比较），
+    或 None（无值 / 动态源未注册 / 维度不适配 / 异常 —— 调用方据此 no-op / fail-closed）。
+
+    设计约束见 docs/DESIGN_数据权限规则弹窗选项表.md §3.1：
+    动态仅支持 currentUser.id；其余动态源（departments/deptSubtree/managedUnits）
+    由 dept / unit 分支单独处理，不在此处。
+    """
+    if str(cond.get('valueSource') or 'static') == 'dynamic':
+        key = str(cond.get('dynamicKey') or '')
+        if key != 'currentUser.id':
+            logger.warning('[expr_compiler] 维度 "%s" 动态源 "%s" 不支持, no-op', dimension, key)
+            return None
+        if dimension not in DYNAMIC_DIMENSION_RULES['user']:
+            logger.warning('[expr_compiler] 维度 "%s" 不适配 currentUser.id, no-op', dimension)
+            return None
+        try:
+            return [str(i) for i in resolve_dynamic('currentUser.id', user)]
+        except ContextResolveError as e:
+            logger.warning('[expr_compiler] 动态值来源解析失败(%s), no-op: %s', key, e)
+            return None
+        except Exception:  # noqa: BLE001 — DB 异常等同样拒绝, 不可静默放行
+            logger.exception('[expr_compiler] 动态上下文解析异常, no-op')
+            return None
+    ids = [str(v) for v in _norm_ids(cond) if v not in (None, '')]
+    return ids or None
+
+
+def _compile_json_contains_condition(spec: dict, ids: list, operator: str) -> Q | None:
     """sharers 等多值 JSON 维度 -> Q(field__contains=[ids])。
 
     sharers 是 JSONField 存用户 id 列表；__contains 表示「列表含全部给定 id」。
-    空集（未选值）-> None（no-op，与静态关系维度语义一致）。
+    ids 为空（未选值）-> None（no-op，与静态关系维度语义一致）。
     """
-    ids = [v for v in _norm_ids(cond) if v not in (None, '')]
+    ids = [v for v in ids if v not in (None, '')]
     if not ids:
         return None
     return _negate_if_needed(Q(**{f"{spec['field']}__contains": ids}), operator)
 
 
-def _compile_dfv_condition(spec: dict, cond: dict, operator: str) -> Q | None:
-    """DynamicFieldValue PERSON 单值维度 -> 子查询命中 entity_id（demand.id）。
+def _compile_dfv_condition(spec: dict, ids: list, operator: str, *, entity_model) -> Q | None:
+    """DynamicFieldValue PERSON 维度 -> 子查询命中目标实体 pk。
 
     DynamicFieldValue 无反向 FK（按 resource+entity_id 字符串键），故用子查询：
-    找「本需求 + 指定 field_key + value ∈ 目标用户」的行，取其 entity_id 收口。
+    先在 dfv 表找「resource + field_key + value ∈ 目标用户」的 Demand entity_id 集合，
+    再按 `via` 把「实体 → Demand」的 ORM 路径映射回当前实体：
+      - via == '' ：实体自身即 Demand -> Q(pk__in=demand_ids)
+      - via != '' ：entity_model.filter({via}__in=demand_ids) 子查询收口
+        （如 position 的 via='demand'、candidate 的 via='applications__position__demand'）
     PERSON value 可能存 int 或 str（前端/历史差异），用 OR 兼容两种；
-    空集（未选值）-> None（no-op）。
+    ids 为空 -> None（no-op，由上游 _resolve_user_ids 已保证非空）。
     """
     from apps.dynamic_field.models import DynamicFieldValue
-    from django.db.models import OuterRef, Subquery
 
-    ids = [v for v in _norm_ids(cond) if v not in (None, '')]
-    if not ids:
+    if entity_model is None:
+        logger.warning('[expr_compiler] 未知实体模型, dfv 维度 no-op')
         return None
-    # PERSON 值存于 JSONField，可能以 int 或 str 形态落地（前端/历史差异）。
-    # ⚠️ MySQL 上 JSONField 的 value__in=[...] 不命中（标量 JSON 与 SQL IN 不做 JSON 感知比较），
-    # 必须用逐值精确 `=`（`value = JSON_EXTRACT(..., '$')`）并同时覆盖 int / str 两种形态，
-    # 用 OR 聚合多值，杜绝假阴性。
     id_filter = Q()
     for i in ids:
         id_filter |= Q(value=i)
         id_filter |= Q(value=str(i))
-    subq = Subquery(
+    demand_ids = list(
         DynamicFieldValue.objects.filter(
             resource=spec['resource'], field_key=spec['field_key'],
-            entity_id=OuterRef('id'),
-        ).filter(id_filter).values('entity_id')
+        ).filter(id_filter).values_list('entity_id', flat=True)
     )
-    return _negate_if_needed(Q(pk__in=subq), operator)
+    via = spec.get('via', '')
+    if not via:
+        target = Q(pk__in=demand_ids)
+    else:
+        linked = Subquery(entity_model.objects.filter(**{f'{via}__in': demand_ids}).values('pk'))
+        target = Q(pk__in=linked)
+    return _negate_if_needed(target, operator)
 
 
-def _compile_reverse_condition(spec: dict, cond: dict, operator: str) -> Q | None:
-    """resume_grabber 等多跳反向 FK 维度 -> 子查询收口，避免多对多放大 fan-out。
+def _compile_path_condition(spec: dict, ids: list, operator: str, *, entity_model) -> Q | None:
+    """resume_grabber / 候选人 demand_* / position_* 等多跳反向 FK 维度 -> 子查询收口。
 
-    spec['field'] 是跨表 ORM 路径（如 positions__applications__grabbed_by_id）；
-    先用子查询把「命中路径的需求 id」算出来，再 Q(pk__in=subq) 收口，
-    杜绝 Demand→Position→Application 多对多展开导致的重复行。
-    空集（未选值）-> None（no-op）。
+    spec['field'] 是相对 entity_model 的跨表 ORM 路径（如
+    positions__applications__grabbed_by_id / applications__position__demand__hr_id）；
+    先子查询把「命中路径的实体 pk」算出来，再 Q(pk__in=subq) 收口，
+    杜绝 Demand→Position→Application / Candidate→Application→Position→Demand
+    多对多展开导致的重复行（fan-out）。
+    ids 为空 -> None（no-op）。
     """
-    from apps.demand.models import Demand as _Demand
-    from django.db.models import Subquery
-
-    ids = [v for v in _norm_ids(cond) if v not in (None, '')]
+    if entity_model is None:
+        logger.warning('[expr_compiler] 未知实体模型, path 维度 no-op')
+        return None
+    ids = [v for v in ids if v not in (None, '')]
     if not ids:
         return None
-    subq = Subquery(_Demand.objects.filter(**{f"{spec['field']}__in": ids}).values('id'))
+    subq = Subquery(entity_model.objects.filter(**{f"{spec['field']}__in": ids}).values('pk'))
     return _negate_if_needed(Q(pk__in=subq), operator)
+
+
+def _compile_lock_owner_condition(spec: dict, cond: dict, operator: str, *, user) -> Q | None:
+    """简历锁定人复合条件（formal_locked_by OR (temp_locked_by AND 未过期)）。
+
+    支持两种用法：
+      - 空值运算符（is_empty / is_not_empty）：忽略 values，按「当前是否被锁定」判断；
+      - 用户类运算符（in / not_in）：静态 values 或动态 currentUser.id 解析成 id 集合后匹配。
+    空集 / 动态失败 -> None（no-op，与用户类维度统一语义）。
+    """
+    from django.utils import timezone
+
+    operator = str(operator or 'in').lower()
+    now = timezone.now()
+    if operator in ('is_empty', 'is_not_empty'):
+        empty = Q(formal_locked_by_id__isnull=True) & (
+            Q(temp_locked_by_id__isnull=True) | Q(temp_lock_expires_at__lte=now)
+        )
+        return (~empty) if operator == 'is_not_empty' else empty
+
+    ids = _resolve_user_ids(cond, 'lock_owner', user=user)
+    if ids is None:
+        return None
+    locked = Q(formal_locked_by_id__in=ids) | Q(temp_locked_by_id__in=ids, temp_lock_expires_at__gt=now)
+    return _negate_if_needed(locked, operator)
 
 
 def _compile_condition(
@@ -502,6 +580,7 @@ def _compile_condition(
     attribute_map: Dict[str, dict] | None = None,
     *,
     user=None,
+    entity_model=None,
 ) -> Q | None:
     """单条条件 -> Q。
 
@@ -548,23 +627,27 @@ def _compile_condition(
     if not field:
         return None
 
-    # ---- demand 人员类型字段（task #15）：dict spec 维度 ----
+    # ---- dict spec 维度（json_contain / dfv / path / lock_owner）----
     # field 既可能是字符串 ORM 路径（既有 dept/owner/creator 等），
-    # 也可能是 dict spec（json_contain / dfv / reverse）。
+    # 也可能是 dict spec（上述四类）。
     if isinstance(field, dict):
         spec = field
-        # phase-1：这些维度不支持动态取值（contextKeys=[]，前端不出现动态框）；
-        # 万一传动态源，fail-closed（不放行也不静默降级），与保存期校验口径一致。
-        if str(cond.get('valueSource') or 'static') == 'dynamic':
-            logger.warning('[expr_compiler] 人员维度 "%s" 暂不支持动态取值, fail-closed', dimension)
-            return _deny_all()
         kind = spec.get('kind')
+        # 简历锁定人：复合条件 + 空值运算符（人员维度，但额外支持 is_empty/is_not_empty）
+        if kind == 'lock_owner':
+            return _compile_lock_owner_condition(spec, cond, operator, user=user)
+        # 其余用户类维度：统一前置解析（静态 values 或 动态 currentUser.id）
+        ids = _resolve_user_ids(cond, dimension, user=user)
+        if ids is None:
+            return None  # 无值/动态失败 -> no-op（与用户类维度语义一致）
         if kind == 'json_contain':
-            return _compile_json_contains_condition(spec, cond, operator)
+            return _compile_json_contains_condition(spec, ids, operator)
         if kind == 'dfv':
-            return _compile_dfv_condition(spec, cond, operator)
-        if kind == 'reverse':
-            return _compile_reverse_condition(spec, cond, operator)
+            return _compile_dfv_condition(spec, ids, operator, entity_model=entity_model)
+        if kind == 'path':
+            return _compile_path_condition(spec, ids, operator, entity_model=entity_model)
+        if kind == 'reverse':  # 兼容旧 spec：无 via 的反向维度，按 path 收口
+            return _compile_path_condition(spec, ids, operator, entity_model=entity_model)
         logger.warning('[expr_compiler] 未知维度 spec kind "%s", no-op', kind)
         return None
 
@@ -576,10 +659,17 @@ def _compile_condition(
 
     if not values:
         return None
-    vals = [v.get('id') if isinstance(v, dict) else v for v in values]
-    vals = [v for v in vals if v is not None and v != '']
-    if not vals:
+    raw_vals = [v.get('id') if isinstance(v, dict) else v for v in values]
+    raw_vals = [v for v in raw_vals if v is not None and v != '']
+    if not raw_vals:
         return None
+    # 部门「属于（含下级）」静态支持：relation=in_subtree 时把所选部门 id 展开为
+    # 「自身 + 所有子孙部门」后再 __in（复用 context_resolvers.subtree_dept_ids，
+    # 与动态 dept 分支同源）。exact 维持原 field__in。
+    if dimension == 'dept' and str(cond.get('relation') or 'exact') == 'in_subtree':
+        vals = sorted(subtree_dept_ids([str(v) for v in raw_vals]))
+    else:
+        vals = raw_vals
     target = f'{field}__in'
     if operator in ('not_in', 'neq', '!=', 'not_eq'):
         return ~Q(**{target: vals})
@@ -626,6 +716,7 @@ def compile_scope_q(payload: dict, entity: str, *, user=None) -> Q | None:
         return None
     field_map = MODULE_DIMENSION_FIELDS.get(entity, {})
     attribute_map = _build_attribute_map(entity)
+    entity_model = _entity_model(entity)
     groups = payload.get('groups') or []
     if not groups:
         return None
@@ -644,7 +735,7 @@ def compile_scope_q(payload: dict, entity: str, *, user=None) -> Q | None:
         conds = g.get('conditions') or []
         cond_qs: Dict[int, Q] = {}
         for ci, c in enumerate(conds, start=1):
-            q = _compile_condition(c, field_map, attribute_map, user=user)
+            q = _compile_condition(c, field_map, attribute_map, user=user, entity_model=entity_model)
             if q is not None:
                 cond_qs[ci] = q
         if not cond_qs:
@@ -728,28 +819,37 @@ def validate_scope_payload(payload: dict, entity: str) -> str | None:
                 dimension = str(c.get('dimension') or '').lower()
                 if dimension not in field_map or not field_map.get(dimension):
                     return f'条件组 {gi} 第 {ci} 条：维度 "{dimension}" 在该模块不支持'
-                # 动态取值：不校验业务值（运行时由当前用户上下文注入），
-                # 但来源必须已注册、维度必须适配（M03：dept/user/unit 三值类型
-                # 各有维度适配规则，与编译期共用 DYNAMIC_DIMENSION_RULES，
-                # 防止校验放行但编译拒绝）；仅 dept 值类型有 relation 树语义需校验。
-                if str(c.get('valueSource') or 'static') == 'dynamic':
-                    key = str(c.get('dynamicKey') or '')
-                    value_type = DYNAMIC_VALUE_TYPES.get(key)
-                    if value_type is None:
-                        return f'条件组 {gi} 第 {ci} 条：动态值来源 "{c.get("dynamicKey")}" 未注册'
-                    allowed_dims = DYNAMIC_DIMENSION_RULES.get(value_type, frozenset())
-                    if dimension not in allowed_dims:
-                        return (
-                            f'条件组 {gi} 第 {ci} 条：动态值来源 "{key}" 不适用于维度 "{dimension}"'
-                            f'（仅支持 {" / ".join(sorted(allowed_dims))}）'
-                        )
-                    if value_type == 'dept':
-                        if str(c.get('relation') or 'exact') not in DYNAMIC_RELATIONS:
-                            return f'条件组 {gi} 第 {ci} 条：包含关系 "{c.get("relation")}" 非法'
-                else:
-                    values = c.get('values') or ([] if c.get('value') is None else [c.get('value')])
-                    if not values:
-                        return f'条件组 {gi} 第 {ci} 条：请为每条条件选择业务值'
+                # 运算符按维度校验（防前端越权传 is_empty 到普通用户维度）。
+                # 隐藏维度（无 DIMENSION_META.operators 条目）跳过校验，保留存量兼容。
+                op = str(c.get('operator') or 'in').lower()
+                meta = DIMENSION_META.get(dimension)
+                allowed_ops = {o['value'] for o in (meta or {}).get('operators', [])}
+                if allowed_ops and op not in allowed_ops:
+                    return f'条件组 {gi} 第 {ci} 条：运算符 "{op}" 对维度 "{dimension}" 不支持'
+                # 简历锁定人空值运算符不要求业务值；其余分支照常校验业务值/动态源。
+                if not (dimension == 'lock_owner' and op in ('is_empty', 'is_not_empty')):
+                    # 动态取值：不校验业务值（运行时由当前用户上下文注入），
+                    # 但来源必须已注册、维度必须适配（M03：dept/user/unit 三值类型
+                    # 各有维度适配规则，与编译期共用 DYNAMIC_DIMENSION_RULES，
+                    # 防止校验放行但编译拒绝）；仅 dept 值类型有 relation 树语义需校验。
+                    if str(c.get('valueSource') or 'static') == 'dynamic':
+                        key = str(c.get('dynamicKey') or '')
+                        value_type = DYNAMIC_VALUE_TYPES.get(key)
+                        if value_type is None:
+                            return f'条件组 {gi} 第 {ci} 条：动态值来源 "{c.get("dynamicKey")}" 未注册'
+                        allowed_dims = DYNAMIC_DIMENSION_RULES.get(value_type, frozenset())
+                        if dimension not in allowed_dims:
+                            return (
+                                f'条件组 {gi} 第 {ci} 条：动态值来源 "{key}" 不适用于维度 "{dimension}"'
+                                f'（仅支持 {" / ".join(sorted(allowed_dims))}）'
+                            )
+                        if value_type == 'dept':
+                            if str(c.get('relation') or 'exact') not in DYNAMIC_RELATIONS:
+                                return f'条件组 {gi} 第 {ci} 条：包含关系 "{c.get("relation")}" 非法'
+                    else:
+                        values = c.get('values') or ([] if c.get('value') is None else [c.get('value')])
+                        if not values:
+                            return f'条件组 {gi} 第 {ci} 条：请为每条条件选择业务值'
             cond_idx_map[ci] = Q()  # 占位，仅用于编号范围校验
             total_conditions += 1
         # 组内表达式语法校验（引用本组条件序号 1..len(conds)）

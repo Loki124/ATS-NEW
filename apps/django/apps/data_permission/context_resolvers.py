@@ -81,7 +81,14 @@ DYNAMIC_VALUE_TYPES: dict[str, str] = {
 # 的行为 —— 两者均引用本表，不得各自硬编码（防「校验放行但编译拒绝」分叉）。
 DYNAMIC_DIMENSION_RULES: dict[str, frozenset[str]] = {
     'dept': frozenset({'dept'}),
-    'user': frozenset({'owner', 'creator', 'hr', 'requested_by'}),
+    'user': frozenset({
+        # 既有
+        'owner', 'creator', 'hr', 'requested_by',
+        # 2026-10-15 维度治理（兵哥弹窗选项表）：全部用户类维度均可接 currentUser.id 动态源
+        'tbp', 'hrbp', 'uploaded_by', 'referrer', 'lock_owner',
+        'demand_tbp', 'demand_hrbp', 'demand_creator',
+        'position_tbp', 'position_hrbp', 'position_creator',
+    }),
     'unit': frozenset({'unit'}),
 }
 
