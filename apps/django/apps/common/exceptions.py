@@ -7,9 +7,19 @@ P1-7 修复: 业务异常细分,前端能精准区分处理
 - 404 资源不存在
 - 409 状态机/条件冲突
 - 400 参数校验失败
+
+2026-10-15 新增: "库没跟上代码" 的自诊断 (db_schema_out_of_sync)
+  背景: 新 app 注册进 INSTALLED_APPS + 迁移文件在仓, 但本地库没跑 migrate,
+  ORM 抛 ProgrammingError(1146 Table ... doesn't exist) → 这里原来一律包成
+  笼统的 500 "服务器内部错误", 前端只弹"服务繁忙", 排查方向被带偏
+  (实测先怀疑了代码 bug / 权限 / 迁移文件缺失, 实际只需跑 migrate)。
+  现在这类错误单独识别 + 返回可执行提示, 开发期一眼定位。
 """
 import logging
+import re
 
+from django.conf import settings
+from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
@@ -148,12 +158,66 @@ def custom_exception_handler(exc, context):
 
     # 未捕获异常
     logger.exception('Unhandled exception: %s', exc)
+
+    # 🔴 "库没跟上代码" 自诊断: 表/列不存在几乎不是代码 bug, 而是漏跑 migrate。
+    #    识别出来就返回可执行提示, 别再让排查跑去怀疑代码和权限。
+    hint = _db_schema_out_of_sync_hint(exc)
+    if hint:
+        return error_response(
+            message=hint,
+            code='db_schema_out_of_sync',
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            data=None,
+        )
+
     return error_response(
         message='服务器内部错误',
         code='internal_error',
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         data=None,
     )
+
+
+# MySQL 1146 = 表不存在, 1054 = 列不存在。SQLite 措辞不同, 一并匹配。
+_MISSING_TABLE_RE = re.compile(
+    r"Table '(?P<table>[\w.]+)' doesn't exist"
+    r"|no such table:\s*(?P<sqlite_table>[\w.]+)",
+    re.IGNORECASE,
+)
+_MISSING_COLUMN_RE = re.compile(
+    r"Unknown column '(?P<column>[\w.]+)' in 'field list'"
+    r"|no such column:\s*(?P<sqlite_column>[\w.]+)",
+    re.IGNORECASE,
+)
+
+
+def _db_schema_out_of_sync_hint(exc):
+    """识别"迁移未跑"类 DB 错误, 返回可直接照做的提示; 非此类返回 None。
+
+    只在 DEBUG=True 时给具体表名/迁移命令 —— 生产环境不泄漏 schema 信息,
+    但仍然返回 code 让前端能区分"这是环境问题, 不是接口 bug"。
+    """
+    if not isinstance(exc, DatabaseError):
+        return None
+
+    msg = str(exc)
+
+    match = _MISSING_TABLE_RE.search(msg)
+    if match:
+        table = match.group('table') or match.group('sqlite_table')
+        detail = f'数据表 {table} 不存在' if table else '数据表不存在'
+    else:
+        match = _MISSING_COLUMN_RE.search(msg)
+        if not match:
+            return None
+        column = match.group('column') or match.group('sqlite_column')
+        detail = f'字段 {column} 不存在' if column else '字段不存在'
+
+    if not settings.DEBUG:
+        # 生产: 不暴露具体表名, 但标记为环境问题便于排查
+        return '数据库结构与代码版本不一致，请联系管理员执行数据库迁移'
+
+    return f'数据库结构与代码不一致（{detail}），本地开发请执行：python manage.py migrate'
 
 
 def _map_drf_to_code(exc, status_code):

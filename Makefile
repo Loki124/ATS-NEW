@@ -47,6 +47,20 @@ test:  ## Run backend + frontend test suites
 	cd apps/django && . .venv/bin/activate && pytest -m "not quarantine" --cov=apps --cov-report=term-missing --cov-fail-under=70
 	cd web/app && pnpm test
 
+# 2026-10-15: 防止"新 app 忘了跑 migrate"导致全站 500。
+# 事故: position_title/job_level 已注册 INSTALLED_APPS + 迁移在仓, 但本地库未 applied,
+#       一进页面就 500 (1146 Table doesn't exist), 排查一度被带偏到代码 bug。
+# 以后拉完代码 / 切分支 / 加新 app 后先跑 `make doctor`。
+doctor:  ## 检查迁移漂移 + 待应用迁移 + 服务健康
+	@echo "→ 1/3 模型与迁移一致性 (有漂移即失败)"
+	@cd apps/django && DJANGO_SETTINGS_MODULE=config.settings.dev . .venv/bin/activate && python manage.py makemigrations --check --dry-run
+	@echo "→ 2/3 本地库待应用迁移"
+	@cd apps/django && . .venv/bin/activate && python manage.py migrate --check || \
+		(echo "❌ 有未应用的迁移 —— 执行: cd apps/django && python manage.py migrate" && false)
+	@echo "→ 3/3 服务健康"
+	@$(MAKE) --no-print-directory status
+	@echo "✅ doctor 全绿"
+
 lint:  ## Run Python (ruff) + frontend (eslint) linters
 	cd apps/django && . .venv/bin/activate && ruff check apps
 	cd web/app && pnpm lint

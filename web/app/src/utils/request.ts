@@ -176,8 +176,19 @@ export function createApi(opts: CreateApiOptions = {}): AxiosInstance {
         `  → 这是 "后端 app 缺" 不是 "权限问题". 看报告: REPORT-2026-06-29-ats-complete.md §10`
       )
     } else if (status === 500) {
-      console.error(`[API 500] 后端 bug: ${url}`, e?.response?.data)
-      _toast.error('服务繁忙，请稍后重试')
+      const code = e?.response?.data?.code
+      // 2026-10-15: 后端把"漏跑 migrate"识别成 db_schema_out_of_sync 并回传可执行提示。
+      //   这类错误不是"服务繁忙", 弹通用文案会把排查方向带偏(去怀疑后端 bug/服务抖动)。
+      if (code === 'db_schema_out_of_sync') {
+        console.error(
+          `[API 500] 数据库结构与代码不一致: ${url}\n` +
+          `  → 这不是代码 bug, 是本地库没跑 migrate。在 apps/django 执行: python manage.py migrate`
+        )
+        _toast.error(e?.response?.data?.message || '数据库结构与代码不一致，请执行数据库迁移')
+      } else {
+        console.error(`[API 500] 后端 bug: ${url}`, e?.response?.data)
+        _toast.error('服务繁忙，请稍后重试')
+      }
     }
     return refreshOn401(inst, e)
   })
