@@ -21,14 +21,32 @@
         class="rule-filter-select"
       />
       <div class="spacer"></div>
-      <!-- 权限 v2：动作字典/预设包管理（超管入口；护栏全部由后端裁决） -->
+      <!--
+        工具栏按钮组（2026-10-15 兵哥纠偏 · 按 frontend-layout-standard §1.8.1 + frontend-DESIGN §Data Table）：
+        - 全部 quaternary 文字按钮，同组按钮统一带 14–16px outline icon（§1.8.1 禁止半带半不带）
+        - 仅「新建身份」保留 primary 实心作为主路径；其余为 default 灰阶
+        - 模板管理入口移入本组，排在「刷新」之后（用户指定顺序）
+      -->
       <n-button v-if="isSuperAdmin" quaternary @click="actionManageShow = true">
+        <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
         {{ t('dataperm.actions.title') }}
       </n-button>
-      <n-button quaternary @click="load">{{ t('pages.settings.permission.RolesTab.s4') }}</n-button>
-      <!-- 克隆入口降为 ghost：非主路径操作不与「新建身份」争夺视觉焦点（R-202 一屏一主角） -->
-      <n-button quaternary @click="onCloneFromTemplate">{{ t('pages.settings.permission.RolesTab.s5') }}</n-button>
-      <n-button type="primary" class="gradient-btn" @click="onCreate">{{ t('pages.settings.permission.RolesTab.s6') }}</n-button>
+      <n-button quaternary @click="load">
+        <template #icon><n-icon :component="RefreshOutline" /></template>
+        {{ t('pages.settings.permission.RolesTab.s4') }}
+      </n-button>
+      <n-button quaternary @click="emit('open-templates')">
+        <template #icon><n-icon :component="GridOutline" /></template>
+        {{ t('pages.settings.PermissionManagement.s3') }}
+      </n-button>
+      <n-button quaternary @click="onCloneFromTemplate">
+        <template #icon><n-icon :component="CopyOutline" /></template>
+        {{ t('pages.settings.permission.RolesTab.s5') }}
+      </n-button>
+      <n-button type="primary" class="gradient-btn" @click="onCreate">
+        <template #icon><n-icon :component="AddOutline" /></template>
+        {{ t('pages.settings.permission.RolesTab.s6') }}
+      </n-button>
     </div>
 
     <!-- 表格：复用全局 .table-wrap + flex-height（仅表体内部滚动，对齐 CampusControl 规则表） -->
@@ -106,7 +124,8 @@
  *   - 表格包 .table-wrap + flex-height（仅表体内部滚动）；空状态区分「无数据/无筛选结果」
  */
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, useMessage, useDialog } from 'naive-ui'
+import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, NIcon, useMessage, useDialog } from 'naive-ui'
+import { AddOutline, CopyOutline, CreateOutline, GridOutline, RefreshOutline, ShieldCheckmarkOutline, TrashOutline } from '@vicons/ionicons5'
 import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } from '@/api/role-v2'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
 import { listAclRules } from '@/api/field-acl'
@@ -117,6 +136,9 @@ import { useUserStore } from '@/stores/user'
 import { useCloseGuard } from '@/composables/useCloseGuard'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
+
+// 模板管理弹窗由父组件 PermissionManagement 持有（弹窗体含 TemplatesTab，本组件只发信号）
+const emit = defineEmits<{ (e: 'open-templates'): void }>()
 
 // 权限 v2：动作字典管理入口仅超管可见（后端 IsSuperAdmin 双保险）
 const userStore = useUserStore()
@@ -217,28 +239,28 @@ const columns = [
     render: (r: RoleV2) => r.permissionCodes?.length ?? 0,
   },
   {
-    // 行内操作：2026-10-15 单色化 —— 常态灰阶 text 按钮，删除仅 hover 时转红。
-    // 理由（X-10 / R-202）：每行都摆红色删除按钮会让 20 行产生 20 个视觉红点，
-    // 抢走「新建身份」的主按钮焦点；危险色只在用户主动指向删除时才出现。
+    // 行内操作：按 frontend-DESIGN §Data Table —— quaternary 文字按钮，
+    // 编辑 type=primary、删除 type=error（危险色是规范要求的安全信号，不做单色化）。
+    // §1.8.1：同组按钮统一带 14–16px outline icon。
     title: '操作',
     key: 'actions',
     width: 150,
     fixed: 'right' as const,
     render(row: RoleV2) {
-      return h(NSpace, { size: 8 }, () => [
+      return h(NSpace, { size: 8, wrap: false }, () => [
         h(NButton, {
-          size: 'small',
-          text: true,
-          class: 'row-action',
+          size: 'tiny',
+          quaternary: true,
+          type: 'primary',
           onClick: () => onEdit(row),
-        }, () => '编辑'),
+        }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => '编辑' }),
         h(NButton, {
-          size: 'small',
-          text: true,
-          class: 'row-action row-action--danger',
+          size: 'tiny',
+          quaternary: true,
+          type: 'error',
           disabled: row.isSystem === 1,
           onClick: () => onDelete(row),
-        }, () => '删除'),
+        }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => '删除' }),
       ])
     },
   },
@@ -363,38 +385,17 @@ onMounted(load)
 .rule-filter-search { width: 240px; }
 .rule-filter-select { width: 136px; }
 
-/* === 2026-10-15 单色化：全页唯一强调色 = 品牌色（仅「新建身份」实心按钮）
- * 收敛前本页有 5 种彩色：primary 实心按钮 + info 克隆 + primary 编辑 + error 删除
- * + primary 自定义标签。彩色元素越多，用户越无法判断主路径。
- * 规则：常态灰阶承载次级操作，彩色仅在「主操作」与「用户主动指向的危险操作」出现。 */
+/* === 2026-10-15 兵哥纠偏：撤回过度单色化，回归前端标准
+ * 初版把工具栏全改 ghost、删除改「hover 才转红」，与两处权威规范冲突：
+ *   - frontend-DESIGN §Data Table：操作列按钮用 quaternary + type=primary/error
+ *   - frontend-layout-standard §1.8.1：删除 type="error"
+ * 危险色是安全信号，不是视觉噪音 —— 正确做法是「降低其他元素的色量」，
+ * 而不是「把危险信号也一起去掉」。现仅保留来源标签中性灰（原 primary 撞品牌色确实是问题）。 */
 
-/* 来源标签：中性灰，不参与语义区分 */
+/* 来源标签：中性灰，不参与语义区分（预置/自定义语义同级，用文字承载） */
 .roles-tab :deep(.neutral-tag) {
   --n-color: transparent;
   --n-text-color: var(--ink-soft);
   background: var(--border-hairline);
-}
-
-/* 行内操作：常态墨色轻量，hover 才显形 */
-.roles-tab :deep(.row-action) {
-  --n-text-color: var(--ink-soft);
-  --n-text-color-hover: var(--ink);
-  --n-text-color-pressed: var(--ink);
-  --n-text-color-focus: var(--ink);
-  padding: 0 var(--space-2);
-}
-/* 危险操作：仅在用户指向时才转红（R-109：不靠颜色单独承载语义，按钮本身有文字标签） */
-.roles-tab :deep(.row-action--danger) {
-  --n-text-color: var(--ink-faint);
-  --n-text-color-hover: var(--c-error);
-  --n-text-color-pressed: var(--c-error);
-  --n-text-color-focus: var(--c-error);
-}
-.roles-tab :deep(.row-action--danger.n-button--disabled) {
-  --n-text-color: var(--ink-faint);
-  --n-text-color-hover: var(--ink-faint);
-  --n-text-color-pressed: var(--ink-faint);
-  --n-text-color-focus: var(--ink-faint);
-  opacity: .45;
 }
 </style>

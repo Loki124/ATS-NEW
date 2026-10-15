@@ -83,7 +83,7 @@ onMounted(() => {
 .affected-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-2);
 }
 .affected-alert-name {
   font-weight: 600;
@@ -99,7 +99,7 @@ onMounted(() => {
 }
 .affected-table td,
 .affected-table th {
-  padding: 6px 10px;
+  padding: 4px 8px;
   font-size: var(--text-small, 13px);
   vertical-align: middle;
 }
@@ -111,7 +111,7 @@ onMounted(() => {
 }
 .affected-suggest-list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: var(--space-4);
   color: var(--ink-faint);
   font-size: var(--text-small, 13px);
   line-height: 1.7;
@@ -267,7 +267,7 @@ onMounted(() => {
 .ws-origin-tag {
   display: inline-flex;
   align-items: center;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: 4px;
   font-size: 12px;
   line-height: 18px;
@@ -285,7 +285,7 @@ onMounted(() => {
 .ws-module-tag {
   display: inline-flex;
   align-items: center;
-  padding: 2px 10px;
+  padding: 2px 8px;
   border-radius: var(--radius-pill);
   background: var(--g1);
   border: 1px solid var(--border-hairline);
@@ -296,7 +296,7 @@ onMounted(() => {
 .ws-metric-cell {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .ws-row-actions {
   display: flex;
@@ -377,8 +377,8 @@ onMounted(() => {
 .dm-kind-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: var(--space-2);
+  padding: 4px 8px;
   border-radius: var(--radius-pill);
   font-size: var(--fs-15);
   font-weight: 600;
@@ -391,7 +391,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-2);
-  padding: 6px 14px;
+  padding: 4px 8px;
   border-radius: var(--radius-pill);
   background: var(--g1);
   border: 1px solid var(--border-hairline);
@@ -573,7 +573,7 @@ onMounted(() => {
 /* 单位 pill（品牌选中） */
 .tpl-pill {
   display: inline-flex; align-items: center;
-  padding: 2px 10px; border-radius: var(--radius-pill);
+  padding: 2px 8px; border-radius: var(--radius-pill);
   border: 1px solid var(--border-hairline); background: var(--surface);
   color: var(--ink-soft); font-size: var(--fs-12); line-height: 1.5; cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
@@ -584,7 +584,7 @@ onMounted(() => {
 /* 参数配置：流式单行，字段按内容宽度贴左（不再 4 等分拉散） */
 .tpl-param-block { display: flex; flex-direction: column; gap: var(--space-3); }
 .tpl-param-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-6); }
-.tpl-param-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.tpl-param-field { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .tpl-param-lbl { color: var(--ink-soft); font-size: var(--fs-12); font-weight: 500; line-height: 1.4; display: flex; align-items: center; min-height: 24px; }
 .tpl-param-ctl { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .tpl-param-ctl .n-input-number { flex-shrink: 0; }
@@ -603,7 +603,7 @@ onMounted(() => {
 .tpl-op {
   position: relative;
   display: inline-flex; align-items: center; gap: var(--space-1);
-  padding: 4px 11px;
+  padding: 4px 8px;
   border: 1px solid var(--border-hairline); border-radius: var(--radius-pill);
   background: var(--surface); color: var(--ink-soft);
   cursor: pointer; user-select: none;

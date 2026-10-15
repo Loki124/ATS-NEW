@@ -2,22 +2,12 @@
   <div class="page-container permission-management">
     <div class="page-body">
       <div class="page-header">
-        <div class="page-header-row">
-          <div>
-            <h1 class="page-title">{{ t('pages.settings.PermissionManagement.s1') }}</h1>
-            <p class="page-subtitle">{{ t('pages.settings.PermissionManagement.s2') }}</p>
-          </div>
-          <div class="page-header-actions">
-            <n-button @click="templatesModal.show = true">
-              <template #icon><n-icon :component="GridOutline" /></template>
-              {{ t('pages.settings.PermissionManagement.s3') }}
-            </n-button>
-          </div>
-        </div>
+        <h1 class="page-title">{{ t('pages.settings.PermissionManagement.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.PermissionManagement.s2') }}</p>
       </div>
 
       <div class="glass-panel permission-shell">
-        <RolesTab />
+        <RolesTab @open-templates="templatesModal.show = true" />
       </div>
     </div>
 
@@ -48,8 +38,7 @@ import { useI18n } from 'vue-i18n'
  *      /api/v1/permissions/users/{id}/roles/，授权入口统一收敛到用户管理页)
  */
 import { reactive } from 'vue'
-import { NButton, NCard, NIcon, NModal } from 'naive-ui'
-import { GridOutline } from '@vicons/ionicons5'
+import { NModal } from 'naive-ui'
 import RolesTab from './permission/RolesTab.vue'
 import TemplatesTab from './permission/TemplatesTab.vue'
 const { t } = useI18n()
@@ -69,6 +58,7 @@ const templatesModal = reactive({ show: false })
   min-height: 0;
   padding: 0;
 }
+/* 标题区（2026-10-15 兵哥：模板管理入口移入 RolesTab 工具栏，页头回归纯标题） */
 .page-header {
   flex-shrink: 0;
 }
@@ -81,20 +71,6 @@ const templatesModal = reactive({ show: false })
   flex-direction: column;
   /* 2026-10-15 兵哥：间距朝更小收敛（16px → 8px），页头与内容靠 8px 轻隔即可分层 */
   gap: var(--space-2);
-}
-
-/* 标题行：左标题 + 右操作（模板管理入口右对齐） */
-.page-header-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-.page-header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
 }
 
 .permission-management {
