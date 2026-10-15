@@ -3,7 +3,7 @@
     :show="show"
     preset="card"
     :title="t('dataperm.modal.title', { moduleName })"
-    :style="{ width: '760px' }"
+    :style="{ width: '820px', maxWidth: '95vw' }"
     :mask-closable="false"
     :bordered="false"
     @update:show="(v: boolean) => emit('update:show', v)"
@@ -37,10 +37,15 @@
           class="cond-row"
         >
           <!--
-            关系维度条件：**两行式**布局（修正「取值来源 / 业务值」各独占一行的视觉混乱）。
-              第 1 行：序号 + 维度 + 运算符 + 取值来源（固定 / 动态） + 删除
-              第 2 行：业务值（缩进对齐维度列）
-            属性条件为已下线存量（只读渲染），保持单行 + 删除，见下方 v-else。
+            关系维度条件：**单行铁律**（兵哥 2026-10-15 二次反馈：每个条件严禁占两行、
+            严禁换行）。一行内依序铺：序号 → 维度 → 运算符 → 取值来源（可缺省）→ 业务值 → 删除。
+
+            空间预算（弹窗 820px，行内可用 ≈ 756px）：
+              - 维度 flex:3（基准 190 / 上限 230）：完整展示「TBP（需求主负责人）」≈137px；
+              - 运算符 160px 固定：文本区 120px ≥「属于（含下级）」全角 8 字 ≈112px；
+              - 取值来源 128px 固定：文本区 88px ≥「当前登录用户」≈84px；
+              - 业务值 flex:2（基准 150）：多选 responsive 折叠、单选/只读 ellipsis；
+              - flex-wrap: nowrap + 全链路 min-width:0：极端窄屏截断而非换行。
 
             为什么不能直接删掉 kind 字段：
               - 后端 expr_compiler 仍按 kind 分派编译属性条件（存量快照仍能执行），
@@ -49,93 +54,91 @@
               - 权限系统里「看不见但仍在生效的规则」比「看不见且不能新建」更危险。
           -->
           <template v-if="!isAttr(c)">
-            <!-- 第 1 行：序号 + 维度 + 运算符 + 取值来源 + 删除（删除固定在本行右侧，不随换行孤立） -->
-            <div class="cond-line">
-              <span class="cond-seq">{{ ci + 1 }}</span>
-              <n-select
-                :value="c.dimension"
-                :options="dimensionOptions"
-                size="small"
-                class="cond-dim"
-                @update:value="(v: string) => onDimensionChange(c, v)"
-              />
-              <n-select
-                :value="unifiedOperatorValue(c)"
-                :options="unifiedOperatorOptions(c)"
-                size="small"
-                class="cond-verb"
-                @update:value="(v: string) => onUnifiedOperatorChange(c, v)"
-              />
-              <n-select
-                v-if="supportsDynamic(c) && !noValueOperator(c)"
-                :value="rangeValue(c)"
-                :options="rangeOptions(c)"
-                size="small"
-                class="cond-src"
-                @update:value="(v: string) => onRangeChange(c, v)"
-              />
-              <span class="cond-spacer" />
-              <button
-                class="cond-del"
-                type="button"
-                :disabled="g.conditions.length <= 1"
-                @click="delCondition(g, ci)"
-              >
-                <n-icon :component="TrashOutline" />
-              </button>
-            </div>
-            <!-- 第 2 行：业务值（无值运算符不显示） -->
-            <div v-if="!noValueOperator(c)" class="cond-line cond-line-val">
-              <n-select
-                v-if="isStatic(c)"
-                :value="validValueIds(c)"
-                :options="valueOptions(c)"
-                size="small"
-                multiple
-                filterable
-                clearable
-                max-tag-count="responsive"
-                class="cond-val"
-                :placeholder="t('dataperm.modal.valuesPlaceholder')"
-                @update:value="(ids: Array<string | number>) => onValuesChange(c, ids)"
-              />
-              <n-tag
-                v-else
-                size="small"
-                :bordered="false"
-                class="cond-val-readonly"
-              >
-                {{ rangeLabel(c) }}
-              </n-tag>
-              <n-tag
-                v-for="sv in staleValues(c)"
-                :key="sv.id"
-                size="small"
-                :bordered="false"
-                class="stale-tag"
-              >
-                {{ sv.label }}（{{ t('dataperm.value.stale') }}）
-              </n-tag>
-            </div>
+            <span class="cond-seq">{{ ci + 1 }}</span>
+            <!-- 维度 -->
+            <n-select
+              :value="c.dimension"
+              :options="dimensionOptions"
+              size="small"
+              class="cond-dim"
+              @update:value="(v: string) => onDimensionChange(c, v)"
+            />
+            <!-- 运算符：始终显示；user 维度给 包含/不包含，dept 维度给包含关系族 -->
+            <n-select
+              :value="unifiedOperatorValue(c)"
+              :options="unifiedOperatorOptions(c)"
+              size="small"
+              class="cond-verb"
+              @update:value="(v: string) => onUnifiedOperatorChange(c, v)"
+            />
+            <!-- 取值来源（固定 / 动态）：维度支持动态取值且运算符非无值型时才需要 -->
+            <n-select
+              v-if="supportsDynamic(c) && !noValueOperator(c)"
+              :value="rangeValue(c)"
+              :options="rangeOptions(c)"
+              size="small"
+              class="cond-src"
+              @update:value="(v: string) => onRangeChange(c, v)"
+            />
+            <!-- 业务值：静态可编辑（多选 responsive 折叠）；动态只读展示当前范围 -->
+            <n-select
+              v-if="isStatic(c) && !noValueOperator(c)"
+              :value="validValueIds(c)"
+              :options="valueOptions(c)"
+              size="small"
+              multiple
+              filterable
+              clearable
+              max-tag-count="responsive"
+              class="cond-val"
+              :placeholder="t('dataperm.modal.valuesPlaceholder')"
+              @update:value="(ids: Array<string | number>) => onValuesChange(c, ids)"
+            />
+            <n-tag
+              v-else-if="!noValueOperator(c)"
+              size="small"
+              :bordered="false"
+              class="cond-val-readonly"
+            >
+              <span class="ellipsis-text">{{ rangeLabel(c) }}</span>
+            </n-tag>
+            <!-- 存量失效值提示（值已被删/改名）：可压缩 ellipsis，绝不撑换行 -->
+            <n-tag
+              v-for="sv in staleValues(c)"
+              :key="sv.id"
+              size="small"
+              :bordered="false"
+              class="stale-tag"
+            >
+              <span class="ellipsis-text">{{ sv.label }}（{{ t('dataperm.value.stale') }}）</span>
+            </n-tag>
+            <span class="cond-spacer" />
+            <button
+              class="cond-del"
+              type="button"
+              :disabled="g.conditions.length <= 1"
+              @click="delCondition(g, ci)"
+            >
+              <n-icon :component="TrashOutline" />
+            </button>
           </template>
 
           <!--
-            属性条件（已下线）—— **只读存量渲染**，控件全 disabled。
+            属性条件（已下线）—— **只读存量渲染**，控件全 disabled，同样保持单行。
             保留原因见上方 cond-row 注释：expr_compiler 仍按 kind 分派编译它，
             前端必须能原样回传，不能在往返编辑中损坏已保存的规则。
             全部 disabled：已下线的配置不允许再被修改（改了就等于变相"复活"该能力）。
           -->
           <template v-else>
-            <div class="cond-line">
-              <span class="cond-seq">{{ ci + 1 }}</span>
-              <n-tag
-                size="small"
-                :bordered="false"
-                type="warning"
-                class="cond-deprecated"
-              >
-                {{ t('dataperm.modal.condType.attribute') }} · {{ t('dataperm.modal.deprecatedBadge') }}
-              </n-tag>
+            <span class="cond-seq">{{ ci + 1 }}</span>
+            <n-tag
+              size="small"
+              :bordered="false"
+              type="warning"
+              class="cond-deprecated"
+            >
+              {{ t('dataperm.modal.condType.attribute') }} · {{ t('dataperm.modal.deprecatedBadge') }}
+            </n-tag>
             <n-select
               :value="c.field"
               :options="attrFieldOptions"
@@ -200,32 +203,57 @@
               />
             </template>
             <span v-else class="attr-no-val">{{ t('dataperm.modal.attrOperatorPlaceholder') }}</span>
-              <span class="cond-spacer" />
-              <button
-                class="cond-del"
-                type="button"
-                :disabled="g.conditions.length <= 1"
-                @click="delCondition(g, ci)"
-              >
-                <n-icon :component="TrashOutline" />
-              </button>
-            </div>
+            <span class="cond-spacer" />
+            <button
+              class="cond-del"
+              type="button"
+              :disabled="g.conditions.length <= 1"
+              @click="delCondition(g, ci)"
+            >
+              <n-icon :component="TrashOutline" />
+            </button>
           </template>
         </div>
 
-        <!-- 组内表达式（用户手填，引用本组条件序号 1..N；留空 = 且 AND） -->
+        <!-- 组内表达式（用户手填，引用本组条件序号 1..N；留空 = 且 AND）。
+             兵哥 2026-10-15：去掉不必要提示 —— 语法说明改 info 图标 hover，
+             校验状态由「表达式合法」文字改为图标（ok 绿勾 / bad 红叹）+ hover 原因。 -->
         <div class="group-inner-row">
-          <span class="inner-label">{{ t('dataperm.modal.expr.intraLabel') }}</span>
+          <span class="inner-label">
+            {{ t('dataperm.modal.expr.intraLabel') }}
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <button
+                  type="button"
+                  class="hint-btn"
+                  :aria-label="t('dataperm.modal.expr.intraPlaceholder')"
+                >
+                  <n-icon :component="InformationCircleOutline" />
+                </button>
+              </template>
+              {{ t('dataperm.modal.expr.intraPlaceholder') }}
+            </n-tooltip>
+          </span>
           <n-input
             v-model:value="g.expr"
             size="small"
             clearable
+            placeholder=""
             :class="{ 'input-error': !!intraError(g) }"
-            :placeholder="t('dataperm.modal.expr.intraPlaceholder')"
           />
-          <span class="expr-check" :class="intraError(g) ? 'bad' : 'ok'">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <button
+                type="button"
+                class="expr-status"
+                :class="intraError(g) ? 'bad' : 'ok'"
+                :aria-label="intraError(g) ? t('dataperm.modal.expr.invalid', { reason: intraError(g) || '' }) : t('dataperm.modal.expr.valid')"
+              >
+                <n-icon :component="intraError(g) ? AlertCircleOutline : CheckmarkCircleOutline" />
+              </button>
+            </template>
             {{ intraError(g) ? t('dataperm.modal.expr.invalid', { reason: intraError(g) || '' }) : t('dataperm.modal.expr.valid') }}
-          </span>
+          </n-tooltip>
         </div>
       </div>
     </div>
@@ -243,26 +271,64 @@
       <n-icon :component="AddOutline" /> {{ t('dataperm.modal.addGroup') }}
     </a>
 
-    <!-- 组间组合（引用条件组序号 1..N；留空 = 或 OR） -->
+    <!-- 组间组合（引用条件组序号 1..N；留空 = 或 OR）。提示同上：info 图标 + 状态图标 -->
     <div class="inter-block">
       <div class="group-inner-row">
-        <span class="inner-label">{{ t('dataperm.modal.expr.interLabel') }}</span>
+        <span class="inner-label">
+          {{ t('dataperm.modal.expr.interLabel') }}
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <button
+                type="button"
+                class="hint-btn"
+                :aria-label="t('dataperm.modal.expr.interPlaceholder')"
+              >
+                <n-icon :component="InformationCircleOutline" />
+              </button>
+            </template>
+            {{ t('dataperm.modal.expr.interPlaceholder') }}
+          </n-tooltip>
+        </span>
         <n-input
           v-model:value="localInter"
           size="small"
           clearable
+          placeholder=""
           :class="{ 'input-error': !!interError }"
-          :placeholder="t('dataperm.modal.expr.interPlaceholder')"
         />
-        <span class="expr-check" :class="interError ? 'bad' : 'ok'">
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button
+              type="button"
+              class="expr-status"
+              :class="interError ? 'bad' : 'ok'"
+              :aria-label="interError ? t('dataperm.modal.expr.invalid', { reason: interError || '' }) : t('dataperm.modal.expr.valid')"
+            >
+              <n-icon :component="interError ? AlertCircleOutline : CheckmarkCircleOutline" />
+            </button>
+          </template>
           {{ interError ? t('dataperm.modal.expr.invalid', { reason: interError || '' }) : t('dataperm.modal.expr.valid') }}
-        </span>
+        </n-tooltip>
       </div>
     </div>
 
-    <!-- 从权限模板一键引用（2026-10-11） -->
+    <!-- 从权限模板一键引用（2026-10-11）。兵哥 2026-10-15：底部提示段落改 info 图标 hover -->
     <div v-if="scopeTemplates.length" class="tpl-box">
-      <span class="tpl-label">{{ t('dataperm.modal.tpl.title') }}</span>
+      <span class="tpl-label">
+        {{ t('dataperm.modal.tpl.title') }}
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <button
+              type="button"
+              class="hint-btn"
+              :aria-label="t('dataperm.modal.tpl.tip')"
+            >
+              <n-icon :component="InformationCircleOutline" />
+            </button>
+          </template>
+          {{ t('dataperm.modal.tpl.tip') }}
+        </n-tooltip>
+      </span>
       <div class="tpl-row">
         <n-select
           v-model:value="selectedTemplateCode"
@@ -291,7 +357,6 @@
           {{ t('dataperm.modal.tpl.apply') }}
         </n-button>
       </div>
-      <p class="tpl-tip">{{ t('dataperm.modal.tpl.tip') }}</p>
     </div>
 
     <!-- 预览句 -->
@@ -328,10 +393,11 @@
 import { computed, ref, watch } from 'vue'
 import {
   NModal, NButton, NSpace, NSelect, NInput, NTag, NIcon,
-  NInputNumber, useMessage,
+  NInputNumber, NTooltip, useMessage,
 } from 'naive-ui'
 import {
   AddOutline, TrashOutline, ReorderFourOutline,
+  InformationCircleOutline, CheckmarkCircleOutline, AlertCircleOutline,
 } from '@vicons/ionicons5'
 import {
   newCondition, uid, validateExpr, previewOf,
@@ -500,12 +566,22 @@ function dimValueType(c: PermCondition): string {
   return dimMetaOf(c.dimension || '')?.valueType || ''
 }
 
-/** 当前维度的运算符清单（后端按维度下发优先，缺省按 valueType 兜底）。 */
+/**
+ * 当前维度的运算符清单（后端按维度下发优先，dept 例外）。
+ *
+ * 🔴 dept 例外原因：`unifiedOperatorValue` 把 operator + relation 组合成
+ * `${op}:${rel}` 一个 value（如 'in:in_subtree'），这是**前端复合值**；
+ * 后端 DIMENSION_META 的 dept operators 即便按设计文档 §1.2 下发也只有
+ * 裸 'in'/'not_in'（+relations 档位），直接拿来当下拉选项会匹配不上当前值，
+ * n-select 回退显示原始值 'in:in_subtree'（浏览器实测复现）。
+ * 故 dept 恒用 UNIFIED_DEPT_OPERATORS（组合值规范表，标签即产品文案）；
+ * 其余维度仍走后端的按维度 operators（含 noValue 的 is_empty 等）。
+ */
 function unifiedOperatorOptions(c: PermCondition) {
-  const meta = dimMetaOf(c.dimension || '')
-  if (meta?.operators?.length) return meta.operators
   const vt = dimValueType(c)
   if (vt === 'department') return UNIFIED_DEPT_OPERATORS
+  const meta = dimMetaOf(c.dimension || '')
+  if (meta?.operators?.length) return meta.operators
   return UNIFIED_USER_OPERATORS
 }
 
@@ -936,7 +1012,10 @@ function confirm() {
    （2026-10-15 A档 + 流程管理进入条件弹窗对齐）：
      · 条件组 = 浅底 group-block 单层卡片，**不再组卡内嵌条件卡**（原三层嵌套已拆平）
      · 条件行 = 序号圆点 + 横排控件 + 右侧垃圾桶（cond-row）
+       🔴 单行铁律（兵哥 2026-10-15 二次反馈）：每个条件严禁占两行/换行，
+          宽度预算见 .cond-row 处注释；超宽 ellipsis 截断
      · 添加组 = 文字链（add-link），不再整块品牌色 button
+     · 提示内容（表达式语法/模板快照说明/校验状态）一律 icon + hover，不常驻文字
    ========================================================================= */
 .group-list { display: flex; flex-direction: column; }
 
@@ -1003,22 +1082,20 @@ function confirm() {
 .group-head-actions a:hover { color: var(--brand-fg); }
 .group-head-actions a.danger:hover { color: var(--c-error-deep); }
 
-/* 条件行：纵向堆叠两行（第 1 行 维度/运算符/取值来源/删除，第 2 行 业务值） */
+/*
+ * 条件行：**单行铁律**（兵哥 2026-10-15：每个条件严禁占两行、严禁换行）。
+ * flex-wrap: nowrap + 全链路 min-width:0 —— 超宽内容 ellipsis 截断而非换行；
+ * cond-spacer 吸收剩余空间，把删除按钮顶到行尾。
+ */
 .cond-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2, 8px);
-  padding: 4px 0;
-}
-/* 单行控件条：横向排列；cond-spacer 把删除按钮顶到行尾 */
-.cond-line {
-  display: flex;
   align-items: center;
-  gap: var(--space-2, 8px);
+  gap: 6px;
+  flex-wrap: nowrap;
+  padding: 4px 0;
+  min-width: 0;
 }
-/* 第 2 行·业务值：左缩进对齐维度列（跨过序号圆点） */
-.cond-line-val { padding-left: 30px; }
-/* 弹性占位：吸收剩余空间，把删除按钮推到第 1 行右侧 */
+/* 弹性占位：吸收剩余空间，把删除按钮推到行尾 */
 .cond-spacer { flex: 1; min-width: 0; }
 .cond-seq {
   width: 22px; height: 22px;
@@ -1038,36 +1115,71 @@ function confirm() {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  /* 删除按钮固定在「第 1 行」右侧（由 cond-spacer 顶过去，不用 margin-left:auto），
-     业务值换到第 2 行时按钮不会被孤立成"独占一行右侧"。 */
+  /* 删除按钮固定在行尾（由 cond-spacer 顶过去，不用 margin-left:auto）。
+     单行铁律下不存在「换行后按钮被孤立」问题，保持右侧对齐即可。 */
   margin-left: 4px;
   padding: 0;
 }
 .cond-del:hover:not(:disabled) { color: var(--c-error-deep); }
 .cond-del:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* 维度选择：宽度放到 180px，完整展示「TBP（需求主负责人）」「所属需求的需求创建人」等
-   长标签，避免 104px 下被截成「TBP（...）」（兵哥要求字段名与选项表一致、不得简写）。 */
-.cond-dim { width: 180px; flex-shrink: 0; }
 /*
- * 第 2 位·关系词（静态 operator / 动态 relation 共用）。
- * 宽度取 124px：`属于（含下级）` 6 字 + 图标 + 内边距，86px 会被截成「属于（含下…」。
+ * 单行空间预算（弹窗 820px，组内可用 ≈ 770px）：
+ *   序号 20 + 维度 flex3(基准190/上限230) + 运算符 160 + 来源 128
+ *        + 业务值 flex2(基准150) + 删除 24 + 间隙 6×6=36  ≈ 708px（余量给弹性项）
+ * - 维度 min 180px：**保证「TBP（需求主负责人）」（需 177px）在任何形态下全显**，
+ *   基准 190 / 上限 230，常规形态（无失效标签）直接吃到 222px+；
+ * - 运算符 160px：文本区 120px ≥「属于（含下级）」全角 8 字 ≈112px；
+ * - 来源 128px：文本区 88px ≥「当前登录用户」≈84px；
+ * - 业务值 flex2 吸收余量；多选 responsive 折叠、单选/只读 ellipsis；
+ * - 🔴 单行铁律兜底：运算符/来源可收缩到 92px、业务值到 110px、失效标签优先
+ *   吸收（shrink 4）——**任何形态都不允许换行或溢出行框**（绝对最坏
+ *   22+180+92+92+110+0+18+48=562px < 可用 770px，浏览器实测零溢出）。
+ * - 极端窄屏（maxWidth 95vw）：同上，压缩而非换行。
  */
-.cond-verb { width: 124px; flex-shrink: 0; }
-/* 🔴 由 150px 放宽到 190px ——「该成员的负责部门及其下级」13 字原来被截断成「…及其…」。 */
-.cond-src { width: 190px; flex-shrink: 0; }
-.cond-val { flex: 1; min-width: 140px; }
+.cond-dim { flex: 3 1 190px; min-width: 180px; max-width: 230px; }
+/*
+ * 第 2 位·运算符（静态 operator / 动态 relation 共用）。
+ * 160px：`属于（含下级）` 6 字 + 全角括号 ≈112px 文本 + 选择器 chrome ≈40px。
+ */
+.cond-verb { flex: 0 1 auto; width: 160px; min-width: 92px; }
+/* 取值来源 128px：「当前登录用户负责的部门」等长标签 ellipsis（下拉内仍完整） */
+.cond-src { flex: 0 1 auto; width: 128px; min-width: 92px; }
+.cond-val { flex: 2 1 150px; min-width: 110px; }
 
-.stale-tag { flex-shrink: 0; background: var(--g2); color: var(--ink-soft); }
+/*
+ * 只读业务值 / 存量失效值标签：可压缩，绝不撑换行。
+ * 🔴 n-tag 把插槽内容包在 .n-tag__content 里——ellipsis 必须打通整条链：
+ *    tag(min-width:0) → .n-tag__content(min-width:0+hidden) → .ellipsis-text(ellipsis)，
+ *    只设最内层会被中间层的 auto 宽度顶穿（实测文字冲出芯片 2 倍宽）。
+ * 🔴 失效标签 flex-shrink:4 —— 行内放不下时**优先压缩失效标签**，保护维度选择器
+ *    （TBP（需求主负责人）需 177px 全显）与运算符/来源不被挤到 ellipsis；
+ *    浏览器实测：1 个失效标签形态下 dim 保住 179.6px 全显，2 个以上才退化。
+ */
+.cond-val-readonly { flex: 2 1 auto; min-width: 0; max-width: 100%; }
+.stale-tag { flex: 0 4 auto; min-width: 0; max-width: 160px; }
+.stale-tag :deep(.n-tag__content),
+.cond-val-readonly :deep(.n-tag__content) {
+  min-width: 0;
+  overflow: hidden;
+}
+.ellipsis-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
 .cond-deprecated { flex-shrink: 0; font-weight: 600; }
 
 .attr-field { width: 200px; flex-shrink: 0; }
 .attr-op { width: 116px; flex-shrink: 0; }
-.attr-val { flex: 1; min-width: 140px; }
+.attr-val { flex: 2 1 150px; min-width: 110px; }
 .attr-val-sm { width: 104px; flex-shrink: 0; }
 .attr-no-val { font-size: var(--fs-12, 12px); color: var(--ink-faint); }
 
-/* 组内表达式 / 组间组合：统一 label + input + 校验位的一行式 */
+/* 组内表达式 / 组间组合：统一 label + input + 状态图标的一行式 */
 .group-inner-row {
   display: flex;
   align-items: center;
@@ -1080,17 +1192,63 @@ function confirm() {
   white-space: nowrap;
   min-width: 72px;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
 }
 .group-inner-row :deep(.n-input) { flex: 1; min-width: 0; }
 
-.expr-check {
-  font-size: var(--fs-12, 12px);
-  font-weight: 600;
+/*
+ * 提示图标按钮（兵哥 2026-10-15：去掉不必要提示，改 icon + hover）。
+ * 范式对齐 RuleConfigDrawer.rc-info-btn：button 保键盘可达 + aria-label 供读屏，
+ * hover/focus 出 n-tooltip。cursor: help 明示「这是说明、不是动作」。
+ */
+.hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: help;
+  padding: 0;
+  font-size: 13px;
   flex-shrink: 0;
-  white-space: nowrap;
+  transition: color .15s ease, background .15s ease;
 }
-.expr-check.ok { color: var(--c-success-deep); }
-.expr-check.bad { color: var(--c-error-deep); }
+.hint-btn:hover,
+.hint-btn:focus-visible {
+  color: var(--brand-fg);
+  background: var(--g1);
+  outline: none;
+}
+.hint-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+/* 表达式校验状态图标（替代原「表达式合法」文字）：ok 绿勾 / bad 红叹，hover 出原因 */
+.expr-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  cursor: help;
+  padding: 0;
+  font-size: 15px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.expr-status.ok { color: var(--c-success-deep); }
+.expr-status.bad { color: var(--c-error-deep); }
+.expr-status:hover { background: var(--g1); }
+.expr-status:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
 /* 组间组合：极浅底，标示它是「组合方式」而非条件本身 */
 .inter-block {
@@ -1133,7 +1291,6 @@ function confirm() {
 .tpl-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tpl-pick { width: 220px; flex-shrink: 0; }
 .tpl-bind { width: 150px; flex-shrink: 0; }
-.tpl-tip { margin: 8px 0 0; font-size: var(--fs-12, 12px); line-height: 1.6; color: var(--ink-soft); }
 
 .empty-state {
   border: 1px dashed var(--border-hairline);
