@@ -39,10 +39,47 @@ on_delete=CASCADE：删用户 → 其角色授权自动清除（PRD P0-3 验收�
   4) SafeAddConstraint / SafeAddIndex：db 层 1061/duplicate/already exists 跳过。
 
 所有 Safe* 仅吞「本就不该存在 / 已存在」这一类幂等噪声，绝不吞真错误。
+
+═══════════════════════════════════════════════════════════════════════
+⚠️ 2026-10-15 线上三次修复（1452 脏数据 + 异常类型漏网）
+═══════════════════════════════════════════════════════════════════════
+现象：attempt 18 仍失败于 SafeAddField(L157)，报
+  IntegrityError: (1452, 'Cannot add or update a child row: a foreign key
+  constraint fails (... CONSTRAINT `user_roles_user_id_..._fk_core_user_id`
+  FOREIGN KEY (`user_id`) REFERENCES `core_user` (`id`))')
+
+两个独立缺陷：
+
+(A) 异常类型漏网 —— 1452 是 **IntegrityError**，而上述所有 Safe* 只
+    `except django.db.utils.OperationalError`。Django 的 wrap_database_errors
+    把 pymysql 异常包成 IntegrityError(1452) / DatabaseError(1061 等)，
+    完全不落在 except 分支里 → 直接冒泡 → 迁移框架无限重试卡死。
+    修复：所有 Safe* 补 `except (OperationalError, IntegrityError, DatabaseError)`，
+    但**仍只吞白名单里的幂等错误码**，其余一律 raise（不吞真错误）。
+
+(B) 脏数据才是真凶 —— 0023 的 purge_orphans 只在「它自己被执行那一刻」
+    删除孤儿。若孤儿数据是**之后**才进入 user_roles 的（前两次失败迁移的
+    半完成态、权限管理页面又写了授权、备份恢复等），0023 早已 applied
+    不会重跑，于是 AddField(user FK) 必然 1452。
+    修复：在 AddField 之前**再清一次**残留孤儿（purge_residual_orphans），
+    不依赖「0023 跑过」这一假设，让 0024 自洽可安全重跑。
+
+    删除范围严格限定：仅 user_id 指向不存在用户的行（LEFT JOIN core_user
+    判空），**不按 is_active 过滤**（软删用户的授权须保留）。这是不可逆
+    数据删除，执行前须按 PLAN_R3 §5.5.3 备份 user_roles 三表。
 """
 from django.db import migrations, models
 import django.db.models.deletion
 import django.db.utils
+
+# 🔴 2026-10-15：1452 被 Django 包成 IntegrityError，只 catch OperationalError
+# 会让这类错绕过 Safe* 兜底直接冒泡 → migrate 无限重试卡死（线上 attempt 18 卡死）。
+# 补齐三种异常类型，但**白名单逻辑不变**：只吞幂等噪声，其余一律 raise。
+_DB_EXC = (
+    django.db.utils.OperationalError,
+    django.db.utils.IntegrityError,
+    django.db.utils.DatabaseError,
+)
 
 
 def _mysql_drop_user_id_fks(apps, schema_editor):
@@ -107,13 +144,63 @@ def _mysql_drop_user_id_fks(apps, schema_editor):
                 pass
 
 
+def purge_residual_orphans(apps, schema_editor):
+    """🔴 加 FK 前最后一道清污：删除 user_roles 中 user_id 指向不存在用户的行。
+
+    为什么 0023 清过了这里还要再清（2026-10-15 线上 1452 根因）：
+      0023 只在「它被执行那一刻」删除孤儿。若孤儿数据是之后才进入
+      user_roles 的（前两次失败迁移的半完成态、权限页又写了授权、备份恢复等），
+      0023 早已 applied 不会重跑 → AddField(user FK) 必然 1452 失败。
+      故 0024 必须自洽：不依赖「0023 跑过」这一假设，清完再加 FK。
+
+    删除范围（严格最小化，宁可少删不可误删）：
+      ✅ 只删 user_id 指向不存在用户的行（LEFT JOIN core_user 判空）
+      ❌ 不按 is_active 过滤 —— 软删用户(is_active=0)的授权必须保留，
+         恢复该用户后授权仍在
+      ❌ 不碰 role_permission / 不碰 system_code != 'recruit' 的行
+
+    不可逆：执行前须按 PLAN_R3 §5.5.3 备份 user_roles / role_permission /
+    roles 三表（备份是本删除唯一的兜底）。
+    """
+    db_alias = schema_editor.connection.alias
+    connection = schema_editor.connection
+    User = apps.get_model('core', 'User')
+    UserRoleV2 = apps.get_model('core', 'UserRoleV2')
+
+    # 🔴 半完成态防御：前次失败迁移可能已把 user_id 物理列 DROP 掉（MySQL 非事务 DDL）。
+    # 此时若直接查 user_id → (1054 Unknown column) 二次失败。列不在就无需清理，直接跳过。
+    if connection.vendor == 'mysql':
+        table = UserRoleV2._meta.db_table
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'user_id'
+                """,
+                [connection.settings_dict['NAME'], table],
+            )
+            if not cur.fetchone()[0]:
+                print('[P0-3/0024] user_id 物理列不存在（半完成态），跳过残留孤儿清理。')
+                return
+
+    valid_user_ids = set(User.objects.using(db_alias).values_list('id', flat=True))
+    orphans = UserRoleV2.objects.using(db_alias).exclude(user_id__in=valid_user_ids)
+    n = orphans.count()
+    if n:
+        detail = list(orphans.values_list('id', 'user_id', 'role_code')[:5])
+        print(f'[P0-3/0024] 删除残留孤儿授权 user_roles: {n} 条，样例={detail}')
+        orphans.delete()
+    else:
+        print('[P0-3/0024] 加 FK 前检查：无残留孤儿授权，跳过清理。')
+
+
 class SafeRemoveConstraint(migrations.RemoveConstraint):
     """存在才摘除的 RemoveConstraint：DB 层抛 1091 / no such index 时静默跳过。"""
 
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         try:
             super().database_forwards(app_label, schema_editor, from_state, to_state)
-        except django.db.utils.OperationalError as exc:
+        except _DB_EXC as exc:
             msg = str(exc).lower()
             if 'can\'t drop' in msg or 'no such index' in msg or '1091' in msg:
                 # 生产 MySQL 未以该名建立约束 / 已缺失：跳过（删列时 MySQL 自动连带清残留）
@@ -127,7 +214,7 @@ class SafeRemoveIndex(migrations.RemoveIndex):
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         try:
             super().database_forwards(app_label, schema_editor, from_state, to_state)
-        except django.db.utils.OperationalError as exc:
+        except _DB_EXC as exc:
             msg = str(exc).lower()
             if 'can\'t drop' in msg or 'no such index' in msg or '1091' in msg:
                 return
@@ -140,7 +227,7 @@ class SafeRemoveField(migrations.RemoveField):
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         try:
             super().database_forwards(app_label, schema_editor, from_state, to_state)
-        except django.db.utils.OperationalError as exc:
+        except _DB_EXC as exc:
             msg = str(exc).lower()
             if 'can\'t drop' in msg or '1091' in msg or 'unknown column' in msg \
                     or 'check that column' in msg:
@@ -174,7 +261,7 @@ class SafeAddConstraint(migrations.AddConstraint):
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         try:
             super().database_forwards(app_label, schema_editor, from_state, to_state)
-        except django.db.utils.OperationalError as exc:
+        except _DB_EXC as exc:
             msg = str(exc).lower()
             if any(k in msg for k in ('1061', 'duplicate', 'already exists')):
                 return
@@ -187,7 +274,7 @@ class SafeAddIndex(migrations.AddIndex):
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         try:
             super().database_forwards(app_label, schema_editor, from_state, to_state)
-        except django.db.utils.OperationalError as exc:
+        except _DB_EXC as exc:
             msg = str(exc).lower()
             if any(k in msg for k in ('1061', 'duplicate', 'already exists')):
                 return
@@ -213,6 +300,10 @@ class Migration(migrations.Migration):
             name='idx_user_id',
         ),
         # 2) 删旧裸整型列，加同名列的 FK（均幂等安全，兼容重跑/半完成态）
+        #    ⚠️ 加 FK 前必须再清一次残留孤儿 —— 0023 只清「它执行那一刻」的孤儿，
+        #    之后进入的孤儿会让 AddField 撞 1452（线上 attempt 18 卡死真因）。
+        #    这一步让 0024 自洽：即使 0023 早已 applied 也能安全加 FK。
+        migrations.RunPython(purge_residual_orphans, migrations.RunPython.noop),
         SafeRemoveField(
             model_name='userrolev2',
             name='user_id',
