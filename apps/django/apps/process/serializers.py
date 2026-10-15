@@ -554,7 +554,12 @@ class RecruitmentProcessListSerializer(serializers.ModelSerializer):
         read_only_fields = ['status']
 
     def get_stage_count(self, obj):
-        return obj.stage_links.count()
+        # 2026-10-16: 软删行不计数。ProcessStageLink 没把 SoftDeleteManager 设为默认
+        #   manager，obj.stage_links 会把软删行也数进去 —— 「移除阶段又加回来」留下的
+        #   软删行让列表阶段数虚高（弹窗 10 / 列表 12，实测截图）。
+        #   走 prefetch 缓存做内存过滤：.filter() 会击穿 prefetch_related 缓存重新查库，
+        #   把 #9 (2026-10-09) 修掉的 N+1 又带回来。
+        return sum(1 for link in obj.stage_links.all() if link.deleted_at is None)
 
 
 class RecruitmentProcessSerializer(serializers.ModelSerializer):
@@ -586,7 +591,9 @@ class RecruitmentProcessSerializer(serializers.ModelSerializer):
         ]
 
     def get_stage_count(self, obj):
-        return obj.stage_links.count()
+        # 同上（2026-10-16）：软删行不计数，且走 prefetch 缓存避免 N+1。
+        #   Detail 序列化器继承本类，retrieve 的阶段数同样受益。
+        return sum(1 for link in obj.stage_links.all() if link.deleted_at is None)
 
     def validate_name(self, value):
         if len(value) > 30:

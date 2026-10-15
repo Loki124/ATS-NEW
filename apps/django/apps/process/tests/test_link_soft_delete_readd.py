@@ -98,3 +98,47 @@ def test_add_duplicate_active_link_still_rejected(auth_client):
     assert dup.status_code == 400, dup.data
     # 序列化器字段级错误挂在信封的 errors 上（common/exceptions.py: errors=response.data）
     assert 'stage_id' in dup.data['errors'], dup.data
+
+
+def test_stage_count_excludes_soft_deleted(auth_client):
+    """列表/详情的 stage_count 只数活跃行（2026-10-16 兵哥截图：弹窗 10 / 列表 12）。
+
+    ProcessStageLink 未把 SoftDeleteManager 设为默认 manager，obj.stage_links.count()
+    会把「移除又加回来」留下的软删行也数进去，列表阶段数虚高。
+    """
+    process_id, stage_id = _make_process_and_stage(auth_client)
+
+    created = auth_client.post(
+        LINK_LIST,
+        data={'process_id': process_id, 'stage_id': stage_id, 'order': 1},
+        format='json',
+    )
+    assert created.status_code == 201, created.data
+    link_id = created.data['data']['id']
+
+    # 创建流程时自动填充起止 2 条 + 本阶段 1 条 = 3
+    def _count(resp):
+        assert resp.status_code == 200, resp.data
+        rows = resp.data['data'] if isinstance(resp.data['data'], list) else resp.data['data']['results']
+        row = next(r for r in rows if r['id'] == process_id)
+        return row['stage_count']
+
+    assert _count(auth_client.get(PROCESS_LIST)) == 3
+
+    # 软删 1 条 → 2；行还在（共 3 行），旧实现会数成 3
+    assert auth_client.delete(f'{LINK_LIST}{link_id}/').status_code == 204
+    assert _count(auth_client.get(PROCESS_LIST)) == 2
+
+    # 加回来（复活同一行）→ 回到 3，且没有新增行
+    readd = auth_client.post(
+        LINK_LIST,
+        data={'process_id': process_id, 'stage_id': stage_id},
+        format='json',
+    )
+    assert readd.status_code == 201, readd.data
+    assert _count(auth_client.get(PROCESS_LIST)) == 3
+
+    # 详情端点继承同一个 get_stage_count，口径必须一致
+    detail = auth_client.get(f'{PROCESS_LIST}{process_id}/')
+    assert detail.status_code == 200, detail.data
+    assert detail.data['data']['stage_count'] == 3, detail.data
