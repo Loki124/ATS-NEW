@@ -21,11 +21,11 @@
               <n-icon :component="SearchOutline" />
             </template>
           </n-input>
-          <n-radio-group v-model:value="statusFilter" size="small">
-            <n-radio-button value="ALL">{{ t('pages.settings.JobLevelManagement.s3') }}</n-radio-button>
-            <n-radio-button value="ACTIVE">{{ t('pages.settings.JobLevelManagement.s4') }}</n-radio-button>
-            <n-radio-button value="INACTIVE">{{ t('pages.settings.JobLevelManagement.s5') }}</n-radio-button>
-          </n-radio-group>
+          <n-select
+            v-model:value="statusFilter"
+            :options="statusOptions"
+            class="rule-filter-select"
+          />
           <div class="spacer"></div>
           <n-button quaternary @click="loadJobLevels">
             <template #icon><n-icon :component="RefreshOutline" /></template>
@@ -225,6 +225,12 @@ const pagination = localPagination();
 
 // 启用/停用筛选：ALL=全部 / ACTIVE=启用中 / INACTIVE=停用
 const statusFilter = ref<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+// 状态筛选下拉项（与身份管理 RolesTab 的 n-select 筛选同构；复用原 i18n key）
+const statusOptions = computed(() => [
+  { label: t('pages.settings.JobLevelManagement.s3'), value: 'ALL' as const },
+  { label: t('pages.settings.JobLevelManagement.s4'), value: 'ACTIVE' as const },
+  { label: t('pages.settings.JobLevelManagement.s5'), value: 'INACTIVE' as const },
+]);
 watch(statusFilter, () => loadJobLevels());
 
 // 搜索（名称，客户端过滤，输入即筛）

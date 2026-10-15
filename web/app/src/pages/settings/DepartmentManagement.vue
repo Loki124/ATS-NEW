@@ -22,11 +22,11 @@
               <n-icon :component="SearchOutline" />
             </template>
           </n-input>
-          <n-radio-group v-model:value="statusFilter" size="small">
-            <n-radio-button value="ALL">{{ t('pages.settings.DepartmentManagement.s3') }}</n-radio-button>
-            <n-radio-button value="ACTIVE">{{ t('pages.settings.DepartmentManagement.s4') }}</n-radio-button>
-            <n-radio-button value="INACTIVE">{{ t('pages.settings.DepartmentManagement.s5') }}</n-radio-button>
-          </n-radio-group>
+          <n-select
+            v-model:value="statusFilter"
+            :options="statusOptions"
+            class="rule-filter-select"
+          />
           <div class="spacer"></div>
           <!-- 工具栏按钮组（frontend-layout-standard §1.8.1）：quaternary 文字按钮 + 主操作 primary -->
           <n-button quaternary @click="loadDepartments">
@@ -573,6 +573,12 @@ const displayData = computed(() => {
 
 // 启用/停用筛选：ALL=全部 / ACTIVE=启用 / INACTIVE=停用
 const statusFilter = ref<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+// 状态筛选下拉项（与身份管理 RolesTab 的 n-select 筛选同构；复用原 i18n key）
+const statusOptions = computed(() => [
+  { label: t('pages.settings.DepartmentManagement.s3'), value: 'ALL' as const },
+  { label: t('pages.settings.DepartmentManagement.s4'), value: 'ACTIVE' as const },
+  { label: t('pages.settings.DepartmentManagement.s5'), value: 'INACTIVE' as const },
+]);
 watch(statusFilter, () => loadDepartments());
 
 // 上级部门树（排除自身及子部门）

@@ -10,20 +10,13 @@
     <div class="page-body">
       <div class="glass-panel panel-shell">
         <div class="toolbar">
-          <!-- 状态筛选：本项目的 naive-ui 2.44.1 安装包不含 NSegmented
-               （dist 包与 volar.d.ts 中均无该导出），用单选按钮组替代，交互等价 -->
-          <n-radio-group
+          <!-- 状态筛选：下拉（与身份管理 RolesTab 的 n-select 筛选同构，2026-10-15 兵哥：枚举筛选统一用下拉） -->
+          <n-select
             v-model:value="statusFilter"
-            size="small"
+            :options="statusOptions"
+            class="rule-filter-select"
             @update:value="onFilterChange"
-          >
-            <n-radio-button
-              v-for="opt in statusOptions"
-              :key="opt.value"
-              :value="opt.value"
-              :label="opt.label"
-            />
-          </n-radio-group>
+          />
           <div class="spacer"></div>
           <n-button quaternary :loading="loading" @click="loadList">
             <template #icon><n-icon :component="RefreshOutline" /></template>
