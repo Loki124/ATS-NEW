@@ -13,11 +13,11 @@
       :row-key="(r: PermissionTemplate) => r.id"
     />
 
-    <!-- 权限码明细抽屉（共享组件）：按功能模块分组展示中文名 -->
-    <PermissionCodeDrawer
-      v-model:show="codesDrawer.show"
-      :title="codesDrawer.title"
-      :codes="codesDrawer.codes"
+    <!-- 权限码明细居中模态（共享组件）：按功能模块分组展示中文名 -->
+    <PermissionCodeModal
+      v-model:show="codesModal.show"
+      :title="codesModal.title"
+      :codes="codesModal.codes"
     />
   </div>
 </template>
@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n'
 import { NButton, NSpace, NDataTable, NText, NTag, useMessage } from 'naive-ui'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
 import { useResourceNames } from '@/composables/useResourceNames'
-import PermissionCodeDrawer from '@/components/role/PermissionCodeDrawer.vue'
+import PermissionCodeModal from '@/components/role/PermissionCodeModal.vue'
 const { t } = useI18n()
 const message = useMessage()
 const { ensureLoaded } = useResourceNames()
@@ -36,7 +36,7 @@ const { ensureLoaded } = useResourceNames()
 const loading = ref(false)
 const data = ref<PermissionTemplate[]>([])
 
-const codesDrawer = reactive<{ show: boolean; title: string; codes: string[] }>({
+const codesModal = reactive<{ show: boolean; title: string; codes: string[] }>({
   show: false,
   title: '',
   codes: [],
@@ -92,9 +92,9 @@ async function load() {
 }
 
 function viewCodes(row: PermissionTemplate) {
-  codesDrawer.title = row.templateName
-  codesDrawer.codes = row.permissionCodes ?? []
-  codesDrawer.show = true
+  codesModal.title = row.templateName
+  codesModal.codes = row.permissionCodes ?? []
+  codesModal.show = true
 }
 
 onMounted(load)
@@ -112,5 +112,5 @@ onMounted(load)
   align-items: center;
 }
 /* 资源码（英文）弱化展示，避免抢视觉（中文名才是主体） */
-.cell-code { color: var(--ink-soft); font-family: var(--font-mono, monospace); }
+.cell-code { color: var(--ink-soft); font-family: var(--font-mono); }
 </style>

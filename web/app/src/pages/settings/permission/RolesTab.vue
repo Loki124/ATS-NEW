@@ -108,11 +108,11 @@
     <!-- 权限 v2：动作字典 / 预设包管理 -->
     <ActionManageModal v-model:show="actionManageShow" />
 
-    <!-- 从模板克隆：查看权限码二级抽屉（共享组件） -->
-    <PermissionCodeDrawer
-      v-model:show="codeDrawer.show"
-      :title="codeDrawer.title"
-      :codes="codeDrawer.codes"
+    <!-- 从模板克隆：查看权限码居中模态（共享组件） -->
+    <PermissionCodeModal
+      v-model:show="codeModal.show"
+      :title="codeModal.title"
+      :codes="codeModal.codes"
     />
   </div>
 </template>
@@ -142,7 +142,7 @@ import { localPagination } from '@/composables/useTablePagination'
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import RoleEditModal from './RoleEditModal.vue'
 import ActionManageModal from '@/components/role/ActionManageModal.vue'
-import PermissionCodeDrawer from '@/components/role/PermissionCodeDrawer.vue'
+import PermissionCodeModal from '@/components/role/PermissionCodeModal.vue'
 import { useUserStore } from '@/stores/user'
 import { useCloseGuard } from '@/composables/useCloseGuard'
 import { useI18n } from 'vue-i18n'
@@ -164,8 +164,8 @@ const loading = ref(false)
 const data = ref<RoleV2[]>([])
 const templates = ref<PermissionTemplate[]>([])
 
-// 克隆弹窗「查看权限码」二级抽屉状态（点选项后的查看入口打开）
-const codeDrawer = reactive<{ show: boolean; title: string; codes: string[] }>({
+// 「查看权限码」居中模态状态（点下拉选项内的查看入口打开）
+const codeModal = reactive<{ show: boolean; title: string; codes: string[] }>({
   show: false,
   title: '',
   codes: [],
@@ -176,18 +176,22 @@ const tplOptions = computed<SelectOption[]>(() =>
   templates.value.map((t) => ({ label: t.templateName, value: t.templateCode })),
 )
 
-/** 下拉每个选项后渲染「查看权限码」入口：点击（stop 阻止选中）弹出该模板权限码抽屉。 */
-function renderTplOption(info: { option: SelectOption }): VNode {
+/**
+ * 下拉每个选项后渲染「查看权限码」入口。
+ * ⚠️ 必须复用 Naive 传入的 `node` —— 选中用的 onClick 挂在 `node` 上，
+ *   自建节点会丢掉该处理器，导致「点选项选不中」（下拉无法回填）。故结构为 [node, 查看入口]。
+ */
+function renderTplOption(info: { node: VNode; option: SelectOption }): VNode {
   const tpl = templates.value.find((t) => t.templateCode === info.option.value)
   return h('div', { class: 'tpl-opt' }, [
-    h('span', { class: 'tpl-opt-label' }, String(info.option.label)),
+    info.node,
     h(NButton, {
       size: 'tiny',
       text: true,
       type: 'primary',
       class: 'tpl-opt-view',
       onClick: (e: MouseEvent) => {
-        e.stopPropagation()
+        e.stopPropagation() // 阻止冒泡到 node 的内置选中逻辑
         if (tpl) viewTplCodes(tpl)
       },
     }, { default: () => '查看权限码' }),
@@ -195,9 +199,9 @@ function renderTplOption(info: { option: SelectOption }): VNode {
 }
 
 function viewTplCodes(tpl: PermissionTemplate) {
-  codeDrawer.title = tpl.templateName
-  codeDrawer.codes = tpl.permissionCodes ?? []
-  codeDrawer.show = true
+  codeModal.title = tpl.templateName
+  codeModal.codes = tpl.permissionCodes ?? []
+  codeModal.show = true
 }
 
 // ===== 筛选状态（对齐 CampusControl rules tab：keyboard search + 状态/维度 select）=====
@@ -449,20 +453,24 @@ onMounted(load)
   background: var(--border-hairline);
 }
 
-/* === 从模板克隆弹窗：模板下拉框（每选项后「查看权限码」入口） === */
+/* === 从模板克隆弹窗：模板下拉框宽度 === */
 .tpl-select { width: 100%; }
-/* render-option 渲染：选项行左=模板名，右=查看权限码入口 */
+</style>
+
+<!--
+  render-option 返回的 vnode 由 Naive 的 SelectOption 渲染，不会带上本组件的 scoped
+  属性，故选项行样式必须放非 scoped 块（用 .tpl-opt 前缀限定作用域，避免污染其它下拉）。
+-->
+<style>
 .tpl-opt {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
   width: 100%;
 }
-.tpl-opt-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* info.node 即 Naive 的 .n-base-select-option（自带选中 onClick）：撑满左侧、标签内截断 */
+.tpl-opt .n-base-select-option {
+  flex: 1 1 auto;
   min-width: 0;
 }
 .tpl-opt-view { flex: none; }

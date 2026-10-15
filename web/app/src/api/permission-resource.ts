@@ -5,7 +5,7 @@
  * 响应格式: { success, data, pagination? } —— ⚠️ 后端 per P1 audit (a0de2af3) 已恢复
  * 服务端分页 (StandardResultsSetPagination: page_size=20, page_size_query_param=
  * 'page_size', max_page_size=200, page_query_param='page')，list 单次请求只返回一页，
- * 分页信息在响应体的 pagination 字段（total / has_next 等）。
+ * 分页信息在响应体的 pagination 字段（total / hasNext 等，出参为 camelCase）。
  *
  * 字段命名: drf-camel-case 出 camelCase (resourceCode / resourceName / systemCode),
  *   FE 类型严格按 camelCase 写, 后端 snake_case 通过中间件自动桥接
@@ -28,14 +28,25 @@ export interface PermissionResource {
   status: number;
 }
 
-/** 服务端分页信封（StandardResultsSetPagination → success_response） */
+/**
+ * 服务端分页信封（StandardResultsSetPagination → success_response）。
+ *
+ * ⚠️ 后端 pagination 字典以 snake_case 生成，但出参经 djangorestframework-camel-case
+ * 的 CamelCaseJSONRenderer 渲染 → 前端实收 camelCase（pageSize / totalPages / hasNext…）。
+ * 这里以 camelCase 为准，snake_case 仅作未启用 camelCase 时的旧形态兜底。
+ */
 interface PaginationMeta {
   page: number;
-  page_size: number;
   total: number;
-  total_pages: number;
-  has_next: boolean;
-  has_previous: boolean;
+  pageSize?: number;
+  totalPages?: number;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+  // 旧 / 未启用 camelCase 时的 snake 形态兜底
+  page_size?: number;
+  total_pages?: number;
+  has_next?: boolean;
+  has_previous?: boolean;
 }
 
 type ListResponse = {
@@ -90,8 +101,12 @@ export async function fetchAllResources(
     const { data } = await api.get<ListResponse>('/permissions/resources/', {
       params: { ...params, page, page_size: PAGE_SIZE },
     })
-    all.push(...extractItems(data.data))
-    if (!data.pagination?.has_next) break
+    const items = extractItems(data.data)
+    all.push(...items)
+    // 翻页判定：优先 camelCase hasNext（drf-camel-case 出参），snake 兜底；
+    // 二者都缺失时按「本页满页即继续」防御 —— 否则资源 >200 条会被静默截断。
+    const hasNext = data.pagination?.hasNext ?? data.pagination?.has_next ?? items.length >= PAGE_SIZE
+    if (!hasNext) break
   }
   return all
 }
