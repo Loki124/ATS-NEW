@@ -99,7 +99,7 @@ def preset_contains(name: str, action: str) -> bool:
 # DB 种子同步（幂等）
 # ---------------------------------------------------------------------------
 
-def sync_seed() -> dict:
+def sync_seed(apps=None) -> dict:
     """把 ACTION_REGISTRY / PRESET_PACKAGES 幂等灌入 DB 字典表。
 
     - 已存在（按 key）：仅回填缺失字段（label/category/... 以种子为准更新 is_system 行；
@@ -111,11 +111,21 @@ def sync_seed() -> dict:
     返回 {created: int, updated: int, disabled: int}，供启动日志与迁移输出。
     任何 DB 异常由调用方兜底（本函数不吞 —— 迁移里必须暴露错误）。
     """
-    from .models import (
-        ActionCategory,
-        DataPermissionAction,
-        DataPermissionActionPreset,
-    )
+    if apps is not None:
+        # 迁移上下文：用冻结态模型，避免引用尚未添加的字段（如 0008 的 module 列），
+        # 否则从零建库（pytest SQLite 等）跑到 0006 会因 SELECT 到不存在的 module 列而失败。
+        # 注意：ActionCategory 是 TextChoices 枚举（无 DB 表），不可经 apps.get_model 取；
+        # 其默认值直接内联为字符串常量，避开对 live models 的任何 import。
+        DataPermissionAction = apps.get_model('data_permission', 'DataPermissionAction')
+        DataPermissionActionPreset = apps.get_model('data_permission', 'DataPermissionActionPreset')
+        WRITE_CATEGORY = 'write'
+    else:
+        from .models import (
+            ActionCategory,
+            DataPermissionAction,
+            DataPermissionActionPreset,
+        )
+        WRITE_CATEGORY = ActionCategory.WRITE
 
     created = updated = disabled = 0
 
@@ -125,7 +135,7 @@ def sync_seed() -> dict:
             DataPermissionAction.objects.create(
                 key=key,
                 label=meta['label'],
-                category=meta.get('category', ActionCategory.WRITE),
+                category=meta.get('category', WRITE_CATEGORY),
                 destructive=meta.get('destructive', False),
                 enabled=True,
                 is_system=True,

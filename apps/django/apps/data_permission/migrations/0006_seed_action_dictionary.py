@@ -14,7 +14,7 @@ from apps.data_permission import action_map
 
 
 def seed_actions(apps, schema_editor):
-    action_map.sync_seed()
+    action_map.sync_seed(apps)
 
 
 def unseed_actions(apps, schema_editor):
