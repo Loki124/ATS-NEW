@@ -116,6 +116,19 @@ class UserViewSet(EnvelopeModelViewSet):
         user.soft_delete()
         return Response({'success': True})
 
+    def destroy(self, request, *args, **kwargs):
+        """删除用户统一走软删（标记 deleted_at + is_active=False），避免硬删触发
+        on_delete=PROTECT 外键级联 ProtectedError -> 500。
+
+        User 模型只提供 soft_delete()，未覆盖 delete()；标准 ModelViewSet.destroy
+        会硬删，而全库大量 FK（interview/referral/candidate/demand/position/process/
+        analytics/resume_flow 等）均以 on_delete=models.PROTECT 指向 core.User，
+        一旦该用户存在关联数据即 ProtectedError。软删不触碰外键，彻底规避。
+        仅超级管理员可删（UserViewPermission.has_permission 已限定 DELETE）。"""
+        instance = self.get_object()
+        instance.soft_delete()
+        return Response({'success': True})
+
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     """部门 CRUD - HRBP+ 可写, 其它角色只读 (Fix 1)"""
