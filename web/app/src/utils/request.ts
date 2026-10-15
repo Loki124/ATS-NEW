@@ -170,11 +170,26 @@ export function createApi(opts: CreateApiOptions = {}): AxiosInstance {
     const status = e?.response?.status
     const url = e?.config?.url ?? '<unknown>'
     if (status === 404) {
-      // 后端 endpoint 不存在 (开发期常见) —— 这是 "后端 app 缺" 不是 "权限问题"
-      console.warn(
-        `[API 404] 后端没实现这个 endpoint: ${url}\n` +
-        `  → 这是 "后端 app 缺" 不是 "权限问题". 看报告: REPORT-2026-06-29-ats-complete.md §10`
-      )
+      // 404 有两种成因完全相反的情况，混用 "后端没实现 endpoint" 会把排查方向带偏：
+      //  a) 集合 / 自定义 action 路径 → 路由不存在（后端 app 缺，开发期常见）
+      //  b) 详情路径 /xxx/<id>/ → 路由是存在的，是 get_object 取不到目标行
+      //     （对象不存在，或已被软删 —— get_queryset 普遍过滤 deleted_at__isnull=True）
+      const seg = (url.split('?')[0] || '').split('/').filter(Boolean)
+      const last = seg[seg.length - 1] || ''
+      const isDetail = seg.length > 1 && /^[A-Za-z0-9_-]{16,}$/.test(last)
+      if (isDetail) {
+        console.warn(
+          `[API 404] 对象不存在或已被移除: ${url}\n` +
+          `  → 路由存在，是目标行取不到（软删行会被 get_queryset 过滤掉）。` +
+          `查「是否拿着陈旧 id 重复操作 / 对同一条记录删了两次」，不要去查后端缺端点。`
+        )
+      } else {
+        // 后端 endpoint 不存在 (开发期常见) —— 这是 "后端 app 缺" 不是 "权限问题"
+        console.warn(
+          `[API 404] 后端没实现这个 endpoint: ${url}\n` +
+          `  → 这是 "后端 app 缺" 不是 "权限问题". 看报告: REPORT-2026-06-29-ats-complete.md §10`
+        )
+      }
     } else if (status === 500) {
       const code = e?.response?.data?.code
       // 2026-10-15: 后端把"漏跑 migrate"识别成 db_schema_out_of_sync 并回传可执行提示。

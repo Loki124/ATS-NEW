@@ -333,7 +333,11 @@ const columns = computed(() => [
         quaternary: true,
         type: 'primary',
         onClick: () => handleToggleStatus(row),
-        disabled: row.isBuiltin ?? row.isSystem,
+        // BR-002：阶段被任一启用流程引用时不可停用（后端 disable 会 403）。
+        //   与「删除」按钮同款守卫：被引用的启用态阶段直接置灰，避免必然失败的请求打到后端。
+        //   仅作用于「停用」方向 —— 启用被引用的阶段后端是允许的（enable 不做引用检查）。
+        disabled: (row.isBuiltin ?? row.isSystem)
+          || (row.status === 'ENABLED' && (row.referenceCount ?? row._count?.links ?? 0) > 0),
       }, { icon: () => h(NIcon, null, { default: () => h(PowerOutline) }), default: () => row.status === 'ENABLED' ? '停用' : '启用' }),
       h(NPopconfirm, { onPositiveClick: () => handleDelete(row), disabled: (row.isBuiltin ?? row.isSystem) || ((row.referenceCount ?? row._count?.links ?? 0) > 0) }, {
         trigger: () => h(NButton, {
@@ -461,6 +465,13 @@ async function handleDelete(row: any) {
 async function handleToggleStatus(row: any) {
   if (row.isBuiltin ?? row.isSystem) {
     message.warning('系统预置阶段不可停用')
+    return
+  }
+  // BR-002 守卫（与删除同款，配合按钮置灰做纵深防御）：被引用的启用态阶段停用会 403，
+  //   这里提前拦截并说明原因，避免必然失败的请求打到后端。仅拦截「停用」方向。
+  const refs = row.referenceCount ?? row._count?.links ?? 0
+  if (row.status === 'ENABLED' && refs > 0) {
+    message.warning(`被 ${refs} 个流程引用，不可停用，请先在流程中移除`)
     return
   }
   try {

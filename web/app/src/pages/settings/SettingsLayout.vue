@@ -112,6 +112,19 @@ const rawSubMenuOptions: MenuItem[] = [
         ],
       },
       {
+        // 组织管理（兵哥 2026-10-15 调整）：移入「基本信息」分组、置于「公司信息管理」之后。
+        // 形态同「用户管理」(g-user)——带图标的可展开父菜单项（不设 type:'group'），部门/职务/职级为其二级子项。
+        // 归入分组后由 naive-ui 缩进算法自动获得与同级子菜单一致的 27px 缩进，无需外部 CSS 兜底。
+        key: 'g-org',
+        label: t('pages.settings.SettingsLayout.s62'),
+        icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }),
+        children: [
+          { key: '/settings/department', label: t('pages.settings.SettingsLayout.s14'), icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
+          { key: '/settings/job-title', label: t('pages.settings.SettingsLayout.s63'), icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
+          { key: '/settings/job-level', label: t('pages.settings.SettingsLayout.s64'), icon: () => h(NIcon, null, { default: () => h(LayersOutline) }) },
+        ],
+      },
+      {
         // ★ 北森风格重构：用户管理迁移自「组织信息管理」，承载内部/外部/全部用户 + 注册审核 + 用户组
         key: 'g-user',
         label: t('pages.settings.SettingsLayout.s15'),
@@ -142,19 +155,6 @@ const rawSubMenuOptions: MenuItem[] = [
           { key: '/settings/field-acl', label: t('pages.settings.SettingsLayout.s22'), icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },
         ],
       },
-    ],
-  },
-  {
-    // 2026-10-14 org-mgmt（兵哥 Q1 拍板）：组织管理一级菜单。
-    // 形态同「用户管理」(g-user)——带图标的可展开父菜单项（不设 type:'group'，避免渲染成
-    // 不可点击的分组标题），部门/职务/职级为其二级子项；位置置于「基本信息」之后、不强置首位。
-    key: 'g-org',
-    label: t('pages.settings.SettingsLayout.s62'),
-    icon: () => h(NIcon, null, { default: () => h(BusinessOutline) }),
-    children: [
-      { key: '/settings/department', label: t('pages.settings.SettingsLayout.s14'), icon: () => h(NIcon, null, { default: () => h(PeopleOutline) }) },
-      { key: '/settings/job-title', label: t('pages.settings.SettingsLayout.s63'), icon: () => h(NIcon, null, { default: () => h(BriefcaseOutline) }) },
-      { key: '/settings/job-level', label: t('pages.settings.SettingsLayout.s64'), icon: () => h(NIcon, null, { default: () => h(LayersOutline) }) },
     ],
   },
   {
@@ -487,24 +487,11 @@ watch(() => route.path, () => {
 .settings-menu { padding: var(--space-2) 0 var(--space-4); }
 .settings-menu.collapsed { padding: var(--space-2) 0; }
 
-/* === 菜单对齐修复（2026-10-15）===
-   根因：naive-ui 的缩进算法（use-menu-child.mjs）对「根级子菜单」与「组内子项」取不同值：
-     - 组内一级项 padding-left = indent/2 + 组padding = 9 + 18 = 27px
-     - 根级子菜单 padding-left = rootIndent = 18px
-   本菜单中「组织管理」(g-org) 是唯一挂在 n-menu 根级、不在任何 type:group 内的可展开项，
-   因此其图标/文字比同层所有组内一级项（个人信息管理/候选人信息管理…）整体左偏 9px。
-   修复：把根级子菜单自身对齐到组内一级项层级(27)，其二级子项(+18→45)以匹配其它子菜单的二级缩进。
-   注意 .settings-menu 本身就是 .n-menu 元素（同一 DOM 节点），故用 `:deep(> .n-submenu …)` 子代选择器
-   精确命中「.settings-menu 的直属 .n-submenu」（组内子菜单嵌套在 .n-menu-item-group > .n-submenu-children 下，非直属，不会被命中）。
-   真正的折叠信号是 .n-menu--collapsed（菜单元素上）；naive-ui 给每个 item-content 挂的
-   n-menu-item-content--collapsed 不是菜单折叠信号，勿据此排除。折叠态由下方 .settings-sider.collapsed 的
-   padding-left:0 规则（源码更靠后、同等优先级+!important）接管，互不冲突。 */
-.settings-menu:not(.n-menu--collapsed) :deep(> .n-submenu > .n-menu-item > .n-menu-item-content) {
-  padding-left: 27px !important;
-}
-.settings-menu:not(.n-menu--collapsed) :deep(> .n-submenu .n-submenu-children .n-menu-item-content) {
-  padding-left: 45px !important;
-}
+/* === 菜单对齐（结构化解法，2026-10-15）===
+   曾出现「组织管理」(g-org) 比同级项左偏 9px：根因是它原本挂在 n-menu 根级（根级子菜单 padding=18px），
+   而组内子项 padding=27px。已通过将 g-org 移入「基本信息」分组（g-basic.children）解决——
+   分组内子菜单由 naive-ui 缩进算法自动获得 27px，无需任何外部 CSS 强制，折叠态对齐也不受影响。
+   故此处不再保留兜底规则。 */
 
 /* === 折叠态 CSS 补丁：Naive UI 自身 .menu-item-group-title 在 :collapsed=true 下未做隐藏 ===
    现象：折叠 64px 时 group label "基本信息/过程管理/招聘提速/内容管理" 被 CSS 强竖排成「基/本/信/息」单字一行

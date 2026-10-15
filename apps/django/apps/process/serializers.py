@@ -388,10 +388,37 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """创建后归一化顺序，保证起止不变量（start 最小、end 最大）。"""
-        link = ProcessStageLink.objects.create(**validated_data)
+        link = self._revive_or_create(validated_data)
         renormalize_process_orders(link.process)
         link.refresh_from_db()
         return link
+
+    def _revive_or_create(self, validated_data):
+        """「删了又加回来」：复用同 (process, stage) 的软删行，而不是新建。
+
+        模型 unique_together=('process','stage') 是普通唯一索引，覆盖软删行 —— 软删行会
+        永久占位，直接 create 必撞 1062（2026-10-15 前逃逸成 500，之后是 400）。
+        且任其新建会让软删行无限堆积，把唯一索引当成垃圾桶。
+        故命中软删行时复活它：清 deleted_at + 套用本次提交的字段（未提交的保留原值）。
+        """
+        existing = ProcessStageLink._base_manager.filter(
+            process=validated_data['process'],
+            stage_id=validated_data['stage_id'],
+            deleted_at__isnull=False,
+        ).first()
+        if existing is None:
+            return ProcessStageLink.objects.create(**validated_data)
+
+        # 归属字段 (process/stage_id) 与本行已有值同源，不重复 set；其余按本次提交覆盖。
+        update_fields = existing._soft_delete_update_fields()[:]  # [deleted_at, updated_at]
+        existing.deleted_at = None
+        for field, value in validated_data.items():
+            if field in ('process', 'stage_id'):
+                continue
+            setattr(existing, field, value)
+            update_fields.append(field)
+        existing.save(update_fields=update_fields)
+        return existing
 
     def update(self, instance, validated_data):
         """更新后若动了 order，同样归一化顺序。
@@ -436,6 +463,34 @@ class ProcessStageLinkSerializer(serializers.ModelSerializer):
         """2026-07-03: 如果客户端传了 entry_condition (结构化), 优先 JSON-encode 入库.
         DRF 顺序: 单字段 validate → validate() → save().
         这里仅在 attrs 没同时设置 entry_rule_expression 时, 从 entry_condition 派生."""
+        # === 写入必填 / 引用有效性校验（2026-10-15 修 500）===
+        # 背景：process_id / stage_id 为支持「更新只改 custom_name/order/stage_limit 而不重传归属」
+        #   被设为 required=False，且 stage_id 是纯 CharField（不做存在性校验）。代价是创建时
+        #   缺参 / 传了失效 stageId 能穿透到 DB，撞 NOT NULL(1048) / 外键(1452) / 唯一键(1062)，
+        #   IntegrityError 逃逸成 HTTP 500（前端只看到 internal_error，无任何可操作信息）。
+        #   这里在 validate 阶段拦下，统一转 400 + 可读信息；更新态仍放开，不强制重传归属字段。
+        creating = self.instance is None
+        if creating and not attrs.get('process'):
+            raise serializers.ValidationError({'process_id': '创建时必须指定所属流程'})
+        stage_id = attrs.get('stage_id')
+        if creating and not stage_id:
+            raise serializers.ValidationError({'stage_id': '创建时必须指定阶段'})
+        # 存在性校验口径与外键约束严格一致：用 _base_manager 查全表行（含软删），
+        #   避免把「本可以插入、只是业务上不该用」的场景也拦掉，造成行为意外变更。
+        if stage_id and not RecruitmentStage._base_manager.filter(pk=stage_id).exists():
+            raise serializers.ValidationError({'stage_id': f'阶段不存在：{stage_id}'})
+        if creating:
+            # 模型 unique_together=('process','stage') 是覆盖全表行的唯一索引（含软删行），
+            #   故这里必须按全行匹配才拦得住 1062（否则 1062 逃逸成 500）。
+            # 但「删了又加回来」是合法操作：只有当同组合的**活跃行**存在时才算真重复；
+            #   仅剩软删行时放行，交给 create() 复活该行（见 _revive_or_create），
+            #   否则用户在流程里「移除阶段 → 反悔加回来」会被永久拒绝。
+            if ProcessStageLink._base_manager.filter(
+                process=attrs['process'], stage_id=stage_id, deleted_at__isnull=True
+            ).exists():
+                raise serializers.ValidationError(
+                    {'stage_id': '该流程中已存在此阶段，不可重复添加'}
+                )
         ec = self.initial_data.get('entry_condition') if hasattr(self, 'initial_data') else None
         if ec and isinstance(ec, dict) and 'entry_rule_expression' not in attrs:
             try:

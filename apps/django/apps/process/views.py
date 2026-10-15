@@ -16,6 +16,7 @@ import logging
 
 from django.db import DatabaseError
 from django.db.models import Q
+from django.http import Http404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
@@ -623,6 +624,20 @@ class ProcessStageLinkViewSet(EnvelopeModelViewSet):
         if instance.is_mandatory or (instance.stage_id and (instance.stage.is_start or instance.stage.is_end)):
             raise ValidationError('系统必含阶段（起止阶段）不可删除')
         instance.soft_delete()
+
+    def destroy(self, request, *args, **kwargs):
+        """DELETE 幂等（2026-10-15）：对已被移除的关联再删一次返 204，而不是 404。
+
+        场景：ProcessDetailModal 保存链路 3b 会删除被移除的 link。若上一次保存中途失败
+        （3f 的 load() 只在成功路径执行，失败后前端 links 状态是旧的），用户改完再保存时
+        会对同一 link 再发 DELETE；而 get_queryset 过滤 deleted_at__isnull=True，软删行
+        已被过滤掉 → get_object 抛 404，把整条保存再打断一次（用户看到 404 且流程没存上）。
+        删除语义已达成即视为成功，故幂等返回 204。
+        """
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Http404:
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(summary='重排阶段顺序')
     @action(detail=False, methods=['post'], url_path='reorder')
