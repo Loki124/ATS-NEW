@@ -209,12 +209,18 @@ def test_demand_visible_set_excludes_hidden_dimensions():
     resp = options_payload()
     demand_mod = next(m for m in resp["modules"] if m["moduleKey"] == "demand")
     visible = {d["key"] for d in demand_mod["dimensions"]}
-    # 兵哥表可见：tbp / hrbp / creator / dept
-    assert visible == {"tbp", "hrbp", "creator", "dept"}, f"demand 可见维度不符预期: {visible}"
-    # 隐藏维度不应下发
-    hidden = {"owner", "hr", "requested_by", "sharers", "hiring_manager",
-              "hiring_manager_superior", "resume_grabber"}
+    # 兵哥表：需求人员字段不止 创建人/TBP/HRBP —— 提出人/共享人/用人经理/用人经理上级/抢单人 一并可见
+    expected = {"tbp", "hrbp", "creator", "dept", "requested_by", "sharers",
+                "hiring_manager", "hiring_manager_superior", "resume_grabber"}
+    assert visible == expected, f"demand 可见维度不符预期（多/缺）: {visible ^ expected}"
+    # 隐藏维度（owner/hr 为 tbp 冗余别名；unit 全局隐藏）不应下发
+    hidden = {"owner", "hr", "unit"}
     assert hidden.isdisjoint(visible), f"隐藏维度不应出现: {hidden & visible}"
+    # 每个可见用户类维度都应下发 operators（包含/不包含），否则前端运算符下拉为空
+    for d in demand_mod["dimensions"]:
+        if d["valueType"] == "user":
+            ops = {o["value"] for o in d.get("operators", [])}
+            assert {"in", "not_in"} <= ops, f"维度 {d['key']} 缺少包含/不包含运算符: {ops}"
 
 
 def test_demand_hidden_owner_and_hr_still_compile():
@@ -231,6 +237,21 @@ def test_demand_hidden_owner_and_hr_still_compile():
         matched = set(Demand.objects.filter(q).values_list("pk", flat=True))
         assert demand.pk in matched, f"隐藏维度 {dim} 应命中 hr=u1 的需求"
         assert other.pk not in matched
+
+
+def test_demand_hiring_manager_dynamic_current_user():
+    """2026-10-15：补全的需求人员维度（用人经理）同样支持「当前登录用户」动态源。"""
+    dept = _dept()
+    process = _process()
+    u1, u2 = _user("hm_dyn1"), _user("hm_dyn2")
+    demand = _demand(dept, hr=u1, requested_by=u1, process=process)
+    DynamicFieldValue.objects.create(resource="Demand", entity_id=demand.id, field_key="hiring_manager", value=u1.pk)
+
+    q = _compile_with_user("demand", "hiring_manager", dynamic_key="currentUser.id", user=u1)
+    assert demand.pk in set(Demand.objects.filter(q).values_list("pk", flat=True)), \
+        "动态 用人经理(当前登录用户) 应命中自己是用人经理的需求"
+    q2 = _compile_with_user("demand", "hiring_manager", dynamic_key="currentUser.id", user=u2)
+    assert demand.pk not in set(Demand.objects.filter(q2).values_list("pk", flat=True))
 
 
 # ---------------------------------------------------------------------------

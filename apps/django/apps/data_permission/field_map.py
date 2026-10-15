@@ -50,19 +50,19 @@ MODULE_DIMENSION_FIELDS: dict[str, dict[str, dict | str | bool | None]] = {
         'process': None,
     },
     'demand': {
-        # —— 兵哥表可见 4 项（2026-10-15）——
+        # —— 兵哥表可见 9 项（2026-10-15 兵哥：需求人员字段不止 创建人/TBP/HRBP，全部补全）——
         'tbp': 'hr_id',                                           # TBP（需求主负责人）
         'hrbp': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hrbp', 'via': ''},
         'creator': 'created_by_id',                                # 需求创建人
         'dept': 'department_id',                                   # 需求部门
-        # —— UI 隐藏、后端保留兼容（存量规则）——
+        'requested_by': 'requested_by_id',                         # 需求提出人
+        'sharers': {'kind': 'json_contain', 'field': 'sharers'},   # 需求共享人
+        'hiring_manager': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager', 'via': ''},  # 用人经理
+        'hiring_manager_superior': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager_superior', 'via': ''},  # 用人经理上级
+        'resume_grabber': {'kind': 'path', 'field': 'positions__applications__grabbed_by_id'},  # 简历抢单人
+        # —— UI 隐藏、后端保留兼容（存量规则）：owner/hr 为 tbp 的冗余别名 ——
         'owner': 'hr_id',                                          # 隐藏别名（向后兼容旧 owner 规则）
         'hr': 'hr_id',                                             # 隐藏别名（向后兼容旧 hr 规则）
-        'requested_by': 'requested_by_id',
-        'sharers': {'kind': 'json_contain', 'field': 'sharers'},
-        'hiring_manager': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager', 'via': ''},
-        'hiring_manager_superior': {'kind': 'dfv', 'resource': 'Demand', 'field_key': 'hiring_manager_superior', 'via': ''},
-        'resume_grabber': {'kind': 'path', 'field': 'positions__applications__grabbed_by_id'},
         'unit': True,
         'process': None,
     },
@@ -163,14 +163,32 @@ DIMENSION_META: dict[str, dict] = {
             {'value': 'is_not_empty', 'label': '不为空'},
         ],
     },
-    # —— 隐藏维度：保留 meta 仅作 label 兜底（前端不下发、不校验 operators）——
+    # —— 需求模块补充人员维度（2026-10-15 兵哥：需求人员字段不止 创建人/TBP/HRBP）——
+    # 这些维度在 demand 模块**可见**，与 tbp/hrbp/creator 同等对待：
+    # 统一「包含/不包含」运算符 + 「当前登录用户」动态源。
+    'requested_by': {
+        'key': 'requested_by', 'label': '需求提出人', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'sharers': {
+        'key': 'sharers', 'label': '需求共享人', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'hiring_manager': {
+        'key': 'hiring_manager', 'label': '用人经理', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'hiring_manager_superior': {
+        'key': 'hiring_manager_superior', 'label': '用人经理上级', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'resume_grabber': {
+        'key': 'resume_grabber', 'label': '简历抢单人', 'valueType': 'user', 'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    # —— 隐藏维度：保留 meta 仅作 label 兜底（owner/hr 为 tbp 的冗余别名，UI 不下发）——
     'owner': {'key': 'owner', 'label': '负责人', 'valueType': 'user', 'contextKeys': ['currentUser.id']},
     'hr': {'key': 'hr', 'label': '需求主责人', 'valueType': 'user', 'contextKeys': ['currentUser.id']},
-    'requested_by': {'key': 'requested_by', 'label': '需求提出人', 'valueType': 'user', 'contextKeys': ['currentUser.id']},
-    'sharers': {'key': 'sharers', 'label': '需求共享人', 'valueType': 'user', 'contextKeys': []},
-    'hiring_manager': {'key': 'hiring_manager', 'label': '用人经理', 'valueType': 'user', 'contextKeys': []},
-    'hiring_manager_superior': {'key': 'hiring_manager_superior', 'label': '用人经理上级', 'valueType': 'user', 'contextKeys': []},
-    'resume_grabber': {'key': 'resume_grabber', 'label': '简历抢单人', 'valueType': 'user', 'contextKeys': []},
     'unit': {
         'key': 'unit', 'label': '管理单元', 'valueType': 'unit',
         'contextKeys': ['currentUser.managedUnits'],
@@ -187,6 +205,12 @@ MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
         'creator': '需求创建人',
         'tbp': 'TBP（需求主负责人）',
         'hrbp': 'HRBP',
+        # 2026-10-15 兵哥：需求人员字段全部补全可见（命名严格按兵哥表格，禁止简写）
+        'requested_by': '需求提出人',
+        'sharers': '需求共享人',
+        'hiring_manager': '用人经理',
+        'hiring_manager_superior': '用人经理上级',
+        'resume_grabber': '简历抢单人',
     },
     'position': {
         'dept': '需求部门',
@@ -214,12 +238,16 @@ MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
 # 处置：**仅从 UI 下拉隐藏**（前端过滤），后端映射与展开逻辑**全部保留** ——
 # 存量规则若已用 unit 维度仍能正常回显与执行（前端按 label 兜底渲染，不静默改语义）。
 #
-# 2026-10-15 维度治理（兵哥弹窗选项表）：需求模块仅暴露 tbp/hr/hrbp/creator/dept，
-# 其余（owner/hr/requested_by/sharers/hiring_manager/hiring_manager_superior/resume_grabber）
-# 移入隐藏、后端保留兼容；候选人的 creator/dept/owner 也隐藏（改用 demand_*/position_*/lock_owner 等）。
+# 2026-10-15 维度治理（兵哥弹窗选项表）：
+#  - 需求模块：TBP/HRBP/创建人/提出人/共享人/用人经理/用人经理上级/抢单人 **全部可见**
+#    （兵哥明确"人员字段不止 创建人/TBP/HRBP，需补全"）；仅 owner/hr（tbp 的冗余别名）隐藏。
+#  - 候选人：改用 uploaded_by/referrer/lock_owner/demand_*/position_*，creator/dept/owner 隐藏。
+#  - 职位：tbp/hrbp/creator/dept 可见，owner 隐藏。
 HIDDEN_DIMENSIONS: dict[str, frozenset[str]] = {
     '*': frozenset({'unit'}),
-    'demand': frozenset({'owner', 'hr', 'requested_by', 'sharers', 'hiring_manager', 'hiring_manager_superior', 'resume_grabber'}),
+    # 2026-10-15 兵哥：需求人员字段不止 创建人/TBP/HRBP —— 提出人/共享人/用人经理/
+    # 用人经理上级/抢单人 全部改为**可见**；仅 owner/hr（tbp 的冗余别名）继续隐藏。
+    'demand': frozenset({'owner', 'hr'}),
     'candidate': frozenset({'owner', 'creator', 'dept'}),
     'position': frozenset({'owner'}),
 }

@@ -455,8 +455,10 @@ def _entity_model(entity: str):
 def _resolve_user_ids(cond: dict, dimension: str, *, user) -> list | None:
     """统一解析用户类维度的目标 id 集合（静态 values 或 动态 currentUser.id）。
 
-    返回字符串 id 列表（与 dfv/JSON 的 `str(i)` 形态对齐，规避 JSON 字面量跨库比较），
-    或 None（无值 / 动态源未注册 / 维度不适配 / 异常 —— 调用方据此 no-op / fail-closed）。
+    返回**原始类型** id 列表（int 保持 int、str 保持 str），不做字符串化 ——
+    dfv / sharers 等下游分支各自按「int / str」多形态 OR 覆盖存量与前端两种存储
+    （JSONField 中 123 ≠ '123'，类型必须严格对齐才能命中）。返回 None 表示
+    无值 / 动态源未注册 / 维度不适配 / 异常 —— 调用方据此 no-op / fail-closed。
 
     设计约束见 docs/DESIGN_数据权限规则弹窗选项表.md §3.1：
     动态仅支持 currentUser.id；其余动态源（departments/deptSubtree/managedUnits）
@@ -471,27 +473,74 @@ def _resolve_user_ids(cond: dict, dimension: str, *, user) -> list | None:
             logger.warning('[expr_compiler] 维度 "%s" 不适配 currentUser.id, no-op', dimension)
             return None
         try:
-            return [str(i) for i in resolve_dynamic('currentUser.id', user)]
+            resolved = resolve_dynamic('currentUser.id', user)
         except ContextResolveError as e:
             logger.warning('[expr_compiler] 动态值来源解析失败(%s), no-op: %s', key, e)
             return None
         except Exception:  # noqa: BLE001 — DB 异常等同样拒绝, 不可静默放行
             logger.exception('[expr_compiler] 动态上下文解析异常, no-op')
             return None
-    ids = [str(v) for v in _norm_ids(cond) if v not in (None, '')]
+        ids = [i for i in resolved if i not in (None, '')]
+        return ids or None
+    ids = [v for v in _norm_ids(cond) if v not in (None, '')]
     return ids or None
+
+
+def _value_forms(i) -> list:
+    """dfv.value 是 JSONField，可能存 int（用户 id 数值）或 str（前端选项 value=str(id)），
+    故对每个目标 id 生成「原值 / 字符串 / 数值」三种形态，OR 覆盖两种存储形态。
+
+    例: 123 -> [123, '123']; '123' -> ['123', 123]; 'abc' -> ['abc']。
+    """
+    out = [i]
+    s = str(i)
+    if s not in out:
+        out.append(s)
+    n = None
+    if isinstance(i, bool):
+        pass
+    elif isinstance(i, int):
+        n = i  # int 已是原值
+    elif isinstance(i, str) and i.lstrip('-').isdigit():
+        n = int(i)
+    if n is not None and n not in out:
+        out.append(n)
+    return out
 
 
 def _compile_json_contains_condition(spec: dict, ids: list, operator: str) -> Q | None:
     """sharers 等多值 JSON 维度 -> Q(field__contains=[ids])。
 
     sharers 是 JSONField 存用户 id 列表；__contains 表示「列表含全部给定 id」。
+    JSON 数组 __contains 要求元素类型严格一致（123 ≠ '123'）—— 前端/存量数据可能
+    混存 int 或 str，故对「原值 / 数值形态 / 字符串形态」三套子集各查一次再 OR，
+    任一形态命中即视为命中，规避 123 / '123' 错配导致的漏匹配。
     ids 为空（未选值）-> None（no-op，与静态关系维度语义一致）。
     """
     ids = [v for v in ids if v not in (None, '')]
     if not ids:
         return None
-    return _negate_if_needed(Q(**{f"{spec['field']}__contains": ids}), operator)
+    field = spec['field']
+    forms: list = []
+    seen = set()
+    for transform in (
+        lambda xs: list(xs),
+        lambda xs: [int(x) for x in xs if isinstance(x, str) and x.lstrip('-').isdigit()],
+        lambda xs: [str(x) for x in xs],
+    ):
+        f = transform(ids)
+        if not f:
+            continue
+        key = tuple(f)
+        if key in seen:
+            continue
+        seen.add(key)
+        forms.append(f)
+    q = None
+    for f in forms:
+        sub = Q(**{f"{field}__contains": f})
+        q = sub if q is None else (q | sub)
+    return _negate_if_needed(q, operator)
 
 
 def _compile_dfv_condition(spec: dict, ids: list, operator: str, *, entity_model) -> Q | None:
@@ -511,10 +560,13 @@ def _compile_dfv_condition(spec: dict, ids: list, operator: str, *, entity_model
     if entity_model is None:
         logger.warning('[expr_compiler] 未知实体模型, dfv 维度 no-op')
         return None
+    # dfv.value 是 JSONField：存量可能存 int（用户 id 数值）或 str（前端选项 value=str(id)），
+    # 对每个目标 id 用 _value_forms 展开「原值/字符串/数值」三种形态 OR，
+    # 同时命中两种存储形态（仅取命中 demand 的 entity_id 集合，与 via 无关）。
     id_filter = Q()
     for i in ids:
-        id_filter |= Q(value=i)
-        id_filter |= Q(value=str(i))
+        for v in _value_forms(i):
+            id_filter |= Q(value=v)
     demand_ids = list(
         DynamicFieldValue.objects.filter(
             resource=spec['resource'], field_key=spec['field_key'],

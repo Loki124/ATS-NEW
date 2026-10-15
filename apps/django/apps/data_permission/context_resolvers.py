@@ -88,6 +88,8 @@ DYNAMIC_DIMENSION_RULES: dict[str, frozenset[str]] = {
         'tbp', 'hrbp', 'uploaded_by', 'referrer', 'lock_owner',
         'demand_tbp', 'demand_hrbp', 'demand_creator',
         'position_tbp', 'position_hrbp', 'position_creator',
+        # 需求补充人员维度（提出人已在上；共享人/用人经理/用人经理上级/抢单人）
+        'sharers', 'hiring_manager', 'hiring_manager_superior', 'resume_grabber',
     }),
     'unit': frozenset({'unit'}),
 }
