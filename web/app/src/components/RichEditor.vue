@@ -289,6 +289,18 @@ onBeforeUnmount(() => {
   overflow-x: auto;
 }
 
+/*
+ * wangEditor 的 .w-e-toolbar 自带 flex-wrap: wrap，工具栏按钮放不下时会折成多行，
+ * 而外层 .rich-editor__toolbar 的高度按单行计算，折出的第二行会溢出，
+ * 并因 `overflow-x: auto` 被 CSS 升格为 `overflow: auto` 而在纵轴产生滚动条
+ * （表现：图标被上下切一半，工具栏里出现纵向滚动）。
+ *
+ * 强制单行 + 外层横向滚动，是编辑器工具栏的标准形态。
+ */
+.rich-editor__toolbar :deep(.w-e-toolbar) {
+  flex-wrap: nowrap;
+}
+
 .rich-editor__action {
   flex-shrink: 0;
 }
