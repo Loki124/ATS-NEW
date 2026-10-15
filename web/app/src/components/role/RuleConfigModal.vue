@@ -36,14 +36,11 @@
           :key="c.id"
           class="cond-row"
         >
-          <span class="cond-seq">{{ ci + 1 }}</span>
           <!--
-            关系维度条件：横排一行（维度 → 取值来源 → 包含关系 → 值），对齐
-            stage-rule/modals/EntryRuleEditModal.vue 的 cond-row 范式。
-
-            🔴 A档：原此处有一个 n-radio-group「关系维度」单选项，但只有 relationship
-            一个可选项且不可切换（属性条件已下线），纯装饰还占一行 —— 已删除，改为
-            直接铺控件。属性条件存量只读分支见下方 v-else。
+            关系维度条件：**两行式**布局（修正「取值来源 / 业务值」各独占一行的视觉混乱）。
+              第 1 行：序号 + 维度 + 运算符 + 取值来源（固定 / 动态） + 删除
+              第 2 行：业务值（缩进对齐维度列）
+            属性条件为已下线存量（只读渲染），保持单行 + 删除，见下方 v-else。
 
             为什么不能直接删掉 kind 字段：
               - 后端 expr_compiler 仍按 kind 分派编译属性条件（存量快照仍能执行），
@@ -51,78 +48,75 @@
                 在往返编辑中静默损坏已保存的规则；
               - 权限系统里「看不见但仍在生效的规则」比「看不见且不能新建」更危险。
           -->
-
-          <!--
-            关系维度：控件顺序严格按**中文语义句语序**排：维度 → 关系 → 取值。
-            例：部门 包含 该成员的负责部门 / 部门 属于 智能BG。
-
-            🔴 A档修正（2026-10-15）：「包含关系」原先排在 `cond-src` 之后，
-            动态态渲染成「部门 | 该成员的负责部门 | 包含」—— 中文读起来
-            「部门 包含 …」的关系词被甩到末尾，语序错乱（上一轮只修了文案没动位置）。
-
-            现在关系词固定占第 2 位，且**静态/动态共用这一位**：
-              静态 operator（属于 / 不属于）—— 业务字段 ∈ 静态值集合
-              动态 relation（exact/in_subtree/contains/overlap）—— 业务字段 ∈ 运行时成员集合
-            二者语义同位（都是「字段与目标集合的关系」），只是目标来源不同，
-            拆成两个位置才是真 bug。
-          -->
           <template v-if="!isAttr(c)">
-            <!-- 第 1 位·指标项 -->
-            <n-select
-              :value="c.dimension"
-              :options="dimensionOptions"
-              size="small"
-              class="cond-dim"
-              @update:value="(v: string) => onDimensionChange(c, v)"
-            />
-            <!-- 第 2 位·运算符：始终显示；user 维度给 等于/不等于，dept 维度给包含关系族 -->
-            <n-select
-              :value="unifiedOperatorValue(c)"
-              :options="unifiedOperatorOptions(c)"
-              size="small"
-              class="cond-verb"
-              @update:value="(v: string) => onUnifiedOperatorChange(c, v)"
-            />
-            <!-- 第 3 位·校验值范围（取值来源）：维度支持动态取值时才显示，可缺省 -->
-            <n-select
-              v-if="supportsDynamic(c)"
-              :value="rangeValue(c)"
-              :options="rangeOptions(c)"
-              size="small"
-              class="cond-range"
-              @update:value="(v: string) => onRangeChange(c, v)"
-            />
-            <!-- 第 4 位·校验值：始终显示；静态可编辑，动态只读展示当前范围 -->
-            <n-select
-              v-if="isStatic(c)"
-              :value="validValueIds(c)"
-              :options="valueOptions(c)"
-              size="small"
-              multiple
-              filterable
-              clearable
-              max-tag-count="responsive"
-              class="cond-val"
-              :placeholder="t('dataperm.modal.valuesPlaceholder')"
-              @update:value="(ids: Array<string | number>) => onValuesChange(c, ids)"
-            />
-            <n-tag
-              v-else
-              size="small"
-              :bordered="false"
-              class="cond-val-readonly"
-            >
-              {{ rangeLabel(c) }}
-            </n-tag>
-            <n-tag
-              v-for="sv in staleValues(c)"
-              :key="sv.id"
-              size="small"
-              :bordered="false"
-              class="stale-tag"
-            >
-              {{ sv.label }}（{{ t('dataperm.value.stale') }}）
-            </n-tag>
+            <!-- 第 1 行：序号 + 维度 + 运算符 + 取值来源 + 删除（删除固定在本行右侧，不随换行孤立） -->
+            <div class="cond-line">
+              <span class="cond-seq">{{ ci + 1 }}</span>
+              <n-select
+                :value="c.dimension"
+                :options="dimensionOptions"
+                size="small"
+                class="cond-dim"
+                @update:value="(v: string) => onDimensionChange(c, v)"
+              />
+              <n-select
+                :value="unifiedOperatorValue(c)"
+                :options="unifiedOperatorOptions(c)"
+                size="small"
+                class="cond-verb"
+                @update:value="(v: string) => onUnifiedOperatorChange(c, v)"
+              />
+              <n-select
+                v-if="supportsDynamic(c) && !noValueOperator(c)"
+                :value="rangeValue(c)"
+                :options="rangeOptions(c)"
+                size="small"
+                class="cond-src"
+                @update:value="(v: string) => onRangeChange(c, v)"
+              />
+              <span class="cond-spacer" />
+              <button
+                class="cond-del"
+                type="button"
+                :disabled="g.conditions.length <= 1"
+                @click="delCondition(g, ci)"
+              >
+                <n-icon :component="TrashOutline" />
+              </button>
+            </div>
+            <!-- 第 2 行：业务值（无值运算符不显示） -->
+            <div v-if="!noValueOperator(c)" class="cond-line cond-line-val">
+              <n-select
+                v-if="isStatic(c)"
+                :value="validValueIds(c)"
+                :options="valueOptions(c)"
+                size="small"
+                multiple
+                filterable
+                clearable
+                max-tag-count="responsive"
+                class="cond-val"
+                :placeholder="t('dataperm.modal.valuesPlaceholder')"
+                @update:value="(ids: Array<string | number>) => onValuesChange(c, ids)"
+              />
+              <n-tag
+                v-else
+                size="small"
+                :bordered="false"
+                class="cond-val-readonly"
+              >
+                {{ rangeLabel(c) }}
+              </n-tag>
+              <n-tag
+                v-for="sv in staleValues(c)"
+                :key="sv.id"
+                size="small"
+                :bordered="false"
+                class="stale-tag"
+              >
+                {{ sv.label }}（{{ t('dataperm.value.stale') }}）
+              </n-tag>
+            </div>
           </template>
 
           <!--
@@ -132,14 +126,16 @@
             全部 disabled：已下线的配置不允许再被修改（改了就等于变相"复活"该能力）。
           -->
           <template v-else>
-            <n-tag
-              size="small"
-              :bordered="false"
-              type="warning"
-              class="cond-deprecated"
-            >
-              {{ t('dataperm.modal.condType.attribute') }} · {{ t('dataperm.modal.deprecatedBadge') }}
-            </n-tag>
+            <div class="cond-line">
+              <span class="cond-seq">{{ ci + 1 }}</span>
+              <n-tag
+                size="small"
+                :bordered="false"
+                type="warning"
+                class="cond-deprecated"
+              >
+                {{ t('dataperm.modal.condType.attribute') }} · {{ t('dataperm.modal.deprecatedBadge') }}
+              </n-tag>
             <n-select
               :value="c.field"
               :options="attrFieldOptions"
@@ -204,17 +200,17 @@
               />
             </template>
             <span v-else class="attr-no-val">{{ t('dataperm.modal.attrOperatorPlaceholder') }}</span>
+              <span class="cond-spacer" />
+              <button
+                class="cond-del"
+                type="button"
+                :disabled="g.conditions.length <= 1"
+                @click="delCondition(g, ci)"
+              >
+                <n-icon :component="TrashOutline" />
+              </button>
+            </div>
           </template>
-
-          <!-- 删除本条条件（对齐进入条件 cond-del：右侧垃圾桶，最后一条件时禁用） -->
-          <button
-            class="cond-del"
-            type="button"
-            :disabled="g.conditions.length <= 1"
-            @click="delCondition(g, ci)"
-          >
-            <n-icon :component="TrashOutline" />
-          </button>
         </div>
 
         <!-- 组内表达式（用户手填，引用本组条件序号 1..N；留空 = 且 AND） -->
@@ -416,8 +412,13 @@ const dimensionOptions = computed(() =>
 )
 /** 静态/动态统一运算符选项：第 2 位始终显示。 */
 const UNIFIED_USER_OPERATORS = [
-  { label: '等于', value: 'eq' },
-  { label: '不等于', value: 'neq' },
+  { label: '包含', value: 'in' },
+  { label: '不包含', value: 'not_in' },
+]
+/** 人员维度「为空/不为空」运算符（如简历锁定人）。 */
+const NOVALUE_USER_OPERATORS = [
+  { label: '为空', value: 'is_empty', noValue: true },
+  { label: '不为空', value: 'is_not_empty', noValue: true },
 ]
 const UNIFIED_DEPT_OPERATORS = [
   { label: '属于', value: 'in:exact' },
@@ -499,13 +500,20 @@ function dimValueType(c: PermCondition): string {
   return dimMetaOf(c.dimension || '')?.valueType || ''
 }
 
-/** 统一运算符下拉选项（user/dept 各自一套，指标项切换时联动）。 */
+/** 当前维度的运算符清单（后端按维度下发优先，缺省按 valueType 兜底）。 */
 function unifiedOperatorOptions(c: PermCondition) {
+  const meta = dimMetaOf(c.dimension || '')
+  if (meta?.operators?.length) return meta.operators
   const vt = dimValueType(c)
   if (vt === 'department') return UNIFIED_DEPT_OPERATORS
-  if (vt === 'user') return UNIFIED_USER_OPERATORS
-  // 其它值类型按 user 处理（人员类维度均走此分支）
   return UNIFIED_USER_OPERATORS
+}
+
+/** 当前选中的运算符是否无需业务值（如「为空/不为空」）。 */
+function noValueOperator(c: PermCondition): boolean {
+  const v = unifiedOperatorValue(c)
+  const meta = dimMetaOf(c.dimension || '')
+  return meta?.operators?.find((o) => o.value === v)?.noValue ?? false
 }
 
 /**
@@ -519,8 +527,10 @@ function unifiedOperatorValue(c: PermCondition): string {
   if (vt === 'department') {
     return `${op}:${rel}`
   }
-  // user 维度：operator='in' 展示为'等于'，'not_in' 展示为'不等于'
-  return op === 'not_in' ? 'neq' : 'eq'
+  // user 维度：兼容旧数据（eq/neq）与新数据（in/not_in）都映射到 in/not_in 标签
+  if (op === 'eq') return 'in'
+  if (op === 'neq') return 'not_in'
+  return op === 'not_in' ? 'not_in' : 'in'
 }
 
 /** 统一运算符变更：解析组合 value 写回 operator / relation。 */
@@ -531,8 +541,14 @@ function onUnifiedOperatorChange(c: PermCondition, v: string) {
     c.operator = op as Operator
     c.relation = rel
   } else {
-    c.operator = v === 'neq' ? 'not_in' : 'in'
+    c.operator = v
     c.relation = undefined
+  }
+  // 切到无值运算符时清掉旧值，避免误提交被忽略的旧静态 values
+  if (noValueOperator(c)) {
+    c.values = []
+    c.valueSource = 'static'
+    c.dynamicKey = undefined
   }
 }
 
@@ -550,18 +566,14 @@ function rangeValue(c: PermCondition): string {
 /**
  * 取值来源下拉：静态项 + 该维度可用的动态来源（contextKeys 驱动, M03）。
  *
- * 🔴 A档文案修正：
- *  - "指定{dim}" → "固定{dim}"。原词"指定"与下面"仅指定部门"并列时语义打架
- *    （都是"管理员手选"），改"固定"明确表达「写死一个值、不随登录人变」。
- *  - 动态项标签已在上游 DYNAMIC_SOURCE_LABELS 改为「该成员…」，消除"我的"歧义
- *    （解析的是运行时登录成员，不是配置人 —— 见 context_resolvers.responsible_department_ids）。
- *  - 下拉宽度 .cond-src 已从 150px 放宽到 190px，「该成员的负责部门及其下级」不再被截断。
+ * 静态项文案固定为「固定」（不再回显维度名）—— 维度已在第 1 位·维度选择器展示，
+ * 此处再拼「固定TBP（需求主负责人）」既冗余，又把取值来源框撑到 200px+，与两行式布局冲突。
+ * 「固定」明确表达「写死一个值、不随登录人变」，与「当前登录用户」动态项对举。
  */
 function rangeOptions(c: PermCondition) {
   const meta = dimMetaOf(c.dimension || '')
-  const dimLabel = meta?.label || ''
   return [
-    { label: t('dataperm.modal.staticSource', { dim: dimLabel }), value: 'static' },
+    { label: t('dataperm.modal.staticSource'), value: 'static' },
     ...dynamicSourceOptions(meta?.contextKeys),
   ]
 }
@@ -765,6 +777,8 @@ function conditionError(c: PermCondition): string | null {
     }
     return null
   }
+  // 无值运算符（如简历锁定人的「为空/不为空」）无需业务值与取值来源
+  if (noValueOperator(c)) return null
   // 动态条件的值由运行时注入，不校验业务值；仅需取值来源已选（M03 修复：
   // 此前缺少该分支，动态条件因 values 为空被误判为「请选择业务值」而无法确认）
   if (c.valueSource === 'dynamic') {
@@ -989,14 +1003,23 @@ function confirm() {
 .group-head-actions a:hover { color: var(--brand-fg); }
 .group-head-actions a.danger:hover { color: var(--c-error-deep); }
 
-/* 条件行：横排，wrap 允许窄屏换行但优先单行 */
+/* 条件行：纵向堆叠两行（第 1 行 维度/运算符/取值来源/删除，第 2 行 业务值） */
 .cond-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  padding: 4px 0;
+}
+/* 单行控件条：横向排列；cond-spacer 把删除按钮顶到行尾 */
+.cond-line {
   display: flex;
   align-items: center;
   gap: var(--space-2, 8px);
-  flex-wrap: wrap;
-  padding: 4px 0;
 }
+/* 第 2 行·业务值：左缩进对齐维度列（跨过序号圆点） */
+.cond-line-val { padding-left: 30px; }
+/* 弹性占位：吸收剩余空间，把删除按钮推到第 1 行右侧 */
+.cond-spacer { flex: 1; min-width: 0; }
 .cond-seq {
   width: 22px; height: 22px;
   flex-shrink: 0;
@@ -1015,15 +1038,17 @@ function confirm() {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  /* 🔴 去掉 margin-left:auto —— 它会把删除按钮顶到行尾，提示换行后按钮被孤立到
-     下一行右侧（兵哥截图的"样式混乱"）。改用提示的 flex 收缩吸收剩余空间。 */
+  /* 删除按钮固定在「第 1 行」右侧（由 cond-spacer 顶过去，不用 margin-left:auto），
+     业务值换到第 2 行时按钮不会被孤立成"独占一行右侧"。 */
   margin-left: 4px;
   padding: 0;
 }
 .cond-del:hover:not(:disabled) { color: var(--c-error-deep); }
 .cond-del:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.cond-dim { width: 104px; flex-shrink: 0; }
+/* 维度选择：宽度放到 180px，完整展示「TBP（需求主负责人）」「所属需求的需求创建人」等
+   长标签，避免 104px 下被截成「TBP（...）」（兵哥要求字段名与选项表一致、不得简写）。 */
+.cond-dim { width: 180px; flex-shrink: 0; }
 /*
  * 第 2 位·关系词（静态 operator / 动态 relation 共用）。
  * 宽度取 124px：`属于（含下级）` 6 字 + 图标 + 内边距，86px 会被截成「属于（含下…」。

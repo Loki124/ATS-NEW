@@ -73,8 +73,8 @@ export const ATTR_LIST_OPS = new Set(['IN', 'NOT_IN']);
  *   管理员不必在同一产品里记两套说法。
  */
 export const DYNAMIC_SOURCE_LABELS: Record<string, string> = {
-  'currentUser.departments': '该成员的负责部门',
-  'currentUser.deptSubtree': '该成员的负责部门及其下级',
+  'currentUser.departments': '当前登录用户负责的部门',
+  'currentUser.deptSubtree': '当前登录用户负责的部门及其下级',
   'currentUser.id': '当前登录用户',
   'currentUser.managedUnits': '该成员的管理单元',
 };

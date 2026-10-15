@@ -32,7 +32,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.src.id': 'Current signed-in user',
   'dataperm.src.managedUnits': 'Management units of this employee',
   'dataperm.src.staticSuffix': 'Fixed {dim}',
-  'dataperm.modal.staticSource': 'Fixed {dim}',
+  'dataperm.modal.staticSource': 'Fixed',
   'dataperm.modal.expr.intraPlaceholder': 'Leave blank = all must match; or 1 and 2',
   'dataperm.modal.expr.interPlaceholder': 'Leave blank = any group matches; or 1 or 2',
   'dataperm.modal.tpl.title': 'Reference a scope template',

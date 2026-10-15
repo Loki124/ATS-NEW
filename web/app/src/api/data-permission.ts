@@ -171,6 +171,16 @@ export interface RoleDataPermPayload {
   modules: ModulePerm[];
 }
 
+export interface OperatorOption {
+  label: string;
+  value: string;
+  /**
+   * 选中该运算符时是否不需要填业务值（如简历锁定人的「为空/不为空」）。
+   * true 时前端隐藏校验值范围与校验值两个框。
+   */
+  noValue?: boolean;
+}
+
 export interface DimensionMeta {
   key: string;
   label: string;
@@ -181,6 +191,11 @@ export interface DimensionMeta {
    * field_map.DIMENSION_META.contextKeys 透传）。空/缺省 = 不支持动态取值。
    */
   contextKeys?: string[];
+  /**
+   * 维度级运算符清单；后端按兵哥表格按维度精确下发。
+   * 缺省时前端按 valueType（department/user/...）兜底推导。
+   */
+  operators?: OperatorOption[];
 }
 
 export interface ModuleOption {

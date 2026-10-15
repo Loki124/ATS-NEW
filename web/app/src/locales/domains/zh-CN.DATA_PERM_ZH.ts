@@ -34,7 +34,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.src.id': '当前登录用户',
   'dataperm.src.managedUnits': '该成员的管理单元',
   'dataperm.src.staticSuffix': '固定{dim}',
-  'dataperm.modal.staticSource': '固定{dim}',
+  'dataperm.modal.staticSource': '固定',
   'dataperm.modal.expr.intraPlaceholder': '留空 = 全部满足；可填 1 and 2',
   'dataperm.modal.expr.interPlaceholder': '留空 = 任一组满足即可；可填 1 or 2',
   'dataperm.modal.tpl.title': '从权限模板引用',
