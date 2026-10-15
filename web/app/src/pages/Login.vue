@@ -149,28 +149,7 @@
         </n-tabs>
 
         <div class="login-footer">
-          <p>{{ t('pages.Login.s13') }}</p>
           <p class="register-hint">{{ t('pages.Login.s14') }}<a href="#" class="forgot-link" @click.prevent="goRegister">{{ t('pages.Login.s15') }}</a></p>
-        </div>
-      </div>
-
-      <!-- 底部功能特性（玻璃小卡） -->
-      <div class="login-features">
-        <div class="feature-item">
-          <n-icon :component="BarChartOutline" :size="28" class="feature-icon" />
-          <span>{{ t('pages.Login.s16') }}</span>
-        </div>
-        <div class="feature-item">
-          <n-icon :component="PeopleOutline" :size="28" class="feature-icon" />
-          <span>{{ t('pages.Login.s17') }}</span>
-        </div>
-        <div class="feature-item">
-          <n-icon :component="ListOutline" :size="28" class="feature-icon" />
-          <span>{{ t('pages.Login.s18') }}</span>
-        </div>
-        <div class="feature-item">
-          <n-icon :component="NotificationsOutline" :size="28" class="feature-icon" />
-          <span>{{ t('pages.Login.s19') }}</span>
         </div>
       </div>
     </div>
@@ -182,7 +161,7 @@ import { useI18n } from 'vue-i18n'
 import { ref, reactive, nextTick, onBeforeUnmount, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { PersonOutline, LockClosedOutline, BarChartOutline, PeopleOutline, ListOutline, NotificationsOutline } from '@vicons/ionicons5'
+import { PersonOutline, LockClosedOutline } from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
 import { login } from '../api/auth'
 import { deriveRoleType } from '../utils/role'
@@ -526,7 +505,7 @@ onBeforeUnmount(() => {
   opacity: .65;
 }
 
-/* === 底部 footer（默认账号提示）=== */
+/* === 底部 footer（注册入口）=== */
 .login-footer {
   text-align: center;
   margin-top: var(--space-4);
@@ -538,30 +517,6 @@ onBeforeUnmount(() => {
   font-size: var(--text-meta);
   margin: 0;
 }
-
-/* === 底部特性（玻璃小卡风格）=== */
-.login-features {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-8);
-  margin-top: var(--space-8);
-  flex-wrap: wrap;
-}
-.feature-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg-card);
-  border: 1px solid var(--glass-border);
-  color: var(--ink-soft);
-  font-size: var(--text-meta);
-  font-weight: 500;
-  backdrop-filter: blur(var(--glass-blur-input));
-  -webkit-backdrop-filter: blur(var(--glass-blur-input));
-}
-.feature-icon { font-size: var(--text-body); line-height: 1; }
 
 /* === 响应式（DESIGN.md §8）===
  *  < 600px：卡片占满宽度，去掉 max-width 限制，缩小 padding
@@ -576,18 +531,6 @@ onBeforeUnmount(() => {
   }
   .login-card {
     padding: var(--space-4) var(--space-4);
-  }
-  .login-features {
-    gap: var(--space-3);
-  }
-}
-@media (max-width: 380px) {
-  .login-features {
-    gap: var(--space-2);
-  }
-  .feature-item {
-    padding: var(--space-1) 10px;
-    font-size: 11px;
   }
 }
 </style>
