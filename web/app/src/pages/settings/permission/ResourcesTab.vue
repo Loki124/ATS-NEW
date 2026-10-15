@@ -1,6 +1,6 @@
 <template>
   <div class="resources-tab">
-    <div class="filter-row">
+    <div class="toolbar filter-row">
       <n-input
         v-model:value="search"
         :placeholder="t('pages.settings.permission.ResourcesTab.s1')"
@@ -35,7 +35,10 @@
         class="filter-select"
         @update:value="onFilterChange"
       />
-      <n-button type="primary" :loading="loading" @click="load">{{ t('pages.settings.permission.ResourcesTab.s3') }}</n-button>
+      <n-button type="primary" class="gradient-btn" :loading="loading" @click="load">
+        <template #icon><n-icon :component="SearchOutline" /></template>
+        {{ t('pages.settings.permission.ResourcesTab.s3') }}
+      </n-button>
     </div>
 
     <!-- 加载失败：给出就地重试入口，不静默失败（R-104 / R-111） -->
@@ -91,6 +94,8 @@ import {
   type SubModuleIndex,
 } from '@/utils/permissionModules'
 import { SearchOutline } from '@vicons/ionicons5'
+// 列对齐与操作列规格的单一真源（四档规则见该文件头）
+import { column } from '@/composables/useTableColumns'
 
 const message = useMessage()
 // t 提前声明：下方 pagination.prefix 闭包会用到它
@@ -224,27 +229,28 @@ const resourceTypeOptions: { label: string; value: ResourceType }[] = [
 
 const columns = [
   // 资源编码形如 recruit:menu:xxx，超长时省略号 + tooltip 查看完整值（R-110）
-  { title: '资源编码', key: 'resourceCode', width: 240, ellipsis: { tooltip: true } },
-  { title: '资源名称', key: 'resourceName', width: 160, ellipsis: { tooltip: true } },
-  {
+  // 编码/名称/类型/模块/子模块均为短值标识（A 档 short 居中）。
+  column({ title: '资源编码', key: 'resourceCode', width: 240, ellipsis: { tooltip: true } }, 'short'),
+  column({ title: '资源名称', key: 'resourceName', width: 160, ellipsis: { tooltip: true } }, 'short'),
+  column({
     title: '类型',
     key: 'resourceType',
     width: 80,
     render: (row: PermissionResource) =>
       h('span', resourceTypeOptions.find((o) => o.value === row.resourceType)?.label ?? row.resourceType),
-  },
+  }, 'short'),
   // 模块列显示中文名，title 悬浮给出后端原始 code（便于排查 seed 数据问题）
   // 注: naive 的 ellipsis.tooltip 只接受零参 () => string，拿不到当前行，故用 title
-  {
+  column({
     title: '模块',
     key: 'module',
     width: 110,
     render: (row: PermissionResource) =>
       h('span', { title: row.module || undefined }, resourceModuleLabel(row.module, '—')),
-  },
+  }, 'short'),
   // 子模块列：settings 下 32 个二级/三级分栏（个人信息 / 制度公告 / 校招管控…），
   // module 值同为 settings，仅靠模块列无法区分归属，故单列一列展示中文名。
-  {
+  column({
     title: '子模块',
     key: 'subModule',
     width: 130,
@@ -255,7 +261,7 @@ const columns = [
       }
       return h('span', { title: row.resourceCode.split(':')[2] }, label)
     },
-  },
+  }, 'short'),
 ]
 
 /**
@@ -284,7 +290,7 @@ onMounted(load)
 .resources-tab {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   flex: 1;
   min-height: 0;
 }
@@ -319,7 +325,7 @@ onMounted(load)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 

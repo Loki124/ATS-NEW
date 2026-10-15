@@ -10,11 +10,11 @@
         <template #header-extra>
           <n-space>
             <n-button :loading="loading" @click="reload">{{ t('pages.settings.SchoolLibrary.s3') }}</n-button>
-            <n-button type="primary" @click="openCreate">{{ t('pages.settings.SchoolLibrary.s4') }}</n-button>
+            <n-button type="primary" class="gradient-btn" @click="openCreate">{{ t('pages.settings.SchoolLibrary.s4') }}</n-button>
           </n-space>
         </template>
 
-        <n-space class="filter-row" :wrap="true">
+        <div class="filter-row toolbar">
           <n-input
             v-model:value="filters.keyword"
             :placeholder="t('pages.settings.SchoolLibrary.s5')"
@@ -67,8 +67,8 @@
             style="width: 150px"
             @update:value="reload"
           />
-          <n-button type="primary" @click="reload">{{ t('pages.settings.SchoolLibrary.s11') }}</n-button>
-        </n-space>
+          <n-button type="primary" @click="reload"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.SchoolLibrary.s11') }}</n-button>
+        </div>
 
         <div class="table-wrap">
           <n-data-table
@@ -186,8 +186,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive, computed } from 'vue';
-import { NTag, NButton, NSpace, useMessage, type FormInst, type FormRules } from 'naive-ui';
+import { NTag, NButton, NSpace, NIcon, useMessage, type FormInst, type FormRules } from 'naive-ui';
 import { SchoolOutline, OpenOutline, SearchOutline, CreateOutline } from '@vicons/ionicons5';
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns';
 import {
   searchSchools, getSchoolFacets, type School, type SchoolFacets,
   createSchool, updateSchool,
@@ -227,14 +228,14 @@ const rows = ref<School[]>([]);
 const loading = ref(false);
 
 const columns = [
-  { title: t('pages.settings.SchoolLibrary.s47'), key: 'code', width: 100 },
-  {
+  column({ title: t('pages.settings.SchoolLibrary.s47'), key: 'code', width: 100 }, 'short'),
+  column({
     title: t('pages.settings.SchoolLibrary.s48'),
     key: 'name',
     width: 200,
     render: (row: School) => h('span', { style: 'font-weight: 500' }, row.name),
-  },
-  {
+  }, 'short'),
+  column({
     // 曾用名：更名前的校名，搜索关键词也会命中它（简历上常写旧校名）
     title: t('pages.settings.SchoolLibrary.s49'),
     key: 'formerNames',
@@ -246,20 +247,20 @@ const columns = [
         ? h('span', { style: 'color: var(--n-400, #909399)' }, v)
         : '-';
     },
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.SchoolLibrary.s50'),
     key: 'educationLevel',
     width: 100,
     render: (row: School) => row.educationLevel ? h(NTag, { size: 'small', type: 'info' }, () => row.educationLevel) : '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.SchoolLibrary.s51'),
     key: 'schoolType',
     width: 100,
     render: (row: School) => row.schoolType ? h(NTag, { size: 'small', type: 'success' }, () => row.schoolType) : '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.SchoolLibrary.s52'),
     key: 'schoolCategory',
     width: 90,
@@ -268,16 +269,16 @@ const columns = [
       const color = NATURE_COLORS[v] || 'default';
       return h(NTag, { size: 'small', type: color }, () => v);
     },
-  },
-  { title: t('pages.settings.SchoolLibrary.s53'), key: 'province', width: 90 },
-  { title: t('pages.settings.SchoolLibrary.s54'), key: 'city', width: 90 },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.SchoolLibrary.s53'), key: 'province', width: 90 }, 'short'),
+  column({ title: t('pages.settings.SchoolLibrary.s54'), key: 'city', width: 90 }, 'short'),
+  column({
     title: t('pages.settings.SchoolLibrary.s55'),
     key: 'affiliatedTo',
     width: 140,
     render: (row: School) => row.affiliatedTo || '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.SchoolLibrary.s56'),
     key: 'tags',
     width: 220,
@@ -295,30 +296,30 @@ const columns = [
         title: list.join('、'),
       }, chips);
     },
-  },
-  { title: t('pages.settings.SchoolLibrary.s57'), key: 'location', width: 200, ellipsis: { tooltip: true } },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.SchoolLibrary.s57'), key: 'location', width: 200, ellipsis: { tooltip: true } }, 'text'),
+  column({
     title: t('pages.settings.SchoolLibrary.s58'),
     key: 'action',
-    width: 140,
+    width: 176,
     fixed: 'right' as const,
-    render: (row: School) =>
-      h(NSpace, { size: 2, justify: 'center', wrap: false }, {
-        default: () => [
-          h(NButton, {
-            size: 'tiny',
-            quaternary: true,
-            onClick: () => openDetail(row),
-          }, { default: () => t('pages.settings.SchoolLibrary.s65'), icon: () => h(OpenOutline) }),
-          h(NButton, {
-            size: 'tiny',
-            quaternary: true,
-            type: 'primary',
-            onClick: () => openEdit(row),
-          }, { default: () => t('pages.settings.SchoolLibrary.s66'), icon: () => h(CreateOutline) }),
-        ],
-      }),
-  },
+    render(row: School) {
+      return h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'primary',
+          onClick: () => openDetail(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(OpenOutline) }), default: () => t('pages.settings.SchoolLibrary.s65') }),
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'primary',
+          onClick: () => openEdit(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.SchoolLibrary.s66') }),
+      ])
+    },
+  }, 'control'),
 ];
 
 /** 横向滚动宽度 = 各列宽之和。列宽改动自动跟随，避免字段被容器挤没。 */

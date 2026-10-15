@@ -78,7 +78,7 @@
         <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s11')">{{ viewDept.name }}</n-descriptions-item>
         <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s12')">{{ viewDept.code }}</n-descriptions-item>
         <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s13')">
-          <span style="font-family: monospace; font-size: 12px; color: #8c8c8c">{{ viewDept.id }}</span>
+          <span style="font-family: monospace; font-size: 12px; color: var(--ink-soft)">{{ viewDept.id }}</span>
         </n-descriptions-item>
         <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s14')">
           <span v-if="viewDept.parentId">{{ getParentName(viewDept) }}</span>
@@ -239,7 +239,7 @@
       :centered="true"
       :auto-focus="false"
     >
-      <n-space vertical :size="12">
+      <n-space vertical :size="8">
         <n-alert type="info" :show-icon="true">
           {{ t('pages.settings.DepartmentManagement.s51') }}
         </n-alert>
@@ -1158,7 +1158,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 
 .page-header-actions {
@@ -1168,6 +1168,6 @@ onMounted(() => {
 }
 /* .glass-panel 已是全局类（glass.css §4）；scoped 仅补 padding 让 <n-data-table> 与玻璃边缘有呼吸空间 */
 .glass-panel {
-  padding: var(--space-4);
+  padding: var(--space-2);
 }
 </style>

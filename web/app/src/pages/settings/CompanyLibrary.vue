@@ -11,7 +11,7 @@
           <n-button :loading="loading" @click="reload">{{ t('pages.settings.CompanyLibrary.s2') }}</n-button>
         </template>
 
-        <n-space class="filter-row" :wrap="true">
+        <div class="filter-row toolbar">
           <n-input
             v-model:value="filters.keyword"
             :placeholder="t('pages.settings.CompanyLibrary.s4')"
@@ -37,8 +37,8 @@
             style="width: 140px"
             @update:value="reload"
           />
-          <n-button type="primary" @click="reload">{{ t('pages.settings.CompanyLibrary.s7') }}</n-button>
-        </n-space>
+          <n-button type="primary" @click="reload"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.CompanyLibrary.s7') }}</n-button>
+        </div>
 
         <div class="table-wrap">
           <n-data-table
@@ -60,8 +60,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive } from 'vue';
-import { NTag, NButton, NSpace, useMessage } from 'naive-ui';
+import { NTag, NButton, NSpace, NIcon, useMessage } from 'naive-ui';
 import { BusinessOutline, OpenOutline, StarOutline, SearchOutline } from '@vicons/ionicons5';
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns';
 import { searchCompanies, getCompany, listCompanyIndustries, type Company } from '@/api/library';
 import { localPagination } from '@/composables/useTablePagination';
 const { t } = useI18n()
@@ -82,9 +83,9 @@ const rows = ref<Company[]>([]);
 const loading = ref(false);
 
 const columns = [
-  { title: t('pages.settings.CompanyLibrary.s8'), key: 'code', width: 130 },
-  { title: t('pages.settings.CompanyLibrary.s9'), key: 'name', width: 240, render: (row: Company) => h('span', { style: 'font-weight: 500' }, row.name) },
-  {
+  column({ title: t('pages.settings.CompanyLibrary.s8'), key: 'code', width: 130 }, 'short'),
+  column({ title: t('pages.settings.CompanyLibrary.s9'), key: 'name', width: 240, render: (row: Company) => h('span', { style: 'font-weight: 500' }, row.name) }, 'short'),
+  column({
     title: t('pages.settings.CompanyLibrary.s10'),
     key: 'isBenchmark',
     width: 70,
@@ -92,32 +93,36 @@ const columns = [
       row.isBenchmark
         ? h(NTag, { size: 'small', type: 'warning', round: true }, { default: () => t('pages.settings.CompanyLibrary.s16'), icon: () => h(StarOutline) })
         : '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.CompanyLibrary.s11'),
     key: 'industry',
     width: 110,
     render: (row: Company) => row.industry ? h(NTag, { size: 'small', type: 'info' }, () => row.industry) : '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.CompanyLibrary.s12'),
     key: 'scale',
     width: 100,
     render: (row: Company) => row.scale ? h(NTag, { size: 'small', type: 'success' }, () => row.scale) : '-',
-  },
-  { title: t('pages.settings.CompanyLibrary.s13'), key: 'description', ellipsis: { tooltip: true } },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.CompanyLibrary.s13'), key: 'description', ellipsis: { tooltip: true } }, 'text'),
+  column({
     title: t('pages.settings.CompanyLibrary.s14'),
     key: 'action',
     width: 100,
     fixed: 'right' as const,
-    render: (row: Company) =>
-      h(NButton, {
-        size: 'tiny',
-        quaternary: true,
-        onClick: () => viewDetail(row),
-      }, { default: () => t('pages.settings.CompanyLibrary.s17'), icon: () => h(OpenOutline) }),
-  },
+    render(row: Company) {
+      return h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'primary',
+          onClick: () => viewDetail(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(OpenOutline) }), default: () => t('pages.settings.CompanyLibrary.s17') }),
+      ])
+    },
+  }, 'control'),
 ];
 
 async function loadIndustries() {

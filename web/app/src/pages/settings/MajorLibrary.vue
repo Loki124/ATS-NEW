@@ -11,7 +11,7 @@
           <n-button :loading="loading" @click="reload">{{ t('pages.settings.MajorLibrary.s3') }}</n-button>
         </template>
 
-        <n-space class="filter-row" :wrap="true">
+        <div class="filter-row toolbar">
           <n-input
             v-model:value="filters.keyword"
             :placeholder="t('pages.settings.MajorLibrary.s4')"
@@ -47,8 +47,8 @@
             style="width: 170px"
             @update:value="reload"
           />
-          <n-button type="primary" @click="reload">{{ t('pages.settings.MajorLibrary.s8') }}</n-button>
-        </n-space>
+          <n-button type="primary" @click="reload"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.MajorLibrary.s8') }}</n-button>
+        </div>
 
         <div class="table-wrap">
           <n-data-table
@@ -135,8 +135,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive, computed } from 'vue';
-import { NTag, NButton, NSpace, useMessage } from 'naive-ui';
+import { NTag, NButton, NSpace, NIcon, useMessage } from 'naive-ui';
 import { OpenOutline, CreateOutline, SearchOutline } from '@vicons/ionicons5';
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns';
 import {
   searchMajors, getMajorFacets, type Major, updateMajor,
 } from '@/api/library';
@@ -163,47 +164,46 @@ const categoryOptions = computed(() => toOptions(facets.value.categories));
 const eduOptions = computed(() => toOptions(facets.value.educationLevels));
 
 const columns = [
-  { title: t('pages.settings.MajorLibrary.s30'), key: 'code', width: 100 },
-  {
+  column({ title: t('pages.settings.MajorLibrary.s30'), key: 'code', width: 100 }, 'short'),
+  column({
     title: t('pages.settings.MajorLibrary.s31'), key: 'name', width: 180,
     render: (row: Major) => h('span', { style: 'font-weight: 500' }, row.name),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.MajorLibrary.s32'), key: 'discipline', width: 100,
     render: (row: Major) => row.discipline
       ? h(NTag, { size: 'small', type: 'info' }, () => row.discipline) : '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.MajorLibrary.s33'), key: 'category', width: 150,
     render: (row: Major) => row.category
       ? h(NTag, { size: 'small', type: 'success' }, () => row.category) : '-',
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.MajorLibrary.s34'), key: 'educationLevel', width: 140,
     render: (row: Major) => row.educationLevel
       ? h(NTag, { size: 'small', type: 'warning' }, () => row.educationLevel) : '-',
-  },
-  { title: t('pages.settings.MajorLibrary.s35'), key: 'dataYear', width: 80 },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.MajorLibrary.s35'), key: 'dataYear', width: 80 }, 'short'),
+  column({
     title: t('pages.settings.MajorLibrary.s36'), key: 'intro', width: 320, ellipsis: { tooltip: true },
     render: (row: Major) => row.intro || '-',
-  },
-  {
-    title: t('pages.settings.MajorLibrary.s37'), key: 'action', width: 140, fixed: 'right' as const,
-    render: (row: Major) =>
-      h(NSpace, { size: 2, justify: 'center', wrap: false }, {
-        default: () => [
-          h(NButton, {
-            size: 'tiny', quaternary: true,
-            onClick: () => openDetail(row),
-          }, { default: () => t('pages.settings.MajorLibrary.s41'), icon: () => h(OpenOutline) }),
-          h(NButton, {
-            size: 'tiny', quaternary: true, type: 'primary',
-            onClick: () => openEdit(row),
-          }, { default: () => t('pages.settings.MajorLibrary.s42'), icon: () => h(CreateOutline) }),
-        ],
-      }),
-  },
+  }, 'text'),
+  column({
+    title: t('pages.settings.MajorLibrary.s37'), key: 'action', width: 176, fixed: 'right' as const,
+    render(row: Major) {
+      return h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary',
+          onClick: () => openDetail(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(OpenOutline) }), default: () => t('pages.settings.MajorLibrary.s41') }),
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary',
+          onClick: () => openEdit(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.MajorLibrary.s42') }),
+      ])
+    },
+  }, 'control'),
 ];
 
 /** 横向滚动宽度 = 各列宽之和（同院校表） */

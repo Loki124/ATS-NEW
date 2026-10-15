@@ -226,7 +226,7 @@
             </div>
             <!-- 操作 -->
             <div class="el-cell col-description">
-              <n-space :size="4" align="center">
+              <n-space :size="8" align="center">
                 <template v-if="node.row.editing">
                   <!-- v3: 行内「取消」已挪到行首 ×icon, 此处只保留「保存」 -->
                   <n-button size="tiny" type="primary" @click="saveRow(node.row)">{{ t('pages.settings.DataDictionary.s40') }}</n-button>
@@ -283,7 +283,7 @@
           <span class="draft-icon"><NIcon :size="15" style="vertical-align:-2px" aria-hidden="true"><AlertTriangle /></NIcon></span>
           <span>{{ t('pages.settings.DataDictionary.s46') }}</span>
         </div>
-        <n-space class="submit-actions" justify="end" :size="12" align="center">
+        <n-space class="submit-actions" justify="end" :size="8" align="center">
           <n-button size="large" :disabled="submitting" @click="backToList">{{ t('pages.settings.DataDictionary.s47') }}</n-button>
           <n-button size="large" type="primary" :loading="submitting" :disabled="!hasUnsavedChanges" @click="submitDraft">
             {{ t('pages.settings.DataDictionary.s48') }}
@@ -557,7 +557,7 @@ const listColumns: DataTableColumns<DictionaryType> = [
     render: (row: DictionaryType) =>
       h(
         NSpace,
-        { size: 4, align: 'center', wrap: false },
+        { size: 8, align: 'center', wrap: false },
         {
           default: () => {
             const btns = [
@@ -947,7 +947,7 @@ onUnmounted(() => {
    本页仅保留 flex 布局以把「新增字典」按钮推到右侧。 */
 /* .page-title / .page-subtitle 复用全局 glass.css 渐变规格（26px 渐变标题 + --ink-soft 副标题），不再私有覆盖 */
 .code-pill, .num-pill { font-size: var(--fs-12); color: var(--ink-soft); background: var(--g1); padding: 2px var(--space-2); border-radius: 4px; }
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
 .section { margin-bottom: var(--space-4); }
 .section--info :deep(.n-card__content) { padding: var(--space-3) var(--space-4) !important; }
 /* 元素卡片：自然高度（随行数生长，由 .page-container.edit-mode 整体滚动）。

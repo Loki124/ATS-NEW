@@ -704,7 +704,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 
 .page-header-actions {
@@ -714,6 +714,6 @@ onMounted(() => {
 }
 /* .glass-panel 已是全局类（glass.css §4）；scoped 仅补 padding 让 <n-data-table> 与玻璃边缘有呼吸空间 */
 .glass-panel {
-  padding: var(--space-4);
+  padding: var(--space-2);
 }
 </style>

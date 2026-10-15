@@ -130,6 +130,8 @@ import {
   type AclBatchResult, type AclCatalog, type PermissionCode,
 } from '@/api/field-acl';
 import { localPagination } from '@/composables/useTablePagination';
+// 列对齐与操作列规格的单一真源（四档规则见该文件头）
+import { column } from '@/composables/useTableColumns';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -223,7 +225,7 @@ function isDefaultState(entity: string, field: string, roleCode: string): boolea
 const columns = computed<DataTableColumn<any>[]>(() => {
   const ent = activeEntity.value;
   const cols: DataTableColumn<any>[] = [
-    {
+    column({
       title: t('pages.settings.FieldAclSettings.s9'),
       key: 'field',
       width: 180,
@@ -235,13 +237,14 @@ const columns = computed<DataTableColumn<any>[]>(() => {
           ? h(NTag, { size: 'small', type: 'info', bordered: true }, () => t('pages.settings.FieldAclSettings.s34'))
           : null,
       ]),
-    },
+    }, 'short'),
   ];
   for (const rc of roleCodes.value) {
-    cols.push({
+    cols.push(column({
       title: rc,
       key: rc,
       width: 220,
+      // 角色列内嵌三态单选控件（B 档 control 居中）
       render: (row: any) => {
         const field = row.field as string;
         const value = currentValue(ent, field, rc);
@@ -263,27 +266,21 @@ const columns = computed<DataTableColumn<any>[]>(() => {
             : null,
         ]);
       },
-    });
+    }, 'control'));
   }
   return cols;
 });
 
 const auditColumns: DataTableColumn<any>[] = [
-  {
-    title: t('pages.settings.FieldAclSettings.s10'), key: 'createdAt', width: 170,
-    render: (r: any) => (r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '-'),
-  },
-  { title: t('pages.settings.FieldAclSettings.s11'), key: 'username', width: 100 },
-  {
-    title: t('pages.settings.FieldAclSettings.s12'), key: 'entity', width: 200,
-    render: (r: any) => `${r.entity}`,
-  },
-  {
-    title: t('pages.settings.FieldAclSettings.s13'), key: 'masked', width: 220,
-    render: (r: any) => `${r.masked_fields?.length || 0} / ${r.hidden_fields?.length || 0}`,
-  },
-  { title: t('pages.settings.FieldAclSettings.s14'), key: 'client_ip', width: 140,
-    render: (r: any) => r.client_ip || '-' },
+  column({ title: t('pages.settings.FieldAclSettings.s10'), key: 'createdAt', width: 170,
+    render: (r: any) => (r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '-') }, 'short'),
+  column({ title: t('pages.settings.FieldAclSettings.s11'), key: 'username', width: 100 }, 'short'),
+  column({ title: t('pages.settings.FieldAclSettings.s12'), key: 'entity', width: 200,
+    render: (r: any) => `${r.entity}` }, 'short'),
+  column({ title: t('pages.settings.FieldAclSettings.s13'), key: 'masked', width: 220,
+    render: (r: any) => `${r.masked_fields?.length || 0} / ${r.hidden_fields?.length || 0}` }, 'numeric'),
+  column({ title: t('pages.settings.FieldAclSettings.s14'), key: 'client_ip', width: 140,
+    render: (r: any) => r.client_ip || '-' }, 'short'),
 ];
 
 // ===== 数据加载 =====

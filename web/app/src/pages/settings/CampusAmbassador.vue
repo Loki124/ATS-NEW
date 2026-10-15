@@ -25,7 +25,7 @@
       </header>
 
       <n-card class="ca-card" :bordered="false">
-        <div class="ca-card__toolbar">
+        <div class="ca-card__toolbar toolbar">
           <n-input
             v-model:value="keyword"
             :placeholder="t('pages.settings.CampusAmbassador.s4')"
@@ -36,7 +36,7 @@
               <n-icon :component="SearchOutline" />
             </template>
           </n-input>
-          <n-button type="primary" :disabled="!enabled" @click="openCreate">
+          <n-button type="primary" class="gradient-btn" :disabled="!enabled" @click="openCreate">
             <template #icon><n-icon :component="PersonAddOutline" /></template>
             {{ t('pages.settings.CampusAmbassador.s5') }}
           </n-button>
@@ -125,14 +125,16 @@ import {
   NInput,
   NModal,
   NSelect,
+  NSpace,
   NSwitch,
   useMessage,
   useNotification,
   type FormInst,
   type FormRules,
 } from 'naive-ui'
-import { SearchOutline, PersonAddOutline } from '@vicons/ionicons5'
+import { SearchOutline, PersonAddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { useCloseGuard } from '@/composables/useCloseGuard'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import EmptyState from '../../components/common/EmptyState.vue'
 import { useSystemStore } from '../../stores/system'
 import {
@@ -219,27 +221,36 @@ function statusTag(status: AmbassadorStatus) {
 }
 
 const columns = [
-  { title: t('pages.settings.CampusAmbassador.s7', '高校'), key: 'school' },
-  { title: t('pages.settings.CampusAmbassador.s8', '大使姓名'), key: 'name' },
-  { title: t('pages.settings.CampusAmbassador.s9', '区域'), key: 'region', render: (row: CampusAmbassador) => row.region || '—' },
-  {
+  column({ title: t('pages.settings.CampusAmbassador.s7', '高校'), key: 'school' }, 'short'),
+  column({ title: t('pages.settings.CampusAmbassador.s8', '大使姓名'), key: 'name' }, 'short'),
+  column({ title: t('pages.settings.CampusAmbassador.s9', '区域'), key: 'region', render: (row: CampusAmbassador) => row.region || '—' }, 'short'),
+  column({
     title: t('pages.settings.CampusAmbassador.s10', '状态'),
     key: 'status',
     render: (row: CampusAmbassador) => statusTag(row.status),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.CampusAmbassador.s11', '操作'),
     key: 'actions',
-    render: (row: CampusAmbassador) =>
-      h('div', { style: 'display:flex; gap:8px' }, [
-        h(NButton, { size: 'small', quaternary: true, onClick: () => openEdit(row) }, { default: () => t('pages.settings.CampusAmbassador.s46', '编辑') }),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, type: 'error', onClick: () => remove(row) },
-          { default: () => t('pages.settings.CampusAmbassador.s19', '移除') },
-        ),
-      ]),
-  },
+    width: 176,
+    fixed: 'right' as const,
+    render(row: CampusAmbassador) {
+      return h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'primary',
+          onClick: () => openEdit(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.CampusAmbassador.s46', '编辑') }),
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'error',
+          onClick: () => remove(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.CampusAmbassador.s19', '移除') }),
+      ])
+    },
+  }, 'control'),
 ]
 
 /* ============================ 数据加载 ============================ */

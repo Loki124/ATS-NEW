@@ -44,8 +44,10 @@
 import { useI18n } from 'vue-i18n'
 import { localPagination } from '@/composables/useTablePagination'
 import { h, onMounted, ref } from 'vue'
-import { NButton, NSpace, NTag, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NSpace, NTag, NIcon, useMessage, type DataTableColumns } from 'naive-ui'
+import { RefreshOutline } from '@vicons/ionicons5'
 import { fetchSyncs, retrySync, type CompanySync } from '../../api/external-sync'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 const { t } = useI18n()
 
 const message = useMessage()
@@ -53,16 +55,16 @@ const loadingList = ref(false)
 const syncs = ref<CompanySync[]>([])
 
 const columns: DataTableColumns<CompanySync> = [
-  { title: t('pages.settings.CompanySettings.s7'), key: 'companyId', width: 100 },
-  {
+  column({ title: t('pages.settings.CompanySettings.s7'), key: 'companyId', width: 100 }, 'short'),
+  column({
     title: t('pages.settings.CompanySettings.s8'),
     key: 'externalSystem',
     width: 100,
     render: (row) =>
       h(NTag, { type: row.externalSystem === 'MOKA' ? 'info' : 'success', size: 'small' }, { default: () => row.externalSystem }),
-  },
-  { title: t('pages.settings.CompanySettings.s9'), key: 'externalId', width: 140 },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.CompanySettings.s9'), key: 'externalId', width: 140 }, 'short'),
+  column({
     title: t('pages.settings.CompanySettings.s10'),
     key: 'syncStatus',
     width: 100,
@@ -72,25 +74,26 @@ const columns: DataTableColumns<CompanySync> = [
         : 'default'
       return h(NTag, { type, size: 'small' }, { default: () => row.syncStatus })
     },
-  },
-  { title: t('pages.settings.CompanySettings.s11'), key: 'lastSyncAt', width: 180 },
-  { title: t('pages.settings.CompanySettings.s12'), key: 'retryCount', width: 80 },
-  { title: t('pages.settings.CompanySettings.s13'), key: 'lastError', ellipsis: { tooltip: true } },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.CompanySettings.s11'), key: 'lastSyncAt', width: 180 }, 'short'),
+  column({ title: t('pages.settings.CompanySettings.s12'), key: 'retryCount', width: 80 }, 'numeric'),
+  column({ title: t('pages.settings.CompanySettings.s13'), key: 'lastError', ellipsis: { tooltip: true } }, 'text'),
+  column({
     title: t('pages.settings.CompanySettings.s14'),
     key: 'actions',
     width: 120,
+    fixed: 'right' as const,
     render: (row) =>
-      h(
-        NButton,
-        {
-          size: 'small',
+      h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'primary',
           disabled: row.syncStatus !== 'FAILED',
           onClick: () => handleRetry(row.id),
-        },
-        { default: () => t('pages.settings.CompanySettings.s16') }
-      ),
-  },
+        }, { icon: () => h(NIcon, null, { default: () => h(RefreshOutline) }), default: () => t('pages.settings.CompanySettings.s16') }),
+      ]),
+  }, 'control'),
 ]
 
 async function loadSyncs() {
@@ -141,7 +144,7 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 
 

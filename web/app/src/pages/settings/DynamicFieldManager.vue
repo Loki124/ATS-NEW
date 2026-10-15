@@ -192,7 +192,7 @@
           </template>
           <template v-else-if="isLimitNumberType">
             <n-form-item :label="t('pages.settings.DynamicFieldManager.s32')">
-              <n-space align="center" :size="10" wrap>
+              <n-space align="center" :size="8" wrap>
                 <div class="num-field">
                   <span class="num-label">{{ t('pages.settings.DynamicFieldManager.s33') }}</span>
                   <n-input-number v-model:value="fieldForm.validation.min" :placeholder="t('pages.settings.DynamicFieldManager.s34')" class="df-input-min-max" />
@@ -272,7 +272,7 @@
                     @update:value="() => validateDateExpr('max')"
                   />
                 </n-space>
-                <n-space vertical :size="2">
+                <n-space vertical :size="8">
                   <n-text v-if="dateExprErrors.min || dateExprErrors.max" type="error" depth="3">
                     {{ dateExprErrors.min || dateExprErrors.max }}
                   </n-text>
@@ -416,7 +416,7 @@
       >
         <p class="perm-desc">{{ t('pages.settings.DynamicFieldManager.s82') }}</p>
         <n-radio-group v-model:value="permForm.visibilityPermission">
-          <n-space vertical :size="12">
+          <n-space vertical :size="8">
             <n-radio
               v-for="opt in VISIBILITY_PERMISSION_OPTIONS"
               :key="opt.value"
@@ -749,13 +749,13 @@
         :title="t('pages.settings.DynamicFieldManager.s134')"
         style="width: 680px; max-width: 94vw;"
       >
-        <n-space vertical :size="12">
+        <n-space vertical :size="8">
           <n-alert type="info" :show-icon="true">
             {{ t('pages.settings.DynamicFieldManager.s135') }}
             <code>field_key,label,field_type,module_code,group_code,is_required,...</code>
             {{ t('pages.settings.DynamicFieldManager.s136') }}
           </n-alert>
-          <n-space :wrap="false" :size="12" align="center">
+          <n-space :wrap="false" :size="8" align="center">
             <n-radio-group v-model:value="importFormat">
               <n-radio value="json">JSON</n-radio>
               <n-radio value="csv">CSV</n-radio>
@@ -795,7 +795,7 @@
         style="width: 780px; max-width: 94vw;"
         class="df-batch-modal"
       >
-        <n-space vertical :size="12">
+        <n-space vertical :size="8">
           <n-alert type="info" :show-icon="true">
             {{ t('pages.settings.DynamicFieldManager.s326') }}
           </n-alert>
@@ -860,7 +860,7 @@
             </n-button>
           </n-space>
           <!-- 第二步: 修改字段类型 -->
-          <n-space v-else-if="batchAction === 'type'" vertical :size="10">
+          <n-space v-else-if="batchAction === 'type'" vertical :size="8">
             <n-space align="center" :wrap="true">
               <span class="res-label">{{ t('pages.settings.DynamicFieldManager.s322') }}</span>
               <n-select
@@ -878,7 +878,7 @@
             </n-space>
           </n-space>
           <!-- 第二步: 修改字段分组 -->
-          <n-space v-else vertical :size="10">
+          <n-space v-else vertical :size="8">
             <n-radio-group v-model:value="batchGroupMode">
               <n-radio value="group">{{ t('pages.settings.DynamicFieldManager.s324') }}</n-radio>
               <n-radio value="none">{{ t('pages.settings.DynamicFieldManager.s325') }}</n-radio>
@@ -1391,7 +1391,7 @@ const fieldColumns = computed(() => [
           h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteField(row) }, { default: () => t('pages.settings.DynamicFieldManager.s229'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
         );
       }
-      return h(NSpace, { size: 4, wrap: false }, { default: () => children });
+      return h(NSpace, { size: 8, wrap: false }, { default: () => children });
     },
   }, 'control'),
 ]);
@@ -1824,7 +1824,7 @@ const moduleColumns = computed(() => [
   column({
     title: t('pages.settings.DynamicFieldManager.s181'), key: 'action', width: 160, fixed: 'right' as const,
     render: (row: FieldModule) =>
-      h(NSpace, { size: 4, wrap: false }, {
+      h(NSpace, { size: 8, wrap: false }, {
         default: () => [
           h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openModuleEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s232'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
           h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteModule(row) }, { default: () => t('pages.settings.DynamicFieldManager.s233'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
@@ -1921,7 +1921,7 @@ const groupColumns = computed(() => [
   column({
     title: t('pages.settings.DynamicFieldManager.s191'), key: 'action', width: 160, fixed: 'right' as const,
     render: (row: FieldGroup) =>
-      h(NSpace, { size: 4, wrap: false }, {
+      h(NSpace, { size: 8, wrap: false }, {
         default: () => [
           h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openGroupEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s236'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
           h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteGroup(row) }, { default: () => t('pages.settings.DynamicFieldManager.s237'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
@@ -2056,7 +2056,7 @@ const linkageColumns = computed(() => [
   column({
     title: t('pages.settings.DynamicFieldManager.s199'), key: 'action', width: 160, fixed: 'right' as const,
     render: (row: FieldLinkageRule) =>
-      h(NSpace, { size: 4, wrap: false }, {
+      h(NSpace, { size: 8, wrap: false }, {
         default: () => [
           h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openLinkageEdit(row) }, { default: () => t('pages.settings.DynamicFieldManager.s240'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
           h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => confirmDeleteLinkage(row) }, { default: () => t('pages.settings.DynamicFieldManager.s241'), icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),

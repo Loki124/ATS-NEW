@@ -860,7 +860,7 @@ const columns: DataTableColumns<Supplier> = [
     render: (row) =>
       h(
         NSpace,
-        { size: 4, align: 'center', wrap: false },
+        { size: 8, align: 'center', wrap: false },
         {
           default: () => [
             h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openEdit(row) }, { default: () => t('pages.settings.ExternalSettings.s216'), icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),

@@ -83,9 +83,9 @@
               class="rule-filter-select"
             />
             <div class="spacer"></div>
-            <n-button @click="onExportRules">{{ t('pages.settings.CampusControl.s17') }}</n-button>
-            <n-button @click="importDrawer.show = true">{{ t('pages.settings.CampusControl.s18') }}</n-button>
-            <n-button type="primary" class="gradient-btn" @click="openRuleDrawer(null)">{{ t('pages.settings.CampusControl.s19') }}</n-button>
+            <n-button @click="onExportRules"><template #icon><n-icon :component="DownloadOutline" /></template>{{ t('pages.settings.CampusControl.s17') }}</n-button>
+            <n-button @click="importDrawer.show = true"><template #icon><n-icon :component="CloudUploadOutline" /></template>{{ t('pages.settings.CampusControl.s18') }}</n-button>
+            <n-button type="primary" class="gradient-btn" @click="openRuleDrawer(null)"><template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.CampusControl.s19') }}</n-button>
           </div>
 
           <div class="table-wrap">
@@ -116,14 +116,14 @@
         <n-tab-pane name="indicators" :tab="t('pages.settings.CampusControl.s20')">
           <div class="toolbar">
             <n-select v-model:value="indicatorDimFilter" :options="indicatorDimOptions" :placeholder="t('pages.settings.CampusControl.s21')" clearable style="width: 180px" />
-            <n-button @click="openDimDrawer()">{{ t('pages.settings.CampusControl.s22') }}</n-button>
+            <n-button @click="openDimDrawer()"><template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.CampusControl.s22') }}</n-button>
             <div class="spacer"></div>
             <n-dropdown :options="indicatorExportOptions" @select="onExportIndicatorsSelect">
-              <n-button>{{ t('pages.settings.CampusControl.s23') }}</n-button>
+              <n-button><template #icon><n-icon :component="DownloadOutline" /></template>{{ t('pages.settings.CampusControl.s23') }}</n-button>
             </n-dropdown>
-            <n-button @click="onDownloadIndicatorTemplate">{{ t('pages.settings.CampusControl.s24') }}</n-button>
-            <n-button @click="indicatorImportDrawer.show = true">{{ t('pages.settings.CampusControl.s25') }}</n-button>
-            <n-button type="primary" class="gradient-btn" @click="openIndicatorModal()">{{ t('pages.settings.CampusControl.s26') }}</n-button>
+            <n-button @click="onDownloadIndicatorTemplate"><template #icon><n-icon :component="DownloadOutline" /></template>{{ t('pages.settings.CampusControl.s24') }}</n-button>
+            <n-button @click="indicatorImportDrawer.show = true"><template #icon><n-icon :component="CloudUploadOutline" /></template>{{ t('pages.settings.CampusControl.s25') }}</n-button>
+            <n-button type="primary" class="gradient-btn" @click="openIndicatorModal()"><template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.CampusControl.s26') }}</n-button>
           </div>
           <div class="table-wrap">
             <n-data-table
@@ -141,7 +141,7 @@
 
         <!-- ===================== 录入校验 ===================== -->
         <n-tab-pane name="validate" :tab="t('pages.settings.CampusControl.s27')">
-          <n-grid :cols="4" :x-gap="16" :y-gap="12" item-responsive responsive="screen">
+          <n-grid :cols="4" :x-gap="16" :y-gap="8" item-responsive responsive="screen">
             <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s28')" label-placement="top"><n-input v-model:value="draft.code" :placeholder="t('pages.settings.CampusControl.s29')" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s30')" label-placement="top"><n-input v-model:value="draft.name" :placeholder="t('pages.settings.CampusControl.s31')" /></n-form-item></n-gi>
             <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s32')" label-placement="top"><n-select v-model:value="draft.bu" :options="deptOptions" /></n-form-item></n-gi>
@@ -154,11 +154,11 @@
             <n-gi span="4 m:1"><n-form-item :label="t('pages.settings.CampusControl.s41')" label-placement="top"><n-select v-model:value="draft.status" :options="statusOptions" /></n-form-item></n-gi>
           </n-grid>
           <div class="toolbar">
-            <n-button type="primary" class="gradient-btn" :loading="loading.validate" @click="runValidate">{{ t('pages.settings.CampusControl.s42') }}</n-button>
-            <n-button :disabled="!canConfirmEntry" @click="confirmEntry">{{ t('pages.settings.CampusControl.s43') }}</n-button>
+            <n-button type="primary" class="gradient-btn" :loading="loading.validate" @click="runValidate"><template #icon><n-icon :component="PlayOutline" /></template>{{ t('pages.settings.CampusControl.s42') }}</n-button>
+            <n-button :disabled="!canConfirmEntry" @click="confirmEntry"><template #icon><n-icon :component="CheckmarkOutline" /></template>{{ t('pages.settings.CampusControl.s43') }}</n-button>
           </div>
 
-          <div v-if="validation" class="validate-result">
+            <div v-if="validation" class="validate-result">
             <n-tag :type="verdictType(validation)" size="large" :bordered="false" style="flex-shrink: 0">
               <template #icon>
                 <n-icon :component="VERDICT_ICON[validation.verdictLevel]" aria-hidden="true" />
@@ -168,7 +168,7 @@
             <p v-if="validation.verdictLevel === 'block'" class="block-hint" style="flex-shrink: 0">
               {{ t('pages.settings.CampusControl.s44') }}
             </p>
-            <div class="table-wrap" style="margin-top: 12px">
+            <div class="table-wrap" style="margin-top: var(--space-2)">
               <n-data-table
                 :columns="checkColumns"
                 :data="validation.checks"
@@ -398,7 +398,7 @@
       <n-space vertical :size="12">
         <div class="toolbar" style="margin-bottom: 0">
           <div class="spacer"></div>
-          <n-button type="primary" class="gradient-btn" @click="openDimModal()">{{ t('pages.settings.CampusControl.s72') }}</n-button>
+          <n-button type="primary" class="gradient-btn" @click="openDimModal()"><template #icon><n-icon :component="AddOutline" /></template>{{ t('pages.settings.CampusControl.s72') }}</n-button>
         </div>
         <n-data-table
           :columns="dimColumns"
@@ -479,6 +479,7 @@ import {
   useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
 import { extractApiError } from '../../api/dynamic-field'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
@@ -494,6 +495,10 @@ import {
   type RuleImportResult, type IndicatorImportResult,
 } from '../../api/campusControl'
 import { CloseCircleOutline as XCircle, WarningOutline as AlertTriangle, CheckmarkCircleOutline as CheckCircle2 } from '@vicons/ionicons5'
+import {
+  CreateOutline, TrashOutline, CopyOutline, PowerOutline,
+  DownloadOutline, CloudUploadOutline, AddOutline, PlayOutline, CheckmarkOutline, EyeOutline,
+} from '@vicons/ionicons5'
 import RuleConfigDrawer from '../../components/RuleConfigDrawer.vue'
 import { useRuleActions } from '../../composables/useRuleActions'
 import { useUndo } from '../../composables/useUndo'
@@ -963,45 +968,45 @@ const ruleRowProps = (row: any) => ({
 })
 
 const ruleColumns: DataTableColumns<any> = [
-  {
+  column({
     title: t('pages.settings.CampusControl.s116'), key: 'code', width: 110, fixed: 'left',
     render: (r: any) =>
       h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); openRuleDrawer(r, 'view') } }, { default: () => r.code || '—' }),
-  },
-  { title: t('pages.settings.CampusControl.s117'), key: 'dimensionName', width: 100, render: (r: any) => r.dimensionName || r.dimension },
-  { title: t('pages.settings.CampusControl.s118'), key: 'indicatorName', width: 110, render: (r: any) => r.indicatorName || r.indicator },
-  { title: t('pages.settings.CampusControl.s230'), key: 'scope', width: 200, render: (r: any) => scopeText(r.bu, r.position, r.level) },
-  { title: t('pages.settings.CampusControl.s119'), key: 'year', width: 90, render: (r: any) => String(r.year) },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s117'), key: 'dimensionName', width: 100, render: (r: any) => r.dimensionName || r.dimension }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s118'), key: 'indicatorName', width: 110, render: (r: any) => r.indicatorName || r.indicator }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s230'), key: 'scope', width: 200, render: (r: any) => scopeText(r.bu, r.position, r.level) }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s119'), key: 'year', width: 90, render: (r: any) => String(r.year) }, 'short'),
+  column({
     title: t('pages.settings.CampusControl.s120'), key: 'annualTarget', width: 110,
     render: (r: any) => (r.annualTarget ? String(Math.round(r.annualTarget)) : h('span', { class: 'muted' }, '—')),
-  },
-  {
+  }, 'numeric'),
+  column({
     title: t('pages.settings.CampusControl.s121'), key: 'strength', width: 120,
     render: (r: any) => (r.strength
       ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength })
       : h('span', { class: 'muted' }, '—')),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('pages.settings.CampusControl.s122'), key: 'rolloverEnabled', width: 110,
     render: (r: any) => h(NTag, {
       type: r.rolloverEnabled ? 'success' : 'default',
       bordered: false,
       size: 'small',
     }, { default: () => (r.rolloverEnabled ? t('pages.settings.CampusControl.s231') : t('pages.settings.CampusControl.s232')) }),
-  },
-  {
-    title: t('pages.settings.CampusControl.s123'), key: 'op', width: 260, fixed: 'right',
+  }, 'short'),
+  column({
+    title: t('pages.settings.CampusControl.s123'), key: 'actions', width: 260, fixed: 'right',
     render: (r: any) =>
-      h(NSpace, { size: 4 }, {
+      h(NSpace, { size: 8, wrap: false }, {
         default: () => [
-          h(NButton, { size: 'small', tertiary: true, onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.copy(r) } }, { default: () => t('pages.settings.CampusControl.s233') }),
-          h(NButton, { size: 'small', tertiary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); openRuleDrawer(r, 'edit') } }, { default: () => t('pages.settings.CampusControl.s234') }),
-          h(NButton, { size: 'small', tertiary: true, type: r.isActive ? 'warning' : 'success', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.toggle(r, !r.isActive) } }, { default: () => (r.isActive ? t('pages.settings.CampusControl.s235') : t('pages.settings.CampusControl.s236')) }),
-          h(NButton, { size: 'small', tertiary: true, type: 'error', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.remove(r) } }, { default: () => t('pages.settings.CampusControl.s237') }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.copy(r) } }, { icon: () => h(NIcon, null, { default: () => h(CopyOutline) }), default: () => t('pages.settings.CampusControl.s233') }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: (e: MouseEvent) => { e.stopPropagation(); openRuleDrawer(r, 'edit') } }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.CampusControl.s234') }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: r.isActive ? 'warning' : 'success', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.toggle(r, !r.isActive) } }, { icon: () => h(NIcon, null, { default: () => h(PowerOutline) }), default: () => (r.isActive ? t('pages.settings.CampusControl.s235') : t('pages.settings.CampusControl.s236')) }),
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: (e: MouseEvent) => { e.stopPropagation(); ruleActions.remove(r) } }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.CampusControl.s237') }),
         ],
       }),
-  },
+  }, 'control'),
 ]
 
 async function loadRatio(silent = false) {
@@ -1020,69 +1025,69 @@ function onTabChange(name: string) {
 /* ============================ 列定义 ============================ */
 // 实时看板：人数达成管控视角（年度 / 本月 的目标、达成、达成率与在途）
 const ratioColumns: DataTableColumns<any> = [
-  { title: t('pages.settings.CampusControl.s230'), key: 'bu', width: 150, fixed: 'left', render: (r) => scopeText(r.bu, r.position, r.level) },
-  { title: t('pages.settings.CampusControl.s124'), key: 'dimension', width: 90, fixed: 'left' },
-  { title: t('pages.settings.CampusControl.s125'), key: 'indicator', width: 80, fixed: 'left' },
-  { title: t('pages.settings.CampusControl.s126'), key: 'annualTarget', width: 90, render: (r) => String(r.annualTarget ?? 0) },
-  { title: t('pages.settings.CampusControl.s127'), key: 'annualAchieved', width: 90, render: (r) => h(NTag, { type: (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) >= (r.annualTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.annualAchieved ?? 0) }) },
-  { title: t('pages.settings.CampusControl.s128'), key: 'annualRate', width: 100, render: (r) => r.annualRate == null ? '—' : `${Math.round((r.annualRate as number) * 100)}%` },
-  { title: t('pages.settings.CampusControl.s129'), key: 'annualInProgress', width: 90, render: (r) => String(r.annualInProgress ?? 0) },
-  { title: t('pages.settings.CampusControl.s130'), key: 'monthTarget', width: 110, render: (r) => String(r.monthTarget ?? 0) },
+  column({ title: t('pages.settings.CampusControl.s230'), key: 'bu', width: 150, fixed: 'left', render: (r) => scopeText(r.bu, r.position, r.level) }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s124'), key: 'dimension', width: 90, fixed: 'left' }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s125'), key: 'indicator', width: 80, fixed: 'left' }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s126'), key: 'annualTarget', width: 90, render: (r) => String(r.annualTarget ?? 0) }, 'numeric'),
+  column({ title: t('pages.settings.CampusControl.s127'), key: 'annualAchieved', width: 90, render: (r) => h(NTag, { type: (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) >= (r.annualTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.annualAchieved ?? 0) }) }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s128'), key: 'annualRate', width: 100, render: (r) => r.annualRate == null ? '—' : `${Math.round((r.annualRate as number) * 100)}%` }, 'numeric'),
+  column({ title: t('pages.settings.CampusControl.s129'), key: 'annualInProgress', width: 90, render: (r) => String(r.annualInProgress ?? 0) }, 'numeric'),
+  column({ title: t('pages.settings.CampusControl.s130'), key: 'monthTarget', width: 110, render: (r) => String(r.monthTarget ?? 0) }, 'numeric'),
   // v2.10：新增本月浮动目标列（PR §3.2.2 / 设计文档 §7 T03；rolloverEnabled=False 时恒为 0）
-  { title: t('pages.settings.CampusControl.s131'), key: 'monthRollover', width: 110, render: (r) => String(r.monthRollover ?? 0) },
+  column({ title: t('pages.settings.CampusControl.s131'), key: 'monthRollover', width: 110, render: (r) => String(r.monthRollover ?? 0) }, 'numeric'),
   // v2.10：新增本月可用目标列（= 本月额定 + 本月浮动；达标 success tag）
-  {
+  column({
     title: t('pages.settings.CampusControl.s132'), key: 'monthAvailableTarget', width: 120,
     render: (r) => h(NTag, {
       type: (r.monthAvailableTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthAvailableTarget || 0) ? 'success' : 'default',
       bordered: false,
       size: 'small',
     }, { default: () => String(r.monthAvailableTarget ?? 0) }),
-  },
-  { title: t('pages.settings.CampusControl.s133'), key: 'monthAchieved', width: 90, render: (r) => h(NTag, { type: (r.monthTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.monthAchieved ?? 0) }) },
-  { title: t('pages.settings.CampusControl.s134'), key: 'monthRate', width: 100, render: (r) => r.monthRate == null ? '—' : `${Math.round((r.monthRate as number) * 100)}%` },
-  { title: t('pages.settings.CampusControl.s135'), key: 'monthInProgress', width: 90, render: (r) => String(r.monthInProgress ?? 0) },
-  { title: t('pages.settings.CampusControl.s136'), key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') },
+  }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s133'), key: 'monthAchieved', width: 90, render: (r) => h(NTag, { type: (r.monthTarget || 0) > 0 && (r.monthAchieved || 0) >= (r.monthTarget || 0) ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => String(r.monthAchieved ?? 0) }) }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s134'), key: 'monthRate', width: 100, render: (r) => r.monthRate == null ? '—' : `${Math.round((r.monthRate as number) * 100)}%` }, 'numeric'),
+  column({ title: t('pages.settings.CampusControl.s135'), key: 'monthInProgress', width: 90, render: (r) => String(r.monthInProgress ?? 0) }, 'numeric'),
+  column({ title: t('pages.settings.CampusControl.s136'), key: 'strength', width: 88, render: (r) => r.strength ? h(NTag, { type: strengthType(r.strength), bordered: false, size: 'small' }, { default: () => r.strength }) : h('span', { style: 'color:var(--ink-soft)' }, '—') }, 'short'),
 ]
 
 const dimensionRuleColumns: DataTableColumns<any> = [
-  {
+  column({
     title: t('pages.settings.CampusControl.s137'), key: 'name',
     render: (d: any) => h('div', { style: 'display:flex; align-items:center; gap:8px;' }, [
       h('span', { style: 'font-weight:600;' }, d.name),
       d.code ? h(NTag, { size: 'small', bordered: false, type: 'default' }, { default: () => d.code }) : null,
     ]),
-  },
-  { title: t('pages.settings.CampusControl.s138'), key: 'yearLabels', width: 110, render: (d: any) => h('span', { class: 'muted' }, d.yearLabels) },
-  { title: t('pages.settings.CampusControl.s139'), key: 'annualTotal', width: 130, render: (d: any) => (d.annualTotal > 0 ? h('span', {}, String(d.annualTotal)) : h('span', { class: 'muted' }, '—')) },
-  { title: t('pages.settings.CampusControl.s140'), key: 'indicatorCount', width: 90, render: (d: any) => h('span', { class: 'muted' }, String(d.indicatorCount)) },
-  { title: t('pages.settings.CampusControl.s141'), key: 'ruleSetCount', width: 170, render: (d: any) => h('span', { class: 'muted' }, String(d.ruleSetCount)) },
-  {
+  }, 'text'),
+  column({ title: t('pages.settings.CampusControl.s138'), key: 'yearLabels', width: 110, render: (d: any) => h('span', { class: 'muted' }, d.yearLabels) }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s139'), key: 'annualTotal', width: 130, render: (d: any) => (d.annualTotal > 0 ? h('span', {}, String(d.annualTotal)) : h('span', { class: 'muted' }, '—')) }, 'numeric'),
+  column({ title: t('pages.settings.CampusControl.s140'), key: 'indicatorCount', width: 90, render: (d: any) => h('span', { class: 'muted' }, String(d.indicatorCount)) }, 'numeric'),
+  column({ title: t('pages.settings.CampusControl.s141'), key: 'ruleSetCount', width: 170, render: (d: any) => h('span', { class: 'muted' }, String(d.ruleSetCount)) }, 'numeric'),
+  column({
     title: t('pages.settings.CampusControl.s142'), key: 'actions', width: 170, fixed: 'right',
-    render: (d: any) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, onClick: () => selectDimension(d.id) }, { default: () => t('pages.settings.CampusControl.s239') }),
+    render: (d: any) => h(NSpace, { size: 8, wrap: false }, () => [
+      h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => selectDimension(d.id) }, { icon: () => h(NIcon, null, { default: () => h(EyeOutline) }), default: () => t('pages.settings.CampusControl.s239') }),
     ]),
-  },
+  }, 'control'),
 ]
 
 const detailMatrixColumns: DataTableColumns<any> = [
-  {
+  column({
     title: t('pages.settings.CampusControl.s143'), key: 'indicatorName',
     render: (r: any) => h('div', { style: 'display:flex; align-items:center; gap:8px;' }, [
       h('span', {}, r.indicatorName),
       !r.configured ? h(NTag, { size: 'small', type: 'warning', bordered: false }, { default: () => t('pages.settings.CampusControl.s240') }) : null,
     ]),
-  },
-  {
+  }, 'text'),
+  column({
     title: t('pages.settings.CampusControl.s144'), key: 'annualTarget', width: 120,
     render: (r: any) => (r.configured ? h('span', {}, String(r.annualTarget)) : h('span', { class: 'muted' }, '—')),
-  },
-  {
+  }, 'numeric'),
+  column({
     title: t('pages.settings.CampusControl.s145'), key: 'monthly', width: 210,
     render: (r: any) => (r.configured
       ? h('span', { class: 'muted' }, t('pages.settings.CampusControl.s241', { n: currentMonthIdx.value + 1 }))
       : h('span', { class: 'muted' }, '—')),
-  },
+  }, 'short'),
 ]
 function renderDetailExpand(row: any) {
   return h('div', { style: 'display:grid; grid-template-columns:repeat(6,1fr); gap:8px; padding:4px 0;' },
@@ -1094,21 +1099,21 @@ function renderDetailExpand(row: any) {
 }
 
 const indicatorColumns: DataTableColumns<ControlIndicator> = [
-  { title: t('pages.settings.CampusControl.s146'), key: 'dimensionName', width: 160 },
-  { title: t('pages.settings.CampusControl.s147'), key: 'name' },
-  {
+  column({ title: t('pages.settings.CampusControl.s146'), key: 'dimensionName', width: 160 }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s147'), key: 'name' }, 'short'),
+  column({
     title: t('pages.settings.CampusControl.s148'), key: 'actions', width: 120, fixed: 'right',
-    render: (r) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openIndicatorModal(r) }, { default: () => t('pages.settings.CampusControl.s234') }),
-      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeIndicator(r) }, { default: () => t('pages.settings.CampusControl.s237') }),
+    render: (r) => h(NSpace, { size: 8, wrap: false }, () => [
+      h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openIndicatorModal(r) }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.CampusControl.s234') }),
+      h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => removeIndicator(r) }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.CampusControl.s237') }),
     ]),
-  },
+  }, 'control'),
 ]
 
 const dimColumns: DataTableColumns<ControlDimension> = [
-  { title: t('pages.settings.CampusControl.s149'), key: 'name' },
-  { title: t('pages.settings.CampusControl.s150'), key: 'code', width: 120, render: (r) => r.code || '—' },
-  {
+  column({ title: t('pages.settings.CampusControl.s149'), key: 'name' }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s150'), key: 'code', width: 120, render: (r) => r.code || '—' }, 'short'),
+  column({
     title: t('pages.settings.CampusControl.s151'), key: 'isActive', width: 70,
     render: (r) => h(NSwitch, {
       value: r.isActive, size: 'small',
@@ -1117,33 +1122,33 @@ const dimColumns: DataTableColumns<ControlDimension> = [
         catch (e) { message.error(extractApiError(e, t('pages.settings.CampusControl.s243'))) }
       },
     }),
-  },
-  {
+  }, 'control'),
+  column({
     title: t('pages.settings.CampusControl.s152'), key: 'actions', width: 120, fixed: 'right',
-    render: (r) => h('div', { style: 'display:flex; gap:8px;' }, [
-      h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openDimModal(r) }, { default: () => t('pages.settings.CampusControl.s234') }),
-      h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeDim(r) }, { default: () => t('pages.settings.CampusControl.s237') }),
+    render: (r) => h(NSpace, { size: 8, wrap: false }, () => [
+      h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openDimModal(r) }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.CampusControl.s234') }),
+      h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => removeDim(r) }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.CampusControl.s237') }),
     ]),
-  },
+  }, 'control'),
 ]
 
 const personColumns: DataTableColumns<Person> = [
-  { title: t('pages.settings.CampusControl.s153'), key: 'code' }, { title: t('pages.settings.CampusControl.s154'), key: 'name' }, { title: t('pages.settings.CampusControl.s155'), key: 'bu' },
-  { title: t('pages.settings.CampusControl.s156'), key: 'school' }, { title: t('pages.settings.CampusControl.s157'), key: 'sex' }, { title: t('pages.settings.CampusControl.s158'), key: 'major' },
-  { title: t('pages.settings.CampusControl.s159'), key: 'month' }, { title: t('pages.settings.CampusControl.s160'), key: 'position', render: (r) => r.position || '—' },
-  { title: t('pages.settings.CampusControl.s161'), key: 'level', render: (r) => r.level || '—' },
-  { title: t('pages.settings.CampusControl.s162'), key: 'status' },
-  { title: t('pages.settings.CampusControl.s163'), key: 'counted', render: (r) => h(NTag, { type: r.counted ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => (r.counted ? t('pages.settings.CampusControl.s267') : t('pages.settings.CampusControl.s268')) }) },
+  column({ title: t('pages.settings.CampusControl.s153'), key: 'code' }, 'short'), column({ title: t('pages.settings.CampusControl.s154'), key: 'name' }, 'short'), column({ title: t('pages.settings.CampusControl.s155'), key: 'bu' }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s156'), key: 'school' }, 'short'), column({ title: t('pages.settings.CampusControl.s157'), key: 'sex' }, 'short'), column({ title: t('pages.settings.CampusControl.s158'), key: 'major' }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s159'), key: 'month' }, 'short'), column({ title: t('pages.settings.CampusControl.s160'), key: 'position', render: (r) => r.position || '—' }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s161'), key: 'level', render: (r) => r.level || '—' }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s162'), key: 'status' }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s163'), key: 'counted', render: (r) => h(NTag, { type: r.counted ? 'success' : 'default', bordered: false, size: 'small' }, { default: () => (r.counted ? t('pages.settings.CampusControl.s267') : t('pages.settings.CampusControl.s268')) }) }, 'short'),
 ]
 
 // v2.6 录入校验只看人数。占比/占比状态/强度三列移除（占比仅用于规则配置时计算实际人数，
 // 不参与「是否可以录入」判定；strength 只对占比硬/软约束有意义，人数校验无此概念）。
 // 实时看板（ratioColumns）仍使用 strengthType/ratioStatusType/pct，此处不删工具函数。
 const checkColumns: DataTableColumns<ValidationResult['checks'][number]> = [
-  { title: t('pages.settings.CampusControl.s230'), key: 'bu', width: 180, render: (r) => scopeText(r.bu, r.position, r.level) },
-  { title: t('pages.settings.CampusControl.s164'), key: 'dimension', width: 100 }, { title: t('pages.settings.CampusControl.s165'), key: 'indicator', width: 100 },
-  { title: t('pages.settings.CampusControl.s166'), key: 'monthActual', width: 100 }, { title: t('pages.settings.CampusControl.s167'), key: 'monthTarget', width: 100 },
-  { title: t('pages.settings.CampusControl.s168'), key: 'countStatus', width: 110, render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) },
+  column({ title: t('pages.settings.CampusControl.s230'), key: 'bu', width: 180, render: (r) => scopeText(r.bu, r.position, r.level) }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s164'), key: 'dimension', width: 100 }, 'short'), column({ title: t('pages.settings.CampusControl.s165'), key: 'indicator', width: 100 }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s166'), key: 'monthActual', width: 100 }, 'short'), column({ title: t('pages.settings.CampusControl.s167'), key: 'monthTarget', width: 100 }, 'short'),
+  column({ title: t('pages.settings.CampusControl.s168'), key: 'countStatus', width: 110, render: (r) => h(NTag, { type: countStatusType(r.countStatus), bordered: false, size: 'small' }, { default: () => r.countStatus }) }, 'short'),
 ]
 
 /* ============================ 规则导入 / 导出 ============================ */

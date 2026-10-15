@@ -33,19 +33,19 @@
           />
         </n-space>
         <n-space>
-          <n-button @click="loadList">
+          <n-button quaternary @click="loadList">
             <template #icon><n-icon :component="RefreshOutline" /></template>
             {{ t('reasonLibrary.common.refresh') }}
           </n-button>
-          <n-button @click="openImportModal">
+          <n-button quaternary @click="openImportModal">
             <template #icon><n-icon :component="CloudUploadOutline" /></template>
             {{ t('reasonLibrary.tags.btn.import') }}
           </n-button>
-          <n-button @click="onExport">
+          <n-button quaternary @click="onExport">
             <template #icon><n-icon :component="DownloadOutline" /></template>
             {{ t('reasonLibrary.tags.btn.export') }}
           </n-button>
-          <n-button type="primary" @click="openCreateModal">
+          <n-button type="primary" class="gradient-btn" @click="openCreateModal">
             <template #icon><n-icon :component="AddOutline" /></template>
             {{ t('reasonLibrary.tags.btn.add') }}
           </n-button>
@@ -145,8 +145,9 @@
  */
 import { ref, reactive, computed, h, onMounted } from 'vue'
 import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert, NTooltip } from 'naive-ui'
-import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, DownloadOutline, PencilOutline } from '@vicons/ionicons5'
+import { SearchOutline, RefreshOutline, AddOutline, CloudUploadOutline, DownloadOutline, CreateOutline } from '@vicons/ionicons5'
 import { listTags, updateTag, extractReasonApiError, exportTags } from '../../../api/reason-library'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import type { ReasonTag } from '../../../types/reason-library'
 import { BIZ_CODE } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
@@ -354,21 +355,21 @@ function onImported() {
 
 // ============= 列定义 =============
 const columns = computed(() => [
-  {
+  column({
     title: t('reasonLibrary.tags.col.code'),
     key: 'code',
     width: 130,
     ellipsis: { tooltip: true },
     render: (row: ReasonTag) => h('code', { style: 'font-size: 12px; color: var(--ink-soft); font-family: monospace;' }, row.code || '—'),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('reasonLibrary.tags.col.name'),
     key: 'name',
     width: 200,
     ellipsis: { tooltip: true },
     render: (row: ReasonTag) => h('span', { style: 'font-weight: 500; color: var(--ink);' }, row.name),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('reasonLibrary.tags.col.enName'),
     key: 'enName',
     width: 180,
@@ -377,8 +378,8 @@ const columns = computed(() => [
       row.enName
         ? h('span', { style: 'color: var(--ink-soft);' }, row.enName)
         : h('span', { style: 'color: var(--ink-faint);' }, '—'),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('reasonLibrary.tags.col.tip'),
     key: 'tip',
     width: 220,
@@ -387,8 +388,8 @@ const columns = computed(() => [
       row.tip
         ? h('span', { style: 'color: var(--ink-soft);' }, row.tip)
         : h('span', { style: 'color: var(--ink-faint);' }, '—'),
-  },
-  {
+  }, 'text'),
+  column({
     title: t('reasonLibrary.tags.col.type'),
     key: 'type',
     width: 110,
@@ -402,8 +403,8 @@ const columns = computed(() => [
         },
         { default: () => (row.type === 'system' ? t('reasonLibrary.common.system') : t('reasonLibrary.common.custom')) },
       ),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('reasonLibrary.tags.col.status'),
     key: 'enabled',
     width: 110,
@@ -427,28 +428,23 @@ const columns = computed(() => [
       }
       return sw
     },
-  },
-  {
+  }, 'control'),
+  column({
     title: t('reasonLibrary.tags.col.actions'),
     key: 'actions',
     width: 120,
     fixed: 'right' as const,
     render: (row: ReasonTag) => {
-      const editBtn = h(
-        NButton,
-        {
-          size: 'small',
+      return h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
           quaternary: true,
+          type: 'primary',
           onClick: () => openEditModal(row),
-        },
-        {
-          icon: () => h(NIcon, null, { default: () => h(PencilOutline) }),
-          default: () => t('reasonLibrary.common.edit'),
-        },
-      )
-      return h(NSpace, { size: 4 }, () => [editBtn])
+        }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('reasonLibrary.common.edit') }),
+      ])
     },
-  },
+  }, 'control'),
 ])
 
 onMounted(() => {
@@ -475,9 +471,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-2);
   flex-wrap: wrap;
 }
 .stats-row {
@@ -485,7 +481,7 @@ onMounted(() => {
   gap: var(--space-5);
   font-size: var(--fs-13);
   color: var(--ink-soft);
-  padding: 0 var(--space-1) var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
 }
 .stats-row b {
   color: var(--brand-fg);
@@ -495,14 +491,14 @@ onMounted(() => {
 .pager-row {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   flex-shrink: 0;
 }
-.rl-error-banner { margin-bottom: var(--space-3); flex-shrink: 0; }
+.rl-error-banner { margin-bottom: var(--space-2); flex-shrink: 0; }
 .rl-error-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 </style>

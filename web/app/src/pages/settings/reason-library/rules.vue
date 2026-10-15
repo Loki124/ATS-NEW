@@ -25,11 +25,11 @@
           />
         </n-space>
         <n-space>
-          <n-button @click="loadList">
+          <n-button quaternary @click="loadList">
             <template #icon><n-icon :component="RefreshOutline" /></template>
             {{ t('reasonLibrary.common.refresh') }}
           </n-button>
-          <n-button type="primary" @click="openCreateWizard">
+          <n-button type="primary" class="gradient-btn" @click="openCreateWizard">
             <template #icon><n-icon :component="AddOutline" /></template>
             {{ t('reasonLibrary.rules.btn.create') }}
           </n-button>
@@ -121,8 +121,9 @@
  */
 import { ref, computed, h, onMounted } from 'vue'
 import { useMessage, NButton, NTag, NSwitch, NSpace, NIcon, NDataTable, NInput, NSelect, NEmpty, NPagination, NAlert } from 'naive-ui'
-import { SearchOutline, RefreshOutline, AddOutline, SettingsOutline } from '@vicons/ionicons5'
+import { SearchOutline, RefreshOutline, AddOutline, CreateOutline } from '@vicons/ionicons5'
 import { listRules, updateRule, extractReasonApiError } from '../../../api/reason-library'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import type { SceneRuleListItem } from '../../../types/reason-library'
 import { BIZ_CODE } from '../../../types/reason-library'
 import { useI18n } from 'vue-i18n'
@@ -300,7 +301,7 @@ function onWizardSaved() {
 
 // ============= 列 =============
 const columns = computed(() => [
-  {
+  column({
     title: t('reasonLibrary.rules.col.code'),
     key: 'code',
     width: 110,
@@ -311,8 +312,8 @@ const columns = computed(() => [
         { class: 'rl-rule-code' },
         row.code || '—',
       ),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('reasonLibrary.rules.col.name'),
     key: 'name',
     width: 260,
@@ -344,8 +345,8 @@ const columns = computed(() => [
               )
             : null,
       ]),
-  },
-  {
+  }, 'short'),
+  column({
     title: t('reasonLibrary.rules.col.scenes'),
     key: 'scenes',
     width: 280,
@@ -383,8 +384,8 @@ const columns = computed(() => [
         ),
       )
     },
-  },
-  {
+  }, 'text'),
+  column({
     title: t('reasonLibrary.rules.col.tagCount'),
     key: 'tagCount',
     width: 110,
@@ -395,8 +396,8 @@ const columns = computed(() => [
         { class: 'rl-tag-count' },
         [String(row.tagCount), h('span', { class: 'rl-tag-unit' }, ' 条')],
       ),
-  },
-  {
+  }, 'numeric'),
+  column({
     title: t('reasonLibrary.rules.col.status'),
     key: 'enabled',
     width: 110,
@@ -419,26 +420,25 @@ const columns = computed(() => [
       // 用 title 属性 (Naive UI NSwitch 不内置 tooltip)
       return h('span', { title: tip }, sw)
     },
-  },
-  {
+  }, 'control'),
+  column({
     title: t('reasonLibrary.rules.col.actions'),
     key: 'actions',
     width: 120,
     fixed: 'right' as const,
     render: (row: SceneRuleListItem) =>
-      h(
-        NButton,
-        {
-          size: 'small',
+      h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
           quaternary: true,
+          type: 'primary',
           onClick: () => openEditWizard(row),
-        },
-        {
-          icon: () => h(NIcon, null, { default: () => h(SettingsOutline) }),
+        }, {
+          icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
           default: () => t('reasonLibrary.rules.edit'),
-        },
-      ),
-  },
+        }),
+      ]),
+  }, 'control'),
 ])
 
 onMounted(() => {
@@ -465,9 +465,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-2);
   flex-wrap: wrap;
 }
 .stats-row {
@@ -475,7 +475,7 @@ onMounted(() => {
   gap: var(--space-5);
   font-size: var(--fs-13);
   color: var(--ink-soft);
-  padding: 0 var(--space-1) var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
 }
 .stats-row b {
   color: var(--brand-fg);
@@ -485,14 +485,14 @@ onMounted(() => {
 .pager-row {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
-.rl-error-banner { margin-bottom: var(--space-3); }
+.rl-error-banner { margin-bottom: var(--space-2); }
 .rl-error-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 .rl-rule-name {
   display: flex;

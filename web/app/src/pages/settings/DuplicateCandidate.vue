@@ -282,16 +282,19 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { ref, reactive, computed, h, onMounted } from 'vue'
+import { ref, reactive, computed, h, onMounted, type VNode } from 'vue'
 import {
   NButton, NIcon, NSpin, NSwitch, NSelect, NInput, NInputNumber,
   NRadio, NRadioGroup, NCheckbox, NTag, NDrawer, NDrawerContent,
-  NTooltip, NDataTable, useMessage, useDialog,
+  NTooltip, NDataTable, NSpace, useMessage, useDialog,
   type DataTableColumns,
 } from 'naive-ui'
 import {
   AddOutline, RefreshOutline, HelpCircleOutline,
+  CreateOutline, TrashOutline, PowerOutline,
 } from '@vicons/ionicons5'
+// 列对齐与操作列规格的单一真源（四档规则见该文件头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import {
   getDuplicateCatalog, getDuplicateConfig, updateDuplicateConfig,
   listDuplicateRules, createDuplicateRule, updateDuplicateRule,
@@ -510,44 +513,45 @@ function toggleBtn(row: DuplicateRule) {
   return h(
     NButton,
     {
-      size: 'tiny',
-      tertiary: true,
+      size: OP_ACTION_BUTTON_SIZE,
+      quaternary: true,
       onClick: () => onToggle(row),
     },
-    { default: () => (row.isEnabled ? t('pages.settings.DuplicateCandidate.s60') : t('pages.settings.DuplicateCandidate.s61')) },
+    { icon: () => h(NIcon, null, { default: () => h(PowerOutline) }), default: () => (row.isEnabled ? t('pages.settings.DuplicateCandidate.s60') : t('pages.settings.DuplicateCandidate.s61')) },
   )
 }
 function renderActions(row: DuplicateRule) {
-  const children = []
+  const children: VNode[] = []
   if (row.isSystem) {
     children.push(toggleBtn(row))
   } else {
     children.push(
-      h(NButton, { size: 'tiny', tertiary: true, onClick: () => openEdit(row) }, { default: () => t('pages.settings.DuplicateCandidate.s62') }),
+      h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary', onClick: () => openEdit(row) }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.DuplicateCandidate.s62') }),
       toggleBtn(row),
       h(
         NButton,
-        { size: 'tiny', tertiary: true, type: 'error', onClick: () => onDelete(row) },
-        { default: () => t('pages.settings.DuplicateCandidate.s63') },
+        { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error', onClick: () => onDelete(row) },
+        { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.DuplicateCandidate.s63') },
       ),
     )
   }
-  return h('div', { class: 'dc-act' }, children)
+  return h(NSpace, { size: 8, wrap: false }, () => children)
 }
 const ruleColumns: DataTableColumns<DuplicateRule> = [
-  {
+  column({
     title: t('pages.settings.DuplicateCandidate.s64'),
     key: 'name',
     render: (row) => (row.isSystem ? `${row.name}${t('pages.settings.DuplicateCandidate.s69')}` : row.name),
-  },
-  { title: t('pages.settings.DuplicateCandidate.s65'), key: 'conditionText', width: 120 },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.DuplicateCandidate.s65'), key: 'conditionText', width: 120 }, 'short'),
+  // itemsText：多字段拼接描述（如「姓名、手机号、邮箱」），D 档 text 左对齐（勿居中）
+  column({
     title: t('pages.settings.DuplicateCandidate.s66'),
     key: 'itemsText',
     render: (row) => (row.itemsText && row.itemsText.length ? row.itemsText.join('、') : '—'),
-  },
-  { title: t('pages.settings.DuplicateCandidate.s67'), key: 'isEnabled', width: 96, render: (row) => statusTag(row) },
-  { title: t('pages.settings.DuplicateCandidate.s68'), key: 'actions', width: 168, render: (row) => renderActions(row) },
+  }, 'text'),
+  column({ title: t('pages.settings.DuplicateCandidate.s67'), key: 'isEnabled', width: 96, render: (row) => statusTag(row) }, 'short'),
+  column({ title: t('pages.settings.DuplicateCandidate.s68'), key: 'actions', width: 210, fixed: 'right' as const, render: (row) => renderActions(row) }, 'control'),
 ]
 
 function replaceRule(updated: DuplicateRule) {

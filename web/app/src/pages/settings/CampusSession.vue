@@ -25,7 +25,7 @@
       </header>
 
       <n-card class="cs-card" :bordered="false">
-        <div class="cs-card__toolbar">
+        <div class="cs-card__toolbar toolbar">
           <n-input
             v-model:value="keyword"
             :placeholder="t('pages.settings.CampusSession.s3')"
@@ -36,7 +36,7 @@
               <n-icon :component="SearchOutline" />
             </template>
           </n-input>
-          <n-button type="primary" :disabled="!enabled" @click="openCreate">
+          <n-button type="primary" class="gradient-btn" :disabled="!enabled" @click="openCreate">
             <template #icon><n-icon :component="AddOutline" /></template>
             {{ t('pages.settings.CampusSession.s4') }}
           </n-button>
@@ -149,14 +149,16 @@ import {
   NInputNumber,
   NModal,
   NSelect,
+  NSpace,
   NSwitch,
   useMessage,
   useNotification,
   type FormInst,
   type FormRules,
 } from 'naive-ui'
-import { SearchOutline, AddOutline } from '@vicons/ionicons5'
+import { SearchOutline, AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { useCloseGuard } from '@/composables/useCloseGuard'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import EmptyState from '../../components/common/EmptyState.vue'
 import { useSystemStore } from '../../stores/system'
 import {
@@ -266,28 +268,37 @@ function statusTag(status: SessionStatus) {
 }
 
 const columns = [
-  { title: t('pages.settings.CampusSession.s25'), key: 'title' },
-  { title: t('pages.settings.CampusSession.s26'), key: 'school', render: (row: CampusSession) => row.school || '—' },
-  {
+  column({ title: t('pages.settings.CampusSession.s25'), key: 'title' }, 'short'),
+  column({ title: t('pages.settings.CampusSession.s26'), key: 'school', render: (row: CampusSession) => row.school || '—' }, 'short'),
+  column({
     title: t('pages.settings.CampusSession.s27'),
     key: 'sessionType',
     render: (row: CampusSession) => SESSION_TYPE_LABELS[row.sessionType] ?? row.sessionType,
-  },
-  { title: t('pages.settings.CampusSession.s28'), key: 'status', render: (row: CampusSession) => statusTag(row.status) },
-  { title: t('pages.settings.CampusSession.s29'), key: 'startTime', render: (row: CampusSession) => fmtTime(row.startTime) },
-  {
+  }, 'short'),
+  column({ title: t('pages.settings.CampusSession.s28'), key: 'status', render: (row: CampusSession) => statusTag(row.status) }, 'short'),
+  column({ title: t('pages.settings.CampusSession.s29'), key: 'startTime', render: (row: CampusSession) => fmtTime(row.startTime) }, 'short'),
+  column({
     title: t('pages.settings.CampusSession.s30'),
     key: 'actions',
-    render: (row: CampusSession) =>
-      h('div', { style: 'display:flex; gap:8px' }, [
-        h(NButton, { size: 'small', quaternary: true, onClick: () => openEdit(row) }, { default: () => t('pages.settings.CampusSession.s52') }),
-        h(
-          NButton,
-          { size: 'small', quaternary: true, type: 'error', onClick: () => remove(row) },
-          { default: () => t('pages.settings.CampusSession.s53') },
-        ),
-      ]),
-  },
+    width: 176,
+    fixed: 'right' as const,
+    render(row: CampusSession) {
+      return h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'primary',
+          onClick: () => openEdit(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.CampusSession.s52') }),
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'error',
+          onClick: () => remove(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.CampusSession.s53') }),
+      ])
+    },
+  }, 'control'),
 ]
 
 /* ============================ 数据加载 ============================ */

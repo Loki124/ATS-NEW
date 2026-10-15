@@ -10,7 +10,7 @@
         <!-- ===== 行政区划 ===== -->
         <n-tab-pane name="regions" :tab="t('pages.settings.CodeTableLibrary.s7')">
           <n-card class="tab-card">
-            <n-space class="filter-row" :wrap="true">
+            <div class="filter-row toolbar">
               <n-select
                 v-model:value="regionCascade.province"
                 :options="provinceOptions"
@@ -48,8 +48,8 @@
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadRegions">{{ t('pages.settings.CodeTableLibrary.s8') }}</n-button>
-            </n-space>
+              <n-button type="primary" @click="loadRegions"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.CodeTableLibrary.s8') }}</n-button>
+            </div>
 
             <div class="table-wrap">
               <n-data-table
@@ -71,7 +71,7 @@
         <!-- ===== 国家区号 ===== -->
         <n-tab-pane name="countries" :tab="t('pages.settings.CodeTableLibrary.s9')">
           <n-card class="tab-card">
-            <n-space class="filter-row" :wrap="true">
+            <div class="filter-row toolbar">
               <n-input
                 v-model:value="countryKeyword"
                 :placeholder="t('pages.settings.CodeTableLibrary.s10')"
@@ -81,8 +81,8 @@
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadCountries">{{ t('pages.settings.CodeTableLibrary.s11') }}</n-button>
-            </n-space>
+              <n-button type="primary" @click="loadCountries"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.CodeTableLibrary.s11') }}</n-button>
+            </div>
             <div class="table-wrap">
               <n-data-table
                 :columns="countryColumns"
@@ -101,7 +101,7 @@
         <!-- ===== 民族 ===== -->
         <n-tab-pane name="ethnicities" :tab="t('pages.settings.CodeTableLibrary.s12')">
           <n-card class="tab-card">
-            <n-space class="filter-row" :wrap="true">
+            <div class="filter-row toolbar">
               <n-input
                 v-model:value="ethnicKeyword"
                 :placeholder="t('pages.settings.CodeTableLibrary.s13')"
@@ -111,8 +111,8 @@
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadEthnicities">{{ t('pages.settings.CodeTableLibrary.s14') }}</n-button>
-            </n-space>
+              <n-button type="primary" @click="loadEthnicities"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.CodeTableLibrary.s14') }}</n-button>
+            </div>
             <div class="table-wrap">
               <n-data-table
                 :columns="ethnicColumns"
@@ -131,7 +131,7 @@
         <!-- ===== 语言 ===== -->
         <n-tab-pane name="languages" :tab="t('pages.settings.CodeTableLibrary.s15')">
           <n-card class="tab-card">
-            <n-space class="filter-row" :wrap="true">
+            <div class="filter-row toolbar">
               <n-input
                 v-model:value="langKeyword"
                 :placeholder="t('pages.settings.CodeTableLibrary.s16')"
@@ -141,8 +141,8 @@
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadLanguages">{{ t('pages.settings.CodeTableLibrary.s17') }}</n-button>
-            </n-space>
+              <n-button type="primary" @click="loadLanguages"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.CodeTableLibrary.s17') }}</n-button>
+            </div>
             <div class="table-wrap">
               <n-data-table
                 :columns="langColumns"
@@ -161,7 +161,7 @@
         <!-- ===== 币种（ISO 4217） ===== -->
         <n-tab-pane name="currencies" :tab="t('pages.settings.CodeTableLibrary.s18')">
           <n-card class="tab-card">
-            <n-space class="filter-row" :wrap="true">
+            <div class="filter-row toolbar">
               <n-input
                 v-model:value="currencyKeyword"
                 :placeholder="t('pages.settings.CodeTableLibrary.s19')"
@@ -171,8 +171,8 @@
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadCurrencies">{{ t('pages.settings.CodeTableLibrary.s20') }}</n-button>
-            </n-space>
+              <n-button type="primary" @click="loadCurrencies"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.CodeTableLibrary.s20') }}</n-button>
+            </div>
             <div class="table-wrap">
               <n-data-table
                 :columns="currencyColumns"
@@ -191,7 +191,7 @@
         <!-- ===== 行业（GB/T 4754） ===== -->
         <n-tab-pane name="industries" :tab="t('pages.settings.CodeTableLibrary.s21')">
           <n-card class="tab-card">
-            <n-space class="filter-row" :wrap="true">
+            <div class="filter-row toolbar">
               <n-select
                 v-model:value="industryLevel"
                 :options="industryLevelOptions"
@@ -209,8 +209,8 @@
               >
                 <template #prefix><n-icon :component="SearchOutline" /></template>
               </n-input>
-              <n-button type="primary" @click="loadIndustries">{{ t('pages.settings.CodeTableLibrary.s24') }}</n-button>
-            </n-space>
+              <n-button type="primary" @click="loadIndustries"><template #icon><n-icon :component="SearchOutline" /></template>{{ t('pages.settings.CodeTableLibrary.s24') }}</n-button>
+            </div>
             <div class="table-wrap">
               <n-data-table
                 :columns="industryColumns"
@@ -235,6 +235,7 @@ import { useI18n } from 'vue-i18n'
 import { ref, h, onMounted, reactive, computed } from 'vue';
 import { NTag, useMessage } from 'naive-ui';
 import { SearchOutline } from '@vicons/ionicons5';
+import { column } from '@/composables/useTableColumns';
 import {
   fetchRegions, fetchCountries, fetchEthnicities, fetchLanguages,
   fetchCurrencies, fetchIndustries,
@@ -283,13 +284,13 @@ const regionPagination = remotePagination({
 });
 
 const regionColumns = [
-  { title: t('pages.settings.CodeTableLibrary.s25'), key: 'code', width: 140 },
-  { title: t('pages.settings.CodeTableLibrary.s26'), key: 'name', width: 200 },
-  {
+  column({ title: t('pages.settings.CodeTableLibrary.s25'), key: 'code', width: 140 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s26'), key: 'name', width: 200 }, 'short'),
+  column({
     title: t('pages.settings.CodeTableLibrary.s27'), key: 'level', width: 90,
     render: (row: Region) => h(NTag, { size: 'small', type: 'info' }, () => LEVEL_LABEL[row.level] || '-'),
-  },
-  { title: t('pages.settings.CodeTableLibrary.s28'), key: 'parentCode', width: 140, render: (row: Region) => row.parentCode || '-' },
+  }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s28'), key: 'parentCode', width: 140, render: (row: Region) => row.parentCode || '-' }, 'short'),
 ];
 
 async function loadRegions() {
@@ -358,12 +359,12 @@ async function onCityChange() {
 const countryKeyword = ref('');
 const countryRows = ref<Country[]>([]);
 const countryColumns = [
-  { title: t('pages.settings.CodeTableLibrary.s29'), key: 'phoneCode', width: 100,
-    render: (row: Country) => h('span', { style: 'font-weight:600' }, row.phoneCode || '-') },
-  { title: t('pages.settings.CodeTableLibrary.s30'), key: 'nameCn', width: 160 },
-  { title: t('pages.settings.CodeTableLibrary.s31'), key: 'nameEn', width: 200 },
-  { title: 'ISO alpha-2', key: 'code', width: 110 },
-  { title: 'ISO alpha-3', key: 'code3', width: 110 },
+  column({ title: t('pages.settings.CodeTableLibrary.s29'), key: 'phoneCode', width: 100,
+    render: (row: Country) => h('span', { style: 'font-weight:600' }, row.phoneCode || '-') }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s30'), key: 'nameCn', width: 160 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s31'), key: 'nameEn', width: 200 }, 'short'),
+  column({ title: 'ISO alpha-2', key: 'code', width: 110 }, 'short'),
+  column({ title: 'ISO alpha-3', key: 'code3', width: 110 }, 'short'),
 ];
 
 async function loadCountries() {
@@ -382,9 +383,9 @@ async function loadCountries() {
 const ethnicKeyword = ref('');
 const ethnicRows = ref<Ethnicity[]>([]);
 const ethnicColumns = [
-  { title: t('pages.settings.CodeTableLibrary.s32'), key: 'code', width: 110 },
-  { title: t('pages.settings.CodeTableLibrary.s33'), key: 'name', width: 160 },
-  { title: t('pages.settings.CodeTableLibrary.s34'), key: 'letterCode', width: 120, render: (row: Ethnicity) => row.letterCode || '-' },
+  column({ title: t('pages.settings.CodeTableLibrary.s32'), key: 'code', width: 110 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s33'), key: 'name', width: 160 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s34'), key: 'letterCode', width: 120, render: (row: Ethnicity) => row.letterCode || '-' }, 'short'),
 ];
 
 async function loadEthnicities() {
@@ -403,9 +404,9 @@ async function loadEthnicities() {
 const langKeyword = ref('');
 const langRows = ref<Language[]>([]);
 const langColumns = [
-  { title: t('pages.settings.CodeTableLibrary.s35'), key: 'code', width: 110 },
-  { title: t('pages.settings.CodeTableLibrary.s36'), key: 'nameCn', width: 200 },
-  { title: t('pages.settings.CodeTableLibrary.s37'), key: 'nameEn', width: 200 },
+  column({ title: t('pages.settings.CodeTableLibrary.s35'), key: 'code', width: 110 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s36'), key: 'nameCn', width: 200 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s37'), key: 'nameEn', width: 200 }, 'short'),
 ];
 
 async function loadLanguages() {
@@ -424,11 +425,11 @@ async function loadLanguages() {
 const currencyKeyword = ref('');
 const currencyRows = ref<Currency[]>([]);
 const currencyColumns = [
-  { title: t('pages.settings.CodeTableLibrary.s38'), key: 'code', width: 90 },
-  { title: t('pages.settings.CodeTableLibrary.s39'), key: 'codeNumeric', width: 100, render: (row: Currency) => row.codeNumeric || '-' },
-  { title: t('pages.settings.CodeTableLibrary.s40'), key: 'symbol', width: 80, render: (row: Currency) => row.symbol || '-' },
-  { title: t('pages.settings.CodeTableLibrary.s41'), key: 'nameCn', width: 160 },
-  { title: t('pages.settings.CodeTableLibrary.s42'), key: 'nameEn', width: 220 },
+  column({ title: t('pages.settings.CodeTableLibrary.s38'), key: 'code', width: 90 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s39'), key: 'codeNumeric', width: 100, render: (row: Currency) => row.codeNumeric || '-' }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s40'), key: 'symbol', width: 80, render: (row: Currency) => row.symbol || '-' }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s41'), key: 'nameCn', width: 160 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s42'), key: 'nameEn', width: 220 }, 'short'),
 ];
 
 async function loadCurrencies() {
@@ -454,13 +455,13 @@ const industryLevelOptions = [
   { label: t('pages.settings.CodeTableLibrary.s46'), value: 4 },
 ];
 const industryColumns = [
-  { title: t('pages.settings.CodeTableLibrary.s47'), key: 'code', width: 100 },
-  { title: t('pages.settings.CodeTableLibrary.s48'), key: 'name', width: 260 },
-  {
+  column({ title: t('pages.settings.CodeTableLibrary.s47'), key: 'code', width: 100 }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s48'), key: 'name', width: 260 }, 'short'),
+  column({
     title: t('pages.settings.CodeTableLibrary.s49'), key: 'level', width: 90,
     render: (row: Industry) => h(NTag, { size: 'small', type: 'info' }, () => INDUSTRY_LEVEL_LABEL[row.level] || '-'),
-  },
-  { title: t('pages.settings.CodeTableLibrary.s50'), key: 'parentCode', width: 120, render: (row: Industry) => row.parentCode || '-' },
+  }, 'short'),
+  column({ title: t('pages.settings.CodeTableLibrary.s50'), key: 'parentCode', width: 120, render: (row: Industry) => row.parentCode || '-' }, 'short'),
 ];
 
 async function loadIndustries() {

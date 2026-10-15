@@ -19,15 +19,15 @@
               clearable
             />
             <div class="spacer"></div>
-            <n-button type="primary" @click="openCreateRoot">
+            <n-button type="primary" class="gradient-btn" @click="openCreateRoot">
               <template #icon><n-icon :component="AddOutline" /></template>
               {{ t('pages.settings.MouManagement.s4') }}
             </n-button>
-            <n-button :disabled="!checkedRowKeys.length" @click="batchDisable">
+            <n-button quaternary :disabled="!checkedRowKeys.length" @click="batchDisable">
               <template #icon><n-icon :component="StopOutline" /></template>
               {{ t('pages.settings.MouManagement.s5') }}
             </n-button>
-            <n-button :disabled="!allUnits.length" @click="exportDataRange">
+            <n-button quaternary :disabled="!allUnits.length" @click="exportDataRange">
               <template #icon><n-icon :component="DownloadOutline" /></template>
               {{ t('pages.settings.MouManagement.s6') }}
             </n-button>
@@ -287,6 +287,8 @@ import {
   NPopconfirm, useMessage,
 } from 'naive-ui'
 import { localPagination } from '@/composables/useTablePagination'
+// 列对齐与操作列规格的单一真源（四档规则见该文件头）
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import {
   AddOutline, CreateOutline, TrashOutline,
   StopOutline, DownloadOutline, ChevronUpOutline, ChevronDownOutline,
@@ -347,30 +349,39 @@ function buildUnitTree(list: ManagementUnit[]): any[] {
 }
 
 const unitTableColumns = [
-  {
+  column({
     title: '名称', key: 'unitName', minWidth: 200,
     render: (row: ManagementUnit) =>
       h(NButton, { text: true, type: 'primary', onClick: () => openUnitModal(row) }, { default: () => row.unitName }),
-  },
-  { title: '编码', key: 'code', width: 140, render: (row: ManagementUnit) => row.code || '—' },
-  { title: '说明', key: 'description', minWidth: 160, render: (row: ManagementUnit) => row.description || '—' },
-  { title: '显示顺序', key: 'displayOrder', width: 100, render: (row: ManagementUnit) => row.displayOrder ?? 0 },
-  {
-    title: '操作', key: 'action', width: 150,
+  }, 'short'),
+  column({ title: '编码', key: 'code', width: 140, render: (row: ManagementUnit) => row.code || '—' }, 'short'),
+  // 说明列：长文本，D 档 text 左对齐（勿居中）
+  column({ title: '说明', key: 'description', minWidth: 160, render: (row: ManagementUnit) => row.description || '—' }, 'text'),
+  column({ title: '显示顺序', key: 'displayOrder', width: 100, render: (row: ManagementUnit) => row.displayOrder ?? 0 }, 'numeric'),
+  column({
+    // 行内操作：quaternary 文字按钮 + icon（对齐 RolesTab §Data Table，size 取 OP_ACTION_BUTTON_SIZE）
+    title: '操作', key: 'action', width: 176, fixed: 'right' as const,
     render: (row: ManagementUnit) =>
-      h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(NButton, { size: 'small', text: true, type: 'primary', onClick: () => openUnitModal(row) }, { default: () => '编辑' }),
-          h(NPopconfirm, {
-            onPositiveClick: () => onDeleteUnit(row),
-            positiveText: '确认', negativeText: '取消',
-          }, {
-            default: () => `确认删除「${row.unitName}」？其直接子单元将自动提升为根节点。`,
-            trigger: () => h(NButton, { size: 'small', text: true, type: 'error' }, { default: () => '删除' }),
-          }),
-        ],
-      }),
-  },
+      h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'primary',
+          onClick: () => openUnitModal(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => '编辑' }),
+        h(NPopconfirm, {
+          onPositiveClick: () => onDeleteUnit(row),
+          positiveText: '确认', negativeText: '取消',
+        }, {
+          default: () => `确认删除「${row.unitName}」？其直接子单元将自动提升为根节点。`,
+          trigger: () => h(NButton, {
+            size: OP_ACTION_BUTTON_SIZE,
+            quaternary: true,
+            type: 'error',
+          }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => '删除' }),
+        }),
+      ]),
+  }, 'control'),
 ]
 
 // 弹窗标题区的「上级管理单元」只读展示
@@ -735,16 +746,24 @@ const currentAppPersonDataRange = computed<any>(() => {
 
 const detailOrgColumns = [
   { type: 'selection' as const },
-  { title: '组织名称', key: 'orgName', minWidth: 140, render: (row: OrgScopeNode) => deptNameById(row.deptId) },
-  { title: '组织编码', key: 'deptId', width: 120, render: (row: OrgScopeNode) => row.deptId },
-  { title: '上级组织', key: 'parent', width: 140, render: (row: OrgScopeNode) => parentDeptName(row.deptId) },
-  { title: '是否包含下级', key: 'includeChildren', width: 120,
-    render: (row: OrgScopeNode) => (row.includeChildren ? '含下级' : '仅本级') },
-  {
+  column({ title: '组织名称', key: 'orgName', minWidth: 140, render: (row: OrgScopeNode) => deptNameById(row.deptId) }, 'short'),
+  column({ title: '组织编码', key: 'deptId', width: 120, render: (row: OrgScopeNode) => row.deptId }, 'short'),
+  column({ title: '上级组织', key: 'parent', width: 140, render: (row: OrgScopeNode) => parentDeptName(row.deptId) }, 'short'),
+  column({ title: '是否包含下级', key: 'includeChildren', width: 120,
+    render: (row: OrgScopeNode) => (row.includeChildren ? '含下级' : '仅本级') }, 'short'),
+  column({
+    // 行内操作：quaternary 文字按钮 + icon（对齐 RolesTab §Data Table，size 取 OP_ACTION_BUTTON_SIZE）
     title: '操作', key: 'action', width: 80,
     render: (row: OrgScopeNode) =>
-      h(NButton, { size: 'small', text: true, type: 'error', onClick: () => onRemoveOrgNode(row) }, { default: () => '删除' }),
-  },
+      h(NSpace, { size: 8, wrap: false }, () => [
+        h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'error',
+          onClick: () => onRemoveOrgNode(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => '删除' }),
+      ]),
+  }, 'control'),
 ]
 
 /** 应用 tab 标签：已配置范围数（组织范围/人员范围 任一非空计 1），如「公共(2)」 */
@@ -833,9 +852,9 @@ const resolvedPersonsMsg = ref('')
 const personNameFilter = ref('')
 const personEmailFilter = ref('')
 const personColumns = [
-  { title: '姓名', key: 'name', minWidth: 140, ellipsis: { tooltip: true } },
-  { title: '邮箱', key: 'email', minWidth: 200, ellipsis: { tooltip: true } },
-  { title: '组织', key: 'departmentName', minWidth: 160, ellipsis: { tooltip: true } },
+  column({ title: '姓名', key: 'name', minWidth: 140, ellipsis: { tooltip: true } }, 'short'),
+  column({ title: '邮箱', key: 'email', minWidth: 200, ellipsis: { tooltip: true } }, 'short'),
+  column({ title: '组织', key: 'departmentName', minWidth: 160, ellipsis: { tooltip: true } }, 'short'),
 ]
 const filteredResolvedPersons = computed<ResolvedPerson[]>(() => {
   const n = personNameFilter.value.trim().toLowerCase()
@@ -887,19 +906,19 @@ const viewAuthVisible = ref(false)
 const authMembers = ref<ManagementUnitMember[]>([])
 const authLoading = ref(false)
 const authColumns = [
-  {
+  column({
     title: '姓名', key: 'name', minWidth: 120,
     render: (row: ManagementUnitMember) => row.userName || row.personName || row.departmentName || row.id,
-  },
-  {
+  }, 'short'),
+  column({
     title: '类型', key: 'memberType', width: 110,
     render: (row: ManagementUnitMember) =>
       ({ DEPT: '组织节点', USER: '系统用户', PERSON: 'HR人员' } as Record<string, string>)[row.memberType] || row.memberType,
-  },
-  {
+  }, 'short'),
+  column({
     title: '组织', key: 'org', minWidth: 140,
     render: (row: ManagementUnitMember) => (row.departmentId ? deptNameById(row.departmentId) : '—'),
-  },
+  }, 'short'),
 ]
 async function openViewAuth() {
   if (!detailUnit.value) return
@@ -1006,16 +1025,16 @@ onMounted(() => {
   background: var(--brand-600);
 }
 .scope-block-total {
-  margin-top: 4px;
+  margin-top: var(--space-2);
   font-size: 12px;
   color: var(--ink-faint);
 }
 /* 详情元信息（融合弹窗已移除抽屉，保留只读提示样式备用） */
 .detail-tabs {
-  margin-top: 4px;                 /* 原 8px：Tab 内容区顶距收紧（说明行已移除） */
+  margin-top: var(--space-2);       /* 8px：Tab 内容区顶距（8 的倍数，对齐间距硬规则） */
 }
 .detail-empty {
-  margin-top: 4px;                 /* 原 8px */
+  margin-top: var(--space-2);       /* 8px */
 }
 /* 编辑管理单元弹窗 — 标题区只读摘要 + 操作按钮 */
 .unit-detail-header {

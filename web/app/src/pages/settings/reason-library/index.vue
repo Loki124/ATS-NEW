@@ -113,6 +113,6 @@ function onTabChange(name: string) {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  padding-top: var(--space-3);
+  padding-top: var(--space-2);
 }
 </style>
