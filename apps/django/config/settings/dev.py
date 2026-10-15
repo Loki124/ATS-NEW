@@ -1,7 +1,7 @@
 """开发环境配置
 
-DATABASES 不再覆盖 base.py 的配置 - 由 DATABASE_URL 决定（MySQL/PostgreSQL/SQLite）
-如需强制 SQLite：.env 中设 DATABASE_URL=sqlite:///db.sqlite3
+DATABASES 不再覆盖 base.py 的配置 - 由 DATABASE_URL 决定（统一 MySQL）
+开发/测试环境统一使用 MySQL, 不再使用 SQLite；.env 中 DATABASE_URL 指向本地 MySQL (ats_dev)。
 """
 from .base import *  # noqa
 from .base import INSTALLED_APPS, MIDDLEWARE

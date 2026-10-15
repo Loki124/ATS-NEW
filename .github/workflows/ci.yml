@@ -217,11 +217,13 @@ jobs:
           . .venv/bin/activate
           pip install -r requirements.txt
 
-      - name: Start backend (SQLite for e2e)
+      - name: Start backend (MySQL for e2e)
         working-directory: apps/django
         env:
           DJANGO_SETTINGS_MODULE: config.settings.dev
-          DATABASE_URL: sqlite:///db.sqlite3
+          # 2026-10-15: e2e 后端也统一走 MySQL (复用本 job 的 mysql:8.0 service + ats_e2e 库),
+          #   不再用 SQLite —— 避免"e2e 绿、生产炸"的引擎行为差异 (见 test.py 同款教训)。
+          DATABASE_URL: mysql://root:${{ secrets.CI_MYSQL_ROOT_PASSWORD }}@127.0.0.1:3306/ats_e2e
           DJANGO_SECRET_KEY: ${{ secrets.CI_JWT_SECRET_E2E }}
           CORS_ALLOWED_ORIGINS: http://localhost:5212
         run: |
@@ -389,7 +391,9 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.dev
           DJANGO_SECRET_KEY: ci-drift-gate-placeholder-secret-key-0000
-          # 用 SQLite: 这一步不连库, 只做状态比对, 避免依赖 MySQL service。
+          # 用 SQLite 仅作 settings 引导: makemigrations --check 只比对 models.py 与迁移状态,
+          #   全程不发起任何 DB 连接, 引擎选择与此步骤无关; 故无需挂 MySQL service。
+          #   真实 DB 行为差异由 test-backend / e2e 两个 MySQL job 负责暴露。
           DATABASE_URL: sqlite:///:memory:
         run: |
           . .venv/bin/activate

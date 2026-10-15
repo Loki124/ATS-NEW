@@ -55,9 +55,15 @@ def _create_role_v2_with_scope(code: str, name: str, scope_type: str) -> RoleV2:
     from django.utils import timezone
 
     with connection.cursor() as c:
-        c.execute('PRAGMA table_info(roles)')
-        cols = {row[1] for row in c.fetchall()}
-        if 'code' in cols:
+        # 探测 roles 是否有 code 列 (V1 hybrid schema 才有).
+        # MySQL 统一走 V2 fresh schema, 无 code 列; 仅 SQLite escape-hatch 路径需 PRAGMA 探测.
+        has_code_col = False
+        if connection.vendor == 'sqlite':
+            c.execute('PRAGMA table_info(roles)')
+            cols = {row[1] for row in c.fetchall()}
+            has_code_col = 'code' in cols
+
+        if has_code_col:
             # V1 hybrid (历史) — 写 V1 + V2 列
             c.execute(
                 """INSERT INTO roles

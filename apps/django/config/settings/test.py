@@ -8,37 +8,37 @@ DEBUG = True
 # 测试环境允许所有 host
 ALLOWED_HOSTS = ['*']
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.environ.get('DJANGO_DB_NAME', str(BASE_DIR / 'dev_db.sqlite3')),
-        # 2026-08-04: 改文件 SQLite 代替 :memory:。:memory: 每次 HTTP 请求
-        # 用独立连接 → 独立空数据库, 登录和后续 POST 互不可见 → 500。
-        # 测试环境(pytest) 用 --reuse-db + :memory: 不受影响。
-        'TEST': {
-            'NAME': ':memory:',  # pytEST 继续 :memory: 加速
-        },
-    }
-}
-
-# 2026-10-08 (#26): CI 测试库对齐生产 MySQL 8。
-#   test-backend job 已起 mysql:8.0 service, 但此前 test settings 写死 SQLite →
-#   "CI 绿、生产炸" 风险 (排序规则 / JSON 函数 / 时区等行为差异)。
-#   设 DB_ENGINE=mysql 即切到 MySQL; 其余连接参数由 DB_* 环境变量注入
-#   (CI 用 mysql service 的 root + 空密码 + 127.0.0.1:3306)。本地快速通道仍默认 SQLite。
-if os.environ.get('DB_ENGINE', 'sqlite') == 'mysql':
+# 2026-10-15: 全仓约定 —— 开发/测试统一用 MySQL, 不再默认 SQLite。
+#   根因教训: 此前本地/单测默认 SQLite, 掩盖了 0024 "RemoveField+AddField 同名列在 MySQL 上
+#   DROP 整列丢数据" 的差异 (SQLite 整表重建会拷贝数据), 导致 "本地/CI 全绿、生产 1452"。
+#   此后测试默认走 MySQL (本地 ats_test / CI mysql:8.0), 让 MySQL 特有行为差异在开发期就暴露。
+#   SQLite 仅作为 DB_ENGINE=sqlite 的**显式**逃生口保留 (纯静态检查等场景), 正常测试不再使用。
+if os.environ.get('DB_ENGINE', 'mysql') == 'mysql':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': os.environ.get('DB_NAME', 'ats_test'),
-            'USER': os.environ.get('DB_USER', 'root'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            # 本地默认复用 dev 库同款账号 (apps/django/.env), pytest 开箱即用;
+            # CI 用 mysql:8.0 service 的 root + 密钥覆盖。
+            'USER': os.environ.get('DB_USER', 'ats_dev'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'AtsDev2026!'),
             'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
             'PORT': os.environ.get('DB_PORT', '3306'),
             'OPTIONS': {'charset': 'utf8mb4'},
             'TEST': {
                 'CHARSET': 'utf8mb4',
                 'COLLATION': 'utf8mb4_unicode_ci',
+            },
+        }
+    }
+else:
+    # 仅 DB_ENGINE=sqlite 显式设定才走此分支 (非默认); 用于不需要真实 DB 交互的纯静态检查。
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('DJANGO_DB_NAME', str(BASE_DIR / 'dev_db.sqlite3')),
+            'TEST': {
+                'NAME': ':memory:',
             },
         }
     }

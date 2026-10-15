@@ -129,10 +129,15 @@ def _raw_attach_v2_role(user, role):
             raise RuntimeError(f'V2 role {role.role_code} not in roles table — call _create_role_v2 first')
         role_pk = row[0]
 
-        c.execute("PRAGMA table_info(user_roles)")
-        cols = {row[1] for row in c.fetchall()}
+        # 探测 user_roles 是否有 role_id 列 (V1 hybrid schema 才有).
+        # MySQL 统一走 V2 fresh schema, 无 role_id 列; 仅 SQLite escape-hatch 路径需 PRAGMA 探测.
+        has_role_id = False
+        if connection.vendor == 'sqlite':
+            c.execute("PRAGMA table_info(user_roles)")
+            cols = {row[1] for row in c.fetchall()}
+            has_role_id = 'role_id' in cols
 
-        if 'role_id' in cols:
+        if has_role_id:
             # V1 hybrid schema (T01.1 前): 写 V1 FK + V2 列
             c.execute(
                 """INSERT INTO user_roles
@@ -372,9 +377,15 @@ def _create_role_v2(code: str, name: str):
     import uuid
     now = timezone.now()
     with connection.cursor() as c:
-        c.execute('PRAGMA table_info(roles)')
-        cols = {row[1] for row in c.fetchall()}
-        if 'code' in cols:
+        # 探测 roles 是否有 code 列 (V1 hybrid schema 才有).
+        # MySQL 统一走 V2 fresh schema, 无 code 列; 仅 SQLite escape-hatch 路径需 PRAGMA 探测.
+        has_code_col = False
+        if connection.vendor == 'sqlite':
+            c.execute('PRAGMA table_info(roles)')
+            cols = {row[1] for row in c.fetchall()}
+            has_code_col = 'code' in cols
+
+        if has_code_col:
             # V1 fallback (历史代码路径): 同时写 V1 + V2 列
             c.execute(
                 """INSERT INTO roles
