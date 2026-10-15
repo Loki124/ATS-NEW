@@ -98,175 +98,52 @@
       </template>
     </div>
 
-    <!-- ===== 段② 谁能改（写范围 / 操作权限）=====
-         fail-closed 语义必须在 UI 显式传达，但**只在真正危险时**才报警：
-         mode!=='none' 时强制展开，防止管理员漏看已生效的收紧；
-         橙色告警仅当「配了范围却一个动作都没勾」才出现（=该模块对所有人只读），
-         常态下不再刷屏。mode==='all' 时不渲染动作墙（全部可写无需逐项勾）。 -->
-    <div class="write-section" :class="{ open: writeOpen || writeActive }">
-      <div class="write-head" role="button" @click="writeOpen = !writeOpen">
-        <span class="seg-label">{{ t('dataperm.write.title') }}</span>
-        <n-tag size="small" :bordered="false" :type="writeBadgeType" class="write-badge">
-          {{ writeBadgeText }}
-        </n-tag>
-        <span class="write-toggle">{{ writeOpen ? t('dataperm.write.collapse') : t('dataperm.write.expand') }}</span>
-      </div>
-
-      <template v-if="writeOpen || writeActive">
-        <!-- 常驻语义提示：只在「配了写范围」时给一句总纲，具体风险由下面的 zero 告警承担 -->
-        <n-alert
-          v-if="writeActive && !showZeroHint"
-          :type="'default'"
-          :bordered="false"
-          class="write-alert"
-        >
-          {{ t('dataperm.write.failClosedHint') }}
-        </n-alert>
-        <!-- 危险告警：配了写范围但 0 动作 = 该模块对所有人只读（红色，最高优先） -->
-        <n-alert
-          v-if="showZeroHint"
-          :type="'error'"
-          :bordered="false"
-          class="write-alert"
-        >
-          {{ t('dataperm.write.zeroHint') }}
-        </n-alert>
-        <!-- mode=all：全部可写，无需逐项勾选动作 -->
-        <n-alert
-          v-if="isWriteAll"
-          :type="'default'"
-          :bordered="false"
-          class="write-alert"
-        >
-          {{ t('dataperm.write.allHint') }}
-        </n-alert>
-
-        <n-radio-group
-          :value="module.write?.mode || 'none'"
-          :disabled="disabled"
-          class="write-mode-group"
-          @update:value="(v: WriteMode) => emit('update:write-mode', v)"
-        >
-          <n-radio-button value="none">{{ t('dataperm.write.mode.none') }}</n-radio-button>
-          <n-radio-button value="all">{{ t('dataperm.write.mode.all') }}</n-radio-button>
-          <n-radio-button value="owner">{{ t('dataperm.write.mode.owner') }}</n-radio-button>
-          <n-radio-button value="scope">{{ t('dataperm.write.mode.scope') }}</n-radio-button>
-        </n-radio-group>
-
-        <!-- 动作墙：仅在 owner / scope（非 all）时渲染；按 普通/高危 分组，带全选/清空 -->
-        <template v-if="showActionWall">
-          <!-- 预设包：可见按钮组（替代藏在下拉里的空 placeholder），让用户知道存在预设 -->
-          <div v-if="presetOptions.length" class="preset-row">
-            <span class="preset-label">{{ t('dataperm.write.presetGroup') }}</span>
-            <n-button
-              v-for="p in presetOptions"
-              :key="p.value"
-              size="tiny"
-              secondary
-              :disabled="disabled"
-              @click="onPresetPick(p.value)"
-            >
-              {{ p.label }}
-            </n-button>
-          </div>
-
-          <n-checkbox-group
-            :value="module.write?.actions || []"
-            :disabled="disabled"
-            @update:value="(v: Array<string | number>) => emit('update:write-actions', v.map(String))"
-          >
-            <!-- 常规操作组 -->
-            <div v-if="normalActions.length" class="action-group">
-              <div class="group-head">
-                <span class="group-name">{{ t('dataperm.write.group.normal') }}</span>
-                <span class="group-op">
-                  <n-button size="tiny" text :disabled="disabled" @click="selectGroup(normalActions)">
-                    {{ t('dataperm.write.selectAll') }}
-                  </n-button>
-                  <n-button size="tiny" text :disabled="disabled" @click="clearGroup(normalActions)">
-                    {{ t('dataperm.write.clearAll') }}
-                  </n-button>
-                </span>
-              </div>
-              <div class="action-checks">
-                <n-checkbox
-                  v-for="a in normalActions"
-                  :key="a.key"
-                  :value="a.key"
-                  class="action-check"
-                >
-                  {{ a.label }}
-                </n-checkbox>
-              </div>
-            </div>
-
-            <!-- 危险操作组（与常规视觉分层，组头常驻警示） -->
-            <div v-if="destructiveActions.length" class="action-group danger-group">
-              <div class="group-head">
-                <span class="group-name danger-name">
-                  {{ t('dataperm.write.group.destructive') }}
-                  <n-tag size="tiny" :bordered="false" type="error" class="destructive-tag">
-                    {{ t('dataperm.write.destructive') }}
-                  </n-tag>
-                </span>
-                <span class="group-op">
-                  <n-button size="tiny" text :disabled="disabled" @click="selectGroup(destructiveActions)">
-                    {{ t('dataperm.write.selectAll') }}
-                  </n-button>
-                  <n-button size="tiny" text :disabled="disabled" @click="clearGroup(destructiveActions)">
-                    {{ t('dataperm.write.clearAll') }}
-                  </n-button>
-                </span>
-              </div>
-              <div class="action-checks">
-                <n-checkbox
-                  v-for="a in destructiveActions"
-                  :key="a.key"
-                  :value="a.key"
-                  class="action-check danger-check"
-                >
-                  {{ a.label }}
-                </n-checkbox>
-              </div>
-            </div>
-          </n-checkbox-group>
-
-          <div v-if="module.write?.mode === 'scope'" class="summary-actions write-scope-actions">
-            <n-button
-              size="small"
-              secondary
-              type="primary"
-              :disabled="disabled || !canConfig"
-              @click="emit('open-write-rule')"
-            >
-              {{ t('dataperm.write.configScope') }}
-            </n-button>
-          </div>
-        </template>
-      </template>
+    <!-- ===== 操作权限只读摘要条（2026-10-15 读/写拆分后新增）=====
+         写范围/动作授权已整体迁到身份编辑弹窗的「操作权限」页签（ModuleActionCard）。
+         这里只留一个**只读**摘要 + 跳转入口，用途是回答管理员在本页最自然的疑问：
+         「这个模块的数据我配好了可见范围，那能做什么操作？」
+         不放任何可交互控件 —— 同一状态两处可改必然分叉，职责边界要靠"只有一处能配"来保证。 -->
+    <div class="action-summary">
+      <span class="as-label">{{ t('dataperm.read.actionLabel') }}</span>
+      <n-tag size="small" :bordered="false" :type="actionBadge.tone" class="as-badge">
+        {{ actionBadgeText }}
+      </n-tag>
+      <n-button
+        size="tiny"
+        text
+        type="primary"
+        class="as-goto"
+        @click="emit('goto-action')"
+      >
+        {{ t('dataperm.read.gotoAction') }}
+      </n-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * ModulePermCard.vue — 单个业务模块的数据权限卡（抽屉内 5 张纵排）。
+ * ModulePermCard.vue — 单个业务模块的**数据权限（读范围）**卡。
+ *
+ * 2026-10-15 读/写拆分：原「段② 谁能改（写范围/操作权限）」已整体迁出至
+ * `ModuleActionCard.vue`，挂在身份编辑弹窗新增的「操作权限」页签。
+ * 本组件自此只负责「看得见什么」，职责单一：
+ *   - 读范围 mode 三选一（无权限 / 全部 / 指定范围）
+ *   - scope 模式下的规则摘要 + 配置规则入口（RuleConfigModal）
+ *   - 权限模板漂移标记 / 一键升级
+ *   - 操作权限**只读**摘要条 + 跳转（不提供任何写控件）
  *
  * props.module 直接是 useRoleDataPerm.draft 中的响应式元素（引用），
- * 切模式通过 emit('update:mode') 由抽屉调用 composable.setMode 处理（保持语义单一来源）。
- *
- * 规则摘要区（mode==='scope'）展示 previewOf(module) 可读布尔表达式 + 条件组数徽标 + 配置规则入口。
+ * 切模式通过 emit('update:mode') 由弹窗调用 composable.setMode 处理（保持语义单一来源）。
  * disabled 时整卡置灰（超管 / 功能权限未分配），disabledReason 显示原因。
  */
 import { computed, ref } from 'vue'
 import {
   NRadioGroup, NRadioButton, NButton, NTag, NText, NAlert,
-  NCheckbox, NCheckboxGroup,
 } from 'naive-ui'
 import type { TemplateDrift } from '@/api/data-permission'
 import {
-  previewOf, type DataPermMode, type ModulePerm, type WriteMode,
-  type ActionDictItem, type ActionPreset,
+  previewOf, writeBadge, type DataPermMode, type ModulePerm,
 } from '@/composables/useRoleDataPerm'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
@@ -280,10 +157,6 @@ const props = defineProps<{
   error?: string
   /** 维度选项是否可用（options 接口成功才 true），否则「配置规则」禁用 */
   canConfig: boolean
-  /** v2 可配置动作字典（options 下发；勿在前端硬编码动作清单） */
-  actionRegistry?: ActionDictItem[]
-  /** v2 动作预设包（一键填充 actions） */
-  presetPackages?: ActionPreset[]
 }>()
 
 const emit = defineEmits<{
@@ -291,94 +164,17 @@ const emit = defineEmits<{
   (e: 'open-rule'): void
   /** 升级某个漂移条件组到模板最新版（父组件负责重绑定并替换草稿组） */
   (e: 'upgrade-template', d: TemplateDrift): void
-  (e: 'update:write-mode', v: WriteMode): void
-  (e: 'update:write-actions', v: string[]): void
-  (e: 'open-write-rule'): void
+  /** 跳转到「操作权限」页签并定位到本模块（读/写拆分后的跨页签导航） */
+  (e: 'goto-action'): void
 }>()
 
 /** 正在升级中的条件组下标（驱动按钮 loading），-1 表示空闲 */
 const upgradingGroup = ref(-1)
 defineExpose({ upgradingGroup })
 
-// ===== v2 写范围 =====
-
-/** 折叠状态；write 已激活（mode!=none）时视为强制展开 */
-const writeOpen = ref(false)
-const writeActive = computed(() => (props.module.write?.mode || 'none') !== 'none')
-const isWriteAll = computed(() => (props.module.write?.mode || 'none') === 'all')
-
-/** 写范围可勾选的动作 = 字典中启用且类别为 write/destructive 的项（view/export 归读路径，不进写范围） */
-const writableActions = computed(() =>
-  (props.actionRegistry || []).filter(
-    (a) => a.enabled && (a.category === 'write' || a.category === 'destructive'),
-  ),
-)
-
-/**
- * 动作墙按语义分两组，避免 13 个 checkbox 平铺一屏：
- *   - 常规操作（category=write）：编辑/创建/推进流程…
- *   - 危险操作（category=destructive）：合并/删除… 视觉单独成组并常驻警示
- * 🔴 分组真源是后端下发的 category，**不按动作名硬编码**（动作字典可配置、可增停用）。
- */
-const normalActions = computed(() => writableActions.value.filter((a) => a.category !== 'destructive'))
-const destructiveActions = computed(() => writableActions.value.filter((a) => a.category === 'destructive'))
-
-/** 只有 owner / scope（真能收紧到动作粒度）才需要动作墙；all=全部可写、none=无需配置 */
-const showActionWall = computed(() => {
-  const m = props.module.write?.mode || 'none'
-  return m === 'owner' || m === 'scope'
-})
-
-/** 危险态：配了写范围却一个动作都没勾 = 该模块对所有人只读（必须红色报警） */
-const showZeroHint = computed(() => showActionWall.value && (props.module.write?.actions || []).length === 0)
-
-const presetOptions = computed(() =>
-  (props.presetPackages || []).map((p) => ({ label: p.label, value: p.key })),
-)
-
-/** 当前已勾选的动作集合（供分组全选/清空做差集运算） */
-const selectedActions = computed(() => new Set(props.module.write?.actions || []))
-
-/** 组内全选：把该组动作并入已勾选集合（不丢其他组已勾的） */
-function selectGroup(group: ActionDictItem[]) {
-  const next = new Set(selectedActions.value)
-  for (const a of group) next.add(a.key)
-  emit('update:write-actions', Array.from(next))
-}
-
-/** 组内清空：只移除该组动作，保留其他组已勾选 */
-function clearGroup(group: ActionDictItem[]) {
-  const keys = new Set(group.map((a) => a.key))
-  emit('update:write-actions', Array.from(selectedActions.value).filter((k) => !keys.has(k)))
-}
-
-/** 选预设包 = 用包内动作集合整体覆盖当前勾选（再可手动微调） */
-function onPresetPick(presetKey: string) {
-  const preset = (props.presetPackages || []).find((p) => p.key === presetKey)
-  if (preset) emit('update:write-actions', [...preset.actionKeys])
-}
-
-/**
- * 徽章三态（原来只看 actions.length，会把「配了但 0 项」显示成绿色 success = 颜色撒谎）：
- *   0 项 且已收紧 → 红 danger「未授权任何操作」（该模块对所有人只读）
- *   n 项         → 中性 default「已授权 n 项动作」
- *   全部可写      → 绿 success「全部可写」
- *   未配置        → 中性「未配置」
- */
-const writeBadgeType = computed(() => {
-  if (!writeActive.value) return 'default' as const
-  if (isWriteAll.value) return 'success' as const
-  const n = (props.module.write?.actions || []).length
-  return n === 0 ? 'error' as const : 'default' as const
-})
-const writeBadgeText = computed(() => {
-  if (!writeActive.value) return t('dataperm.write.badge.none')
-  if (isWriteAll.value) return t('dataperm.write.badge.all')
-  const n = (props.module.write?.actions || []).length
-  return n === 0
-    ? t('dataperm.write.badge.zero')
-    : t('dataperm.write.badge.active', { n })
-})
+// ===== 操作权限只读摘要（徽标语义与操作权限页签卡头共用同一纯函数，避免两处判定分叉）=====
+const actionBadge = computed(() => writeBadge(props.module.write))
+const actionBadgeText = computed(() => t(actionBadge.value.key, { n: actionBadge.value.n }))
 
 const totalConditions = computed(() =>
   props.module.groups.reduce((acc, g) => acc + g.conditions.length, 0),
@@ -469,7 +265,7 @@ const driftTags = computed(() =>
   line-height: 1.5;
 }
 
-/* ===== 分段标签（读 / 写 两段各自回答一个问题，视觉分层）===== */
+/* ===== 分段标签（读范围独立成段，视觉分层）===== */
 .perm-segment { display: flex; flex-direction: column; gap: 6px; }
 .seg-label {
   font-size: 12px;
@@ -499,73 +295,25 @@ const driftTags = computed(() =>
 .summary-actions { display: flex; align-items: center; gap: 8px; }
 .count-badge { font-weight: 600; }
 
-/* ===== v2 写范围区 ===== */
-.write-section {
+/* ===== 操作权限只读摘要条 =====
+   视觉权重刻意压到最低（12px 弱标签 + 小徽标 + tiny 文字按钮）：
+   本卡主角是读范围，这条只是"顺手指路"，不与「配置规则」抢焦点。
+   虚线分隔与 rule-summary 一致，表示"这是另一个维度的信息，不是本卡的操作区"。 */
+.action-summary {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed var(--border-hairline, #e2e8f0);
-}
-.write-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
-  user-select: none;
-}
-.write-badge { font-weight: 600; }
-.write-toggle {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--ink-soft, #64748b);
-}
-.write-alert { margin: 8px 0 0; }
-.write-mode-group { width: 100%; margin-top: 8px; }
-
-/* ===== 预设包：可见按钮组（替代藏在下拉里的空 placeholder）===== */
-.preset-row {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
   flex-wrap: wrap;
 }
-.preset-label {
-  font-size: 12px;
-  color: var(--ink-faint, #94a3b8);
-}
-
-/* ===== 动作墙：常规 / 危险 两组分层 ===== */
-.action-group { margin-top: 8px; }
-.group-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.group-name {
+.as-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink-soft, #64748b);
+  color: var(--ink-faint, #94a3b8);
+  letter-spacing: 0.02em;
 }
-.group-name.danger-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--c-error-deep, #b91c1c);
-}
-.group-op { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-
-.action-checks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  padding-left: 8px;
-  border-left: 2px solid var(--border-hairline, #e2e8f0);
-}
-.danger-group .action-checks { border-left-color: var(--c-error, #ef4444); }
-.action-check { margin: 2px 0; }
-.destructive-tag { font-weight: 600; }
-
-/* 写范围自定义条件的入口，与动作墙保持间距 */
-.write-scope-actions { margin-top: 8px; }
+.as-badge { font-weight: 600; }
+.as-goto { margin-left: auto; font-size: 12px; }
 </style>

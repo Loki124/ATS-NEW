@@ -27,11 +27,9 @@
         - 仅「新建身份」保留 primary 实心作为主路径；其余为 default 灰阶
         - 2026-10-15 兵哥：「模板管理」按钮移除 —— 模板基础信息已并入模板下拉的「查看权限码」弹窗，
           列表页不再保留该入口（原 TemplatesTab 弹窗一并下线）
+        - 2026-10-15 兵哥：「动作与预设包管理」入口迁入身份编辑弹窗的「操作权限」页签 ——
+          它管理的内容正是该页签动作墙的数据源，同页配置减少跨页跳转
       -->
-      <n-button v-if="isSuperAdmin" quaternary @click="actionManageShow = true">
-        <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
-        {{ t('dataperm.actions.title') }}
-      </n-button>
       <n-button quaternary @click="onCloneFromTemplate">
         <template #icon><n-icon :component="CopyOutline" /></template>
         {{ t('pages.settings.permission.RolesTab.s5') }}
@@ -102,9 +100,6 @@
       @saved="onEditSaved"
     />
 
-    <!-- 权限 v2：动作字典 / 预设包管理 -->
-    <ActionManageModal v-model:show="actionManageShow" />
-
     <!-- 从模板克隆：查看权限码居中模态（共享组件，含模板基础信息 + 按子模块分组的权限码） -->
     <PermissionCodeModal
       v-model:show="codeModal.show"
@@ -132,7 +127,7 @@
  */
 import { computed, h, onMounted, reactive, ref, type VNode } from 'vue'
 import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, NIcon, NEmpty, useMessage, useDialog, type SelectOption } from 'naive-ui'
-import { AddOutline, CheckmarkOutline, CopyOutline, CreateOutline, ShieldCheckmarkOutline, TrashOutline } from '@vicons/ionicons5'
+import { AddOutline, CheckmarkOutline, CopyOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } from '@/api/role-v2'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
 import { listAclRules } from '@/api/field-acl'
@@ -141,19 +136,12 @@ import { localPagination } from '@/composables/useTablePagination'
 // 列对齐与操作列规格的单一真源（四档规则见该文件头）
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import RoleEditModal from './RoleEditModal.vue'
-import ActionManageModal from '@/components/role/ActionManageModal.vue'
 import PermissionCodeModal from '@/components/role/PermissionCodeModal.vue'
-import { useUserStore } from '@/stores/user'
 import { useCloseGuard } from '@/composables/useCloseGuard'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 // 资源码→中文名映射（克隆弹窗展开权限码用）
 const { ensureLoaded } = useResourceNames()
-
-// 权限 v2：动作字典管理入口仅超管可见（后端 IsSuperAdmin 双保险）
-const userStore = useUserStore()
-const isSuperAdmin = computed(() => (userStore.user?.roles ?? []).includes('SUPER_ADMIN'))
-const actionManageShow = ref(false)
 
 const message = useMessage()
 const dialog = useDialog()

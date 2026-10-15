@@ -480,6 +480,71 @@ function serialize(modules: ModulePerm[]): string {
   );
 }
 
+/**
+ * 读范围（数据权限）子集序列化 —— 与 serialize() 中 read 半边**逐字段同口径**，
+ * 保证 `readDirty || writeDirty === isDirty`（两个页签的未保存圆点合起来不漏报）。
+ */
+function serializeRead(modules: ModulePerm[]): string {
+  return JSON.stringify(
+    modules.map((m) => ({
+      moduleKey: m.moduleKey,
+      mode: m.mode,
+      expr: m.expr,
+      groups: m.groups.map(serializeGroup),
+    })),
+  );
+}
+
+/**
+ * 写范围（操作权限）子集序列化 —— 与 serialize() 中 write 半边同口径
+ * （mode 收敛 + 缺 write 补四元组默认值）。
+ */
+function serializeWrite(modules: ModulePerm[]): string {
+  return JSON.stringify(
+    modules.map((m) => ({
+      moduleKey: m.moduleKey,
+      write: m.write
+        ? {
+            mode: m.write.mode,
+            expr: m.write.mode === 'scope' ? m.write.expr : '',
+            groups: m.write.mode === 'scope' ? (m.write.groups || []).map(serializeGroup) : [],
+            actions: m.write.actions || [],
+          }
+        : { mode: 'none', expr: '', groups: [], actions: [] },
+    })),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 写范围徽标语义（数据权限页签的只读摘要条与操作权限页签卡头共用同一判定，
+// 避免两处各写一套导致「同一个状态两个颜色 / 两句话」）
+// ---------------------------------------------------------------------------
+
+export type WriteBadgeTone = 'default' | 'success' | 'error';
+
+export interface WriteBadge {
+  tone: WriteBadgeTone;
+  /** i18n key（调用方用 t() 取文案，本函数保持纯逻辑可单测） */
+  key: string;
+  /** 已授权动作数（badge.active 需要） */
+  n: number;
+}
+
+/**
+ * 写范围徽标：未配置 / 全部可写 / 已授权 n 项 / 未授权任何操作。
+ * 🔴 不能只看 actions.length：会把「配了范围却 0 项」显示成绿色 success，
+ *    等于用颜色撒谎 —— 0 项实为 fail-closed 只读，是最该被看见的状态。
+ */
+export function writeBadge(w?: WritePerm): WriteBadge {
+  const mode = w?.mode ?? 'none';
+  if (mode === 'none') return { tone: 'default', key: 'dataperm.write.badge.none', n: 0 };
+  if (mode === 'all') return { tone: 'success', key: 'dataperm.write.badge.all', n: 0 };
+  const n = (w?.actions || []).length;
+  return n === 0
+    ? { tone: 'error', key: 'dataperm.write.badge.zero', n: 0 }
+    : { tone: 'default', key: 'dataperm.write.badge.active', n };
+}
+
 export function useRoleDataPerm(roleId: Ref<string>) {
   const saved = ref<ModulePerm[]>([]);
   const draft = ref<ModulePerm[]>([]);
@@ -491,6 +556,12 @@ export function useRoleDataPerm(roleId: Ref<string>) {
   const saving = ref(false);
   const errors = ref<Record<string, string>>({});
   /**
+   * 每条校验错误归属的权限维度（2026-10-15 读/写拆分）。
+   * 数据权限与操作权限拆成两个页签后，保存前预校验必须把用户**送到出错的那个页签**：
+   * 读范围报错跳「数据权限」，写范围报错跳「操作权限」。只回 moduleKey 不够定位。
+   */
+  const errorKinds = ref<Record<string, 'read' | 'write'>>({});
+  /**
    * 最近一次保存中「因payload 缺 write 键而沿用原值」的模块 key 列表（2026-10-14 P0-1）。
    * 正常前端恒为空 —— 它是"前端序列化回归"的后端哨兵回传，非空即须向管理员示警。
    * 消费方：ModulePermCard.vue 的 n-alert（失败/警告态必须可见，禁静默放过）。
@@ -498,6 +569,10 @@ export function useRoleDataPerm(roleId: Ref<string>) {
   const writeNormalized = ref<string[]>([]);
 
   const isDirty = computed(() => serialize(draft.value) !== serialize(saved.value));
+  // 读/写分别标脏：两个页签各自的未保存圆点只反映自己那一半，
+  // 避免「只改了操作权限」却在数据权限页签上亮圆点（反之亦然）。
+  const readDirty = computed(() => serializeRead(draft.value) !== serializeRead(saved.value));
+  const writeDirty = computed(() => serializeWrite(draft.value) !== serializeWrite(saved.value));
 
   function moduleOf(key: string): ModulePerm | undefined {
     return draft.value.find((m) => m.moduleKey === key);
@@ -506,6 +581,7 @@ export function useRoleDataPerm(roleId: Ref<string>) {
   async function load(): Promise<void> {
     loading.value = true;
     errors.value = {};
+    errorKinds.value = {};
     try {
       const [data, opts] = await Promise.all([
         getRoleDataPerm(roleId.value),
@@ -590,25 +666,37 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     w.actions = actions;
   }
 
-  /** 返回校验不合法的 moduleKey 列表（同时写入 errors）。 */
+  /**
+   * 返回校验不合法的 moduleKey 列表（同时写入 errors 与 errorKinds）。
+   *
+   * 2026-10-15 读/写拆分后新增 errorKinds 归因：保存前预校验失败时，调用方要能把
+   * 用户送到**出错的那个页签** —— 读范围报错跳「数据权限」，写范围报错跳「操作权限」。
+   * 只回 moduleKey 不足以定位页签（同一个模块两边都能报错）。
+   */
   function validate(): string[] {
     const bad: string[] = [];
     const errs: Record<string, string> = {};
+    const kinds: Record<string, 'read' | 'write'> = {};
+    /** 记录一条错误并归因到权限维度；同模块只保留第一条（与原行为一致）。 */
+    const fail = (key: string, msg: string, kind: 'read' | 'write') => {
+      if (errs[key]) return;
+      errs[key] = msg;
+      kinds[key] = kind;
+      bad.push(key);
+    };
     for (const m of draft.value) {
       // v2 写范围校验（独立于读范围 mode / featureGranted）：
       // fail-closed 语义下「配了范围不勾动作」= 拒绝一切写动作，必须显式拦截让管理员知情
       const w = m.write;
       if (w && w.mode !== 'none') {
         if ((w.actions || []).length === 0) {
-          errs[m.moduleKey] = '配置了写范围但未勾选任何动作（未勾选的动作将被一律拒绝）';
-          bad.push(m.moduleKey);
+          fail(m.moduleKey, '配置了写范围但未勾选任何动作（未勾选的动作将被一律拒绝）', 'write');
           continue;
         }
         if (w.mode === 'scope') {
           const totalW = (w.groups || []).reduce((acc, g) => acc + g.conditions.length, 0);
           if (totalW === 0) {
-            errs[m.moduleKey] = '写范围自定义条件请至少配置 1 条';
-            bad.push(m.moduleKey);
+            fail(m.moduleKey, '写范围自定义条件请至少配置 1 条', 'write');
             continue;
           }
         }
@@ -616,16 +704,14 @@ export function useRoleDataPerm(roleId: Ref<string>) {
       if (m.mode !== 'scope' || !m.featureGranted) continue;
       const total = m.groups.reduce((acc, g) => acc + g.conditions.length, 0);
       if (total === 0) {
-        errs[m.moduleKey] = '请至少配置 1 个条件组及 1 条条件';
-        bad.push(m.moduleKey);
+        fail(m.moduleKey, '请至少配置 1 个条件组及 1 条条件', 'read');
         continue;
       }
       // 组间组合表达式（引用条件组序号 1..N）
       if (m.expr.trim()) {
         const re = validateExpr(m.expr, m.groups.length);
         if (re) {
-          errs[m.moduleKey] = `组间组合表达式有误：${re}`;
-          bad.push(m.moduleKey);
+          fail(m.moduleKey, `组间组合表达式有误：${re}`, 'read');
           continue;
         }
       }
@@ -636,36 +722,31 @@ export function useRoleDataPerm(roleId: Ref<string>) {
         for (const c of g.conditions) {
           if (c.kind === 'attribute') {
             if (!c.field) {
-              errs[m.moduleKey] = '请选择属性字段';
-              bad.push(m.moduleKey);
+              fail(m.moduleKey, '请选择属性字段', 'read');
               groupBad = true;
               break;
             }
             if (!c.operator) {
-              errs[m.moduleKey] = '请选择运算符';
-              bad.push(m.moduleKey);
+              fail(m.moduleKey, '请选择运算符', 'read');
               groupBad = true;
               break;
             }
             if (!ATTR_NOVALUE_OPS.has(c.operator)) {
               if (ATTR_LIST_OPS.has(c.operator)) {
                 if (!Array.isArray(c.value) || c.value.length === 0) {
-                  errs[m.moduleKey] = '请选择业务值';
-                  bad.push(m.moduleKey);
+                  fail(m.moduleKey, '请选择业务值', 'read');
                   groupBad = true;
                   break;
                 }
               } else if (c.operator === 'BETWEEN') {
                 const mv = c.meta || {};
                 if (mv.min == null || mv.max == null || mv.min === '' || mv.max === '') {
-                  errs[m.moduleKey] = '请填写区间最小值与最大值';
-                  bad.push(m.moduleKey);
+                  fail(m.moduleKey, '请填写区间最小值与最大值', 'read');
                   groupBad = true;
                   break;
                 }
               } else if (c.value == null || c.value === '') {
-                errs[m.moduleKey] = '请填写条件值';
-                bad.push(m.moduleKey);
+                fail(m.moduleKey, '请填写条件值', 'read');
                 groupBad = true;
                 break;
               }
@@ -674,8 +755,7 @@ export function useRoleDataPerm(roleId: Ref<string>) {
             // 动态条件：不校验业务值（运行时注入），只校验来源已选且适应该维度
             if (c.valueSource === 'dynamic') {
               if (!c.dynamicKey) {
-                errs[m.moduleKey] = '请为动态条件选择取值来源';
-                bad.push(m.moduleKey);
+                fail(m.moduleKey, '请为动态条件选择取值来源', 'read');
                 groupBad = true;
                 break;
               }
@@ -684,14 +764,12 @@ export function useRoleDataPerm(roleId: Ref<string>) {
               const dims = options.value.find((o) => o.moduleKey === m.moduleKey)?.dimensions || [];
               const dim = dims.find((d) => d.key === c.dimension);
               if (dim && dim.contextKeys && !dim.contextKeys.includes(c.dynamicKey)) {
-                errs[m.moduleKey] = `动态取值来源不适用于「${dim.label || c.dimension}」维度`;
-                bad.push(m.moduleKey);
+                fail(m.moduleKey, `动态取值来源不适用于「${dim.label || c.dimension}」维度`, 'read');
                 groupBad = true;
                 break;
               }
             } else if ((c.values || []).length === 0) {
-              errs[m.moduleKey] = '请为每条条件选择业务值';
-              bad.push(m.moduleKey);
+              fail(m.moduleKey, '请为每条条件选择业务值', 'read');
               groupBad = true;
               break;
             }
@@ -701,14 +779,14 @@ export function useRoleDataPerm(roleId: Ref<string>) {
         if (g.expr.trim()) {
           const re = validateExpr(g.expr, g.conditions.length);
           if (re) {
-            errs[m.moduleKey] = `条件组 ${gi + 1} 组内表达式有误：${re}`;
-            bad.push(m.moduleKey);
+            fail(m.moduleKey, `条件组 ${gi + 1} 组内表达式有误：${re}`, 'read');
             break;
           }
         }
       }
     }
     errors.value = errs;
+    errorKinds.value = kinds;
     return bad;
   }
 
@@ -760,6 +838,7 @@ export function useRoleDataPerm(roleId: Ref<string>) {
   function reset(): void {
     draft.value = cloneModules(saved.value);
     errors.value = {};
+    errorKinds.value = {};
   }
 
   return {
@@ -771,8 +850,11 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     loading,
     saving,
     errors,
+    errorKinds,
     writeNormalized,
     isDirty,
+    readDirty,
+    writeDirty,
     load,
     moduleOf,
     setMode,
