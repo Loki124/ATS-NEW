@@ -13,7 +13,7 @@
       <div
         v-for="(g, gi) in localGroups"
         :key="g.id"
-        class="group-card"
+        class="group-block"
       >
         <div class="group-head">
           <span class="group-title">
@@ -889,9 +889,14 @@ function confirm() {
  * 刻意**不用 --c-error**：红是删除/危险的专属信号（MEMORY.md：危险色不许当装饰用）。
  */
 .group-block {
-  /* 第 1 组：品牌紫底（**不能留 --g1 中性灰** —— 只 1 组时看起来就是"没上色"，
-     兵哥 2026-10-15 实际踩到：4n+2/3/4 都有色，唯独第一组落回中性底） */
-  background: var(--brand-soft);
+  /* 第 1 组：品牌紫底（**不能留 --g1 中性灰** —— 只 1 组时看起来就是"没上色"）。
+     🔴 2026-10-15 根因修正：此前模板写的 class 是 `group-card`，而本 CSS 全部
+     命中 `.group-block` —— class 名对不上，**整套配色（含底色+左侧 accent bar）
+     一次都没生效**，所以用户看到的永远是"无底色+无边框"的白块。先修 class 名
+     （模板 group-card → group-block），配色才真正落地。
+     底色用 brand-600 18% 的令牌配比（非 --brand-soft 的 12%），让单组也明显有色；
+     仍只引用语义令牌 --brand-600，暗色下随 body.dark 重排，不硬编码 hex。 */
+  background: color-mix(in oklch, var(--brand-600) 18%, transparent);
   border: 1px solid var(--g2);
   border-left: 3px solid var(--brand-fg);
   border-radius: var(--radius-sm);
