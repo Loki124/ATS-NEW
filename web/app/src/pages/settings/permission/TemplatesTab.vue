@@ -13,33 +13,22 @@
       :row-key="(r: PermissionTemplate) => r.id"
     />
 
-    <!-- 权限码明细抽屉：按功能模块分组展示中文名（英文 code 作副文本/悬浮） -->
-    <n-drawer v-model:show="codesDrawer.show" :width="460" placement="right">
-      <n-drawer-content
-        :title="`权限码明细 · ${codesDrawer.row?.templateName ?? ''}`"
-        :native-scrollbar="false"
-      >
-        <template v-if="codesDrawer.groups.length">
-          <div v-for="g in codesDrawer.groups" :key="g.module" class="code-group">
-            <div class="code-group-title">{{ g.moduleLabel }}</div>
-            <div v-for="it in g.items" :key="it.code" class="code-item">
-              <span class="code-name">{{ it.name }}</span>
-              <span class="code-raw" :title="it.code">{{ it.code }}</span>
-            </div>
-          </div>
-        </template>
-        <n-empty v-else description="该模板暂无权限码" />
-      </n-drawer-content>
-    </n-drawer>
+    <!-- 权限码明细抽屉（共享组件）：按功能模块分组展示中文名 -->
+    <PermissionCodeDrawer
+      v-model:show="codesDrawer.show"
+      :title="codesDrawer.title"
+      :codes="codesDrawer.codes"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { h, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NButton, NSpace, NDataTable, NText, NTag, NDrawer, NDrawerContent, NEmpty, useMessage } from 'naive-ui'
+import { NButton, NSpace, NDataTable, NText, NTag, useMessage } from 'naive-ui'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
-import { useResourceNames, groupPermissionCodesByModule, type GroupedCode } from '@/composables/useResourceNames'
+import { useResourceNames } from '@/composables/useResourceNames'
+import PermissionCodeDrawer from '@/components/role/PermissionCodeDrawer.vue'
 const { t } = useI18n()
 const message = useMessage()
 const { ensureLoaded } = useResourceNames()
@@ -47,10 +36,10 @@ const { ensureLoaded } = useResourceNames()
 const loading = ref(false)
 const data = ref<PermissionTemplate[]>([])
 
-const codesDrawer = reactive<{ show: boolean; row: PermissionTemplate | null; groups: GroupedCode[] }>({
+const codesDrawer = reactive<{ show: boolean; title: string; codes: string[] }>({
   show: false,
-  row: null,
-  groups: [],
+  title: '',
+  codes: [],
 })
 
 const columns = [
@@ -103,8 +92,8 @@ async function load() {
 }
 
 function viewCodes(row: PermissionTemplate) {
-  codesDrawer.row = row
-  codesDrawer.groups = groupPermissionCodesByModule(row.permissionCodes ?? [])
+  codesDrawer.title = row.templateName
+  codesDrawer.codes = row.permissionCodes ?? []
   codesDrawer.show = true
 }
 
@@ -124,35 +113,4 @@ onMounted(load)
 }
 /* 资源码（英文）弱化展示，避免抢视觉（中文名才是主体） */
 .cell-code { color: var(--ink-soft); font-family: var(--font-mono, monospace); }
-
-/* ===== 权限码明细抽屉：按模块分组 ===== */
-.code-group { margin-bottom: var(--space-3); }
-.code-group-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink, #1e293b);
-  padding: 4px 8px;
-  border-left: 3px solid var(--brand, #4f46e5);
-  background: var(--surface-2, #f1f5f9);
-  border-radius: 4px;
-  margin-bottom: 6px;
-}
-.code-item {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 4px 8px;
-}
-.code-name { color: var(--ink, #1e293b); }
-.code-raw {
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  color: var(--ink-soft, #94a3b8);
-  max-width: 52%;
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 </style>
