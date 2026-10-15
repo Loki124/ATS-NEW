@@ -9,7 +9,7 @@
     </div>
 
     <!-- 管理单元列表（北森交互：表格为主视图，树形展开在「名称」列） -->
-    <n-card :bordered="false" class="glass-panel">
+    <div class="glass-panel panel-shell">
           <div class="toolbar">
             <n-select
               v-model:value="unitStatusFilter"
@@ -33,6 +33,7 @@
             </n-button>
           </div>
 
+          <div class="table-wrap">
           <n-data-table
             :data="unitTreeData"
             :columns="unitTableColumns"
@@ -40,9 +41,11 @@
             :checked-row-keys="checkedRowKeys"
             :scroll-x="760"
             :loading="unitLoading"
+            flex-height
             @update:checked-row-keys="(keys: Array<string | number>) => (checkedRowKeys = keys.map(String))"
           />
-        </n-card>
+          </div>
+        </div>
 
     <!-- 管理单元 新建/编辑/详情 融合弹窗（居中；编辑与点击名称共用） -->
     <n-modal
@@ -959,7 +962,15 @@ onMounted(() => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
+}
+/* 玻璃面板内 = 工具条 + table-wrap(flex-height)，与身份管理 RolesTab 同构（原 n-card 改为 div 以打通 flex 链） */
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
 }
 .scope-edit {
   display: flex;

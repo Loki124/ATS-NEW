@@ -11,77 +11,81 @@
     </div>
 
     <!-- ========== KPI row ========== -->
-    <div class="kpi-row">
-      <div v-for="kpi in kpiCards" :key="kpi.key" class="glass-card kpi-card">
-        <div class="kpi-label">{{ kpi.label }}</div>
-        <div class="kpi-value" :style="{ color: kpi.color }">{{ kpi.count }}</div>
-        <div class="kpi-foot">{{ kpi.foot }}</div>
+    <div class="page-body">
+      <div class="kpi-row">
+        <div v-for="kpi in kpiCards" :key="kpi.key" class="glass-card kpi-card">
+          <div class="kpi-label">{{ kpi.label }}</div>
+          <div class="kpi-value" :style="{ color: kpi.color }">{{ kpi.count }}</div>
+          <div class="kpi-foot">{{ kpi.foot }}</div>
+        </div>
       </div>
-    </div>
 
-    <!-- ========== Toolbar ========== -->
-    <div class="toolbar">
-      <n-space align="center" :wrap="false">
-        <n-input
-          v-model:value="searchText"
-          :placeholder="t('pages.settings.RuleEngine.s2')"
-          clearable
-          style="width: 280px"
-          @update:value="onSearchInput"
-        >
-          <template #prefix>
-            <n-icon :component="SearchOutline" />
-          </template>
-        </n-input>
-        <n-select
-          v-model:value="categoryFilter"
-          :options="categoryOptions"
-          :placeholder="t('pages.settings.RuleEngine.s4')"
-          style="width: 180px"
-          @update:value="loadList"
-        />
-        <n-select
-          v-model:value="sourceAppFilter"
-          :options="sourceAppOptions"
-          :placeholder="t('pages.settings.RuleEngine.s5')"
-          style="width: 180px"
-          @update:value="loadList"
-        />
-        <n-select
-          v-model:value="enabledFilter"
-          :options="enabledOptions"
-          :placeholder="t('pages.settings.RuleEngine.s6')"
-          style="width: 130px"
-          @update:value="loadList"
-        />
-      </n-space>
-      <div class="spacer"></div>
-      <n-space>
-        <n-button @click="loadList">
-          <template #icon><n-icon :component="RefreshOutline" /></template>
-          {{ t('pages.settings.RuleEngine.s7') }}
-        </n-button>
-      </n-space>
-    </div>
+      <!-- ========== Toolbar + Table（玻璃面板同构） ========== -->
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-space align="center" :wrap="false">
+            <n-input
+              v-model:value="searchText"
+              :placeholder="t('pages.settings.RuleEngine.s2')"
+              clearable
+              style="width: 280px"
+              @update:value="onSearchInput"
+            >
+              <template #prefix>
+                <n-icon :component="SearchOutline" />
+              </template>
+            </n-input>
+            <n-select
+              v-model:value="categoryFilter"
+              :options="categoryOptions"
+              :placeholder="t('pages.settings.RuleEngine.s4')"
+              style="width: 180px"
+              @update:value="loadList"
+            />
+            <n-select
+              v-model:value="sourceAppFilter"
+              :options="sourceAppOptions"
+              :placeholder="t('pages.settings.RuleEngine.s5')"
+              style="width: 180px"
+              @update:value="loadList"
+            />
+            <n-select
+              v-model:value="enabledFilter"
+              :options="enabledOptions"
+              :placeholder="t('pages.settings.RuleEngine.s6')"
+              style="width: 130px"
+              @update:value="loadList"
+            />
+          </n-space>
+          <div class="spacer"></div>
+          <n-space>
+            <n-button quaternary @click="loadList">
+              <template #icon><n-icon :component="RefreshOutline" /></template>
+              {{ t('pages.settings.RuleEngine.s7') }}
+            </n-button>
+          </n-space>
+        </div>
 
-    <!-- ========== Table ========== -->
-    <div class="table-wrap">
-      <n-data-table
-        :columns="columns"
-        :data="filteredList"
-        :loading="loading"
-        :row-key="(r: any) => r.id"
-        :pagination="pagination"
-        :max-height="tableMaxHeight"
-        :scroll-x="1380"
-        striped
-        @update:page="onPageChange"
-        @update:page-size="onPageSizeChange"
-      >
-        <template #empty>
-          <n-empty :description="t('pages.settings.RuleEngine.s8')" />
-        </template>
-      </n-data-table>
+        <!-- ========== Table ========== -->
+        <div class="table-wrap">
+          <n-data-table
+            :columns="columns"
+            :data="filteredList"
+            :loading="loading"
+            :row-key="(r: any) => r.id"
+            :pagination="pagination"
+            :scroll-x="1380"
+            striped
+            flex-height
+            @update:page="onPageChange"
+            @update:page-size="onPageSizeChange"
+          >
+            <template #empty>
+              <n-empty :description="t('pages.settings.RuleEngine.s8')" />
+            </template>
+          </n-data-table>
+        </div>
+      </div>
     </div>
 
     <!-- ========== Detail Modal ========== -->
@@ -326,13 +330,6 @@ const columns = computed<DataTableColumns<UnifiedRule>>(() => [
   },
 ])
 
-// 表格 max-height 适配
-const tableMaxHeight = computed(() => {
-  if (typeof window === 'undefined') return 600
-  // header 56 + page-header ~80 + kpi-row ~120 + toolbar ~64 + padding 32 + buffer
-  return Math.max(320, window.innerHeight - 360)
-})
-
 // 客户端过滤（搜索 + 筛选），分页在 n-data-table 内置处理
 const filteredList = computed(() => {
   const kw = searchText.value.trim().toLowerCase()
@@ -389,6 +386,22 @@ onMounted(loadList)
 <style scoped>
 /* 仅保留全局 .kpi-* 未覆盖的脚注行；其余（.page-header/.page-title/.page-subtitle/.kpi-row/.kpi-card/.toolbar/.table-wrap）
    统一复用 glass.css 全局类，禁止私有重定义（SETTINGS_PAGE_STRUCTURE.md §0 / §4） */
+/* 8px 合规：flex 链 page-container(flex col h100) → page-body(flex:1) → panel-shell(flex:1) → table-wrap(flex:1) */
+.page-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+/* 玻璃面板内 = KPI 下方工具条 + 主表（与身份管理 RolesTab / DepartmentManagement 同构） */
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
+}
 .kpi-foot { color: var(--ink-faint); font-size: var(--fs-12); margin-top: 4px; }
 
 .rule-name { font-weight: 500; color: var(--ink); }

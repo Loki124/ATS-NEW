@@ -1,44 +1,46 @@
 <template>
   <div class="page-container recruitment-stage">
-<div class="page-body">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">{{ t('pages.settings.RecruitmentStage.s1') }}</h1>
-        <p class="page-subtitle">{{ t('pages.settings.RecruitmentStage.s2') }}</p>
+    <div class="page-body">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">{{ t('pages.settings.RecruitmentStage.s1') }}</h1>
+          <p class="page-subtitle">{{ t('pages.settings.RecruitmentStage.s2') }}</p>
+        </div>
       </div>
-    </div>
 
-    <n-alert type="info" :show-icon="false" style="margin-bottom: 12px">
-      {{ t('pages.settings.RecruitmentStage.s23') }}<strong>{{ t('pages.settings.RecruitmentStage.s3') }}</strong>{{ t('pages.settings.RecruitmentStage.s17') }}「{{ t('pages.settings.RecruitmentStage.s18') }}」「{{ t('pages.settings.RecruitmentStage.s19') }}」{{ t('pages.settings.RecruitmentStage.s20') }}「{{ t('pages.settings.RecruitmentStage.s21') }}」{{ t('pages.settings.RecruitmentStage.s22') }}
-    </n-alert>
+      <n-alert type="info" :show-icon="false" style="margin-bottom: 8px">
+        {{ t('pages.settings.RecruitmentStage.s23') }}<strong>{{ t('pages.settings.RecruitmentStage.s3') }}</strong>{{ t('pages.settings.RecruitmentStage.s17') }}「{{ t('pages.settings.RecruitmentStage.s18') }}」「{{ t('pages.settings.RecruitmentStage.s19') }}」{{ t('pages.settings.RecruitmentStage.s20') }}「{{ t('pages.settings.RecruitmentStage.s21') }}」{{ t('pages.settings.RecruitmentStage.s22') }}
+      </n-alert>
 
-    <div class="toolbar">
-      <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentStage.s4')" clearable style="width: 200px">
-        <template #prefix><n-icon :component="SearchOutline" /></template>
-      </n-input>
-      <n-select v-model:value="filterType" :options="typeFilterOptions" :placeholder="t('pages.settings.RecruitmentStage.s5')" clearable style="width: 160px" />
-      <n-select v-model:value="filterStatus" :options="statusFilterOptions" style="width: 120px" />
-      <div class="spacer"></div>
-      <n-button type="primary" class="gradient-btn" @click="handleCreate">
-        <template #icon><n-icon :component="AddOutline" /></template>
-        {{ t('pages.settings.RecruitmentStage.s6') }}
-      </n-button>
-    </div>
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentStage.s4')" clearable style="width: 200px">
+            <template #prefix><n-icon :component="SearchOutline" /></template>
+          </n-input>
+          <n-select v-model:value="filterType" :options="typeFilterOptions" :placeholder="t('pages.settings.RecruitmentStage.s5')" clearable style="width: 160px" />
+          <n-select v-model:value="filterStatus" :options="statusFilterOptions" style="width: 120px" />
+          <div class="spacer"></div>
+          <n-button type="primary" class="gradient-btn" @click="handleCreate">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            {{ t('pages.settings.RecruitmentStage.s6') }}
+          </n-button>
+        </div>
 
-    <div class="table-wrap">
-    <n-data-table
-      :columns="columns"
-      :data="filteredStages"
-      :loading="loading"
-      :pagination="localPagination()"
-      :row-key="(r) => r.id"
-      :max-height="tableMaxHeight"
-      :row-height="TABLE_ROW_HEIGHT"
-    />
-    </div>
+        <div class="table-wrap">
+          <n-data-table
+            :columns="columns"
+            :data="filteredStages"
+            :loading="loading"
+            :pagination="localPagination()"
+            :row-key="(r) => r.id"
+            :row-height="TABLE_ROW_HEIGHT"
+            flex-height
+          />
+        </div>
+      </div>
 
-    <!-- 新增/编辑阶段弹窗 -->
-</div><!-- /.page-body -->
+      <!-- 新增/编辑阶段弹窗 -->
+    </div><!-- /.page-body -->
 <!-- P1-4: 弹窗 560→600px 给 4 字段 + 4 checkbox + textarea + 双按钮更舒展的横向空间 -->
 <n-modal :show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 600px; max-width: 92vw" :bordered="false" :segmented="{ content: true, footer: true }" :mask-closable="false" :on-mask-click="requestClose" @update:show="(v: boolean) => !v && requestClose()">
       <n-form :model="form" label-placement="top">
@@ -156,11 +158,6 @@ const editing = ref<any>(null)
 // 2026-08-29 UX 整改：表头固定 + 行高统一 — 视窗高 - 上方累计(标题/工具条/信息条/分页)≈ 560，按 1 屏可见行数倒推
 // 2026-08-30 UX 二改：56→44 + td 垂直 padding 10→6，压缩行间距（兵哥嫌"行间距太大"）
 const TABLE_ROW_HEIGHT = 44
-const tableMaxHeight = computed(() => {
-  if (typeof window === 'undefined') return 560
-  // 预留分页器 64 + page-header 80 + toolbar 56 + alert 60 + page-body gap 48 ≈ 308，余下给表
-  return Math.max(320, window.innerHeight - 308)
-})
 const form = reactive({
   name: '',
   // 2026-06-17: 默认值跟 stageTypeOptions 第一个同步 (BE 是 SCREEN, 旧 FILTER 写错导致 400)
@@ -527,8 +524,17 @@ onMounted(async () => {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  /* 2026-08-30 UX 四改：gap 16px→12px，缓解 11 层嵌套 + 多 padding 叠加的视觉膨胀 */
-  gap: var(--space-3);
+  /* 8px 合规：gap 仅用 8/16/24px（硬规则 2） */
+  gap: var(--space-2);
+}
+
+/* 玻璃面板内 = 工具条 + 主表（与身份管理 RolesTab / DepartmentManagement 同构） */
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
 }
 
 .recruitment-stage {

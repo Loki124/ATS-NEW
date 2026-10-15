@@ -5,54 +5,57 @@
         <h1 class="page-title">{{ t('pages.settings.PositionTitleManagement.s1') }}</h1>
         <p class="page-subtitle">{{ t('pages.settings.PositionTitleManagement.s2') }}</p>
       </div>
-      <div class="page-header-actions">
-        <n-radio-group v-model:value="statusFilter" size="small">
-          <n-radio-button value="ALL">{{ t('pages.settings.PositionTitleManagement.s3') }}</n-radio-button>
-          <n-radio-button value="ACTIVE">{{ t('pages.settings.PositionTitleManagement.s4') }}</n-radio-button>
-          <n-radio-button value="INACTIVE">{{ t('pages.settings.PositionTitleManagement.s5') }}</n-radio-button>
-        </n-radio-group>
-        <n-input
-          v-model:value="searchKeyword"
-          :placeholder="t('pages.settings.PositionTitleManagement.s6')"
-          style="width: 240px"
-          clearable
-          @clear="searchKeyword = ''"
-        >
-          <template #prefix>
-            <n-icon :component="SearchOutline" />
-          </template>
-        </n-input>
-        <div class="spacer"></div>
-        <n-button ghost @click="loadJobTitles">
-          <template #icon><n-icon :component="RefreshOutline" /></template>
-          {{ t('pages.settings.PositionTitleManagement.s7') }}
-        </n-button>
-        <!-- 导出按钮可见性受 recruit:settings:job_title:export 授权（CSV 为客户端导出，无后端端点） -->
-        <n-button
-          v-permission="'recruit:settings:job_title:export'"
-          ghost
-          @click="exportJobTitles"
-        >
-          <template #icon><n-icon :component="DownloadOutline" /></template>
-          {{ t('pages.settings.PositionTitleManagement.s8') }}
-        </n-button>
-        <n-button type="primary" class="gradient-btn" @click="openCreateModal">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          {{ t('pages.settings.PositionTitleManagement.s9') }}
-        </n-button>
-      </div>
     </div>
 
     <div class="page-body">
-      <div class="glass-panel">
-        <n-data-table
-          :data="displayData"
-          :columns="columns"
-          :row-key="(row: JobTitle) => row.id"
-          :loading="loading"
-          :pagination="pagination"
-          size="medium"
-        />
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-input
+            v-model:value="searchKeyword"
+            :placeholder="t('pages.settings.PositionTitleManagement.s6')"
+            class="rule-filter-search"
+            clearable
+            @clear="searchKeyword = ''"
+          >
+            <template #prefix>
+              <n-icon :component="SearchOutline" />
+            </template>
+          </n-input>
+          <n-radio-group v-model:value="statusFilter" size="small">
+            <n-radio-button value="ALL">{{ t('pages.settings.PositionTitleManagement.s3') }}</n-radio-button>
+            <n-radio-button value="ACTIVE">{{ t('pages.settings.PositionTitleManagement.s4') }}</n-radio-button>
+            <n-radio-button value="INACTIVE">{{ t('pages.settings.PositionTitleManagement.s5') }}</n-radio-button>
+          </n-radio-group>
+          <div class="spacer"></div>
+          <n-button quaternary @click="loadJobTitles">
+            <template #icon><n-icon :component="RefreshOutline" /></template>
+            {{ t('pages.settings.PositionTitleManagement.s7') }}
+          </n-button>
+          <!-- 导出按钮可见性受 recruit:settings:job_title:export 授权（CSV 为客户端导出，无后端端点） -->
+          <n-button
+            v-permission="'recruit:settings:job_title:export'"
+            quaternary
+            @click="exportJobTitles"
+          >
+            <template #icon><n-icon :component="DownloadOutline" /></template>
+            {{ t('pages.settings.PositionTitleManagement.s8') }}
+          </n-button>
+          <n-button type="primary" class="gradient-btn" @click="openCreateModal">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            {{ t('pages.settings.PositionTitleManagement.s9') }}
+          </n-button>
+        </div>
+        <div class="table-wrap">
+          <n-data-table
+            :data="displayData"
+            :columns="columns"
+            :row-key="(row: JobTitle) => row.id"
+            :loading="loading"
+            :pagination="pagination"
+            size="medium"
+            flex-height
+          />
+        </div>
       </div>
     </div>
 
@@ -707,13 +710,15 @@ onMounted(() => {
   gap: var(--space-2);
 }
 
-.page-header-actions {
+/* .glass-panel 已是全局类（glass.css §4）；panel-shell 让面板撑满 page-body，
+ * 内部 .toolbar + .table-wrap(flex-height) 与身份管理 RolesTab 同构（2026-10-15 兵哥：页面结构统一） */
+.panel-shell {
   display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-/* .glass-panel 已是全局类（glass.css §4）；scoped 仅补 padding 让 <n-data-table> 与玻璃边缘有呼吸空间 */
-.glass-panel {
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   padding: var(--space-2);
 }
+/* 搜索框宽度与身份管理工具条一致（RolesTab scoped 同款覆盖全局 200px） */
+.rule-filter-search { width: 240px; max-width: 240px; }
 </style>

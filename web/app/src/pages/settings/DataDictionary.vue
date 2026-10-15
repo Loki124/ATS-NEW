@@ -9,47 +9,52 @@
         </div>
       </div>
 
-      <div class="toolbar">
-        <n-space align="center" :wrap="false">
-          <n-input
-            v-model:value="searchText"
-            :placeholder="t('pages.settings.DataDictionary.s3')"
-            clearable
-            style="width: 360px"
-            @update:value="onSearchInput"
-          >
-            <template #prefix>
-              <n-icon :component="SearchOutline" />
-            </template>
-          </n-input>
-          <n-select
-            v-model:value="typeFilter"
-            :options="typeOptions"
-            style="width: 160px"
-            @update:value="loadList"
-          />
-          <n-select
-            v-model:value="statusFilter"
-            :options="statusOptions"
-            style="width: 140px"
-            @update:value="loadList"
-          />
-        </n-space>
-        <n-button type="primary" @click="openCreateType">{{ t('pages.settings.DataDictionary.s4') }}</n-button>
-      </div>
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-space align="center" :wrap="false">
+            <n-input
+              v-model:value="searchText"
+              :placeholder="t('pages.settings.DataDictionary.s3')"
+              clearable
+              style="width: 360px"
+              @update:value="onSearchInput"
+            >
+              <template #prefix>
+                <n-icon :component="SearchOutline" />
+              </template>
+            </n-input>
+            <n-select
+              v-model:value="typeFilter"
+              :options="typeOptions"
+              style="width: 160px"
+              @update:value="loadList"
+            />
+            <n-select
+              v-model:value="statusFilter"
+              :options="statusOptions"
+              style="width: 140px"
+              @update:value="loadList"
+            />
+          </n-space>
+          <n-button type="primary" class="gradient-btn" @click="openCreateType">{{ t('pages.settings.DataDictionary.s4') }}</n-button>
+        </div>
 
-      <n-data-table
-        :columns="listColumns"
-        :data="types"
-        :loading="listLoading"
-        :row-key="(r: any) => r.code"
-        :pagination="false"
-        :scroll-x="1200"
-      >
-        <template #empty>
-          <n-empty :description="t('pages.settings.DataDictionary.s5')" />
-        </template>
-      </n-data-table>
+        <div class="table-wrap">
+          <n-data-table
+            :columns="listColumns"
+            :data="types"
+            :loading="listLoading"
+            :row-key="(r: any) => r.code"
+            :pagination="false"
+            :scroll-x="1200"
+            flex-height
+          >
+            <template #empty>
+              <n-empty :description="t('pages.settings.DataDictionary.s5')" />
+            </template>
+          </n-data-table>
+        </div>
+      </div>
     </template>
 
     <!-- ===================== 编辑模式 ===================== -->
@@ -948,6 +953,15 @@ onUnmounted(() => {
 /* .page-title / .page-subtitle 复用全局 glass.css 渐变规格（26px 渐变标题 + --ink-soft 副标题），不再私有覆盖 */
 .code-pill, .num-pill { font-size: var(--fs-12); color: var(--ink-soft); background: var(--g1); padding: 2px var(--space-2); border-radius: 4px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
+/* 列表模式玻璃面板：工具条 + table-wrap 同构身份管理；编辑模式 page-container 为 block 流，
+   panel-shell 此处退化为自然高度（flex-height 随页面整体滚动），以视觉统一为先。 */
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
+}
 .section { margin-bottom: var(--space-4); }
 .section--info :deep(.n-card__content) { padding: var(--space-3) var(--space-4) !important; }
 /* 元素卡片：自然高度（随行数生长，由 .page-container.edit-mode 整体滚动）。

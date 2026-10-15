@@ -5,55 +5,59 @@
         <h1 class="page-title">{{ t('pages.settings.DepartmentManagement.s1') }}</h1>
         <p class="page-subtitle">{{ t('pages.settings.DepartmentManagement.s2') }}</p>
       </div>
-      <div class="page-header-actions">
-        <n-radio-group v-model:value="statusFilter" size="small">
-          <n-radio-button value="ALL">{{ t('pages.settings.DepartmentManagement.s3') }}</n-radio-button>
-          <n-radio-button value="ACTIVE">{{ t('pages.settings.DepartmentManagement.s4') }}</n-radio-button>
-          <n-radio-button value="INACTIVE">{{ t('pages.settings.DepartmentManagement.s5') }}</n-radio-button>
-        </n-radio-group>
-        <n-input
-          v-model:value="searchKeyword"
-          :placeholder="t('pages.settings.DepartmentManagement.s6')"
-          style="width: 240px"
-          clearable
-          @clear="searchKeyword = ''"
-        >
-          <template #prefix>
-            <n-icon :component="SearchOutline" />
-          </template>
-        </n-input>
-        <div class="spacer"></div>
-        <n-button ghost @click="loadDepartments">
-          <template #icon><n-icon :component="RefreshOutline" /></template>
-          {{ t('pages.settings.DepartmentManagement.s7') }}
-        </n-button>
-        <n-button ghost @click="exportDepartments">
-          <template #icon><n-icon :component="DownloadOutline" /></template>
-          {{ t('pages.settings.DepartmentManagement.s8') }}
-        </n-button>
-        <n-button ghost @click="openImportModal">
-          <template #icon><n-icon :component="CloudUploadOutline" /></template>
-          {{ t('pages.settings.DepartmentManagement.s9') }}
-        </n-button>
-        <n-button type="primary" class="gradient-btn" @click="openCreateModal">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          {{ t('pages.settings.DepartmentManagement.s10') }}
-        </n-button>
-      </div>
     </div>
 
     <div class="page-body">
-      <div class="glass-panel">
-      <n-data-table
-        :data="displayData"
-        :columns="columns"
-        :row-key="(row: Department) => row.id"
-        :loading="loading"
-        :pagination="pagination"
-        :expanded-row-keys="expandedKeys"
-        size="medium"
-        @update:expanded-row-keys="onExpandedKeysChange"
-      />
+      <!-- 与身份管理（RolesTab）同构：玻璃面板内 = 工具条（左搜索/筛选 + spacer + 右操作）+ table-wrap(flex-height) -->
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-input
+            v-model:value="searchKeyword"
+            :placeholder="t('pages.settings.DepartmentManagement.s6')"
+            class="rule-filter-search"
+            clearable
+            @clear="searchKeyword = ''"
+          >
+            <template #prefix>
+              <n-icon :component="SearchOutline" />
+            </template>
+          </n-input>
+          <n-radio-group v-model:value="statusFilter" size="small">
+            <n-radio-button value="ALL">{{ t('pages.settings.DepartmentManagement.s3') }}</n-radio-button>
+            <n-radio-button value="ACTIVE">{{ t('pages.settings.DepartmentManagement.s4') }}</n-radio-button>
+            <n-radio-button value="INACTIVE">{{ t('pages.settings.DepartmentManagement.s5') }}</n-radio-button>
+          </n-radio-group>
+          <div class="spacer"></div>
+          <!-- 工具栏按钮组（frontend-layout-standard §1.8.1）：quaternary 文字按钮 + 主操作 primary -->
+          <n-button quaternary @click="loadDepartments">
+            <template #icon><n-icon :component="RefreshOutline" /></template>
+            {{ t('pages.settings.DepartmentManagement.s7') }}
+          </n-button>
+          <n-button quaternary @click="exportDepartments">
+            <template #icon><n-icon :component="DownloadOutline" /></template>
+            {{ t('pages.settings.DepartmentManagement.s8') }}
+          </n-button>
+          <n-button quaternary @click="openImportModal">
+            <template #icon><n-icon :component="CloudUploadOutline" /></template>
+            {{ t('pages.settings.DepartmentManagement.s9') }}
+          </n-button>
+          <n-button type="primary" class="gradient-btn" @click="openCreateModal">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            {{ t('pages.settings.DepartmentManagement.s10') }}
+          </n-button>
+        </div>
+        <div class="table-wrap">
+          <n-data-table
+            :data="displayData"
+            :columns="columns"
+            :row-key="(row: Department) => row.id"
+            :loading="loading"
+            :pagination="pagination"
+            :expanded-row-keys="expandedKeys"
+            flex-height
+            @update:expanded-row-keys="onExpandedKeysChange"
+          />
+        </div>
       </div>
     </div>
 
@@ -1161,13 +1165,15 @@ onMounted(() => {
   gap: var(--space-2);
 }
 
-.page-header-actions {
+/* .glass-panel 已是全局类（glass.css §4）；panel-shell 让面板撑满 page-body，
+ * 内部 .toolbar + .table-wrap(flex-height) 与身份管理 RolesTab 同构（2026-10-15 兵哥：页面结构统一） */
+.panel-shell {
   display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-/* .glass-panel 已是全局类（glass.css §4）；scoped 仅补 padding 让 <n-data-table> 与玻璃边缘有呼吸空间 */
-.glass-panel {
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   padding: var(--space-2);
 }
+/* 搜索框宽度与身份管理工具条一致（RolesTab scoped 同款覆盖全局 200px） */
+.rule-filter-search { width: 240px; }
 </style>

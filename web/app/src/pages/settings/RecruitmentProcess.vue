@@ -8,32 +8,34 @@
         </div>
       </div>
 
-      <div class="toolbar">
-        <n-input
-          v-model:value="keyword"
-          class="process-search"
-          :placeholder="t('pages.settings.RecruitmentProcess.s3')"
-          clearable
-        >
-          <template #prefix><n-icon :component="SearchOutline" /></template>
-        </n-input>
-        <div class="spacer"></div>
-        <n-button type="primary" class="gradient-btn" @click="openCreateProcess">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          {{ t('pages.settings.RecruitmentProcess.s4') }}
-        </n-button>
-      </div>
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-input
+            v-model:value="keyword"
+            class="process-search"
+            :placeholder="t('pages.settings.RecruitmentProcess.s3')"
+            clearable
+          >
+            <template #prefix><n-icon :component="SearchOutline" /></template>
+          </n-input>
+          <div class="spacer"></div>
+          <n-button type="primary" class="gradient-btn" @click="openCreateProcess">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            {{ t('pages.settings.RecruitmentProcess.s4') }}
+          </n-button>
+        </div>
 
-      <div class="table-wrap table-fade">
-        <n-data-table
-          :columns="columns"
-          :data="processes"
-          :loading="loading"
-          :pagination="localPagination()"
-          :row-key="(r) => r.id"
-          :max-height="tableMaxHeight"
-          :row-height="TABLE_ROW_HEIGHT"
-        />
+        <div class="table-wrap table-fade">
+          <n-data-table
+            :columns="columns"
+            :data="processes"
+            :loading="loading"
+            :pagination="localPagination()"
+            :row-key="(r) => r.id"
+            flex-height
+            :row-height="TABLE_ROW_HEIGHT"
+          />
+        </div>
       </div>
 
       <!-- 流程详情 modal (view + edit 双模态, 统一入口) -->
@@ -82,11 +84,6 @@ async function loadDepartments() {
 // 2026-08-29 UX 整改：表头固定 + 行高统一。表格高度 = 视窗高 - 上方累计(标题/工具条/分页)。
 // 2026-08-30 UX 二改：56→44 + td 垂直 padding 10→6，压缩行间距（兵哥嫌"行间距太大"）
 const TABLE_ROW_HEIGHT = 44
-const tableMaxHeight = computed(() => {
-  if (typeof window === 'undefined') return 560
-  // 预留分页器 64 + page-header 80 + toolbar 56 + page-body gap 32 ≈ 232
-  return Math.max(232, window.innerHeight - 232)
-})
 
 const columns = computed(() => [
   column({
@@ -270,8 +267,16 @@ onMounted(async () => { await loadDepartments(); loadList() })
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  /* 2026-08-30 UX 四改：gap 16px→12px，缓解 11 层嵌套 + 多 padding 叠加的视觉膨胀 */
-  gap: var(--space-3);
+  gap: var(--space-2);
+}
+
+/* 玻璃面板内 = 工具条 + table-wrap(flex-height)，与身份管理 RolesTab 同构 */
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
 }
 
 .recruitment-process {

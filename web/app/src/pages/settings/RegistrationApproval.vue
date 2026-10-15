@@ -1,12 +1,15 @@
 <template>
   <div class="page-container">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">{{ t('pages.settings.RegistrationApproval.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.RegistrationApproval.s2') }}</p>
+      </div>
+    </div>
+
     <div class="page-body">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">{{ t('pages.settings.RegistrationApproval.s1') }}</h1>
-          <p class="page-subtitle">{{ t('pages.settings.RegistrationApproval.s2') }}</p>
-        </div>
-        <div class="page-header-actions">
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
           <!-- 状态筛选：本项目的 naive-ui 2.44.1 安装包不含 NSegmented
                （dist 包与 volar.d.ts 中均无该导出），用单选按钮组替代，交互等价 -->
           <n-radio-group
@@ -21,27 +24,28 @@
               :label="opt.label"
             />
           </n-radio-group>
-          <n-button :loading="loading" @click="loadList">
+          <div class="spacer"></div>
+          <n-button quaternary :loading="loading" @click="loadList">
             <template #icon><n-icon :component="RefreshOutline" /></template>
             {{ t('pages.settings.RegistrationApproval.s3') }}
           </n-button>
         </div>
+        <div class="table-wrap">
+          <n-data-table
+            :data="list"
+            :columns="columns"
+            :row-key="(row: RegApp) => row.id"
+            :loading="loading"
+            :pagination="localPagination()"
+            flex-height
+          >
+            <template #empty>
+              <n-empty :description="t('pages.settings.RegistrationApproval.s4')" />
+            </template>
+          </n-data-table>
+        </div>
       </div>
-
-      <div class="glass-panel">
-        <n-data-table
-          :data="list"
-          :columns="columns"
-          :row-key="(row: RegApp) => row.id"
-          :loading="loading"
-          :pagination="localPagination()"
-        />
-        <n-empty
-          v-if="!loading && list.length === 0"
-          :description="t('pages.settings.RegistrationApproval.s4')"
-          style="padding: 40px 0"
-        />
-      </div>
+    </div>
 
       <!-- 拒绝理由弹窗 -->
       <n-modal
@@ -67,7 +71,6 @@
           </div>
         </template>
       </n-modal>
-    </div>
   </div>
 </template>
 
@@ -230,13 +233,14 @@ onMounted(loadList)
 </script>
 
 <style scoped>
-.page-header-actions {
+/* .page-header 的 flex-shrink:0 与 .spacer 的 flex:1 已由 glass.css 全局提供，此处不私有重写 */
+/* .glass-panel 已是全局类（glass.css §4）；panel-shell 让面板撑满 page-body，
+ * 内部 .toolbar + .table-wrap(flex-height) 与身份管理 RolesTab 同构 */
+.panel-shell {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-/* .glass-panel 已是全局类（glass.css §4）；scoped 仅补 padding 让 <n-data-table> 与玻璃边缘有呼吸空间 */
-.glass-panel {
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   padding: var(--space-2);
 }
 </style>

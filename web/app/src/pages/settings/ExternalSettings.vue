@@ -35,63 +35,66 @@
     </div>
 
     <!-- ===================== 工具条 ===================== -->
-    <div class="toolbar">
-      <n-space align="center" :wrap="false">
-        <n-input
-          v-model:value="keyword"
-          :placeholder="t('pages.settings.ExternalSettings.s8')"
-          clearable
-          style="width: 320px"
-          @update:value="onSearch"
-        >
-          <template #prefix><n-icon :component="SearchOutline" /></template>
-        </n-input>
-        <n-select
-          v-model:value="statusFilter"
-          :options="statusOptions"
-          class="es-input-select"
-          @update:value="applyFilter"
-        />
-        <n-select
-          v-model:value="envFilter"
-          :options="envOptions"
-          class="es-input-select"
-          @update:value="applyFilter"
-        />
-      </n-space>
-      <div class="spacer"></div>
-      <n-button quaternary @click="openGlobalAudit">
-        <template #icon><n-icon :component="BarChartOutline" /></template>
-        {{ t('pages.settings.ExternalSettings.s9') }}
-      </n-button>
-      <n-button quaternary @click="openOrders">
-        <template #icon><n-icon :component="ReceiptOutline" /></template>
-        {{ t('pages.settings.ExternalSettings.s10') }}
-      </n-button>
-      <n-button quaternary @click="showDoc = true">
-        <template #icon><n-icon :component="BookOutline" /></template>
-        {{ t('pages.settings.ExternalSettings.s11') }}
-      </n-button>
-      <n-button quaternary @click="resetFilter">
-        <template #icon><n-icon :component="RefreshOutline" /></template>
-        {{ t('pages.settings.ExternalSettings.s12') }}
-      </n-button>
-    </div>
+    <div class="glass-panel panel-shell">
+      <div class="toolbar">
+        <n-space align="center" :wrap="false">
+          <n-input
+            v-model:value="keyword"
+            :placeholder="t('pages.settings.ExternalSettings.s8')"
+            clearable
+            style="width: 320px"
+            @update:value="onSearch"
+          >
+            <template #prefix><n-icon :component="SearchOutline" /></template>
+          </n-input>
+          <n-select
+            v-model:value="statusFilter"
+            :options="statusOptions"
+            class="es-input-select"
+            @update:value="applyFilter"
+          />
+          <n-select
+            v-model:value="envFilter"
+            :options="envOptions"
+            class="es-input-select"
+            @update:value="applyFilter"
+          />
+        </n-space>
+        <div class="spacer"></div>
+        <n-button quaternary @click="openGlobalAudit">
+          <template #icon><n-icon :component="BarChartOutline" /></template>
+          {{ t('pages.settings.ExternalSettings.s9') }}
+        </n-button>
+        <n-button quaternary @click="openOrders">
+          <template #icon><n-icon :component="ReceiptOutline" /></template>
+          {{ t('pages.settings.ExternalSettings.s10') }}
+        </n-button>
+        <n-button quaternary @click="showDoc = true">
+          <template #icon><n-icon :component="BookOutline" /></template>
+          {{ t('pages.settings.ExternalSettings.s11') }}
+        </n-button>
+        <n-button quaternary @click="resetFilter">
+          <template #icon><n-icon :component="RefreshOutline" /></template>
+          {{ t('pages.settings.ExternalSettings.s12') }}
+        </n-button>
+      </div>
 
-    <!-- ===================== 供应商列表 ===================== -->
-    <div class="table-wrap">
-      <n-data-table
-        :columns="columns"
-        :data="filteredSuppliers"
-        :loading="loading"
-        :row-key="(r: any) => r.id"
-        :pagination="false"
-        :scroll-x="1180"
-      >
-        <template #empty>
-          <n-empty :description="t('pages.settings.ExternalSettings.s13')" />
-        </template>
-      </n-data-table>
+      <!-- ===================== 供应商列表 ===================== -->
+      <div class="table-wrap">
+        <n-data-table
+          :columns="columns"
+          :data="filteredSuppliers"
+          :loading="loading"
+          :row-key="(r: any) => r.id"
+          :pagination="false"
+          :scroll-x="1180"
+          flex-height
+        >
+          <template #empty>
+            <n-empty :description="t('pages.settings.ExternalSettings.s13')" />
+          </template>
+        </n-data-table>
+      </div>
     </div>
 
     <!-- ===================== 统一接入配置弹窗 ===================== -->
@@ -1343,6 +1346,15 @@ onMounted(() => {
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
+}
+/* 玻璃面板内 = 工具条 + table-wrap(flex-height)，与身份管理 RolesTab 同构；
+   page-container 为 block 流，panel-shell 此处退化为自然高度（flex-height 随页面整体滚动），以视觉统一为先。 */
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
 }
 /* KPI 卡片复用全局 .kpi-card；仅强调数字用变量化色阶，不硬编码 hex 破坏暗色 */
 .kpi-value--ok { color: var(--c-success-deep); }

@@ -1,36 +1,38 @@
 <template>
   <div class="page-container interview-round">
-<div class="page-body">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">{{ t('pages.settings.RecruitmentRound.s1') }}</h1>
-        <p class="page-subtitle">{{ t('pages.settings.RecruitmentRound.s2') }}</p>
+    <div class="page-body">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">{{ t('pages.settings.RecruitmentRound.s1') }}</h1>
+          <p class="page-subtitle">{{ t('pages.settings.RecruitmentRound.s2') }}</p>
+        </div>
       </div>
-    </div>
 
-    <div class="toolbar">
-      <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentRound.s3')" clearable style="width: 200px">
-        <template #prefix><n-icon :component="SearchOutline" /></template>
-      </n-input>
-      <div class="spacer"></div>
-      <n-button type="primary" class="gradient-btn" @click="showModal = true">
-        <template #icon><n-icon :component="AddOutline" /></template>
-        {{ t('pages.settings.RecruitmentRound.s4') }}
-      </n-button>
-    </div>
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentRound.s3')" clearable style="width: 200px">
+            <template #prefix><n-icon :component="SearchOutline" /></template>
+          </n-input>
+          <div class="spacer"></div>
+          <n-button type="primary" class="gradient-btn" @click="showModal = true">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            {{ t('pages.settings.RecruitmentRound.s4') }}
+          </n-button>
+        </div>
 
-    <div class="table-wrap">
-    <n-data-table
-      :columns="columns"
-      :data="rounds"
-      :loading="loading"
-      :pagination="localPagination()"
-      :row-key="(r) => r.id"
-      :max-height="tableMaxHeight"
-      :row-height="TABLE_ROW_HEIGHT"
-    />
-    </div>
-</div><!-- /.page-body -->
+        <div class="table-wrap">
+          <n-data-table
+            :columns="columns"
+            :data="rounds"
+            :loading="loading"
+            :pagination="localPagination()"
+            :row-key="(r) => r.id"
+            :row-height="TABLE_ROW_HEIGHT"
+            flex-height
+          />
+        </div>
+      </div>
+    </div><!-- /.page-body -->
 <n-modal :show="showModal" preset="card" :title="editing ? t('pages.settings.RecruitmentRound.s13') : t('pages.settings.RecruitmentRound.s4')" style="width: 520px; max-width: 90vw" :bordered="false" :segmented="{ content: true, footer: true }" :mask-closable="false" :on-mask-click="requestClose" @update:show="(v: boolean) => !v && requestClose()">
       <n-form :model="form" label-placement="top">
         <n-form-item :label="t('pages.settings.RecruitmentRound.s5')" required>
@@ -59,7 +61,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { localPagination } from '@/composables/useTablePagination'
-import { ref, reactive, onMounted, h, computed } from 'vue'
+import { ref, reactive, onMounted, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NSwitch, NForm, NFormItem, NModal, NDataTable } from 'naive-ui'
 import { AddOutline, PowerOutline, SearchOutline, CreateOutline } from '@vicons/ionicons5'
 import { listRounds, createRound, updateRound, updateRoundStatus } from '../../api/recruitment-process'
@@ -84,11 +86,6 @@ const editing = ref<any>(null)
 // 2026-08-29 UX 整改：表头固定 + 行高统一
 // 2026-08-30 UX 二改：56→44 + td 垂直 padding 10→6，压缩行间距（兵哥嫌"行间距太大"）
 const TABLE_ROW_HEIGHT = 44
-const tableMaxHeight = computed(() => {
-  if (typeof window === 'undefined') return 560
-  // 预留分页器 64 + page-header 80 + toolbar 56 + page-body gap 32 ≈ 232
-  return Math.max(320, window.innerHeight - 232)
-})
 const form = reactive({
   name: '',
   description: '',
@@ -221,8 +218,17 @@ onMounted(() => loadList())
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  /* 2026-08-30 UX 四改：gap 16px→12px，缓解 11 层嵌套 + 多 padding 叠加的视觉膨胀 */
-  gap: var(--space-3);
+  /* 8px 合规：gap 仅用 8/16/24px（硬规则 2） */
+  gap: var(--space-2);
+}
+
+/* 玻璃面板内 = 工具条 + 主表（与身份管理 RolesTab / DepartmentManagement 同构） */
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
 }
 
 .interview-round {
