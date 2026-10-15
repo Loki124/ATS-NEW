@@ -461,7 +461,14 @@ def _compile_dfv_condition(spec: dict, cond: dict, operator: str) -> Q | None:
     ids = [v for v in _norm_ids(cond) if v not in (None, '')]
     if not ids:
         return None
-    id_filter = Q(value__in=ids) | Q(value__in=[str(i) for i in ids])
+    # PERSON 值存于 JSONField，可能以 int 或 str 形态落地（前端/历史差异）。
+    # ⚠️ MySQL 上 JSONField 的 value__in=[...] 不命中（标量 JSON 与 SQL IN 不做 JSON 感知比较），
+    # 必须用逐值精确 `=`（`value = JSON_EXTRACT(..., '$')`）并同时覆盖 int / str 两种形态，
+    # 用 OR 聚合多值，杜绝假阴性。
+    id_filter = Q()
+    for i in ids:
+        id_filter |= Q(value=i)
+        id_filter |= Q(value=str(i))
     subq = Subquery(
         DynamicFieldValue.objects.filter(
             resource=spec['resource'], field_key=spec['field_key'],

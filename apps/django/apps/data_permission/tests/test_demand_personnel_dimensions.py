@@ -102,7 +102,9 @@ def test_demand_personnel_dimensions_all_match_and_negative_and_neq():
         hiring_manager=u_hr, owner=u_hr, process=process, demand=demand,
     )
     cand = Candidate.objects.create(name="抢单候选人", phone=_uid("138"))
-    stage = RecruitmentStage.objects.create(code=_uid("S"), name="初评", stage_type="INTERVIEW")
+    # 注意：'初评' 是迁移 0012 预置的内置阶段（recruitment_stages.name 唯一），
+    # 测试库每次重建都会存在该 name，故此处必须用唯一名，否则触发唯一键冲突。
+    stage = RecruitmentStage.objects.create(code=_uid("S"), name=_uid("初评"), stage_type="INTERVIEW")
     link = ProcessStageLink.objects.create(process=process, stage=stage, order=1)
     Application.objects.create(
         code=_uid("APP"), candidate=cand, position=position, process=process,
