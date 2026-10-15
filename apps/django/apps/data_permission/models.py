@@ -304,6 +304,7 @@ class DataPermissionActionPreset(models.Model):
     key = models.CharField(max_length=32, primary_key=True, verbose_name='预设key')
     label = models.CharField(max_length=32, verbose_name='名称')
     action_keys = models.JSONField(default=list, verbose_name='动作key集合')
+    module = models.CharField(max_length=32, null=True, blank=True, verbose_name='功能模块')
     is_system = models.BooleanField(default=False, verbose_name='系统内置')
     sort_order = models.IntegerField(default=0, verbose_name='排序')
 

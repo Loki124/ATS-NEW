@@ -36,7 +36,7 @@
           :bordered="p.is_system !== true"
           class="preset-tag"
         >
-          {{ p.label }}（{{ (p.actionKeys || []).length }}）
+          {{ p.label }}（{{ p.module ? moduleLabel(p.module) + ' · ' : '' }}{{ (p.actionKeys || []).length }}）
           <n-button
             v-if="!p.is_system"
             text
@@ -83,6 +83,14 @@
             :options="actionSelectOptions"
           />
         </n-form-item>
+        <n-form-item v-if="formKind === 'preset'" :label="t('dataperm.actions.formModule')">
+          <n-select
+            v-model:value="form.module"
+            :options="moduleOptions"
+            clearable
+            placeholder="未指定"
+          />
+        </n-form-item>
         <n-form-item v-if="formKind === 'action' && editingKey">
           <n-checkbox v-model:checked="form.enabled">{{ t('dataperm.actions.enabled') }}</n-checkbox>
         </n-form-item>
@@ -118,6 +126,7 @@ import {
   listActionPresets, createActionPreset, updateActionPreset, deleteActionPreset,
   type ActionDictItem, type ActionPreset,
 } from '@/api/data-permission'
+import { RESOURCE_MODULE_LABELS } from '@/utils/permissionModules'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{ (e: 'update:show', v: boolean): void }>()
@@ -214,7 +223,7 @@ const formSaving = ref(false)
 const formKind = ref<'action' | 'preset'>('action')
 const editingKey = ref('')
 const form = ref({
-  key: '', label: '', category: 'write', enabled: true, actionKeys: [] as string[],
+  key: '', label: '', category: 'write', enabled: true, actionKeys: [] as string[], module: '',
 })
 
 const categoryOptions = [
@@ -222,6 +231,17 @@ const categoryOptions = [
   { label: 'read', value: 'read' },
   { label: 'destructive', value: 'destructive' },
 ]
+
+// 预设包「功能模块」下拉：复用权限资源模块中文名单一数据源（代码 → 中文名）
+const moduleOptions = computed(() =>
+  Object.entries(RESOURCE_MODULE_LABELS).map(([value, label]) => ({ label, value })),
+)
+
+/** 功能模块 code → 中文名（未知回退原 code）。 */
+function moduleLabel(code?: string | null): string {
+  if (!code) return ''
+  return RESOURCE_MODULE_LABELS[code] ?? code
+}
 
 const actionSelectOptions = computed(() =>
   actions.value
@@ -244,6 +264,7 @@ function openActionForm(row?: ActionDictItem) {
     category: row?.category || 'write',
     enabled: row?.enabled ?? true,
     actionKeys: [],
+    module: '',
   }
   formShow.value = true
 }
@@ -257,6 +278,7 @@ function openPresetForm(row?: ActionPreset) {
     category: 'write',
     enabled: true,
     actionKeys: [...(row?.actionKeys || [])],
+    module: row?.module || '',
   }
   formShow.value = true
 }
@@ -279,10 +301,12 @@ async function submitForm() {
     } else if (editingKey.value) {
       await updateActionPreset(editingKey.value, {
         label: form.value.label, actionKeys: form.value.actionKeys,
+        module: form.value.module || undefined,
       })
     } else {
       await createActionPreset({
         key: form.value.key, label: form.value.label, actionKeys: form.value.actionKeys,
+        module: form.value.module || undefined,
       })
     }
     formShow.value = false

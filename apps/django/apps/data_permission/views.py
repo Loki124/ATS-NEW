@@ -351,17 +351,18 @@ class DataPermissionActionPresetViewSet(viewsets.ViewSet):
         if DataPermissionActionPreset.objects.filter(pk=key).exists():
             return Response({'success': False, 'message': f'预设包已存在: {key}'}, status=400)
         obj = DataPermissionActionPreset.objects.create(
-            key=key, label=label, action_keys=action_keys, is_system=False, sort_order=900)
+            key=key, label=label, action_keys=action_keys,
+            module=request.data.get('module') or None, is_system=False, sort_order=900)
         action_registry.invalidate_cache()
         _audit_config_change(request.user, 'dp_action_preset', key, 'CREATE', None,
-                             {'label': label, 'actionKeys': action_keys}, request)
+                             {'label': label, 'actionKeys': action_keys, 'module': obj.module}, request)
         return Response({'success': True, 'data': {'key': obj.key}}, status=http_status.HTTP_201_CREATED)
 
     def partial_update(self, request, pk=None):
         obj = DataPermissionActionPreset.objects.filter(pk=pk).first()
         if obj is None:
             return Response({'success': False, 'message': '预设包不存在'}, status=404)
-        old = {'label': obj.label, 'actionKeys': obj.action_keys}
+        old = {'label': obj.label, 'actionKeys': obj.action_keys, 'module': obj.module}
         if obj.is_system and 'key' in request.data:
             return Response({'success': False, 'message': '系统预设包不可改 key'}, status=400)
         if 'label' in request.data:
@@ -372,10 +373,12 @@ class DataPermissionActionPresetViewSet(viewsets.ViewSet):
             if reason:
                 return Response({'success': False, 'message': reason}, status=400)
             obj.action_keys = action_keys
+        if 'module' in request.data:
+            obj.module = request.data['module'] or None
         obj.save()
         action_registry.invalidate_cache()
         _audit_config_change(request.user, 'dp_action_preset', pk, 'UPDATE', old,
-                             {'label': obj.label, 'actionKeys': obj.action_keys}, request)
+                             {'label': obj.label, 'actionKeys': obj.action_keys, 'module': obj.module}, request)
         return Response({'success': True, 'data': {'key': obj.key, 'label': obj.label}})
 
     def destroy(self, request, pk=None):

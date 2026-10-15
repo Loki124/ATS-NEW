@@ -10,39 +10,62 @@
       :data="data"
       :loading="loading"
       :bordered="false"
+      :row-key="(r: PermissionTemplate) => r.id"
     />
+
+    <!-- 权限码明细抽屉：按功能模块分组展示中文名（英文 code 作副文本/悬浮） -->
+    <n-drawer v-model:show="codesDrawer.show" :width="460" placement="right">
+      <n-drawer-content
+        :title="`权限码明细 · ${codesDrawer.row?.templateName ?? ''}`"
+        :native-scrollbar="false"
+      >
+        <template v-if="codesDrawer.groups.length">
+          <div v-for="g in codesDrawer.groups" :key="g.module" class="code-group">
+            <div class="code-group-title">{{ g.moduleLabel }}</div>
+            <div v-for="it in g.items" :key="it.code" class="code-item">
+              <span class="code-name">{{ it.name }}</span>
+              <span class="code-raw" :title="it.code">{{ it.code }}</span>
+            </div>
+          </div>
+        </template>
+        <n-empty v-else description="该模板暂无权限码" />
+      </n-drawer-content>
+    </n-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
+import { h, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-/**
- * TemplatesTab.vue — 权限模板 tab (T20)
- *
- * 后端 PermissionTemplate 是只读 ReadOnlyModelViewSet — 仅 list.
- * 模板由 seed_v2_init 命令注入 (T15, 4 个预置模板).
- *
- * 用途: 角色管理 tab 的 "从模板克隆" 弹窗需要从这拉 template_code 列表
- *   — 这里加载一次缓存, 后续 clone 时直接用本组件的 data.
- */
-import { h, onMounted, ref } from 'vue'
-import { NButton, NSpace, NDataTable, NText, useMessage } from 'naive-ui'
+import { NButton, NSpace, NDataTable, NText, NTag, NDrawer, NDrawerContent, NEmpty, useMessage } from 'naive-ui'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
+import { useResourceNames, groupPermissionCodesByModule, type GroupedCode } from '@/composables/useResourceNames'
 const { t } = useI18n()
-
 const message = useMessage()
+const { ensureLoaded } = useResourceNames()
+
 const loading = ref(false)
 const data = ref<PermissionTemplate[]>([])
 
+const codesDrawer = reactive<{ show: boolean; row: PermissionTemplate | null; groups: GroupedCode[] }>({
+  show: false,
+  row: null,
+  groups: [],
+})
+
 const columns = [
-  { title: t('pages.settings.permission.TemplatesTab.s4'), key: 'templateCode', width: 200 },
+  { title: t('pages.settings.permission.TemplatesTab.s4'), key: 'templateCode', width: 200,
+    render: (row: PermissionTemplate) => h('span', { class: 'cell-code' }, row.templateCode) },
   { title: t('pages.settings.permission.TemplatesTab.s5'), key: 'templateName', width: 160 },
-  { title: t('pages.settings.permission.TemplatesTab.s6'), key: 'description', width: 280 },
+  { title: t('pages.settings.permission.TemplatesTab.s6'), key: 'description', width: 280,
+    ellipsis: { tooltip: true } },
   {
     title: t('pages.settings.permission.TemplatesTab.s7'),
     key: 'permissionCodes',
     width: 120,
-    render: (row: PermissionTemplate) => row.permissionCodes?.length ?? 0,
+    render: (row: PermissionTemplate) =>
+      h(NTag, { size: 'small', type: 'info', bordered: false },
+        { default: () => `${row.permissionCodes?.length ?? 0} 项` }),
   },
   {
     title: t('pages.settings.permission.TemplatesTab.s8'),
@@ -70,7 +93,8 @@ const columns = [
 async function load() {
   loading.value = true
   try {
-    data.value = await listTemplates()
+    const [tpls] = await Promise.all([listTemplates(), ensureLoaded()])
+    data.value = tpls
   } catch (e: any) {
     message.error(t('pages.settings.permission.TemplatesTab.s13') + (e?.message ?? e))
   } finally {
@@ -79,10 +103,9 @@ async function load() {
 }
 
 function viewCodes(row: PermissionTemplate) {
-  const codes = row.permissionCodes?.join('\n') ?? '(空)'
-  message.info(`${t('pages.settings.permission.TemplatesTab.s14', { code: row.templateCode, count: row.permissionCodes?.length ?? 0 })}\n${codes}`, {
-    duration: 8000,
-  })
+  codesDrawer.row = row
+  codesDrawer.groups = groupPermissionCodesByModule(row.permissionCodes ?? [])
+  codesDrawer.show = true
 }
 
 onMounted(load)
@@ -98,5 +121,38 @@ onMounted(load)
   display: flex;
   gap: var(--space-2);
   align-items: center;
+}
+/* 资源码（英文）弱化展示，避免抢视觉（中文名才是主体） */
+.cell-code { color: var(--ink-soft); font-family: var(--font-mono, monospace); }
+
+/* ===== 权限码明细抽屉：按模块分组 ===== */
+.code-group { margin-bottom: var(--space-3); }
+.code-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink, #1e293b);
+  padding: 4px 8px;
+  border-left: 3px solid var(--brand, #4f46e5);
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.code-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 4px 8px;
+}
+.code-name { color: var(--ink, #1e293b); }
+.code-raw {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--ink-soft, #94a3b8);
+  max-width: 52%;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

@@ -123,6 +123,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.actions.formKey': 'key（自定义动作须以 custom_ 开头）',
   'dataperm.actions.formCategory': '归类',
   'dataperm.actions.formActions': '包含动作',
+  'dataperm.actions.formModule': '功能模块',
   'dataperm.actions.save': '保存',
   'dataperm.actions.cancel': '取消',
   'dataperm.modal.fieldPlaceholder': '请选择属性字段',

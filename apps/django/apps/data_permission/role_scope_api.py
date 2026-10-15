@@ -454,7 +454,12 @@ def options_payload() -> Dict:
         # snake→camel（owner_restricted → ownerRestricted），key 作为字典键会被
         # 破坏；作为数组元素的值则原样透传，前端拿到的 key 与存储契约一致。
         'presetPackages': [
-            {'key': k, 'label': k, 'actionKeys': list(v)}
+            {
+                'key': k,
+                'label': v.get('label') or k,
+                'actionKeys': list(v.get('action_keys') or []),
+                'module': v.get('module'),
+            }
             for k, v in action_registry.preset_dict().items()
         ],
     }

@@ -25,15 +25,11 @@
         工具栏按钮组（2026-10-15 兵哥纠偏 · 按 frontend-layout-standard §1.8.1 + frontend-DESIGN §Data Table）：
         - 全部 quaternary 文字按钮，同组按钮统一带 14–16px outline icon（§1.8.1 禁止半带半不带）
         - 仅「新建身份」保留 primary 实心作为主路径；其余为 default 灰阶
-        - 模板管理入口移入本组，排在「刷新」之后（用户指定顺序）
+        - 模板管理入口移入本组（用户指定顺序；刷新按钮已按需求移除）
       -->
       <n-button v-if="isSuperAdmin" quaternary @click="actionManageShow = true">
         <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
         {{ t('dataperm.actions.title') }}
-      </n-button>
-      <n-button quaternary @click="load">
-        <template #icon><n-icon :component="RefreshOutline" /></template>
-        {{ t('pages.settings.permission.RolesTab.s4') }}
       </n-button>
       <n-button quaternary @click="emit('open-templates')">
         <template #icon><n-icon :component="GridOutline" /></template>
@@ -71,18 +67,49 @@
       :show="cloneModal.show"
       preset="card"
       :title="t('pages.settings.permission.RolesTab.s7')"
-      style="max-width: 480px"
+      style="width: 640px; max-width: 92vw"
       :mask-closable="false"
       :on-mask-click="requestCloseClone"
       @update:show="(v: boolean) => !v && requestCloseClone()"
     >
       <n-form :model="cloneModal.form" label-placement="left" label-width="100">
         <n-form-item :label="t('pages.settings.permission.RolesTab.s8')" required>
-          <n-select
-            v-model:value="cloneModal.form.templateCode"
-            :options="templateOptions"
-            :placeholder="t('pages.settings.permission.RolesTab.s9')"
-          />
+          <!-- 精简模板选择器：内置模板列表，可展开看中文权限码，点选即回填 -->
+          <div class="tpl-picker">
+            <div
+              v-for="tpl in templates"
+              :key="tpl.templateCode"
+              class="tpl-card"
+              :class="{ selected: cloneModal.form.templateCode === tpl.templateCode }"
+              @click="selectTemplate(tpl.templateCode)"
+            >
+              <div class="tpl-head">
+                <div class="tpl-meta">
+                  <span class="tpl-name">{{ tpl.templateName }}</span>
+                  <span class="tpl-code">{{ tpl.templateCode }}</span>
+                </div>
+                <n-button size="tiny" text type="primary" @click.stop="toggleExpand(tpl.templateCode)">
+                  {{ expandedTpl === tpl.templateCode ? '收起权限码' : '查看权限码' }}
+                </n-button>
+              </div>
+              <div v-if="expandedTpl === tpl.templateCode" class="tpl-codes">
+                <template v-if="groupPermissionCodesByModule(tpl.permissionCodes ?? []).length">
+                  <div v-for="g in groupPermissionCodesByModule(tpl.permissionCodes ?? [])" :key="g.module" class="tpl-group">
+                    <span class="tpl-group-title">{{ g.moduleLabel }}</span>
+                    <n-tag
+                      v-for="it in g.items"
+                      :key="it.code"
+                      size="small"
+                      bordered
+                      :title="it.code"
+                      class="tpl-code-chip"
+                    >{{ it.name }}</n-tag>
+                  </div>
+                </template>
+                <n-empty v-else size="small" description="无权限码" />
+              </div>
+            </div>
+          </div>
         </n-form-item>
         <n-form-item :label="t('pages.settings.permission.RolesTab.s10')" required>
           <n-input v-model:value="cloneModal.form.roleCode" placeholder="e.g. CUSTOM_HR" />
@@ -124,11 +151,12 @@
  *   - 表格包 .table-wrap + flex-height（仅表体内部滚动）；空状态区分「无数据/无筛选结果」
  */
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, NIcon, useMessage, useDialog } from 'naive-ui'
-import { AddOutline, CopyOutline, CreateOutline, GridOutline, RefreshOutline, ShieldCheckmarkOutline, TrashOutline } from '@vicons/ionicons5'
+import { NButton, NSpace, NDataTable, NModal, NForm, NFormItem, NSelect, NInput, NTag, NSwitch, NIcon, NEmpty, useMessage, useDialog } from 'naive-ui'
+import { AddOutline, CopyOutline, CreateOutline, GridOutline, ShieldCheckmarkOutline, TrashOutline } from '@vicons/ionicons5'
 import { listRoles, cloneFromTemplate, deleteRole, updateRole, type RoleV2 } from '@/api/role-v2'
 import { listTemplates, type PermissionTemplate } from '@/api/permission-template'
 import { listAclRules } from '@/api/field-acl'
+import { useResourceNames, groupPermissionCodesByModule } from '@/composables/useResourceNames'
 import { localPagination } from '@/composables/useTablePagination'
 // 列对齐与操作列规格的单一真源（四档规则见该文件头）
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
@@ -138,6 +166,8 @@ import { useUserStore } from '@/stores/user'
 import { useCloseGuard } from '@/composables/useCloseGuard'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
+// 资源码→中文名映射（克隆弹窗展开权限码用）
+const { ensureLoaded } = useResourceNames()
 
 // 模板管理弹窗由父组件 PermissionManagement 持有（弹窗体含 TemplatesTab，本组件只发信号）
 const emit = defineEmits<{ (e: 'open-templates'): void }>()
@@ -153,9 +183,8 @@ const loading = ref(false)
 const data = ref<RoleV2[]>([])
 const templates = ref<PermissionTemplate[]>([])
 
-const templateOptions = computed(() =>
-  templates.value.map((t) => ({ label: `${t.templateName} (${t.templateCode})`, value: t.templateCode })),
-)
+// 克隆弹窗内「展开看权限码」的当前展开模板（一次只展开一个，避免弹窗过长）
+const expandedTpl = ref<string | null>(null)
 
 // ===== 筛选状态（对齐 CampusControl rules tab：keyboard search + 状态/维度 select）=====
 const kw = ref('')
@@ -314,7 +343,20 @@ function onCreate() {
 
 function onCloneFromTemplate() {
   cloneModal.form = { templateCode: '', roleCode: '', roleName: '' }
+  expandedTpl.value = null
+  // 提前拉取资源名映射（失败不阻断弹窗打开，展开权限码时按英文码兜底）
+  ensureLoaded().catch(() => {})
   cloneModal.show = true
+}
+
+/** 点选模板卡 → 回填 templateCode 并高亮。 */
+function selectTemplate(code: string) {
+  cloneModal.form.templateCode = code
+}
+
+/** 展开 / 收起某模板的权限码预览。 */
+function toggleExpand(code: string) {
+  expandedTpl.value = expandedTpl.value === code ? null : code
 }
 
 async function onSubmitClone() {
@@ -403,4 +445,54 @@ onMounted(load)
   --n-text-color: var(--ink-soft);
   background: var(--border-hairline);
 }
+
+/* === 从模板克隆弹窗：内嵌精简模板选择器 === */
+.tpl-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 300px;
+  overflow-y: auto;
+  width: 100%;
+  padding-right: 4px;
+}
+.tpl-card {
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.tpl-card:hover { border-color: var(--brand, #4f46e5); }
+.tpl-card.selected {
+  border-color: var(--brand, #4f46e5);
+  background: var(--brand-soft, #eef2ff);
+}
+.tpl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.tpl-meta { display: flex; flex-direction: column; min-width: 0; }
+.tpl-name { font-weight: 600; color: var(--ink, #1e293b); }
+.tpl-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--ink-soft, #94a3b8);
+}
+.tpl-codes {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tpl-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tpl-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft, #64748b);
+  width: 100%;
+}
+.tpl-code-chip { margin: 0; }
 </style>

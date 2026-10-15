@@ -153,6 +153,8 @@ export interface ActionPreset {
   key: string;
   label: string;
   actionKeys: string[];
+  /** 动作归属的功能模块（如 candidate / position，复用权限资源模块 code；可空） */
+  module?: string | null;
   /** 系统预设包不可删不可改 key（后端护栏，管理页用） */
   is_system?: boolean;
 }
@@ -317,20 +319,29 @@ export async function listActionPresets(): Promise<ActionPreset[]> {
   const data = res.data?.data;
   // 兼容两种形态：数组（标准）与映射（老后端）；映射键会被 camelCase 破坏，仅作兜底
   if (Array.isArray(data)) return data;
-  return Object.entries(data || {}).map(([key, actionKeys]) => ({
-    key, label: key, actionKeys: actionKeys as string[],
-  }));
+  return Object.entries(data || {}).map(([key, v]) => {
+    // 富化后的值形如 {label, action_keys, module, is_system}；老形态为纯数组兜底
+    if (Array.isArray(v)) return { key, label: key, actionKeys: v as string[] };
+    const obj = v as Record<string, unknown>;
+    return {
+      key,
+      label: (obj.label as string) || key,
+      actionKeys: (obj.action_keys as string[]) ?? [],
+      module: (obj.module as string) ?? null,
+      is_system: obj.is_system as boolean | undefined,
+    };
+  });
 }
 
 export async function createActionPreset(body: {
-  key: string; label: string; actionKeys: string[];
+  key: string; label: string; actionKeys: string[]; module?: string;
 }): Promise<void> {
   await api.post('/data-permissions/action-presets/', body);
 }
 
 export async function updateActionPreset(
   key: string,
-  body: { label?: string; actionKeys?: string[] },
+  body: { label?: string; actionKeys?: string[]; module?: string },
 ): Promise<void> {
   await api.patch(`/data-permissions/action-presets/${key}/`, body);
 }

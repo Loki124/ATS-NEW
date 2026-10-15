@@ -90,19 +90,36 @@ def is_action_enabled(action: str) -> bool:
     return action in enabled_action_keys()
 
 
-def preset_dict() -> dict[str, list[str]]:
-    """预设包清单（key -> action_keys）。DB 读失败 -> 回退种子。"""
+def preset_dict() -> dict[str, dict]:
+    """预设包清单（key -> {label, action_keys, module, is_system}）。DB 读失败 -> 回退种子。
+
+    2026-10-16 富化：原仅返回 key -> action_keys 数组，丢失了 label / module 等字段；
+    现改为 key -> 完整字典，供列表接口与数据权限 options 端点统一透出「功能模块」等元数据。
+    """
     cached = cache.get(_PRESET_DICT_CACHE_KEY)
     if cached is not None:
         return cached
     try:
         items = {
-            p.key: list(p.action_keys or [])
+            p.key: {
+                'label': p.label,
+                'action_keys': list(p.action_keys or []),
+                'module': p.module,
+                'is_system': p.is_system,
+            }
             for p in DataPermissionActionPreset.objects.all().order_by('sort_order', 'key')
         }
     except (OperationalError, ProgrammingError):
         logger.warning('预设包表不可用, 回退 action_map 种子')
-        items = {k: list(v) for k, v in action_map.PRESET_PACKAGES.items()}
+        items = {
+            k: {
+                'label': k,
+                'action_keys': list(v),
+                'module': None,
+                'is_system': True,
+            }
+            for k, v in action_map.PRESET_PACKAGES.items()
+        }
     cache.set(_PRESET_DICT_CACHE_KEY, items, _cache_ttl())
     return items
 
