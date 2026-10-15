@@ -97,27 +97,6 @@
         </div>
       </template>
     </div>
-
-    <!-- ===== 操作权限只读摘要条（2026-10-15 读/写拆分后新增）=====
-         写范围/动作授权已整体迁到身份编辑弹窗的「操作权限」页签（ModuleActionCard）。
-         这里只留一个**只读**摘要 + 跳转入口，用途是回答管理员在本页最自然的疑问：
-         「这个模块的数据我配好了可见范围，那能做什么操作？」
-         不放任何可交互控件 —— 同一状态两处可改必然分叉，职责边界要靠"只有一处能配"来保证。 -->
-    <div class="action-summary">
-      <span class="as-label">{{ t('dataperm.read.actionLabel') }}</span>
-      <n-tag size="small" :bordered="false" :type="actionBadge.tone" class="as-badge">
-        {{ actionBadgeText }}
-      </n-tag>
-      <n-button
-        size="tiny"
-        text
-        type="primary"
-        class="as-goto"
-        @click="emit('goto-action')"
-      >
-        {{ t('dataperm.read.gotoAction') }}
-      </n-button>
-    </div>
   </div>
 </template>
 
@@ -131,7 +110,10 @@
  *   - 读范围 mode 三选一（无权限 / 全部 / 指定范围）
  *   - scope 模式下的规则摘要 + 配置规则入口（RuleConfigModal）
  *   - 权限模板漂移标记 / 一键升级
- *   - 操作权限**只读**摘要条 + 跳转（不提供任何写控件）
+ *
+ * 🔴 本组件**不出现任何操作权限信息**（2026-10-16 兵哥拍板）：读写拆分后曾在此加过一条
+ *    「操作权限 + 状态徽标 + 去配置」只读摘要条，拆分完成即属冗余 —— 操作权限已有独立页签，
+ *    在本页复述状态只会诱导"两处都能配"的错觉，且把两个维度又混回一张卡。彻底移除。
  *
  * props.module 直接是 useRoleDataPerm.draft 中的响应式元素（引用），
  * 切模式通过 emit('update:mode') 由弹窗调用 composable.setMode 处理（保持语义单一来源）。
@@ -143,7 +125,7 @@ import {
 } from 'naive-ui'
 import type { TemplateDrift } from '@/api/data-permission'
 import {
-  previewOf, writeBadge, type DataPermMode, type ModulePerm,
+  previewOf, type DataPermMode, type ModulePerm,
 } from '@/composables/useRoleDataPerm'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
@@ -164,17 +146,11 @@ const emit = defineEmits<{
   (e: 'open-rule'): void
   /** 升级某个漂移条件组到模板最新版（父组件负责重绑定并替换草稿组） */
   (e: 'upgrade-template', d: TemplateDrift): void
-  /** 跳转到「操作权限」页签并定位到本模块（读/写拆分后的跨页签导航） */
-  (e: 'goto-action'): void
 }>()
 
 /** 正在升级中的条件组下标（驱动按钮 loading），-1 表示空闲 */
 const upgradingGroup = ref(-1)
 defineExpose({ upgradingGroup })
-
-// ===== 操作权限只读摘要（徽标语义与操作权限页签卡头共用同一纯函数，避免两处判定分叉）=====
-const actionBadge = computed(() => writeBadge(props.module.write))
-const actionBadgeText = computed(() => t(actionBadge.value.key, { n: actionBadge.value.n }))
 
 const totalConditions = computed(() =>
   props.module.groups.reduce((acc, g) => acc + g.conditions.length, 0),
@@ -294,26 +270,4 @@ const driftTags = computed(() =>
 }
 .summary-actions { display: flex; align-items: center; gap: 8px; }
 .count-badge { font-weight: 600; }
-
-/* ===== 操作权限只读摘要条 =====
-   视觉权重刻意压到最低（12px 弱标签 + 小徽标 + tiny 文字按钮）：
-   本卡主角是读范围，这条只是"顺手指路"，不与「配置规则」抢焦点。
-   虚线分隔与 rule-summary 一致，表示"这是另一个维度的信息，不是本卡的操作区"。 */
-.action-summary {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border-hairline, #e2e8f0);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.as-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-faint, #94a3b8);
-  letter-spacing: 0.02em;
-}
-.as-badge { font-weight: 600; }
-.as-goto { margin-left: auto; font-size: 12px; }
 </style>

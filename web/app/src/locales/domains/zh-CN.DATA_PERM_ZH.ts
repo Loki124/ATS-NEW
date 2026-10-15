@@ -79,8 +79,6 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.write.title': '谁能改',
   'dataperm.read.title': '看得见什么',
   'dataperm.read.narrowed': '已收窄',
-  'dataperm.read.actionLabel': '操作权限',
-  'dataperm.read.gotoAction': '去配置',
   'dataperm.write.collapse': '收起',
   'dataperm.write.expand': '展开',
   'dataperm.write.badge.none': '未配置',

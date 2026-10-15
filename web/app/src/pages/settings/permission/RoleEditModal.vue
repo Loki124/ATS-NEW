@@ -172,7 +172,6 @@
                 @update:mode="(mode) => dpSetMode(m.moduleKey, mode)"
                 @open-rule="openRule(m.moduleKey)"
                 @upgrade-template="(d) => onUpgradeTemplate(m.moduleKey, d)"
-                @goto-action="gotoActionPerm(m.moduleKey)"
               />
             </div>
           </div>
@@ -400,14 +399,6 @@ function actionModuleView(key: string) {
   const opt = dpOptions.value.find((o) => o.moduleKey === key)
   const meta = ACTION_MODULE_META[key] || { label: key, desc: '' }
   return { label: opt?.label || meta.label, desc: meta.desc }
-}
-
-/** 从「数据权限」页签的只读摘要条跳到「操作权限」页签并定位到对应模块卡 */
-function gotoActionPerm(moduleKey: string) {
-  activeTab.value = 'action'
-  nextTick(() => {
-    document.getElementById(`ap-card-${moduleKey}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  })
 }
 
 /** 数据权限模块 → 功能权限资源模块 别名（两者命名不一致，需显式映射）。

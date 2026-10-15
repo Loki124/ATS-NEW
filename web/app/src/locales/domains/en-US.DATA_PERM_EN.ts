@@ -77,8 +77,6 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.write.title': 'Who can edit',
   'dataperm.read.title': 'What they can see',
   'dataperm.read.narrowed': 'Narrowed',
-  'dataperm.read.actionLabel': 'Operation Permissions',
-  'dataperm.read.gotoAction': 'Configure',
   'dataperm.write.collapse': 'Collapse',
   'dataperm.write.expand': 'Expand',
   'dataperm.write.badge.none': 'Not configured',

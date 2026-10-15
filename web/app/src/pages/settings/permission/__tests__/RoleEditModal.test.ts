@@ -3,14 +3,14 @@
  *
  * 背景：操作权限原先寄生在 ModulePermCard 的「段② 谁能改」里，与读范围混在同一张卡，
  * 5 模块 × 13 动作 = 65 个勾选框重复堆叠。现已拆为独立页签：
- *   页签 3「数据权限」= 看得见什么（ModulePermCard，只留读范围 + 只读操作权限摘要条）
+ *   页签 3「数据权限」= 看得见什么（ModulePermCard，只留读范围，不掺任何操作权限信息）
  *   页签 4「操作权限」= 能对看得见的数据做哪些操作（ModuleActionCard，未配置默认折叠）
  *
  * 本文件锁定拆分后的对外契约：
  *   - 四个页签齐备且「操作权限」与「数据权限」并列
- *   - 数据权限页签每张卡有只读摘要条（不给写控件，避免同一状态两处可配）
+ *   - 数据权限页签**不含任何操作权限信息与跳转入口**（2026-10-16 兵哥拍板整条移除）
  *   - 操作权限页签默认只展开已配置（mode!=='none'）的卡，未配置的收成一行摘要
- *   - 点摘要条「去配置」跨页签跳转并渲染出操作权限卡（display-directive show:lazy 的前置断言）
+ *   - 切到操作权限页签渲染出 5 张卡（含 ap-card-* 定位锚点）
  *   - 动作墙按 常规/危险 两组渲染，预设包按钮可见
  *
  * 🔴 查询必须走 document：NModal 默认 teleport 到 body，wrapper.findAll 只能看到
@@ -167,38 +167,33 @@ describe('RoleEditModal 读/写拆分', () => {
     expect($all('.action-card')).toHaveLength(5)
   })
 
-  it('数据权限页签每张卡都有只读操作权限摘要条（标签 + 徽标 + 去配置）', async () => {
+  it('数据权限页签不再出现任何操作权限摘要条/ 入口（2026-10-16 兵哥拍板）', async () => {
     factory()
     await flushPromises()
     await gotoTab('数据权限')
 
-    const summaries = $all('.action-summary')
-    expect(summaries).toHaveLength(5)
-    for (const s of summaries) {
-      expect(text(s.querySelector('.as-label'))).toBe('操作权限')
-      expect(s.querySelector('.as-badge')).toBeTruthy()
-      expect(text(s.querySelector('.as-goto'))).toBe('去配置')
-    }
-    // 摘要条**不得**携带任何写控件（同一状态两处可配必然分叉）
-    expect($all('.action-summary .n-radio-button')).toHaveLength(0)
-    expect($all('.action-summary .n-checkbox')).toHaveLength(0)
-
-    // 徽标按 fixture 的 write 配置给出对应文案
-    expect(text(summaries[0].querySelector('.as-badge'))).toBe('已授权 2 项动作')   // demand: owner + 2 actions
-    expect(text(summaries[1].querySelector('.as-badge'))).toBe('未配置')            // process: none
-    expect(text(summaries[2].querySelector('.as-badge'))).toBe('全部可写')          // position: all
+    // 读/写拆分后曾在此加「操作权限 + 徽标 + 去配置」摘要条，现已整条移除：
+    // 操作权限有独立页签，本页复述状态只会诱导「两处都能配」的错觉。
+    expect($all('.action-summary')).toHaveLength(0)
+    expect($all('.as-label')).toHaveLength(0)
+    expect($all('.as-badge')).toHaveLength(0)
+    expect($all('.as-goto')).toHaveLength(0)
+    // 页面上不得残留指向操作权限的跳转入口
+    const doc = document.body.textContent || ''
+    expect(doc).not.toContain('去配置')
+    // 但读范围自身的配置入口仍在（不能连累）
+    expect($all('.module-card').length).toBe(5)
+    expect($all('.module-card .summary-actions').length).toBeGreaterThan(0)
   })
 
-  it('点「去配置」跨页签跳转并渲染出操作权限卡', async () => {
+  it('切到操作权限页签渲染出 5 张操作权限卡（带定位锚点）', async () => {
     factory()
     await flushPromises()
     await gotoTab('数据权限')
     expect($all('.action-card')).toHaveLength(0)
 
-    $all('.action-summary .as-goto')[0].click()
-    await flushPromises()
+    await gotoTab('操作权限')
 
-    // 跳转生效：操作权限页签内容已被渲染，且定位锚点存在
     expect($all('.action-card')).toHaveLength(5)
     expect(document.getElementById('ap-card-demand')).toBeTruthy()
   })
