@@ -95,6 +95,11 @@ def login_view(request):
         ).values_list('role_code', flat=True))
     except (OperationalError, ProgrammingError):
         roles = []
+    # 超管兜底: is_superuser 用户在 roles 表未必有 SUPER_ADMIN 行, 但语义即超管.
+    # 注入 SUPER_ADMIN 让前端 router guard / usePermission 统一按 SUPER_ADMIN 放行,
+    # 使环境变量预设的超级管理员拥有全部菜单/功能/数据权限 (与后端 is_super_admin 同义).
+    if is_super_admin(candidate_user) and 'SUPER_ADMIN' not in roles:
+        roles = ['SUPER_ADMIN', *roles]
     return Response({
         'success': True,
         'data': {
@@ -276,6 +281,15 @@ def me_view(request):
             ).values_list('role_code', flat=True))
         except (OperationalError, ProgrammingError):
             roles = []
+
+    # 超管兜底: is_superuser 用户在 roles 表未必有 SUPER_ADMIN 行, 但语义即超管.
+    # 注入 SUPER_ADMIN + 全量 scope, 使前端 router guard / usePermission 统一放行,
+    # 且 /me.data_scope 如实反映"全量可见" —— 环境变量预设的超级管理员拥有
+    # 全部菜单/功能/数据权限 (与后端 is_super_admin / scope_filter_q bypass 同义).
+    if user.is_authenticated and is_super_admin(user):
+        if 'SUPER_ADMIN' not in roles:
+            roles = ['SUPER_ADMIN', *roles]
+        scope = {'all': True}
 
     return Response({
         'success': True,
