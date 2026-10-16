@@ -484,69 +484,45 @@ def recruit_type_filter_q(recruit_type):
     return Q(recruit_type=recruit_type)
 
 
-def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_by', recruit_type=None, entity=None):
-    """返回当前用户行级可见范围的 Q 对象 —— scope_resolver 作为唯一真相源。
+def _default_scope_q(user, app_code=None, scope_field='', creator_field='created_by'):
+    """计算「默认 scope」(L1-L4: 管理单元 / 部门 / SELF 兜底) 的行级 Q。
 
-    行为等价于原「DataPermissionRule ROW 镜像 + enforcement.row_filter_q CUSTOM 分支」：
-    直接由 resolve_scope 产出过滤条件, 不再读写 DataPermissionRule 行级规则。
+    返回 (q, is_all) 二元组, **q 不含 recruit_type 分区**(由调用方统一 AND), 使调用方
+    能把「范围 Q」与「是否全量」作为两个独立信号拿到后再做并集合并决策。
 
-    recruit_type (opt-in): 显式传入时, 该维度作为硬分区对所有用户(含超管/匿名)生效,
-    先于行级 scope 以 AND 叠加 —— 社会/校园招聘数据相互隔离。
+    is_all=True 表示全量可见, 此时 q 无意义(调用方必须直接短路, 不可让空 Q 参与 OR ——
+    Django 里 Q() | Q(a=1) == Q(a=1), 空 Q 在 OR 中被吸收, 会把全量静默降级成单侧范围)。
 
-    entity (opt-in): 传入业务模块 key（candidate/demand/position/process/talent）时,
-    若该用户所属角色配置了「角色自定义范围」规则, 以编译后的表达式 Q 替换默认
-    scope（多角色按 RBAC 并集）；无配置则回退下方默认 scope（向后兼容）。
-
-    - 未登录 / 超管 -> 至多仅 recruit_type 分区 (全量行级可见)
-    - {'all': True} -> 至多仅 recruit_type 分区
-    - department_ids -> 按 scope_field(部门 FK 路径) 或 creator.department_id 过滤
-    - management_unit_ids ->
-        * 空 list -> SELF (created_by=user.pk)
-        * 含整公司 sentinel -> 至多仅 recruit_type 分区 (全量)
-        * 否则 -> Q(scope_field__in=dept_ids) | Q(created_by__in=user_ids)
+    - resolve_scope 返回 {'all': True} -> (Q(), True)
+    - department_ids 非空 -> Q(scope_field__in) ; 空 -> SELF
+    - management_unit_ids 空 -> SELF ; 含整公司 sentinel -> (Q(), True)
+    - 其余 -> 各管理单元贡献 OR 聚合(单元内 data_range 仍为 AND 限制), 全空则 SELF
     """
     from django.db.models import Q
-
-    from .role_v2_query import is_super_admin
-
-    # 硬系统分区: 先于行级 scope 计算, 对所有用户(含超管/匿名)生效.
-    rt_q = recruit_type_filter_q(recruit_type)
-
-    if not (user and getattr(user, 'is_authenticated', False)):
-        return rt_q
-    if is_super_admin(user):
-        return rt_q
-
-    # 角色自定义范围（数据权限向导）优先于默认 scope：有配置则替换，无配置回退。
-    if entity:
-        from apps.data_permission.enforcement import role_entity_scope_q
-        custom_q = role_entity_scope_q(user, entity)
-        if custom_q is not None:
-            return custom_q & rt_q
 
     scope = resolve_scope(user, app_code=app_code)
 
     if scope.get('all'):
-        return rt_q
+        return Q(), True
 
     if 'department_ids' in scope:
         dept_ids = scope.get('department_ids') or []
         if dept_ids:
             target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
-            return Q(**{target: dept_ids}) & rt_q
+            return Q(**{target: dept_ids}), False
         # 空部门集合 -> 仅看自己创建
-        return Q(**{creator_field: user.pk}) & rt_q
+        return Q(**{creator_field: user.pk}), False
 
     if 'management_unit_ids' in scope:
         unit_ids = scope.get('management_unit_ids') or []
         if not unit_ids:
             # 空管理单元集合 -> SELF 兜底
-            return Q(**{creator_field: user.pk}) & rt_q
+            return Q(**{creator_field: user.pk}), False
         q = Q()
         for dept_ids, user_ids, org_dr_q, person_dr_q, has_all in iter_unit_scopes(unit_ids, app_code):
             if has_all:
                 # 整公司单元 -> 全量可见(OR 中任意一项为全量即整体全量)
-                return rt_q
+                return Q(), True
             unit_q = Q()
             if dept_ids:
                 target = f'{scope_field}__in' if scope_field else f'{creator_field}__department_id__in'
@@ -562,7 +538,100 @@ def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_b
             if person_dr_q.children:
                 unit_q &= person_dr_q
             q |= unit_q
-        return (q if q.children else Q(**{creator_field: user.pk})) & rt_q
+        return (q if q.children else Q(**{creator_field: user.pk})), False
 
     # 兜底 (正常不会到达): 无范围信息 -> SELF
-    return Q(**{creator_field: user.pk}) & rt_q
+    return Q(**{creator_field: user.pk}), False
+
+
+def _is_all_q(q) -> bool:
+    """判定一个 Q 是否为「全量」信号(空 Q)。
+
+    仅可用于 role_entity_scope_q 的返回值 —— 它的 ALL 分支(enforcement.py:181)返回
+    空 Q, 而 NONE 分支与「CUSTOM 编译出空条件」分支都被刻意改写成 Q(pk__in=[])
+    (enforcement.py:183/197, 注释明写 "不误判为全量"), 故空 Q 在该函数语义下唯一
+    表达「全量可见」。
+    """
+    return q is not None and not q.children
+
+
+def scope_filter_q(user, app_code=None, scope_field='', creator_field='created_by', recruit_type=None, entity=None):
+    """返回当前用户行级可见范围的 Q 对象 —— scope_resolver 作为唯一真相源。
+
+    行为等价于原「DataPermissionRule ROW 镜像 + enforcement.row_filter_q CUSTOM 分支」：
+    直接由 resolve_scope 产出过滤条件, 不再读写 DataPermissionRule 行级规则。
+
+    recruit_type (opt-in): 显式传入时, 该维度作为硬分区对所有用户(含超管/匿名)生效,
+    先于行级 scope 以 AND 叠加 —— 社会/校园招聘数据相互隔离。
+
+    entity (opt-in): 传入业务模块 key（candidate/demand/position/process/talent）时,
+    若该用户所属角色配置了「角色自定义范围」规则, 该规则与默认 scope(管理单元/部门/SELF)
+    以 **并集(附加授权)** 组合（多角色内部仍按 RBAC 并集）；无配置则回退默认 scope。
+
+    ---------------------------------------------------------------------------
+    卡 1.1「管理单元并集」口径变更 (2026-10-16)
+    ---------------------------------------------------------------------------
+    原语义：角色自定义范围**替换**默认 scope（custom_q 非 None 即 return，管理单元分支永不执行）。
+    新语义：**并集（附加授权）** —— 最终行过滤 = custom_q | unit_q。
+
+    ⚠️ 全量必须短路, 不可用空 Q 参与 OR：Django 中 Q() | Q(a=1) == Q(a=1)（空 Q 被 OR 吸收），
+    若把「全量」当空 Q 丢进并集，全量可见会被静默降级为「仅角色规则范围」= 严重的权限收窄事故。
+    故本函数先分别取 (q_default, is_all_default) 与 custom_q, 再按下列优先级合并:
+      1. 任一侧为全量 -> 直接 return rt_q（全量，不放大也不收窄）
+      2. custom_q is None -> 与变更前完全一致（只取默认 scope）
+      3. 默认 scope 退化为 SELF 也算「一方贡献」，参与并集（custom_q | SELF_q）
+      4. 其余 -> (custom_q | q_default) & rt_q
+
+    安全方向：该变更**放宽**可见范围（挂管理单元 + 有角色规则的用户可见集变大），
+    只会放大既有授权, 不会让原本不可见的越权数据变为可见以外的口径, 也不会收紧任何一侧。
+    注意 q_default 的空 Q 守卫（第 3 条分支）同时是防呆: 若将来新增分支误返回
+    (Q(), False)，无守卫会让全量被 custom_q 吸收而降级。
+
+    回滚方式：revert 本 commit（口径与新增测试同 commit 回退即可，无需数据迁移）。
+
+    遗留（本次不改）：apps/core/scope_preview.py:103 的 desc['custom_replaced'] 语义
+    仍自述为「是否**替换**了默认 scope」，改并集后该字段已失真（并集下 custom 与 unit 同时生效）。
+
+    - 未登录 / 超管 -> 至多仅 recruit_type 分区 (全量行级可见)
+    - {'all': True} -> 至多仅 recruit_type 分区
+    - department_ids -> 按 scope_field(部门 FK 路径) 或 creator.department_id 过滤
+    - management_unit_ids ->
+        * 空 list -> SELF (created_by=user.pk)
+        * 含整公司 sentinel -> 至多仅 recruit_type 分区 (全量)
+        * 否则 -> Q(scope_field__in=dept_ids) | Q(created_by__in=user_ids)
+    """
+    from .role_v2_query import is_super_admin
+
+    # 硬系统分区: 先于行级 scope 计算, 对所有用户(含超管/匿名)生效.
+    rt_q = recruit_type_filter_q(recruit_type)
+
+    if not (user and getattr(user, 'is_authenticated', False)):
+        return rt_q
+    if is_super_admin(user):
+        return rt_q
+
+    # 角色自定义范围（数据权限向导）。卡 1.1 起与默认 scope 并集, 不再替换。
+    custom_q = None
+    if entity:
+        from apps.data_permission.enforcement import role_entity_scope_q
+        custom_q = role_entity_scope_q(user, entity)
+
+    q_default, is_all_default = _default_scope_q(
+        user, app_code=app_code, scope_field=scope_field, creator_field=creator_field)
+
+    # 1) 全量优先: 任一侧全量 -> 整体全量（短路, 不参与并集运算）
+    if is_all_default:
+        return rt_q
+    if _is_all_q(custom_q):
+        return rt_q
+
+    # 2) 无角色自定义规则 -> 与变更前完全一致
+    if custom_q is None:
+        return q_default & rt_q
+
+    # 3) 防御: q_default 为空 Q 说明它其实是「全量」, 不能被 custom_q 吸收
+    if not q_default.children:
+        return custom_q & rt_q
+
+    # 4) 并集（附加授权）: 角色规则可见范围 ∪ 管理单元/部门/SELF 可见范围
+    return (custom_q | q_default) & rt_q
