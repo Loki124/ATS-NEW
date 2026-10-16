@@ -120,11 +120,24 @@
 
 | 文件/批次 | 状态 | 归属 | 说明 |
 |---|---|---|---|
-| `composables/useMetricsWorkspace.ts`(2254→1188) + `MetricsWorkspace.vue` + 5 个新域 composable + 5 个 `utils/metrics*.ts` + 9 个测试文件 + `TODO.md` + S3-04 类型修复 | ✅ 已提交 | **S2-01 / S3-04（本任务）** | 已入库 commit `71502b7d`。⚠️ **该提交由并发进程创建，把本任务产物与他人 data_permission 改动混在同一提交内**（提交名与内容不符，但代码无丢失、`vue-tsc` 0 错）；追改需 `git rebase -i` 拆提交，**须先确认无人仍在途** |
-| `0024_userrole_user_fk.py`、`demand/services.py`、`test_locked_field_edit.py`、`test_demand.py`、`DemandList.vue`、`DynamicFieldManager.vue`、`docs/DESIGN_数据权限规则弹窗选项表.md`、`docs/PLAN_R3_*.md`、`scripts/verify_lock_permission.py` | ⬜ 未提交 | R3 数据权限收尾（他人在途） | 兵哥尚未确认是否提交 |
-| `composables/useRoleDataPerm.ts`、`components/role/__tests__/`、`useRoleDataPerm.novalue.test.ts`、`__scratch_write.test.ts` | ⬜ 未提交 | 数据权限无值运算符（他人在途） | 其中 `__scratch_*.test.ts` 自述「排查完即删，不入库」 |
-| `apps/django/apps/process/*`、`data_permission/role_scope_api.py`、`candidate/serializers.py`、`test_dynamic_cond_http_parser.py` | ⬜ 未提交 | 流程/数据权限（他人在途，07:56 后新增） | 并发会话产出 |
-| `web/app/__diag.html` | 🗑️ 诊断垃圾 | — | Playwright 诊断 iframe 页（`/settings/permissions`），**非源码，不应提交** |
+| `composables/useMetricsWorkspace.ts`(2254→1188) + 5 个新域 composable + 5 个 `utils/metrics*.ts` + 9 个测试文件 | ✅ 已提交 | **S2-01 / S3-04** | commit `a49b1413`。顺带修 `useMetricColumns.test.ts` 的 `vue/one-component-per-file` 告警（局部 eslint-disable） |
+| 数据权限无值运算符（`RuleConfigModal.vue` / `useRoleDataPerm.ts` / `role_scope_api.py` + 两组测试） | ✅ 已提交 | 数据权限 | commits `1fa6a91d`（前端）/ `b7430214`（后端）/ `f3c194b7`（文档 §7.4+§7.5） |
+| `apps/django/apps/process/*` + `ProcessRebindModal.vue` + `test_process_copy.py` | ✅ 已提交 | 流程域 | commit `7097cc56`：流程复制 + 需求重绑；软删复活回归加固 |
+| `apps/django/apps/demand/*` + `test_rebind_demand_process.py` + `DemandList.vue` | ✅ 已提交 | 需求域 | commit `abddb1d1`：需求重绑流程 + 列表交互调整 |
+| `0024_userrole_user_fk.py`、`TODO.md`、`docs/PLAN_R3_*.md`、`scripts/verify_lock_permission.py` | ✅ 已提交 | R3 | commit `df4e319f`。🔴 **迁移仅入库未执行**（含 `purge_residual_orphans` 物理删除，须单独授权 + 备份窗口） |
+
+### 🟠 P1 既存失败：后端 7 个测试红（2026-10-16 核实，与本次推送无关）
+
+在**纯净 `origin/main` 基线 worktree** 上复跑同样失败 → 属既存问题，非本次改动引入。
+
+| 失败用例 | 根因 | 建议修法 |
+|---|---|---|
+| `test_csv_truncation.py::test_json_export_keeps_full_options`<br>`test_csv_truncation.py::test_csv_export_truncates_huge_cell` | **MySQL JSON 字段会重排对象键**：实际落库为 `{"label":..,"value":..}`，测试断言 `{"value":..,"label":..}` 字符串全等 | 改断言为 `json.loads()` 后比对 dict，别比字符串；或用 `assert_dict_equal` |
+| `test_normalize_migration.py`（3 个） | 迁移前后置断言在 MySQL 上不成立（`Candidate/name` 残留判定） | 逐个核对迁移的 MySQL 语义（`RemoveField`+`AddField` 同名列会丢数据，见 MEMORY「MySQL vs SQLite 致命差异」） |
+| `test_bootstrap_startup.py::test_migrate_on_brand_new_sqlite_db_exits_zero` | 用例名即 sqlite，而**项目标准已禁用 SQLite**（兵哥 2026-10-15 定调，改用 MySQL） | 重写为 MySQL 新库场景，或按标准删除该 sqlite 用例 |
+| `test_user_app_data_scope.py::test_user_app_data_scope_upsert_and_filter` | 需单独排查（基线同样红） | 独立定位 |
+
+**Why 必须单独记**：这些用例长期红会让 CI 失去「变红即报警」的能力（狼来了效应），最终真回归会被淹没。
 
 ---
 
