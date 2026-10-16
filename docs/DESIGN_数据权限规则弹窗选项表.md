@@ -1,10 +1,13 @@
-# 数据权限规则弹窗选项表 — 后端维度/运算符/编译器改造设计
+# 数据权限规则弹窗选项表 — 后端维度/运算符/编译器改造设计（设计依据 + 落地状态）
 
-> 依据：兵哥提供的「数据权限规则弹窗选项表」截图（`clipboard-2026-10-15T11-12-07`）。
+> 依据：兵哥提供的「数据权限规则弹窗选项表」截图（`clipboard-2026-10-15T11-12-07`）及后续反馈。
 > 目标：在既有 `data_permission` 框架（field_map / context_resolvers / expr_compiler / role_scope_api）上，
 > 把需求/职位/候选人三模块的「人员/用户」类维度与「部门」类维度完整暴露，并补齐
 > 动态引用（当前登录用户 / 当前登录用户负责的部门）与「简历锁定人」的空值运算符。
-> 本文为**设计文档，不含实现代码**；代码片段为「目标形态」示意。
+>
+> **文档定位**：本文件是数据权限维度设计的**权威依据**，供 batch 2/3（高见远）设计时直接引用维度设计基础。
+> 文中「目标形态」代码片段均已**落地实现**（commit `23424e6e`，已在 `origin/main`），并经真实 MySQL **305 测试全绿**验证
+> （含 `test_dimension_table_options.py` 六条 DB 用例）；§7 记录落地状态与决策变更，§8 提炼需求维度要点与建议。
 
 ---
 
@@ -376,3 +379,65 @@ DYNAMIC_DIMENSION_RULES: dict[str, frozenset[str]] = {
 **为什么历史测试全绿**：既有单测（`test_m03_unit_dynamic.py` 等）直接构造 camelCase dict 调用函数层，**绕过 URL 路由与 `request.data` 解析**，动态分支永远走不到——与 `docs/ARCH_数据权限P0止血_系统设计.md` §1.2.1 同型问题（测试手搓 dict 绕过真实链路 → 生产 100% 失效）。
 
 回归：`tests/test_dynamic_cond_http_parser.py` 用 Django test client 打真实 URL（payload 原样过 `CamelCaseJSONParser`），覆盖写/读两侧动态条件可存 + 落库保留 camelCase + 静态空值仍被拒 + 动态来源不适配仍被拒（防放宽过头）。已用「临时撤掉 `camelize`」验证：复现出与兵哥截图**逐字相同**的错误信息。
+
+---
+
+## 8. 需求维度设计要点与建议（落盘说明）
+
+本 § 对应原始任务「把 demand 模块 personnel 字段作为数据权限 relationship 维度暴露」（UI 重构项 3）的设计落盘。
+demand 维度是整张弹窗选项表的起点，其设计范式（spec 形状 / 编译器分发 / 值选项集成）已被 position / candidate 复用，
+故这里单独提炼，作为 batch 2/3 的参照基线。
+
+### 8.1 demand 人员维度取值来源（精确字段）
+
+| 维度 key | 中文 label | 值来源（表 . 字段） | 存储形态 | field_map spec |
+|---|---|---|---|---|
+| `tbp`（原 `hr`，兵哥称 TBP） | TBP（需求主负责人） | `demands.hr_id`（FK core.User, related_name `assigned_demands`） | 单用户 id | 裸字符串 `'hr_id'` |
+| `hrbp` | HRBP | `DynamicFieldValue`（resource='Demand', field_key='hrbp'） | 单用户 id（JSON 单值） | `{'kind':'dfv','resource':'Demand','field_key':'hrbp','via':''}` |
+| `creator` | 需求创建人 | `demands.created_by_id`（FullAuditModel） | 单用户 id | 裸字符串 `'created_by_id'` |
+| `dept` | 需求部门 | `demands.department_id`（FK core.Department） | 部门 id | 裸字符串 `'department_id'` |
+| `requested_by` | 需求提出人 | `demands.requested_by_id`（FK core.User） | 单用户 id | 裸字符串 `'requested_by_id'` |
+| `sharers` | 需求共享人 | `demands.sharers`（JSONField，用户 id 数组） | 用户 id 列表 | `{'kind':'json_contain','field':'sharers'}` |
+| `hiring_manager` | 用人经理 | DynamicFieldValue（field_key='hiring_manager'） | 单用户 id | dfv, via='' |
+| `hiring_manager_superior` | 用人经理上级 | DynamicFieldValue（field_key='hiring_manager_superior'） | 单用户 id | dfv, via='' |
+| `resume_grabber` | 简历抢单人 | `positions__applications__grabbed_by_id`（跨表路径） | 多值用户 id | `{'kind':'path','field':'positions__applications__grabbed_by_id'}` |
+
+- `hrbp` / `hiring_manager` / `hiring_manager_superior` 是系统预置动态字段（resource='Demand'），不落 Demand 模型列，存于 `DynamicFieldValue` 表（value 为 JSON 单值用户 id），迁移 0024 已建。
+- 向后兼容：`owner` / `hr`（tbp 冗余别名）保留为隐藏编译别名 → `'hr_id'`，存量 `dimension='owner'` 规则仍可编译/回显。
+
+### 8.2 编译 Q 树示例（demand 维度）
+
+| 维度 | 编译结果 Q（示意） |
+|---|---|
+| `tbp in [u1]` | `Q(hr_id__in=[u1])` |
+| `hrbp in [u1]` | `Q(pk__in=Subquery(Demand.filter(pk__in=Subquery(dfv.filter(resource='Demand', field_key='hrbp', value__in={u1,'u1'}).values('entity_id')))))`（经 `_value_forms` int/str OR） |
+| `sharers in [u1]` | `Q(sharers__contains=[u1])`（int/str 三形态 OR） |
+| `dept in [A] relation=in_subtree` | `Q(department_id__in=subtree_dept_ids([A]))` |
+| `tbp` 动态 `currentUser.id` | 等价 `Q(hr_id__in=[user.pk])`；源/维度不适配 → `Q(pk__in=[])` fail-closed |
+| `lock_owner is_empty`（候选人） | `~(Q(formal_locked_by_id__isnull=True) & (Q(temp_locked_by_id__isnull=True) \| Q(temp_lock_expires_at__lte=now)))` |
+
+> 跨表维度（resume_grabber / 候选人的 demand_* / position_*）统一 `Q(pk__in=Subquery(...))` 收口，杜绝多对多 fan-out（§5.4）。
+
+### 8.3 值选项集成（options_payload）
+
+**零结构性改动。** `role_scope_api.options_payload()`（L591）已按 `supported_dimensions(mk)` 遍历 → `hidden_dimensions_for(mk)` 过滤 → `DIMENSION_META[d]` 取 meta → 按 `valueType` 自动挂 `options`（user→`_user_options()` / department→`_department_options()`）。新增人员维度只需：① 在 `MODULE_DIMENSION_FIELDS` 登记（supported_dimensions 自动包含）；② 在 `DIMENSION_META` 登记 `{key,label,valueType:'user',contextKeys:['currentUser.id'],operators}`。DynamicFieldValue 类维度值仍是「用户」，前端复用同一份 user_options。
+
+### 8.4 是否需要迁移
+
+**不需要任何迁移。** 所有列（hr_id / requested_by_id / sharers / created_by_id / department_id）已存在于 `demands` 表；hrbp 等 DynamicFieldValue 已存在于迁移 0024。本次改动是纯配置 + 编译器逻辑，不涉及模型变更、不新增表/列。
+
+### 8.5 决策状态（scope 分叉已闭合）
+
+原始任务提了两个分叉点（A：review+push；B：全量暴露推翻兵哥表），经 team-lead 核验 git 真相，**二者均已无意义**：
+- **A 无意义**：`23424e6e` 已在 `origin/main`（随 R1/R2 一并推到 gitee），无需再立项 push。
+- **B 无意义**：兵哥的扩集决策已落地，demand 可见集 = `tbp`/`hrbp`/`creator`/`dept`/`requested_by`/`sharers`/`hiring_manager`/`hiring_manager_superior`/`resume_grabber`，仅 `owner`/`hr`（tbp 冗余别名）UI 隐藏、后端保留兼容。原始 scope 实质完成。
+- 验证闭环：software-engineer 本地 MySQL 从零建库跑通 0006 + 全部迁移，**305 passed**，含 `test_dimension_table_options.py` 六条 DB 用例；module 迁移顺序 bug 已由 commit `998dbb8e` 修复，原建议的独立 blocker 立项已撤回。
+
+### 8.6 给 batch 2/3（高见远）的建议
+
+1. **复用三种 spec 形状**：新增任何维度只需在 `MODULE_DIMENSION_FIELDS` 选「裸字符串（列/FK 路径）/ `dfv`（DynamicFieldValue 人员）/ `path`（跨表反向 FK 多值）/ `json_contain`（JSON 数组）/`lock_owner`（复合+空值）」之一，编译器已通用支持，无需新增分支。
+2. **运算符按维度下发**：`DIMENSION_META.operators` 是前端渲染契约，新增维度必须补 `operators`（+ dept 的 `relations`）；`validate_scope_payload` 会据其校验，防越权运算符。
+3. **动态 `currentUser.id` 需同步两处**：维度要接动态当前登录用户，必须同时在 `DIMENSION_META.contextKeys` 声明 `currentUser.id` **且**加入 `DYNAMIC_DIMENSION_RULES['user']`，否则「校验放行但编译拒绝」割裂（§2 红线）。
+4. **fail-closed / no-op 语义**：无值、动态源未注册、维度不适配一律 `Q(pk__in=[])` 或 `None`，绝不静默放行。
+5. **JSON 类型严格性**：dfv / sharers 的 id 必须用 `_value_forms` 的 int/str 多形态 OR 覆盖，统一 `str()` 化会在真实 MySQL 漏匹配（§7.3）。
+6. **batch 2/3 实现待架构定稿后启动**：本设计为维度设计依据，具体实现排期由架构侧（高见远）在 batch 2/3 中推进。

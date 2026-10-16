@@ -1,12 +1,13 @@
 # 系统设计：数据权限 P0 止血
 
 > 文档类型：系统设计（架构师交付件，供工程师实施）
-> 版本：v1.2　　日期：2026-10-14　　代码基线：`main` @ `c0fa9c33`
+> 版本：v1.3　　日期：2026-10-15　　代码基线：`main` @ `c0fa9c33`（P0 已收官 R1+R2）；本版新增 Batch 2/3（P1/P2）施工图（§9/§10）
 > 上游依据：`docs/PRD_数据权限交互优化与指标模板接入.md`（31 条需求池）、`docs/方案_身份管理数据权限交互优化与指标模板接入.md`（现状调研）
-> **范围：仅第一批 P0 止血（Q1 / Q2 / Q3 / Q4 / Q6 已由用户拍板）**，不含 P1 / P2 / M 系列
+> **范围：第一批 P0 止血（Q1 / Q2 / Q3 / Q4 / Q6，R1+R2 已落库）+ Batch 2/3（P1/P2）施工图（§9/§10）**。M 系列（指标模板接入）不在本文件，见方案 doc §5.3。
 > 代码事实标注 `文件:行号`；本文档所有行号均已在本基线复核
 > **v1.1 变更**：新增 §0.3 决策记录（Q-A / Q-B / Q-C 已由兵哥拍板）、§5.5 执行顺序与提交切分；据此微调 T03 验收设计（防假绿测试约束）
 > **v1.2 变更**（工程师 R1 实施后回写）：修正 §1.2.2 写范围骨架示例 —— v1.1 把「缺 `write` 键」与「显式 `mode='none'`」混为一谈，与 D1 / §1.2.4 / §5.5.1 C2 三处冲突；**以三处一致口径定稿**并新增 `write: null` / `write: {}` 变体用例。同时补记 T01 / T02 的真库验证结果。
+> **v1.3 变更**（resume 续写）：扩展 Batch 2（P1：动作字典合一 / 弹窗重组 / 提交链）与 Batch 3（P2：本部门作用域档 / 存量 WRITE 行迁移）施工图，新增决策 D6/D7/D8、任务 T06~T10、风险 RK-14~RK-18。P0 部分（v1.0~v1.2）**未改动**。Batch 2/3 多处标「待定/阻塞」，需用户拍板或原型补充（见 §13）。
 
 ---
 
@@ -1734,3 +1735,404 @@ web/app/src/api/data-permission.ts:121-138                    WritePerm 类型
 web/app/src/pages/settings/FieldAclSettings.vue               全文件只读
 web/app/src/locales/domains/zh-CN.DATA_PERM_ZH.ts:1190        死胡同空状态文案
 ```
+
+---
+
+# ═══════════════════════════════════════════════════════════════
+# 第二部分：Batch 2（P1）/ Batch 3（P2）施工图（v1.3 新增）
+# ═══════════════════════════════════════════════════════════════
+
+> 本部分把方案 doc（§5.2 P1 交互重构 / §5.4 P2 清理项）的 P1/P2 项，按 team-lead 的批次重组为 **Batch 2（P1：动作字典合一 / 弹窗重组 / 提交链）** 与 **Batch 3（P2：本部门作用域档 / 存量 WRITE 行迁移）**，并定稿为可直接交工程师的施工图。
+> 证据标准同第一部分：`文件:行号` 为代码事实。Batch 2/3 多处标「待定 / 阻塞」，需用户拍板或原型补充（汇总见 §13）。
+> **与 P0 的关系**：Batch 2/3 不依赖 P0 的 R1/R2 代码改动（已落库），但「提交链」复用 P0-1 的 `write` 差分重建 + `writeNormalized` 回传（R1 已合）。
+
+---
+
+## 9. Batch 2（P1）：动作字典合一 / 弹窗重组 / 提交链
+
+### 9.1 动作字典合一（对应方案 P1-4 + P2-5/S5 + P1-5）
+
+#### 9.1.1 现状证据（已复核代码）
+
+| 事实 | 证据 | 对方案的影响 |
+|---|---|---|
+| 动作字典**已是 DB 表** | `data_permission/models.py:266` `DataPermissionAction`（key/label/category/enabled/is_system）；`action_map.py:102` `sync_seed()` 幂等灌库 | "可配置动作字典"基础设施**已存在**，本批次不是从零建，而是**驱动 UI 用起来 + 收口 fail-open** |
+| 代码层契约 15 动作已含 `category` | `action_map.py:32-48`：`view/export`=read，`edit/create/...`=write，`merge/delete`=destructive | 前端分组所需的 `category` 后端已下发，无需前端自建映射 |
+| 前端**过滤掉 read 类动作** | `ModulePermCard.vue:232-237` 仅按 `category ∈ {write, destructive}` 过滤 → `export`/`view`（read 类）**无法在写范围配置** | P1-4 修复点：改为按 `category` 分组呈现、不丢 read 类 |
+| 菜单路径→资源码映射 50+ 条、fail-open | `utils/permissionMenu.ts:26-99,144` `MENU_PERMISSION_RULES`；`:9-13` 明示"未登记路径恒可见"（fail-open 是**设计意图**，后端 403 兜底） | P2-5/S5 的"消除 fail-open"**仅指菜单可见性层**；动作执行层真源是 `DataPermissionAction`，二者是两层，不可混为一谈（见 D7） |
+| `import/export/batch_update/merge` 无守卫接线 | `candidate/views.py:541-555` 批量导入无 scope 判定；`action_map.py:43-45` 已注册但 `ensure_writable` 实际只用 edit/transition/claim/talent_pool_add/delete | P1-5：补 `ensure_writable(action='import'/'export'/...)` 调用点，配置才真生效 |
+
+#### 9.1.2 设计决策
+
+**D6（动作字典单一真源）**：前端写范围配置区的"动作清单"**一律由后端 `DataPermissionAction` 经 `actionRegistry` 下发**，按 `category`（read/write/destructive）分组呈现（新增/编辑/删除/导入/导出/审批/破坏性），**不再前端硬编码、不再过滤 read 类**。管理员停用某动作（DB `enabled=False`）→ 前端自动灰掉（TTL 缓存）。
+
+**D7（菜单映射与动作字典是两层，禁止合并）**：
+- `DataPermissionAction`（DB）是**执行层**真源：`ensure_writable(action=key)` 的调用方引用 key，停用即拒。
+- `permissionMenu.ts` 是**菜单/路由可见性层**，fail-open 是设计意图（配了权限但前端仍可见，由后端 403 兜底，绝不把用户锁死）。**保持 fail-open，不改语义**。
+- S5"路径→资源码改为后端下发"的**正确解读**= 菜单映射的码表来源应来自 `PermissionResource`（seed 的 `RESOURCES` MENU 类），消除"前端手写 50+ 条易漂移"；**不是**把动作字典和菜单映射合一张表。二者解耦。
+
+**D4（待拍板，阻断 D6 分组里的"审批"组）**：`approve_l1`/`approve_l2` 权限码零消费（方案 doc §P1-4）。是接入审批流校验，还是明确下掉权限码？直接影响"审批"分组的动作清单。见 §13。
+
+**P1-5 守卫接线清单**（写范围配置后必须真生效）：
+- `candidate/views.py:541-555` 批量导入 → `ensure_writable(action='import')`
+- `export` 导出类视图 → `ensure_writable(action='export')`
+- `merge`/`eliminate`/`batch_update` 各自视图 → 对应 key
+- 接线后单测：未授权角色调批量导入 → 403（fail-closed）
+
+#### 9.1.3 文件清单
+
+| 文件 | 改动 |
+|---|---|
+| `web/app/src/components/role/ModulePermCard.vue` | 动作清单改由 `actionRegistry` 下发 + 按 `category` 分组（修 `:232-237` 过滤 read 类） |
+| `web/app/src/api/data-permission.ts` | 新增 `fetchActionRegistry()`（拉 `DataPermissionAction`） |
+| `apps/django/apps/data_permission/views.py` | 新增 `ActionRegistryView`（GET 列表，含 `category`/`enabled`） |
+| `apps/django/apps/data_permission/serializers.py` | `DataPermissionActionSerializer`（已存在则复用） |
+| `web/app/src/utils/permissionMenu.ts` | S5：码表来源改为引用后端 `PermissionResource` MENU 类（去手写漂移）；**保留 fail-open 语义** |
+| `apps/django/apps/candidate/views.py` 等 | P1-5：`ensure_writable` 接线（import/export/merge/...） |
+
+#### 9.1.4 数据结构与接口
+
+```mermaid
+classDiagram
+  class DataPermissionAction {
+    +str key (PK)
+    +str label
+    +ActionCategory category
+    +bool destructive
+    +bool enabled
+    +bool is_system
+    +int sort_order
+  }
+  class ActionRegistryView {
+    +GET list()
+  }
+  class ModulePermCard {
+    +renderByCategory(actions)
+  }
+  ActionRegistryView ..> DataPermissionAction : 读取
+  ModulePermCard ..> ActionRegistryView : fetchActionRegistry
+```
+
+接口：`GET /data-permission/actions/` → `[{key,label,category,destructive,enabled,sort_order}]`（TTL 缓存 60s，与 `FieldAclService` 同策略）。
+
+#### 9.1.5 调用流
+
+```mermaid
+sequenceDiagram
+  participant UI as ModulePermCard
+  participant API as ActionRegistryView
+  participant DB as DataPermissionAction
+  UI->>API: GET /data-permission/actions/
+  API->>DB: filter(enabled=True).order_by(category,sort_order)
+  DB-->>API: 动作列表
+  API-->>UI: 按 category 分组渲染（read/write/destructive）
+  UI->>UI: 勾选动作 → 写入 module.write.actions
+  Note over UI: 提交链（§9.3）把 actions 一并存为 WRITE 行
+```
+
+#### 9.1.6 验收
+
+| # | 用例 | 标准 |
+|---|---|---|
+| 1 | 写范围配置区显示 read/write/destructive 三组 | `export`/`view` 可见（不再被过滤） |
+| 2 | 管理员停用某动作 → 前端灰掉 | DB `enabled=False` 生效（TTL 内） |
+| 3 | 批量导入未授权角色 → 403 | P1-5 守卫生效（fail-closed） |
+| 4 | `permissionMenu.ts` 码表来自后端 | 去手写漂移，fail-open 语义不变 |
+
+#### 9.1.7 状态
+
+✅ **施工图可交**（文件/接口/验收明确）。⚠️ **待拍板 D4**（审批分组动作来源）后方可动工"审批"组。
+
+---
+
+### 9.2 弹窗重组（对应方案 P1-1 + P1-3）
+
+#### 9.2.1 现状证据
+
+| 事实 | 证据 |
+|---|---|
+| 角色编辑三页签、新建两轮 | `RoleEditModal.vue:14,133,149,714`（空态 + `if(form.id && ...)` 跳过新建 → 必须两轮） |
+| 规则编辑器第 3 层弹窗、表达式手写 | `RuleConfigModal.vue` 第 3 层；`useRoleDataPerm.ts:202-286` 自研递归下降校验器 |
+| 中文摘要延迟可见 | `ModulePermCard.vue:68-77` `previewOf()` 仅关闭规则弹窗后可见 |
+| 弹窗关闭守卫已存在 | `useCloseGuard`；未保存圆点 `RoleEditModal.vue:815-821` |
+
+#### 9.2.2 设计方案
+
+**角色编辑改两段式（P1-1）**：
+- 段 1「基础信息」：角色名 / 编码 / 默认数据范围（`default_data_scope_type`）。
+- 段 2「权限配置」：功能权限 + 数据权限（读/写三分区，见 P1-2）+ 字段 ACL 入口。
+- 新建角色：段 1 填完即建 `RoleV2`（`role_code`），段 2 直接配权限，**消除两轮**（修 `:714` 的 `if(form.id)` 跳过）。
+- AGENTS.md 约束：`R-202` 每屏一个主角（两段式每屏单一焦点）；`R-106` 删除角色/权限须有撤销层级（Toast 撤销 5–8s 或确认框 + 影响范围）。
+
+**规则编辑器改抽屉（P1-3）**：
+- `RuleConfigModal` 第 3 层弹窗 → `n-drawer` 抽屉，从模块卡右侧滑出，不遮挡角色弹窗。
+- 实时中文摘要：摘要随编辑实时刷新（不再等关闭），复用 `previewOf()` 但改为 watch 驱动。
+- 三种条件源：维度 / 指标模板（M 系列，本批次仅留扩展位）/ 手动表达式。
+
+#### 9.2.3 文件清单
+
+| 文件 | 改动 |
+|---|---|
+| `web/app/src/pages/settings/permission/RoleEditModal.vue` | 三页签 → 两段式；新建一并保存（修 `:714`） |
+| `web/app/src/components/role/RuleConfigModal.vue` | 弹窗 → 抽屉 + 实时摘要 |
+| `web/app/src/composables/useRoleDataPerm.ts` | 段间状态编排（基础段先建 role 再进权限段） |
+| `web/app/src/components/role/ModulePermCard.vue` | 三分区（读/写/字段）布局（P1-2 配合） |
+
+#### 9.2.4 调用流
+
+```mermaid
+sequenceDiagram
+  participant U as 管理员
+  participant M1 as RoleEditModal(段1)
+  participant BE as RoleViewSet
+  participant M2 as RoleEditModal(段2)
+  participant D as RuleConfigDrawer
+  U->>M1: 填基础信息 → 下一步
+  M1->>BE: POST /roles/ (建 RoleV2, 拿 role_code)
+  BE-->>M1: role_code
+  M1->>M2: 进入段2 权限配置
+  U->>D: 点模块 → 编辑规则（抽屉滑出）
+  D->>D: 实时中文摘要(watch)
+  U->>M2: 保存全部权限
+  M2->>BE: PUT /roles/{id}/data-permission (提交链 §9.3)
+```
+
+#### 9.2.5 验收
+
+| # | 用例 | 标准 |
+|---|---|---|
+| 1 | 新建角色一步到位配权限 | 无需两轮（修 `:714`） |
+| 2 | 规则编辑器为抽屉、摘要实时 | 不遮挡、随改随见 |
+| 3 | 关闭未保存弹窗 | `useCloseGuard` 拦截 + 圆点提示 |
+| 4 | 删除角色/权限 | R-106 撤销层级（Toast/确认框） |
+
+#### 9.2.6 状态
+
+⚠️ **待定（需原型）**：两段式布局与抽屉交互需按 AGENTS.md §7 交付前自检产出原型/线框，确认 one-hero-per-screen（R-202）与破坏性撤销（R-106）合规后方可动工。施工图结构已明确，但**交互细节需产品经理（Alice）确认原型**，否则易返工。
+
+---
+
+### 9.3 提交链（P0-1 延伸：角色+权限端到端保存）
+
+#### 9.3.1 现状证据
+
+| 事实 | 证据 |
+|---|---|
+| 写范围子结构已实现 | `useRoleDataPerm.ts:666-694` `writeOf/setWriteMode/setWriteActions`（write={mode,expr,groups,actions}） |
+| 读/写校验已拆分并归因页签 | `useRoleDataPerm.ts:703-719` `validate()` 返回 `errorKinds: 'read'\|'write'`，fail-closed「配范围不勾动作=拒」 |
+| 后端差分重建 + writeNormalized | R1 已合（`role_scope_api.py` upsert_modules 按模块差分，响应回 `writeNormalized`） |
+| 字段 ACL 独立页 | R2 已合（C3+C4+C6），与角色编辑解耦 |
+
+#### 9.3.2 设计方案
+
+**提交链 = 角色保存 + 功能权限 + 数据权限（读+写范围）的端到端校验与提交编排**。
+
+- **校验前置**：`validate()` 同时校验读/写，按 `errorKinds` 把用户跳到出错页签（已实现）；写范围 fail-closed（配范围未勾动作即拒，已实现）。
+- **提交原子性边界（需拍板，见 §13）**：
+  - **方案 A（推荐，分步提交 + 前端编排）**：段 1 先 POST/PUT 角色拿 `role_code` → 段 2 PUT 数据权限（`upsert_modules` 差分重建，含 `writeNormalized` 回传校验）→ 字段 ACL 走独立页（已解耦）。每段独立成功即落库，**任一段失败不影响已成功的段**（前端提示哪段失败，可重试该段）。
+  - **方案 B（单事务）**：角色+权限同请求、DB 事务包裹。强一致但耦合高、回滚复杂，且与"字段 ACL 独立页"冲突。
+  - **结论倾向 A**：与现有"字段 ACL 独立页"架构一致，且 R2 已按此解耦。
+- **写范围往返保证**：提交后读回 `writeNormalized`，断言与提交一致（防 P0-1 回归，R1 已覆盖）。
+
+#### 9.3.3 文件清单
+
+| 文件 | 改动 |
+|---|---|
+| `web/app/src/composables/useRoleDataPerm.ts` | 提交链编排（段1→段2 顺序 + 失败重试定位） |
+| `web/app/src/pages/settings/permission/RoleEditModal.vue` | 两段式提交按钮串联 |
+| `apps/django/apps/core/views_permission_v2.py` | 数据权限 PUT 端点（R1 已存在，本批次仅确认契约） |
+
+#### 9.3.4 调用流
+
+```mermaid
+sequenceDiagram
+  participant U as 管理员
+  participant FE as useRoleDataPerm
+  participant BE as RoleViewSet/数据权限API
+  U->>FE: 点「保存」
+  FE->>FE: validate() 读/写拆分 + errorKinds 归因
+  alt 校验失败
+    FE-->>U: 跳出错页签 + 红字
+  else 校验通过
+    FE->>BE: PUT /roles/{id}/data-permission (modules 含 write)
+    BE->>BE: upsert_modules 差分重建 + writeNormalized
+    BE-->>FE: writeNormalized 回传
+    FE->>FE: 比对提交 vs 回传（往返校验）
+    FE-->>U: 保存成功
+  end
+```
+
+#### 9.3.5 验收
+
+| # | 用例 | 标准 |
+|---|---|---|
+| 1 | 配写范围→保存→重开仍在 | R1 已覆盖，本批次回归 |
+| 2 | 读/写校验失败跳对应页签 | `errorKinds` 归因正确 |
+| 3 | 配范围未勾动作→保存被拒 | fail-closed（R1 已覆盖） |
+| 4 | 段2 失败不影响段1 | 分步提交边界（按 §13 拍板方案） |
+
+#### 9.3.6 状态
+
+✅ **部分可交**：P0-1 已合，校验/写范围骨架清晰；⚠️ **待拍板**「提交原子性边界」（方案 A vs B，§13 RK-16）。
+
+---
+
+## 10. Batch 3（P2）：本部门作用域档 / 存量 WRITE 行迁移
+
+### 10.1 本部门作用域档（对应方案 P2-4/S4 + P2-1）
+
+#### 10.1.1 现状证据（已复核代码，与方案 doc 旧基线有出入）
+
+| 事实 | 证据 | 说明 |
+|---|---|---|
+| `app_data_scopes`（per-app 范围）**代码已实现** | `scope_resolver.py:92-108` 方案 A（2026-09-15）：`UserRoleV2.app_data_scopes[app_code]` 优先返回 `management_unit_ids` | ⚠️ **与方案 doc §P2-4「零使用」矛盾**——方案 doc 基线 `2d3aeb6d` 早于本实现（`c0fa9c33`）。现状是**已实现但未在 UI 暴露** |
+| 角色级默认范围 DEPT/DEPT_AND_SUB 已实现 | `scope_resolver.py:121-133`：`DEPT`=本部门不含祖先；`DEPT_AND_SUB`=本部门+子部门（按 `Department.path` 前缀） | 本部 scope 的**权威解析已在 scope_resolver**，本批次是"暴露 + 文档化" |
+| 两套"数据范围"语义冲突 | `RoleEditModal.vue:26-33`（`default_data_scope_type` 角色级）vs `ModulePermCard.vue:45-54`（`module.mode` 模块级） | P2-1：两者**独立语义**（角色默认范围 vs 模块读范围），无关联说明 → 需在 UI 明示区别，不得合并 |
+
+#### 10.1.2 设计决策
+
+**D8（本部 scope 权威定义）**：
+- 角色级 `default_data_scope_type`（`SELF`/`DEPT`/`DEPT_AND_SUB`/`ALL`）是"本部及下属"的**权威来源**，由 `scope_resolver.py` 唯一解析。
+- 模块级 `module.mode`（`none`/`all`/`scope`）是**另一套独立语义**（模块读范围），与角色默认范围**不合并、不互相覆盖**；UI 必须在两处加说明文字解释区别（修 P2-1），禁止把两套语义混为一谈。
+- `DEPT` 严格"不含祖先"（防向上越权，R8 已落实）；`DEPT_AND_SUB` 含子部门。
+
+**`app_data_scopes` 处置（待拍板，见 §13）**：
+- 代码已实现但 UI 未暴露。决策二选一：①**启用**——在角色编辑暴露"按应用自定义范围"开关，写入 `app_data_scopes[app_code]`；②**正式标注未启用**——`scope_resolver` 保留代码但文档标注"当前不开放配置"，避免管理员以为配了生效。
+- 倾向①（启用）：能力已实现，启用成本仅 UI 暴露 + 文档，收益是"本部门"可细化到 per-app。
+
+**"作用域档"实现选择**：
+- 不新建 `DataScopeProfile` 表。`app_data_scopes`（JSON per-app）已支持细化范围；若需"常用 scope 组合存为模板"，复用 `DataPermTemplate`（已存在，`models.py:178`）的 scope_payload 快照机制，不重复造表。
+
+#### 10.1.3 文件清单
+
+| 文件 | 改动 |
+|---|---|
+| `web/app/src/pages/settings/permission/RoleEditModal.vue` | 暴露 `default_data_scope_type` + （若启用）`app_data_scopes` 开关；加两套范围语义说明 |
+| `web/app/src/components/role/ModulePermCard.vue` | 模块级 `mode` 处加"与角色默认范围区别"说明（修 P2-1） |
+| `apps/django/apps/core/scope_resolver.py` | 已实现对，本批次仅确认 + 文档化（无改或仅日志） |
+| `apps/django/apps/core/serializers_permission_v2.py` | （若启用 app_data_scopes）`UserRoleSerializer` 暴露 `app_data_scopes` 写入口 |
+
+#### 10.1.4 调用流
+
+```mermaid
+sequenceDiagram
+  participant U as 管理员
+  participant FE as RoleEditModal
+  participant BE as scope_resolver
+  U->>FE: 选默认范围=本部门及下属
+  FE->>BE: 保存 default_data_scope_type=DEPT_AND_SUB
+  Note over BE: 运行时 _dept_and_sub_ids(user) 按 Department.path 前缀解析
+  BE-->>U: 该角色可见=本部门+所有子部门
+  Note over BE: app_data_scopes(若启用) 优先于角色级默认范围
+```
+
+#### 10.1.5 验收
+
+| # | 用例 | 标准 |
+|---|---|---|
+| 1 | 选"本部门及下属"→ 运行时见本部门+子部门 | `scope_resolver` DEPT_AND_SUB 生效 |
+| 2 | "本部门"不含祖先部门 | R8 越权边界正确 |
+| 3 | 两套范围说明文案存在 | P2-1 修复（角色级 vs 模块级） |
+| 4 | app_data_scopes（若启用）per-app 生效 | 高于角色级默认范围 |
+
+#### 10.1.6 状态
+
+⚠️ **待定（需拍板 D8 + app_data_scopes 启用与否）**：scope 解析代码已完备，本批次核心是"暴露 + 文档化 + 语义澄清"。施工图结构明确，但**启用 app_data_scopes 需用户拍板**（§13）。
+
+---
+
+### 10.2 存量 WRITE 行迁移（数据迁移）
+
+#### 10.2.1 现状证据
+
+| 事实 | 证据 | 说明 |
+|---|---|---|
+| `row_access` / `actions` 列已存在 | `data_permission/models.py:120-133`（2026-10-12 M07 读写分离 + 2026-10-13 动作粒度） | 模型层**已支持** WRITE 行，无需加列 |
+| 当前 **0 条 WRITE 行** | 方案 doc §1.6 数据事实：11 条规则全 ROW+ROLE，无 COLUMN/WRITE | ⚠️ **迁移当前无对象可迁** |
+| `actions=NULL` 语义=全部动作放行 | `models.py:129-133` 注释："NULL=全部动作放行" | 存量 WRITE 行若为 NULL，归一化目标是"保持 NULL"（与语义一致，无需改） |
+
+#### 10.2.2 设计方案
+
+**结论**：当前 DB 0 条 WRITE 行 → 本迁移是**安全垫片（幂等 no-op）**，不是数据搬迁。设计如下，待用户澄清"是否真的要迁某批数据"后定稿（§13）。
+
+- **迁移 `00xx_normalize_write_rows.py`**：
+  - 只读审计：扫描 `DataPermissionRule` 中 `row_access='WRITE'` 的行。
+  - 归一化（仅当存在 legacy 不一致）：若 `row_access='WRITE'` 但 `actions` 为非预期结构（如旧字符串），归一化为 `NULL`（=全部放行，与模型语义一致）。
+  - **当前 0 行 → 迁移执行即 no-op**，仅打印审计计数。
+- **执行纪律**（同 P0-3 §5.5.3）：先跑只读 SQL 核对再执行；迁移只做 `count()`/`update()`，不 `.create()` 规避 nanoid 坑。
+- **若用户意图是"回填 WRITE 行"**（如从 legacy 表/旧权限模型迁移写范围），需明确源表与映射规则，属另一类迁移，本施工图不适用 → 阻塞（§13）。
+
+#### 10.2.3 文件清单
+
+| 文件 | 改动 |
+|---|---|
+| `apps/django/apps/data_permission/migrations/00xx_normalize_write_rows.py` | 新（审计 + 可选归一化，幂等） |
+
+#### 10.2.4 验收
+
+| # | 用例 | 标准 |
+|---|---|---|
+| 1 | 迁移执行前后 WRITE 行数不变 | 当前 0 → 0（no-op 安全） |
+| 2 | 若存在 legacy WRITE 行，归一化后 `actions` 合规 | NULL 或合法 key 列表 |
+
+#### 10.2.5 状态
+
+🔴 **阻塞（需澄清迁移对象）**：当前 0 条 WRITE 行，迁移为安全网。若 team-lead 意图是回填某批写范围数据，需提供源与映射（§13）。**不建议在对象不明时动工**。
+
+---
+
+## 11. Batch 2/3 任务分解与提交切分
+
+| 任务 | 批次 | 内容 | 依赖 | 状态 |
+|---|---|---|---|---|
+| **T06** | Batch 2 | 动作字典合一（D6/D7 + P1-5 守卫接线） | 无（C7） | 可交（D4 待拍板后补"审批"组） |
+| **T07** | Batch 2 | 弹窗重组（P1-1 两段式 + P1-3 抽屉） | 无（C8） | 待定（需原型） |
+| **T08** | Batch 2 | 提交链（段1→段2 编排） | T06/T07 前端（C9） | 部分可交（原子性边界待拍板） |
+| **T09** | Batch 3 | 本部门作用域档（D8 + app_data_scopes 启用） | 无（C10） | 待定（D8 待拍板） |
+| **T10** | Batch 3 | 存量 WRITE 行迁移 | 无（C11） | 阻塞（对象待澄清） |
+
+```mermaid
+graph TD
+  T06[T06 动作字典合一] --> T08[T08 提交链]
+  T07[T07 弹窗重组] --> T08
+  T09[T09 本部作用域档] -.独立.-> T08
+  T10[T10 WRITE 行迁移] -.独立/阻塞.-> T08
+  style T06 fill:#e8f5e9
+  style T07 fill:#fff3e0
+  style T08 fill:#e3f2fd
+  style T09 fill:#f3e5f5
+  style T10 fill:#ffebee
+```
+
+> **并行度**：T06 / T07 / T09 / T10 代码零交叉，可并行；T08 串联前端提交流，依赖 T06/T07 的组件落地。
+
+---
+
+## 12. 新增风险登记（Batch 2/3）
+
+| # | 风险 | 等级 | 影响面 | 缓解 |
+|---|---|---|---|---|
+| **RK-14** | 动作字典与菜单映射混淆（D7） | 🟠 中 | 权限语义 | 两层解耦：动作字典=执行层真源；菜单映射=fail-open 可见性层（后端 403 兜底）。S5 仅去菜单映射手写漂移，不合并表 |
+| **RK-15** | 弹窗两段式破坏未保存守卫 | 🟠 中 | 角色编辑 | `useCloseGuard` + 圆点提示保留；段间切换若未保存需拦截（R-106 撤销层级） |
+| **RK-16** | 提交链分步提交部分失败一致性 | 🟠 中 | 角色+权限保存 | 方案 A 分段独立落库 + 失败定位重试；字段 ACL 独立页已解耦（避免方案 B 单事务回滚复杂） |
+| **RK-17** | DEPT 不含祖先 vs DEPT_AND_SUB 越权边界 | 🔴 高 | 数据范围 | `scope_resolver` R8 已落实"DEPT 不含祖先"；UI 文案明示区别，禁止合并两套语义（D8） |
+| **RK-18** | `actions=NULL` 语义（全部放行）未文档化 | 🟡 中 | 写范围执行 | 模型注释已写明；本批次在 UI 提示"未勾动作=拒全部"（fail-closed），与 NULL=全部放行区分（NULL 仅 legacy，新配置必勾） |
+
+---
+
+## 13. Batch 2/3 待拍板 / 阻塞汇总（决策台账新增）
+
+| # | 事项 | 类型 | 阻塞/待定 | 影响任务 |
+|---|---|---|---|---|
+| **D4** | `approve_l1`/`approve_l2` 接入审批流 vs 下掉权限码 | 待拍板 | 待定 | T06"审批"分组 |
+| **D8** | 本部 scope 权威 = 角色级 `default_data_scope_type`；模块级 `module.mode` 独立不合并 | 待拍板（已拟，需确认） | 待定 | T09 |
+| **S4'** | `app_data_scopes` 启用（UI 暴露）vs 标注未启用 | 待拍板 | 待定 | T09 |
+| **原子性** | 提交链方案 A（分步）vs B（单事务） | 待拍板 | 待定 | T08 |
+| **WRITE 迁移对象** | 当前 0 WRITE 行；是否需回填某批写范围数据？源表/映射？ | 阻塞（需澄清） | 阻塞 | T10 |
+| **原型** | 两段式弹窗布局 + 抽屉交互（AGENTS.md R-202/R-106 合规） | 待定（需 Alice 确认） | 待定 | T07 |
+
+> **施工图可交性结论**：
+> - ✅ **可直接交工程师**：T06（除 D4 审批组）、T08 骨架（除原子性边界）。
+> - ⚠️ **需拍板后交**：T07（原型）、T09（D8/S4'）、T08 原子性。
+> - 🔴 **阻塞不可交**：T10（WRITE 迁移对象不明）。
+> - P0 部分（R1+R2 已落库）不受影响，本 v1.3 仅追加 Batch 2/3，未改任何 P0 决策。
