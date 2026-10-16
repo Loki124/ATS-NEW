@@ -31,6 +31,36 @@ _DEPT_LIMIT = 1000
 _UNIT_LIMIT = 500
 
 
+def normalize_modules_payload(modules):
+    """把请求体 modules 里的多词键还原成 camelCase（幂等）。
+
+    🔴 为什么必须做（2026-10-16 兵哥「已经全部都设置了，为什么不能保存」）：
+    项目 REST_FRAMEWORK 装了 `CamelCaseJSONParser`，它对**请求体**递归
+    underscoreize（valueSource→value_source、dynamicKey→dynamic_key、
+    templateRef→template_ref…）。而本模块全链路按 camelCase 读条件键
+    （expr_compiler 的 valueSource/dynamicKey、scope_templates 的
+    templateRef/templateCode、这里的 moduleKey），于是动态取值来源条件在
+    到达业务逻辑前就"丢字段"了：
+      - validate_scope_payload 取不到 valueSource → 掉进静态分支 →
+        报「请为每条条件选择业务值」，管理员明明选了「当前登录用户」却存不进去；
+      - expr_compiler 编译期同样取不到 → 即便绕过校验落库，动态条件也会
+        退化成 no-op（可见范围恒为空）。
+
+    历史测试为什么全绿：单测直接构造 camelCase dict 调用函数层，**绕过了解析器**，
+    所以这条链路从来没被穿过（与 docs/ARCH_数据权限P0止血 §1.2.1 同型问题）。
+
+    修复选点在**本模块入口**而非全局 parser：其它 API 的 snake_case 契约已按
+    camelCase parser 正常工作，全局关掉会波及上百个端点；这里只把数据权限
+    自己的 payload 还原成它期望的形态，且对已是 camelCase 的调用方（内部函数
+    直调 / 单测）完全幂等。
+    """
+    from djangorestframework_camel_case.util import camelize
+
+    if not isinstance(modules, list):
+        return modules
+    return camelize(modules)
+
+
 def _department_options() -> List[Dict]:
     from apps.core.models import Department
     return [
@@ -239,6 +269,7 @@ def _validate_write_block(mk: str, write: object) -> str | None:
 
 def validate_modules(modules: List[Dict]) -> str | None:
     """校验 modules 数组结构 + 每个 scope 模块的 CUSTOM 表达式。返回首个错误原因或 None。"""
+    modules = normalize_modules_payload(modules)
     if not isinstance(modules, list):
         return 'modules 必须是数组'
     seen = set()
@@ -304,6 +335,9 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
     """
     created_by = getattr(user, 'pk', None)
     role_code = role.role_code
+    # 与 validate_modules 同一道还原：解析器已把多词键 underscoreize，
+    # 落库前必须转回 camelCase，否则存进去的 groups 键名与读接口/前端契约不符。
+    modules = normalize_modules_payload(modules)
 
     # 按 entity + row_access 归组现有行：{entity: {'read': rule|None, 'write': rule|None}}
     existing: Dict[str, Dict[str, object]] = {}
