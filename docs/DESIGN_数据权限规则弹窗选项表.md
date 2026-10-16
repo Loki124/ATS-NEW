@@ -346,3 +346,33 @@ DYNAMIC_DIMENSION_RULES: dict[str, frozenset[str]] = {
 ### 7.3 dfv / sharers 的 JSON 类型严格性修复（真实 MySQL 验证）
 
 `_resolve_user_ids` 原将 id 统一 `str()` 化，导致 dfv（int|str 的 OR 退化为 str-only）与 sharers（`__contains` 元素类型错配）**漏匹配**——4 个 Phase B 测试在真实 MySQL 上失败。修复：`_resolve_user_ids` 返回**原始类型** + `_value_forms(i)`（`123 → [123, '123']`）+ `_compile_json_contains_condition` 三形态（原值 / 全数值 / 全字符串）OR。修复后 `apps/data_permission` 全量 239 passed（真实 MySQL）。
+
+### 7.4 「为空/不为空选不了」三段断链修复（2026-10-15 兵哥截图反馈）
+
+现象：简历锁定人维度选「为空/不为空」后下拉秒弹回「包含」，且业务值/取值来源框不消失、保存被「请为每条条件选择业务值」误拦。根因是**前端三段断链**（后端 options→校验→编译本就全线支持该运算符，无需改动）：
+
+1. **受控下拉回弹（RuleConfigModal.vue `unifiedOperatorValue`）**：该函数把非 `not_in` 的 operator 一律折叠成 `'in'`，`:value` 重算后与用户所选不符，n-select 把选择弹回「包含」。修复：后端按维度下发的运算符（在 `unifiedOperatorOptions()` 选项表里真实存在的 value）**原样透传**，仅对存量 `eq/neq` 做 legacy 映射——同构原则与 `rangeValue()` 一致（绑定值必须能在选项表里找到对应项）。
+2. **控件不隐藏（`noValueOperator`）**：原实现只查 `meta.operators` 的 `noValue` 标志，而后端从未下发该标志（契约为 `{value, label}`），恒为 false。修复：按 §4/§6 契约在前端维护无值运算符集合 `NOVALUE_OPERATOR_VALUES = {is_empty, is_not_empty}`（后端 `noValue` 标志作为可选增强仍被识别），命中即隐藏业务值/取值来源控件、清空 values，`conditionError` 直接放行。
+3. **保存被误拦 + 预览句错误（useRoleDataPerm.ts）**：`validate()` 对静态关系条件一律要求 values 非空，`is_empty` 条件必被拦；`renderCondition` 把无值条件渲染成「属于 []」空列表。修复：导出 `REL_NOVALUE_OPS`，`validate()` 对无值运算符整体放行（与后端 compile 的 lock_owner 空值分支同口径），预览句渲染「简历锁定人 为空」；`DIMENSION_LABELS` 补 `lock_owner` 兜底映射，避免裸渲染 dimension key。
+
+回归：`RuleConfigModal.test.ts`（DOM 级：选为空不被弹回、控件隐藏、选回包含可逆）+ `useRoleDataPerm.novalue.test.ts`（预览句 + 保存校验放行 + 有值运算符锚点）。已用「临时退回病态行」验证测试确能复现 `expected '包含' to contain '为空'` 失败。
+
+### 7.5 动态取值条件全线失效（camelCase 解析器吞字段，2026-10-16 兵哥报障）
+
+现象：需求模块写范围配「TBP 包含 当前登录用户」，取值来源已选动态，保存报
+
+```
+基础信息与功能权限已保存，但数据权限保存失败:模块 demand 写范围: 条件组 1 第 1 条：请为每条条件选择业务值
+```
+
+**根因不在动态取值本身，而在 API 边界的键名转换。** 项目 `REST_FRAMEWORK.DEFAULT_PARSER_CLASSES` 装了 `CamelCaseJSONParser`，它对**请求体**递归 underscoreize（`valueSource→value_source`、`dynamicKey→dynamic_key`、`templateRef→template_ref`）；而数据权限模块全链路按 camelCase 读条件键（`expr_compiler` 的 `valueSource`/`dynamicKey`、`scope_templates` 的 `templateRef`/`templateCode`、`role_scope_api` 的 `moduleKey`），于是动态条件在到达业务逻辑前就"丢字段"：
+
+- `validate_scope_payload` 取不到 `valueSource` → 落进静态分支 → 报「请为每条条件选择业务值」（管理员明明选了动态）；
+- `expr_compiler` 编译期同样取不到 → 即便绕过校验落库，动态条件也会退化成 no-op，**可见/可写范围恒为空**（静默失效，比报错更危险）；
+- 读范围与写范围**两侧同中招**（`validate_modules` 与 `_validate_write_block` 共用 `validate_scope_payload`）。
+
+修复：`role_scope_api.normalize_modules_payload()` 在本模块入口（`validate_modules` + `upsert_modules` 落库前）用 `camelize` 还原键名，对已是 camelCase 的调用方（内部函数直调 / 单测）**幂等**。选点在模块入口而非全局 parser：其它 API 的 snake_case 契约已按 camelCase parser 正常工作，全局关掉会波及上百个端点。
+
+**为什么历史测试全绿**：既有单测（`test_m03_unit_dynamic.py` 等）直接构造 camelCase dict 调用函数层，**绕过 URL 路由与 `request.data` 解析**，动态分支永远走不到——与 `docs/ARCH_数据权限P0止血_系统设计.md` §1.2.1 同型问题（测试手搓 dict 绕过真实链路 → 生产 100% 失效）。
+
+回归：`tests/test_dynamic_cond_http_parser.py` 用 Django test client 打真实 URL（payload 原样过 `CamelCaseJSONParser`），覆盖写/读两侧动态条件可存 + 落库保留 camelCase + 静态空值仍被拒 + 动态来源不适配仍被拒（防放宽过头）。已用「临时撤掉 `camelize`」验证：复现出与兵哥截图**逐字相同**的错误信息。
