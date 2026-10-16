@@ -314,6 +314,11 @@ onMounted(() => {
   min-height: 240px;
   padding: var(--space-8) 0;
 }
+/* 空态里的「清除筛选」按钮（DefinitionsTab / TemplatesTab） */
+.ws-empty-action {
+  flex-shrink: 0;
+  margin-left: var(--space-3);
+}
 
 /* ===== 共享视觉元素（详情弹窗与卡片统一） ===== */
 .ws-code {
@@ -554,6 +559,11 @@ onMounted(() => {
 .tpl-sec-count { margin-left: auto; font-family: var(--tpl-mono); font-size: var(--fs-12); color: var(--brand-text); background: var(--brand-soft); padding: 1px 8px; border-radius: var(--radius-pill); font-variant-numeric: tabular-nums; }
 .tpl-sec-units { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
 .tpl-sec-static { margin-left: auto; font-family: var(--tpl-mono); color: var(--brand-text); font-weight: 600; font-size: var(--fs-12); }
+/* 纯说明型分区（自由文本出参「无值域」提示）：去掉卡片边框，避免与提示文案抢视觉层级 */
+.tpl-sec-note {
+  background: transparent;
+  border-style: dashed;
+}
 
 /* 继承信息：出参 / 单位 / 取值方式 —— 品牌浅底信息条（左侧色条标识「继承自指标定义」） */
 .tpl-inherit {
@@ -680,6 +690,8 @@ onMounted(() => {
 .tpl-readout-row.with-entity { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
 .tpl-readout-row.with-entity.no-param { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); }
 .pv-select { min-width: 0; width: 100%; }
+/* 实体取值方式下拉：与普通 pv-select 同宽，仅额外保证 7 列栅格内不被挤破 */
+.pv-entity-sel { min-width: 0; width: 100%; flex-shrink: 1; }
 /* 自由文本校验值走单行输入；空值判断不收输入，仅说明 */
 .pv-text { display: inline-flex; min-width: 0; width: 100%; }
 .pv-input { min-width: 0; width: 100%; }
