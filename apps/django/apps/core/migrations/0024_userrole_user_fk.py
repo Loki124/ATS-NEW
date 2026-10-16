@@ -247,7 +247,7 @@ class SafeAddField(migrations.AddField):
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         try:
             super().database_forwards(app_label, schema_editor, from_state, to_state)
-        except django.db.utils.OperationalError as exc:
+        except _DB_EXC as exc:
             msg = str(exc).lower()
             if any(k in msg for k in (
                 '1060', 'duplicate column',

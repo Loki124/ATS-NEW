@@ -140,10 +140,13 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
                 # 锁定人兜底：抢单/认领人（候选人级招聘官为空时展示）
                 'grabbed_by_name': app.grabbed_by.username if app.grabbed_by else '',
                 # 流程阶段有序列表（按 order 升序），供前端渲染「当前阶段」步骤条
+                # 2026-10-16 补软删口径：反向 stage_links 是原生 Manager 不过滤软删，
+                #   流程里「移除阶段」留下的软删 link 会混进步骤条（同 stage_count 一族）。
                 'stage_list': [
                     link.display_name
                     for link in (
-                        app.process.stage_links.all() if app.process else []
+                        app.process.stage_links.filter(deleted_at__isnull=True)
+                        if app.process else []
                     )
                 ],
                 'created_at': app.created_at.isoformat(),

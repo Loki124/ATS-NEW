@@ -1041,9 +1041,12 @@ const fieldForm = reactive<{
   isLocked: false,
 });
 
-// 系统内置字段的结构性属性(选项/字段类型)由后端守卫剥除, 编辑态不暴露选项编辑器。
+// 选项来源控件可见性: 按字段类型决定 (人员/部门/下拉/列表型), 不再区分内置/自定义。
+// 2026-10-15 (兵哥): 内置字段(TBP/HRBP/用人经理等)同样支持配置选项来源 ——
+// 选项来源只决定「填写表单时可选的人员/选项范围」, 存储后即人员信息, 不影响历史数据;
+// 后端 views.update 守卫本就放行 options_source(仅回灌 field_key/is_system/resource 身份键),
+// 前端此前的 isSystem 排除与后端契约不一致, 现对齐。
 const fieldNeedsOptions = computed(() =>
-  !fieldForm.isSystem &&
   ['SELECT', 'MULTISELECT', 'LIST_SINGLE', 'LIST_MULTI', 'PERSON', 'DEPARTMENT'].includes(fieldForm.fieldType),
 );
 

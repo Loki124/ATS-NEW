@@ -144,3 +144,30 @@ class TestNonLockedSystemFieldEditRegression:
         assert resp.status_code == 200, resp.content
         non_locked_system_field.refresh_from_db()
         assert non_locked_system_field.status == 'inactive'
+
+    def test_non_locked_system_field_change_options_source_returns_200(self, client, non_locked_system_field):
+        """2026-10-15 (兵哥): 内置人员字段(TBP/HRBP 等)也支持配置选项来源。
+
+        选项来源只决定「填写表单时可选的人员范围」, 存储后即人员信息, 不影响历史数据。
+        前端编辑态已放行控件, 此处锁定后端契约: 非锁定系统字段改 options_source → 200 且落库。
+        """
+        resp = client.patch(
+            detail_url(non_locked_system_field.id),
+            {'optionsSource': {'type': 'external_user'}},
+            format='json',
+        )
+        assert resp.status_code == 200, resp.content
+        non_locked_system_field.refresh_from_db()
+        assert non_locked_system_field.options_source == {'type': 'external_user'}
+
+    def test_system_field_identity_key_still_protected_with_options_source(self, client, non_locked_system_field):
+        """改 options_source 的同时, 核心身份键(field_key)仍被强制回灌。"""
+        resp = client.patch(
+            detail_url(non_locked_system_field.id),
+            {'fieldKey': 'hr_renamed', 'optionsSource': {'type': 'internal_user', 'key': ''}},
+            format='json',
+        )
+        assert resp.status_code == 200, resp.content
+        non_locked_system_field.refresh_from_db()
+        assert non_locked_system_field.field_key == 'hr'
+        assert non_locked_system_field.options_source == {'type': 'internal_user', 'key': ''}
