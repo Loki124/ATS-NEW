@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import ScopeQuerysetMixin
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 from apps.reason_library.models import RecruitType
 
 from .models import CampusAmbassador, CampusModuleConfig, CampusSession
@@ -32,11 +32,21 @@ class CampusModelViewSetMixin(ScopeQuerysetMixin):
 
     - recruit_type 硬分区（来自 ScopeQuerysetMixin：读侧过滤 + 写侧权威注入）；
     - 软删（FullAuditModel.deleted_at）+ 审计字段（created_by/updated_by）注入；
-    - 列表默认隐藏软删行。
+    - 列表默认隐藏软删行；
+    - 权限整改（B0）：裸 IsAuthenticated → V2Permission + 资源码（复用 campus-control
+      资源码，码不变；校园大使/宣讲会沿用 recruit:settings:campus-control:*）。
     """
 
     pagination_class = StandardResultsSetPagination
-    permission_classes = [IsAuthenticated]
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:settings:campus-control:list'
+    permission_required_map = {
+        'create': 'recruit:settings:campus-control:edit',
+        'update': 'recruit:settings:campus-control:edit',
+        'partial_update': 'recruit:settings:campus-control:edit',
+        'destroy': 'recruit:settings:campus-control:delete',
+        'restore': 'recruit:settings:campus-control:edit',
+    }
 
     def get_queryset(self):
         qs = self.queryset.model.objects.filter(deleted_at__isnull=True)
