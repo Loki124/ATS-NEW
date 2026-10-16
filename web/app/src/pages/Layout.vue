@@ -366,7 +366,7 @@ const menuLayout = computed<'side' | 'top'>(() =>
 )
 
 // G-2026-09-23: 菜单按系统差异（双系统）。社招/校招共享主功能菜单；校招额外追加
-// 「校招专属」分组（校园大使/宣讲会）。切换系统时菜单实时刷新（computed 依赖 systemStore）。
+// 「校园招聘」分组（校园大使/宣讲会/轮岗安排/轮岗资源/班级管理/人员管理）。切换系统时菜单实时刷新（computed 依赖 systemStore）。
 const systemStore = useSystemStore()
 const { canAccess } = usePermission()
 const menuOptions = computed(() => {
@@ -410,11 +410,15 @@ const menuOptions = computed(() => {
   if (systemStore.isCampus) {
     base.push({
       key: 'campus',
-      label: '校招专属',
+      label: '校园招聘',
       icon: renderIcon(PeopleOutline),
       children: [
         { key: '/settings/campus-ambassador', label: '校园大使' },
         { key: '/settings/campus-session', label: '宣讲会' },
+        { key: '/campus/rotation-arrangement', label: '轮岗安排' },
+        { key: '/campus/live-room', label: '轮岗资源' },
+        { key: '/campus/class-room', label: '班级管理' },
+        { key: '/campus/person', label: '人员管理' },
       ],
     })
   }

@@ -216,6 +216,30 @@ const routes: RouteRecordRaw[] = [
           },
         ],
       },
+      // ===== 校园招聘（campus 模块）：轮岗安排 / 轮岗资源 / 班级管理 / 人员管理 =====
+      // 菜单 key 即路由 path（以 / 开头）；权限守卫通过 permissionForPath(to.path) 命中上方 MENU_PERMISSION_RULES。
+      // 人员管理复用现有用户管理页组件（需求4/5：人员管理=用户管理）。
+      {
+        path: 'campus/rotation-arrangement',
+        name: 'CampusRotationArrangement',
+        component: () => import(/* webpackChunkName: "campus-rotation-arrangement" */ '../pages/campus/RotationArrangement.vue')
+      },
+      {
+        path: 'campus/live-room',
+        name: 'CampusLiveRoom',
+        component: () => import(/* webpackChunkName: "campus-live-room" */ '../pages/campus/LiveRoom.vue')
+      },
+      {
+        path: 'campus/class-room',
+        name: 'CampusClassRoom',
+        component: () => import(/* webpackChunkName: "campus-class-room" */ '../pages/campus/ClassRoom.vue')
+      },
+      {
+        path: 'campus/person',
+        name: 'CampusPersonManagement',
+        component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserDirectory.vue'),
+        meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] }
+      },
       {
         path: 'report',
         name: 'Report',

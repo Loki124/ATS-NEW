@@ -82,6 +82,13 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/campus-ambassador', code: 'recruit:settings:campus-control:menu:view' },
   { prefix: '/settings/campus-session', code: 'recruit:settings:campus-control:menu:view' },
 
+  // ===== 校园招聘（campus 模块）：轮岗安排 / 轮岗资源 / 班级管理 / 人员管理 =====
+  // 最长前缀匹配（permissionForPath 取最长命中）；fail-open：未登记路径恒可见。
+  { prefix: '/campus/rotation-arrangement', code: 'recruit:campus:rotation:menu:view' },
+  { prefix: '/campus/live-room', code: 'recruit:campus:resource:menu:view' },
+  { prefix: '/campus/class-room', code: 'recruit:campus:class:menu:view' },
+  { prefix: '/campus/person', code: 'recruit:settings:users:menu:view' },
+
   // ===== 招聘分类信息 =====
   { prefix: '/settings/dictionary', code: 'recruit:settings:dictionary:menu:view' },
 

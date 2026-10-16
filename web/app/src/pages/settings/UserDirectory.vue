@@ -33,6 +33,26 @@
         clearable
         class="rule-filter-select"
       />
+      <!-- 需求5：直属上级筛选（用户维度，异步搜索用户下拉） -->
+      <n-select
+        v-model:value="filterDirectManager"
+        :options="managerOptions"
+        placeholder="直属上级"
+        clearable
+        filterable
+        remote
+        :on-search="onManagerSearch"
+        class="rule-filter-select"
+      />
+      <!-- 需求5：身份多选筛选（导师 / 班主任，?role= 并集） -->
+      <n-select
+        v-model:value="filterRoles"
+        :options="roleIdentityOptions"
+        placeholder="身份"
+        multiple
+        clearable
+        class="rule-filter-select"
+      />
       <div class="spacer"></div>
       <n-button type="primary" @click="openCreateModal">
         <template #icon><n-icon :component="AddOutline" /></template>
@@ -131,6 +151,22 @@
             </n-form-item>
             </n-grid-item>
           </n-grid>
+          <!-- 需求5：直属上级（用户维度，复用用户搜索接口） -->
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item :span="2">
+              <n-form-item label="直属上级">
+                <n-select
+                  v-model:value="formState.directManager"
+                  :options="managerOptions"
+                  placeholder="请选择直属上级"
+                  clearable
+                  filterable
+                  remote
+                  :on-search="onManagerSearch"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
         </div>
 
         <!-- 权限信息 -->
@@ -186,7 +222,7 @@ import { useI18n } from 'vue-i18n'
 import { localPagination } from '@/composables/useTablePagination'
 // 列对齐与操作列规格的单一真源（四档规则见 useTableColumns.ts 文件头）
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
-import { ref, reactive, onMounted, computed, h } from 'vue';
+import { ref, reactive, onMounted, computed, watch, h } from 'vue';
 import {
   AddOutline,
   CreateOutline,
@@ -245,6 +281,10 @@ interface User {
   userType?: string;
   /** 该用户拥有的身份名称列表（后端 roleNames，由 role_code → RoleV2.role_name 批量派生） */
   roleNames?: string[];
+  /** 直属上级（User 外键，可选，零 DDL 复用 core.User.direct_manager） */
+  directManager?: string;
+  /** 直属上级姓名（只读派生字段，见 03-技术方案 §3.1） */
+  directManagerName?: string;
   createdAt: string;
 }
 
@@ -266,6 +306,30 @@ const roles = ref<Role[]>([]);
 const searchText = ref('');
 const filterUserType = ref<string | null>(null);
 const filterStatus = ref<string | null>(null);
+// 需求5：直属上级筛选（按 User 维度，非部门）/ 身份多选筛选（导师·班主任）
+const filterDirectManager = ref<string | null>(null);
+const filterRoles = ref<string[]>([]);
+
+// 身份筛选选项（导师 / 班主任，对应 RoleV2 身份类型，见 03-技术方案 §0）
+const roleIdentityOptions = [
+  { label: '导师', value: 'campus_mentor' },
+  { label: '班主任', value: 'head_teacher' },
+];
+
+// 直属上级用户下拉数据源：复用用户搜索接口（GET /api/v1/users/?search=）异步检索。
+// 直属上级是「用户」不是「部门」，故走用户搜索而非部门树。
+const managerOptions = ref<{ label: string; value: string }[]>([]);
+const onManagerSearch = async (kw: string) => {
+  const term = (kw || '').trim();
+  if (!term) return;
+  const res = await request(`/api/v1/users/?search=${encodeURIComponent(term)}&page_size=50`);
+  if (res.ok && res.data?.success) {
+    managerOptions.value = (res.data.data || []).map((u: any) => ({
+      label: `${u.realName || u.username}${u.employeeId ? `（${u.employeeId}）` : ''}`,
+      value: String(u.id),
+    }));
+  }
+};
 
 // 下拉选项
 const statusOptions = [
@@ -300,6 +364,8 @@ const formState = reactive({
   userType: 'INTERNAL',
   status: 'ACTIVE',
   department: null as string | null,
+  // 需求5：直属上级（写 directManager；directManagerName 由后端只读派生）
+  directManager: null as string | null,
 });
 
 // 身份配置下拉选项（由 roles（RoleV2 列表）派生，value=RoleV2.id）
@@ -420,14 +486,19 @@ const request = async (url: string, options: RequestInit = {}) => {
 
 // 加载用户列表：后端为服务端分页（默认 page_size=20、上限 200、响应带 pagination.total）。
 // 本页需要「展示全部用户」+ 客户端搜索/筛选，故循环翻页把所有用户一次性拉全，存入 users。
+// 需求5：直属上级（direct_manager）/ 身份（role，多值并集）走服务端过滤，挂到查询串上。
 const loadUsers = async () => {
   loading.value = true;
   try {
     const all: any[] = [];
     let page = 1;
     const pageSize = 200; // 后端上限，单次取最多
+    const extra = new URLSearchParams();
+    if (filterDirectManager.value) extra.set('direct_manager', String(filterDirectManager.value));
+    if (filterRoles.value.length) extra.set('role', filterRoles.value.join(','));
+    const qs = extra.toString();
     while (true) {
-      const res = await request(`/api/v1/users/?page=${page}&page_size=${pageSize}`);
+      const res = await request(`/api/v1/users/?page=${page}&page_size=${pageSize}${qs ? `&${qs}` : ''}`);
       if (!res.ok || !res.data?.success) {
         message.error(res.data?.message || '加载用户列表失败');
         break;
@@ -463,6 +534,11 @@ const displayUsers = computed<User[]>(() => {
 
 // 筛选结果变化时：回到第 1 页（localPagination 非受控，需通过 :key 触发或 reset）
 // 注：naive-ui localPagination 在 :data 数组引用变化时自动重置页码，无需显式处理。
+
+// 需求5：直属上级 / 身份筛选走服务端，变化时重新拉取列表（desktopUsers 已清空分页状态由 :data 引用变化自动重置）。
+watch([filterDirectManager, filterRoles], () => {
+  loadUsers();
+});
 
 // 加载角色列表
 const loadRoles = async () => {
@@ -501,7 +577,8 @@ const openCreateModal = () => {
     roleIds: [],
     userType: 'INTERNAL',
     status: 'ACTIVE',
-    department: null
+    department: null,
+    directManager: null
   });
   userModalVisible.value = true;
 };
@@ -520,7 +597,8 @@ const closeUserModal = () => {
     roleIds: [],
     userType: 'INTERNAL',
     status: 'ACTIVE',
-    department: null
+    department: null,
+    directManager: null
   });
 };
 
@@ -559,6 +637,7 @@ const handleUpdateUser = async () => {
       userType: formState.userType,
       status: formState.status,
       department: formState.department,
+      directManager: formState.directManager,
     };
     const res = await request(`/api/v1/users/${editingUser.value?.id}/`, {
       method: 'PUT',
@@ -693,8 +772,19 @@ const actionsColumn = {
               roleIds: [],
               userType: row.userType || 'INTERNAL',
               status: row.status,
-              department: row.department != null ? String(row.department) : null
+              department: row.department != null ? String(row.department) : null,
+              directManager: row.directManager != null ? String(row.directManager) : null
             });
+            // 预填直属上级下拉选项（列表已返回 directManagerName，避免弹窗显示裸 id）
+            if (row.directManager != null) {
+              const idStr = String(row.directManager);
+              if (!managerOptions.value.some((o) => o.value === idStr)) {
+                managerOptions.value = [
+                  { label: row.directManagerName || idStr, value: idStr },
+                  ...managerOptions.value,
+                ];
+              }
+            }
             loadUserRoles(row.id);
             userModalVisible.value = true;
           }
@@ -740,6 +830,13 @@ const columns = [
       if (!full || full === name) return text;
       return h(NTooltip, null, { trigger: () => text, default: () => full });
     }
+  }, 'short'),
+  column({
+    title: '直属上级',
+    key: 'directManagerName',
+    width: 120,
+    ellipsis: true,
+    render: (row: User) => row.directManagerName || '-'
   }, 'short'),
   column(userTypeColumn, 'short'),
   column(statusColumn, 'short'),
