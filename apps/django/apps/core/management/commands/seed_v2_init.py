@@ -223,6 +223,7 @@ RESOURCES = [
     # 校招管控 (config)
     ('recruit:settings:campus-control:menu:view', '校招管控菜单', 'MENU', 'settings'),
     ('recruit:settings:campus-control:edit', '编辑校招管控', 'BUTTON', 'settings'),
+    ('recruit:settings:campus-control:delete', '删除校招管控', 'BUTTON', 'settings'),
     # 数据字典 (management)
     ('recruit:settings:dictionary:menu:view', '数据字典菜单', 'MENU', 'settings'),
     ('recruit:settings:dictionary:create', '新增字典项', 'BUTTON', 'settings'),
@@ -409,7 +410,7 @@ CONFIG_CODES = [
     'recruit:settings:rule-engine:menu:view', 'recruit:settings:rule-engine:list',
     'recruit:settings:rule-engine:edit',
     'recruit:settings:campus-control:menu:view', 'recruit:settings:campus-control:list',
-    'recruit:settings:campus-control:edit',
+    'recruit:settings:campus-control:edit', 'recruit:settings:campus-control:delete',
     'recruit:settings:metrics:list', 'recruit:settings:metrics:edit',
     # 渠道成本 / 通知模板
     'recruit:channel:menu:view', 'recruit:channel:list',
