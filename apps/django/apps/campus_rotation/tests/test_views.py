@@ -310,3 +310,103 @@ class TestV2PermissionWiring:
     def test_hr_user_allowed(self, auth_hr_client, _seed_campus_data):
         resp = auth_hr_client.get(f'{BASE}/live-rooms/')
         assert resp.status_code == 200
+
+
+# --------------------------------------------------------------------------- #
+# 容量 / 名额饱和校验（方案 §3.2：409）
+# --------------------------------------------------------------------------- #
+@pytest.mark.django_db
+class TestCapacitySaturation:
+    def test_class_room_full_returns_409(self, auth_client, head_teacher_user, _seed_campus_data):
+        # 建容量为 1 的班级
+        resp = auth_client.post(
+            f'{BASE}/class-rooms/',
+            {'name': '小班', 'head_teacher': head_teacher_user.id, 'capacity': 1},
+            format='json',
+        )
+        assert resp.status_code == 201, resp.content
+        cid = resp.json()['data']['id']
+
+        # 第一个校招生入班 -> 成功
+        r1 = auth_client.post(
+            f'{BASE}/rotation-arrangements/',
+            {'person_id': 200001, 'class_room': cid},
+            format='json',
+        )
+        assert r1.status_code == 201, r1.content
+
+        # 第二个校招生入班 -> 409 班级容量已满
+        r2 = auth_client.post(
+            f'{BASE}/rotation-arrangements/',
+            {'person_id': 200002, 'class_room': cid},
+            format='json',
+        )
+        assert r2.status_code == 409, r2.content
+        assert '班级容量已满' in r2.content.decode()
+
+        # 容量未设（None）时不校验 -> 仍可入班
+        resp = auth_client.post(
+            f'{BASE}/class-rooms/',
+            {'name': '大班', 'head_teacher': head_teacher_user.id},
+            format='json',
+        )
+        cid2 = resp.json()['data']['id']
+        r3 = auth_client.post(
+            f'{BASE}/rotation-arrangements/',
+            {'person_id': 200003, 'class_room': cid2},
+            format='json',
+        )
+        assert r3.status_code == 201, r3.content
+
+    def test_mentor_full_returns_409(self, auth_client, mentor_user, _seed_campus_data):
+        from apps.campus_rotation.validators import MENTOR_ONGOING_CAPACITY
+        mentor_id = mentor_user.id
+
+        # 填满 ONGOING 名额
+        for i in range(MENTOR_ONGOING_CAPACITY):
+            r = auth_client.post(
+                f'{BASE}/rotation-arrangements/',
+                {'person_id': 300000 + i, 'mentor': mentor_id, 'stage': 'ONGOING'},
+                format='json',
+            )
+            assert r.status_code == 201, r.content
+
+        # 额外一个 ONGOING -> 409 导师名额已饱和
+        r_over = auth_client.post(
+            f'{BASE}/rotation-arrangements/',
+            {'person_id': 300000 + MENTOR_ONGOING_CAPACITY, 'mentor': mentor_id, 'stage': 'ONGOING'},
+            format='json',
+        )
+        assert r_over.status_code == 409, r_over.content
+        assert '导师名额已饱和' in r_over.content.decode()
+
+        # 非 ONGOING 阶段不计入名额 -> 仍可创建
+        r_pending = auth_client.post(
+            f'{BASE}/rotation-arrangements/',
+            {'person_id': 399999, 'mentor': mentor_id, 'stage': 'PENDING'},
+            format='json',
+        )
+        assert r_pending.status_code == 201, r_pending.content
+
+    def test_update_reassignment_excludes_self(self, auth_client, head_teacher_user, _seed_campus_data):
+        # 容量为 1 的班级 + 已入班一条；原地 PATCH 不相关字段不应误判饱和
+        resp = auth_client.post(
+            f'{BASE}/class-rooms/',
+            {'name': '班X', 'head_teacher': head_teacher_user.id, 'capacity': 1},
+            format='json',
+        )
+        cid = resp.json()['data']['id']
+        r = auth_client.post(
+            f'{BASE}/rotation-arrangements/',
+            {'person_id': 200010, 'class_room': cid},
+            format='json',
+        )
+        rid = r.json()['data']['id']
+
+        # 原地更新（不改 class_room）-> 排除自身后未满，应通过
+        r_patch = auth_client.patch(
+            f'{BASE}/rotation-arrangements/{rid}/',
+            {'note': '备注更新'},
+            format='json',
+        )
+        assert r_patch.status_code == 200, r_patch.content

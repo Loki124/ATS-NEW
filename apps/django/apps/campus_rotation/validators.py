@@ -4,10 +4,27 @@
 所有函数对「字段未提供（None/空）」保持宽容（返回 True），由调用方决定是否必填。
 """
 from django.db.models import Q
+from rest_framework.exceptions import APIException
 
 from apps.core.models import Department, User
 from apps.core.models_permission_v2 import RoleV2, UserRoleV2
 from apps.dictionary.models import DictionaryItem
+
+# 导师名下 ONGOING 轮岗名额上限（方案 §3.2：上限来源 = 配置或约定常量）。
+# 如后续需运营可调，可下沉到 CampusModuleConfig，但当前按约定常量落地。
+MENTOR_ONGOING_CAPACITY = 20
+
+
+class CapacityExceeded(APIException):
+    """容量 / 名额饱和，返回 HTTP 409（方案 §3.2 契约）。
+
+    在序列化器 validate() 中抛出：DRF 的 is_valid 仅捕获 ValidationError，
+    本异常会冒泡到 DRF 异常处理器，返回标准 409（非 400 信封）。
+    """
+
+    status_code = 409
+    default_detail = '容量或名额已饱和'
+    default_code = 'capacity_exceeded'
 
 
 def is_bu_depth(dept):

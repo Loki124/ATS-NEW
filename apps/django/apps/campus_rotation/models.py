@@ -83,6 +83,7 @@ class ClassRoom(FullAuditModel, UUIDModel):
 
     head_teacher 须具 HEAD_TEACHER 身份（写时校验）；class_monitor 仅 User 引用，
     不建身份类型；hrbp 仅 User 引用。student_count 为只读聚合字段，不落库。
+    capacity 为运营录入的容量上限（可空），用于班级饱和校验（方案 §3.2）。
     """
 
     code = models.CharField(
@@ -103,6 +104,7 @@ class ClassRoom(FullAuditModel, UUIDModel):
         related_name='+', verbose_name='HRBP',
     )
     batch = models.CharField(max_length=32, blank=True, default='', verbose_name='批次')
+    capacity = models.PositiveIntegerField(null=True, blank=True, verbose_name='容量上限')
     remark = models.TextField(blank=True, default='', verbose_name='备注')
 
     class Meta:

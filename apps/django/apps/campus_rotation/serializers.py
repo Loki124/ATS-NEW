@@ -9,6 +9,8 @@ from rest_framework import serializers
 
 from .models import ClassRoom, LiveRoom, RotationArrangement
 from .validators import (
+    CapacityExceeded,
+    MENTOR_ONGOING_CAPACITY,
     dict_key_active,
     is_bu_depth,
     is_subordinate_of,
@@ -86,7 +88,7 @@ class ClassRoomSerializer(serializers.ModelSerializer):
         model = ClassRoom
         fields = [
             'id', 'code', 'name', 'head_teacher', 'class_monitor', 'hrbp',
-            'batch', 'remark', 'created_at', 'updated_at', 'student_count',
+            'batch', 'capacity', 'remark', 'created_at', 'updated_at', 'student_count',
         ]
         read_only_fields = ['id', 'code', 'created_at', 'updated_at', 'student_count']
 
@@ -172,5 +174,32 @@ class RotationArrangementSerializer(serializers.ModelSerializer):
         if start and end and end < start:
             raise serializers.ValidationError(
                 {'rotationEnd': '轮岗结束日期不能早于开始日期'})
+
+        # 容量 / 名额饱和校验（方案 §3.2）：返回 409
+        if 'class_room' in attrs:
+            class_room = attrs['class_room']
+        else:
+            class_room = getattr(instance, 'class_room', None)
+        if class_room is not None and class_room.capacity is not None:
+            bound = RotationArrangement.objects.filter(
+                class_room_id=class_room.id, deleted_at__isnull=True,
+            ).exclude(id=instance.id if instance else None).count()
+            if bound >= class_room.capacity:
+                raise CapacityExceeded('班级容量已满')
+
+        if 'mentor' in attrs:
+            mentor = attrs['mentor']
+        else:
+            mentor = getattr(instance, 'mentor', None)
+        # 仅当本安排本身处于 ONGOING（或正改为此阶段）时才占用导师名额；
+        # PENDING/APPROVING 等非 ONGOING 阶段不计入名额上限。
+        if mentor is not None:
+            new_stage = attrs.get('stage', getattr(instance, 'stage', None))
+            if new_stage == 'ONGOING':
+                ongoing = RotationArrangement.objects.filter(
+                    mentor_id=mentor.id, stage='ONGOING', deleted_at__isnull=True,
+                ).exclude(id=instance.id if instance else None).count()
+                if ongoing >= MENTOR_ONGOING_CAPACITY:
+                    raise CapacityExceeded('导师名额已饱和')
 
         return attrs
