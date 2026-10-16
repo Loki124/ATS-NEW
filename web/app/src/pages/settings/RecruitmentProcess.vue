@@ -47,6 +47,14 @@
         @saved="onProcessSaved"
         @copied="onProcessCopied"
       />
+
+      <!-- 2026-10-16 方案 A：流程被需求引用时，提供「改绑引用」解钉死入口 -->
+      <ProcessRebindModal
+        v-model:show="showRebind"
+        :process-id="rebindProcessId"
+        :process-name="rebindProcessName"
+        @rebound="onRebindDone"
+      />
     </div><!-- /.page-body -->
   </div>
 </template>
@@ -55,10 +63,11 @@
 import { useI18n } from 'vue-i18n'
 import { ref, onMounted, h, computed } from 'vue'
 import { useMessage, NButton, NTag, NIcon, NDataTable, NPopconfirm, NSpace } from 'naive-ui'
-import { AddOutline, SearchOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
+import { AddOutline, SearchOutline, CreateOutline, TrashOutline, SwapHorizontalOutline } from '@vicons/ionicons5'
 import { listProcesses, deleteProcess } from '../../api/recruitment-process'
 import api from '../../api/auth'
 import ProcessDetailModal from './ProcessDetailModal.vue'
+import ProcessRebindModal from './ProcessRebindModal.vue'
 import { localPagination } from '@/composables/useTablePagination'
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 const { t } = useI18n()
@@ -125,32 +134,48 @@ const columns = computed(() => [
     key: 'action',
     width: 160,
     fixed: 'right' as const,
-    render: (row: any) => h(NSpace, { size: 8, wrap: false }, () => [
-      h(NButton, {
-        size: OP_ACTION_BUTTON_SIZE,
-        quaternary: true,
-        type: 'primary',
-        onClick: () => openProcessModal(row),
-      }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.RecruitmentProcess.s15') }),
-      // 2026-09-08: 流程增加删除入口。is_template=True 的流程不可删（属预置模板），
-      // 被需求引用的不可删（后端 PermissionDenied 兜底，FE 用 referenceCount 提前禁用）。
-      h(NPopconfirm, {
-        onPositiveClick: () => handleDelete(row),
-        disabled: row.isTemplate || (row.referenceCount ?? 0) > 0,
-      }, {
-        trigger: () => h(NButton, {
+    render: (row: any) => {
+      // 2026-10-16 方案 A：被需求引用（referenceCount>0）时，删除是死路（后端 PROTECT 兜死），
+      // 与其显示一个永远 disabled 的删除按钮，不如换成「改绑引用」给真正出路（见 ProcessRebindModal）。
+      // 改绑成功后引用数归零，该行的操作区会自动切回「编辑 + 删除」。
+      const referenced = !row.isTemplate && (row.referenceCount ?? 0) > 0
+      const children = [
+        h(NButton, {
           size: OP_ACTION_BUTTON_SIZE,
           quaternary: true,
-          type: 'error',
-          disabled: row.isTemplate || (row.referenceCount ?? 0) > 0,
-        }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.RecruitmentProcess.s16') }),
-        default: () => row.isTemplate
-          ? t('pages.settings.RecruitmentProcess.s17')
-          : (row.referenceCount ?? 0) > 0
-            ? t('pages.settings.RecruitmentProcess.s18', { count: row.referenceCount })
-            : t('pages.settings.RecruitmentProcess.s19'),
-      }),
-    ]),
+          type: 'primary',
+          onClick: () => openProcessModal(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(CreateOutline) }), default: () => t('pages.settings.RecruitmentProcess.s15') }),
+      ]
+      if (referenced) {
+        children.push(h(NButton, {
+          size: OP_ACTION_BUTTON_SIZE,
+          quaternary: true,
+          type: 'warning',
+          onClick: () => openRebind(row),
+        }, { icon: () => h(NIcon, null, { default: () => h(SwapHorizontalOutline) }), default: () => t('pages.settings.RecruitmentProcess.s26') }))
+      } else {
+        children.push(
+          // 2026-09-08: 流程增加删除入口。is_template=True 的流程不可删（属预置模板），
+          // 被需求引用的已在上面走「改绑引用」，这里只处理非引用行。
+          h(NPopconfirm, {
+            onPositiveClick: () => handleDelete(row),
+            disabled: row.isTemplate,
+          }, {
+            trigger: () => h(NButton, {
+              size: OP_ACTION_BUTTON_SIZE,
+              quaternary: true,
+              type: 'error',
+              disabled: row.isTemplate,
+            }, { icon: () => h(NIcon, null, { default: () => h(TrashOutline) }), default: () => t('pages.settings.RecruitmentProcess.s16') }),
+            default: () => row.isTemplate
+              ? t('pages.settings.RecruitmentProcess.s17')
+              : t('pages.settings.RecruitmentProcess.s19'),
+          }),
+        )
+      }
+      return h(NSpace, { size: 8, wrap: false }, () => children)
+    },
   }, 'control'),
 ])
 
@@ -218,6 +243,21 @@ function onProcessSaved() {
 
 // 详情 modal 中的 "复制此流程" 按钮 -> modal 已自动关 + 已 toast, list 重新拉即可
 function onProcessCopied(_newProcessId: string) {
+  loadList()
+}
+
+// 2026-10-16 方案 A：流程被需求引用时，提供「改绑引用」入口解钉死（否则后端 PROTECT 永久钉死）。
+// 点击「改绑引用」打开 ProcessRebindModal，弹窗内逐条把引用需求改绑到其他流程；
+// 改绑成功后本流程 referenceCount 归零，列表重载后该行操作区自动切回「编辑 + 删除」。
+const showRebind = ref(false)
+const rebindProcessId = ref('')
+const rebindProcessName = ref('')
+function openRebind(row: any) {
+  rebindProcessId.value = row.id
+  rebindProcessName.value = row.name
+  showRebind.value = true
+}
+function onRebindDone() {
   loadList()
 }
 

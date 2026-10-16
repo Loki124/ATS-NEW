@@ -256,6 +256,159 @@ def _live_children(manager, *order_fields):
     return qs
 
 
+def _next_process_code() -> str:
+    """纯计算：给出下一个可用的流程编号（``W`` + 3 位流水号），**不写库**。
+
+    与 ``ProcessWithStagesCreateSerializer.create()`` 的编号规则同源（FE 建流程不发 code）。
+
+    ⚠️ **刻意不过滤软删**：``uniq_process_code_version_seq(code, version_seq)`` 是无条件
+    唯一约束，软删行同样占位；只统计 live 行会算出一个已被软删行占用的编号 →
+    IntegrityError（与 :func:`_compute_next_version_seq` 同一个坑）。
+    """
+    from ..models import RecruitmentProcess
+
+    last = RecruitmentProcess.objects.filter(code__startswith='W').order_by('-code').values_list(
+        'code', flat=True,
+    ).first()
+    next_num = (int(last[1:]) + 1) if last and last[1:].isdigit() else 1
+    return f'W{next_num:03d}'
+
+
+def _clone_process_children(src, dst, actor=None) -> List[dict]:
+    """把 ``src`` 的全部**子配置**深拷贝到已落库的 ``dst``，返回降级的自动化规则清单。
+
+    供 :func:`clone_process_with_new_version`（同 code 追加版本）与
+    :func:`copy_process_as_new`（派生独立新流程）共用 —— 两者的子配置语义必须完全一致，
+    各自维护一份拷贝逻辑必然漂移。
+
+    拷贝清单与处置理由见 :func:`clone_process_with_new_version` 的 docstring。
+
+    Args:
+        src: 源流程（已落库，只读）。
+        dst: 目标流程（**必须已落库**，子行的 ``process`` FK 指向它）。
+        actor: 审计字段写入者。
+
+    Returns:
+        ``degraded_rules``：因阶段变化而被跳过/禁用的自动化规则清单（list[dict]）。
+    """
+    from apps.automation.models import AutomationRule
+    from apps.entry_condition.models import ConditionItem, EntryConditionRule
+    from apps.time_limit.models import TimeLimitRule
+
+    from ..models import ProcessStageLink, StageRule
+
+    audit_overrides = {'created_by': actor, 'updated_by': actor}
+    child_exclude = _COPY_EXCLUDE_BASE | _COPY_EXCLUDE_AUDIT
+
+    # ------------------------------------------------------------
+    # 克隆 stage_links（只取 live 行；顺序即 entry_rule_expression 的序号基准）
+    # ------------------------------------------------------------
+    new_stage_ids: set = set()
+    for link in _live_children(src.stage_links, 'order', 'id'):
+        new_link = ProcessStageLink.objects.create(
+            process=dst,
+            stage_id=link.stage_id,
+            order=link.order,
+            is_required=link.is_required,
+            is_mandatory=link.is_mandatory,
+            custom_name=link.custom_name,
+            stage_limit=link.stage_limit,
+            entry_rule_expression=link.entry_rule_expression,
+            created_by=actor,
+            updated_by=actor,
+        )
+        new_stage_ids.add(link.stage_id)
+
+        # --- stage_rule（1:1）：自省全字段拷贝 ---
+        # 用 getattr(..., None) 而非 hasattr：hasattr 会把「RelatedObjectDoesNotExist」
+        # 之外的真实异常也一并吞成 False，让「拷贝失败」伪装成「本来就没有」。
+        old_rule = getattr(link, 'stage_rule', None)
+        if old_rule is not None:
+            _clone_related(
+                StageRule, old_rule,
+                exclude=child_exclude | {'link'},
+                overrides={'link': new_link, **audit_overrides},
+            )
+
+        # --- entry_condition_rules（1:N）+ 递归 items（二级 1:N） ---
+        for old_ec in _live_children(link.entry_condition_rules, 'rule_seq', 'id'):
+            new_ec = _clone_related(
+                EntryConditionRule, old_ec,
+                exclude=child_exclude | {'link'},
+                overrides={
+                    'link': new_link,
+                    # ⚠️ 普通 CharField，不是 FK —— 排除 'process' 拦不住它。
+                    # 漏了这两行，规则会指回**旧**流程 ID / 旧版本号，
+                    # 且 DB 层没有 FK 约束会报错，属于静默脏数据。
+                    'process_id': dst.id,
+                    'workflow_version': dst.current_version,
+                    **audit_overrides,
+                },
+            )
+            for old_item in _live_children(old_ec.items, 'item_seq', 'id'):
+                _clone_related(
+                    ConditionItem, old_item,
+                    exclude=child_exclude | {'rule'},
+                    overrides={'rule': new_ec},
+                )
+
+        # --- time_limit_rules（1:N） ---
+        for old_tl in _live_children(link.time_limit_rules, 'priority', 'id'):
+            _clone_related(
+                TimeLimitRule, old_tl,
+                exclude=child_exclude | {'link'},
+                overrides={
+                    'link': new_link,
+                    'process_id': dst.id,          # 同上：CharField，非 FK
+                    'workflow_version': dst.current_version,
+                    **audit_overrides,
+                },
+            )
+
+    # ------------------------------------------------------------
+    # 克隆 automation_rules（产品 Q3：复制，但按目标阶段集合过滤）
+    # ------------------------------------------------------------
+    # 不复制 = 静默的能力归零：AutomationRule.process 是 CASCADE FK 指向**具体行**，
+    # 新行天生没有任何规则，用户改个小配置就会「第二天发现自动提醒全停了」。
+    degraded_rules: List[dict] = []
+    for old_auto in _live_children(src.automation_rules, 'created_at', 'id'):
+        if old_auto.stage_id not in new_stage_ids:
+            # 触发阶段已从目标流程移除 → 复制过去也是永不触发的哑规则，跳过。
+            degraded_rules.append({
+                'rule_id': old_auto.id,
+                'rule_name': old_auto.name,
+                'action': 'SKIPPED',
+                'reason': 'STAGE_REMOVED',
+                'stage_id': old_auto.stage_id,
+            })
+            continue
+
+        overrides = {'process': dst, **audit_overrides}
+        if old_auto.next_stage_id is not None and old_auto.next_stage_id not in new_stage_ids:
+            # 目标阶段没了：规则本身仍有意义（用户可重配），但不能带着悬空目标运行。
+            # 注意 key 必须是 attname ``next_stage_id``：``next_stage`` 字段名没有被
+            # exclude 排掉，data 里已有 ``next_stage_id=<旧值>``，用字段名传 None
+            # 顶不掉它（详见 _clone_related 的 docstring），旧外键会被静默保留。
+            overrides['next_stage_id'] = None
+            overrides['enabled'] = False
+            degraded_rules.append({
+                'rule_id': old_auto.id,
+                'rule_name': old_auto.name,
+                'action': 'DISABLED',
+                'reason': 'NEXT_STAGE_REMOVED',
+                'stage_id': old_auto.stage_id,
+                'next_stage_id': old_auto.next_stage_id,
+            })
+
+        _clone_related(
+            AutomationRule, old_auto,
+            exclude=child_exclude | {'process'},
+            overrides=overrides,
+        )
+
+    return degraded_rules
+
+
 @transaction.atomic
 def clone_process_with_new_version(
     process,
@@ -299,15 +452,11 @@ def clone_process_with_new_version(
         ``views.clone_version`` 等既有调用方被迫改写（元组返回会静默把整个
         Response 变成序列化元组）。
     """
-    from apps.automation.models import AutomationRule
-    from apps.entry_condition.models import ConditionItem, EntryConditionRule
-    from apps.time_limit.models import TimeLimitRule
-
-    from ..models import (
-        ProcessStageLink,
-        RecruitmentProcess,
-        StageRule,
-    )
+    # 2026-10-16：子配置深拷贝（stage_link / stage_rule / entry_condition /
+    #   time_limit / automation）已抽到 :func:`_clone_process_children`，
+    #   与 copy 端点共用，避免两份拷贝清单随时间漂移。
+    #   下列模型导入只留本函数直接用得到的 RecruitmentProcess。
+    from ..models import RecruitmentProcess
 
     # 先算 seq 再由它派生版本串，保证 version_seq 与 current_version 永远同源，
     # 不会出现 C1 通过而 C2 撞车（或反之）这种半截状态。
@@ -334,113 +483,7 @@ def clone_process_with_new_version(
         updated_by=actor,
     )
 
-    audit_overrides = {'created_by': actor, 'updated_by': actor}
-    child_exclude = _COPY_EXCLUDE_BASE | _COPY_EXCLUDE_AUDIT
-
-    # ------------------------------------------------------------
-    # 克隆 stage_links（只取 live 行；顺序即 entry_rule_expression 的序号基准）
-    # ------------------------------------------------------------
-    new_stage_ids: set = set()
-    for link in _live_children(process.stage_links, 'order', 'id'):
-        new_link = ProcessStageLink.objects.create(
-            process=new_process,
-            stage_id=link.stage_id,
-            order=link.order,
-            is_required=link.is_required,
-            entry_rule_expression=link.entry_rule_expression,
-            created_by=actor,
-            updated_by=actor,
-        )
-        new_stage_ids.add(link.stage_id)
-
-        # --- stage_rule（1:1）：自省全字段拷贝 ---
-        # 用 getattr(..., None) 而非 hasattr：hasattr 会把 RelatedObjectDoesNotExist
-        # 之外的真实异常也一并吞成 False，让「拷贝失败」伪装成「本来就没有」。
-        old_rule = getattr(link, 'stage_rule', None)
-        if old_rule is not None:
-            _clone_related(
-                StageRule, old_rule,
-                exclude=child_exclude | {'link'},
-                overrides={'link': new_link, **audit_overrides},
-            )
-
-        # --- entry_condition_rules（1:N）+ 递归 items（二级 1:N） ---
-        for old_ec in _live_children(link.entry_condition_rules, 'rule_seq', 'id'):
-            new_ec = _clone_related(
-                EntryConditionRule, old_ec,
-                exclude=child_exclude | {'link'},
-                overrides={
-                    'link': new_link,
-                    # ⚠️ 普通 CharField，不是 FK —— 排除 'process' 拦不住它。
-                    # 漏了这两行，新版本的规则会指回**旧**流程 ID / 旧版本号，
-                    # 而 DB 层没有 FK 约束会报错，属于静默脏数据。
-                    'process_id': new_process.id,
-                    'workflow_version': new_process.current_version,
-                    **audit_overrides,
-                },
-            )
-            for old_item in _live_children(old_ec.items, 'item_seq', 'id'):
-                _clone_related(
-                    ConditionItem, old_item,
-                    exclude=child_exclude | {'rule'},
-                    overrides={'rule': new_ec},
-                )
-
-        # --- time_limit_rules（1:N） ---
-        for old_tl in _live_children(link.time_limit_rules, 'priority', 'id'):
-            _clone_related(
-                TimeLimitRule, old_tl,
-                exclude=child_exclude | {'link'},
-                overrides={
-                    'link': new_link,
-                    'process_id': new_process.id,       # 同上：CharField，非 FK
-                    'workflow_version': new_process.current_version,
-                    **audit_overrides,
-                },
-            )
-
-    # ------------------------------------------------------------
-    # 克隆 automation_rules（产品 Q3：复制，但按新版本阶段集合过滤）
-    # ------------------------------------------------------------
-    # 不复制 = 静默的能力归零：AutomationRule.process 是 CASCADE FK 指向**具体行**，
-    # 新版本行天生没有任何规则，用户改个小配置就会「第二天发现自动提醒全停了」。
-    # stage / next_stage 都 FK 到全局阶段字典 RecruitmentStage（**不是** ProcessStageLink），
-    # 所以复制过去不会悬空；真实边界只有「新版本删掉了该阶段」这一种。
-    degraded_rules: List[dict] = []
-    for old_auto in _live_children(process.automation_rules, 'created_at', 'id'):
-        if old_auto.stage_id not in new_stage_ids:
-            # 触发阶段已从新版本移除 → 复制过去也是永不触发的哑规则，跳过。
-            degraded_rules.append({
-                'rule_id': old_auto.id,
-                'rule_name': old_auto.name,
-                'action': 'SKIPPED',
-                'reason': 'STAGE_REMOVED',
-                'stage_id': old_auto.stage_id,
-            })
-            continue
-
-        overrides = {'process': new_process, **audit_overrides}
-        if old_auto.next_stage_id is not None and old_auto.next_stage_id not in new_stage_ids:
-            # 目标阶段没了：规则本身仍有意义（用户可重配），但不能带着悬空目标运行。
-            # 注意 key 必须是 attname ``next_stage_id``：``next_stage`` 字段名没有被
-            # exclude 排掉，data 里已有 ``next_stage_id=<旧值>``，用字段名传 None
-            # 顶不掉它（详见 _clone_related 的 docstring），旧外键会被静默保留。
-            overrides['next_stage_id'] = None
-            overrides['enabled'] = False
-            degraded_rules.append({
-                'rule_id': old_auto.id,
-                'rule_name': old_auto.name,
-                'action': 'DISABLED',
-                'reason': 'NEXT_STAGE_REMOVED',
-                'stage_id': old_auto.stage_id,
-                'next_stage_id': old_auto.next_stage_id,
-            })
-
-        _clone_related(
-            AutomationRule, old_auto,
-            exclude=child_exclude | {'process'},
-            overrides=overrides,
-        )
+    degraded_rules = _clone_process_children(process, new_process, actor)
 
     new_process._degraded_automation_rules = degraded_rules
     if degraded_rules:
@@ -461,6 +504,79 @@ def clone_process_with_new_version(
     new_process.save(update_fields=['is_latest'])
 
     logger.info('Process %s cloned to new version %s by %s', process.id, new_version, actor)
+    return new_process
+
+
+@transaction.atomic
+def copy_process_as_new(
+    process,
+    new_name: str = None,
+    actor=None,
+) -> RecruitmentProcess:
+    """把流程整份复制成一条**独立的新流程**（新编号、新版本线）。
+
+    与 :func:`clone_process_with_new_version` 的边界
+    ----------------------------------------------
+    ========================== ==============================================
+    ``clone-version``          本函数
+    ========================== ==============================================
+    同一 code 内追加版本        派生**新** code（独立流程线）
+    BR-101/BR-104 版本语义      用户点「复制」的直觉语义
+    老版本行仍存在且只读        老流程完全不受影响（不动它的 is_latest）
+    ========================== ==============================================
+
+    FE ``copyProcess()`` 打的是 ``POST /processes/{id}/copy/``，此前后端**没有**这个
+    action —— 流程详情页点「复制」必然 404。
+
+    三条与 clone 不同的关键决策：
+
+    1. ``is_template=False``：复制出来的是普通流程。若继承 ``is_template``，副本会
+       变成「预置模板」，在流程列表里永久不可删除（模板禁用删除）。
+    2. **不动源流程的 ``is_latest``**：新 code 下只有它自己一行，天然就是 latest，
+       无需「先降后升」翻转（也就不存在 C3' 的瞬时双 latest 窗口）。
+    3. **不改指任何 Demand/Position/Application**：与 clone 的 Q4 裁定一致 —— 复制是
+       拿一份配置去改，不该动正在跑的候选人。
+
+    子配置深拷贝复用 :func:`_clone_process_children`（与 clone 同一份清单）。
+
+    Returns:
+        新建的 RecruitmentProcess，并挂 ``_degraded_automation_rules``（list[dict]），
+        语义同 :func:`clone_process_with_new_version`。
+    """
+    from ..models import RecruitmentProcess
+
+    code = _next_process_code()
+    new_process = RecruitmentProcess.objects.create(
+        code=code,
+        name=new_name or f'{process.name} - 副本',
+        current_version='V1.0',
+        version_seq=1,
+        # 新 code 下没有任何老行，直接置 True；不需要 clone 那套「先降后升」翻转。
+        is_latest=True,
+        applicable_scope=deepcopy(process.applicable_scope),
+        # 见决策 1：不继承预置模板标记。
+        is_template=False,
+        template_code=None,
+        is_enabled=process.is_enabled,
+        validate_resume_score=process.validate_resume_score,
+        description=process.description,
+        status='ENABLED',
+        created_by=actor,
+        updated_by=actor,
+    )
+
+    degraded_rules = _clone_process_children(process, new_process, actor)
+    new_process._degraded_automation_rules = degraded_rules
+    if degraded_rules:
+        logger.warning(
+            'Copy %s → %s (%s): %d automation rule(s) degraded by stage changes',
+            process.id, new_process.id, code, len(degraded_rules),
+        )
+
+    logger.info(
+        'Process %s copied as new process %s (%s) by %s',
+        process.id, new_process.id, code, actor,
+    )
     return new_process
 
 

@@ -541,7 +541,7 @@ class RecruitmentProcessListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'code', 'name', 'current_version',
             'is_template', 'template_code',
-            'is_enabled', 'validate_resume_score',
+            'is_enabled', 'is_latest', 'validate_resume_score',
             'status', 'applicable_scope', 'description',
             'stage_count', 'reference_count',
             'created_at', 'updated_at',
@@ -632,10 +632,20 @@ class RecruitmentProcessSerializer(serializers.ModelSerializer):
 
 class RecruitmentProcessDetailSerializer(RecruitmentProcessSerializer):
     """招聘流程 - 详情（含完整 stage links + rules）"""
-    stage_links = ProcessStageLinkSerializer(many=True, read_only=True)
+    # 2026-10-16: 裸 many=True 走反向 Manager（原生、不滤软删）→ 详情把
+    #   「流程里移除过」的软删 link 一起吐给客户端（实测 W001 返 8 条、活跃只有 2 条）。
+    #   与 stage_count / reference_count 同一族口径问题，这里显式过滤。
+    #   代价：.filter() 会击穿 get_queryset 的 prefetch_related('stage_links') 缓存。
+    #   可接受 —— 本序列化器只在 retrieve 用（单行），列表走 RecruitmentProcessListSerializer，
+    #   不在 N+1 热路径上。
+    stage_links = serializers.SerializerMethodField()
 
     class Meta(RecruitmentProcessSerializer.Meta):
         fields = RecruitmentProcessSerializer.Meta.fields + ['stage_links']
+
+    def get_stage_links(self, obj):
+        links = obj.stage_links.filter(deleted_at__isnull=True).order_by('order', 'id')
+        return ProcessStageLinkSerializer(links, many=True, context=self.context).data
 
 
 # ============================================================

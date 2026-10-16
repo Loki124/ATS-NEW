@@ -150,9 +150,16 @@ class RecruitmentStage(FullAuditModel):
 
     @property
     def reference_count(self):
-        """被启用中流程引用的次数（已归档流程不计入）"""
+        """被启用中流程引用的次数（已归档流程不计入）。
+
+        2026-10-16 补软删口径：本仓软删不是 manager 兜底，反向关联会数进软删行 ——
+        「流程里移除该阶段」留下的软删 link 会让「使用」列虚高，且 is_referenced
+        （删除/停用守卫）会因此误拦。link 与 process 两层都要排除软删。
+        """
         return self.process_stage_links.filter(
-            process__status='ENABLED'
+            deleted_at__isnull=True,
+            process__status='ENABLED',
+            process__deleted_at__isnull=True,
         ).count()
 
     @property

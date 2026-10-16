@@ -69,6 +69,7 @@ from .services.expression_service import validate_expression
 from .services.versioning import (
     archive_process,
     clone_process_with_new_version,
+    copy_process_as_new,
     is_process_referenced,
     list_process_versions,
 )
@@ -207,8 +208,12 @@ class RecruitmentStageViewSet(EnvelopeModelViewSet):
     @action(detail=True, methods=['get'], url_path='references')
     def references(self, request, pk=None):
         instance = self.get_object()
+        # 2026-10-16 补软删口径（同 RecruitmentStage.reference_count）：
+        #   软删 link / 软删 process 都不该出现在「被哪些流程引用」里。
         links = instance.process_stage_links.filter(
+            deleted_at__isnull=True,
             process__status__in=['ENABLED', 'ARCHIVED'],
+            process__deleted_at__isnull=True,
         ).select_related('process')
         return Response({
             'success': True,
@@ -391,6 +396,41 @@ class RecruitmentProcessViewSet(ScopeQuerysetMixin, EnvelopeModelViewSet):
         # 产品 Q3：因阶段变更被跳过/禁用的自动化规则要回给前端，用于提示
         # 「N 条自动化规则因阶段变更需要重新配置」。服务层把清单挂在返回对象上
         # （而非改成元组返回），既不破坏既有调用方也不用动序列化器。
+        degraded_rules = getattr(new_process, '_degraded_automation_rules', [])
+        return Response(
+            {
+                'success': True,
+                'data': serializer.data,
+                'extra': {'degraded_automation_rules': degraded_rules},
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
+        summary='复制为独立新流程',
+        description=(
+            '把当前流程整份复制成一条**新编号**的流程（新 code / 新版本线）。'
+            '与 clone-version 的区别：那个是同一 code 内追加版本（BR-101/BR-104），'
+            '这个派生独立流程线且不动源流程。'
+            'Body: { "new_name": "可选的新名称" }（FE copyProcess 发的 newName 亦可）'
+        ),
+        request=None,
+        responses={201: RecruitmentProcessDetailSerializer},
+    )
+    @action(detail=True, methods=['post'], url_path='copy')
+    def copy(self, request, pk=None):
+        """复制为独立新流程（2026-10-16 新增）。
+
+        FE ``recruitment-process.ts:copyProcess`` 一直在打这个路径，此前端点缺失 → 必 404。
+        """
+        instance = self.get_object()
+        new_process = copy_process_as_new(
+            instance,
+            # drf-camel-case 把 FE 的 newName 转成 new_name；同时兼容 name。
+            new_name=request.data.get('new_name') or request.data.get('name'),
+            actor=request.user,
+        )
+        serializer = RecruitmentProcessDetailSerializer(new_process, context={'request': request})
         degraded_rules = getattr(new_process, '_degraded_automation_rules', [])
         return Response(
             {

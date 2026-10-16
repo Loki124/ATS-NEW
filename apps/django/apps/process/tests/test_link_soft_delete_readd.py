@@ -33,6 +33,16 @@ def _make_process_and_stage(auth_client):
     return process_id, stage.data['data']['id']
 
 
+def _stage_count(auth_client, process_id: str) -> int:
+    """列表接口里该流程的 stage_count（带 page_size 防翻页，且用检索断言而非 next() 兜底）。"""
+    resp = auth_client.get(f'{PROCESS_LIST}?page_size=200')
+    assert resp.status_code == 200, resp.data
+    rows = resp.data['data'] if isinstance(resp.data['data'], list) else resp.data['data']['results']
+    matched = [r for r in rows if r['id'] == process_id]
+    assert len(matched) == 1, f'流程 {process_id} 不在列表首 200 条里（rows={len(rows)}）'
+    return matched[0]['stage_count']
+
+
 def test_readd_after_removal_is_allowed(auth_client):
     """移除阶段后再加回来（软删行仍占唯一组合）应当直接成功，而不是 400。"""
     process_id, stage_id = _make_process_and_stage(auth_client)
@@ -105,7 +115,90 @@ def test_stage_count_excludes_soft_deleted(auth_client):
 
     ProcessStageLink 未把 SoftDeleteManager 设为默认 manager，obj.stage_links.count()
     会把「移除又加回来」留下的软删行也数进去，列表阶段数虚高。
+
+    ⚠️ 基线必须动态取，不能写死「起止 2 + 业务 1 = 3」：本套件里存在
+    django_db(transaction=True) 用例（如 apps/candidate），teardown 会 flush 整库，
+    把迁移种子的全局起止阶段冲掉；pytest 又会把目录参数重排到单文件之前，
+    于是「自动填充 2 条起止」这条前提在整跑时不成立（实测 count=1）。
     """
+    process_id, stage_id = _make_process_and_stage(auth_client)
+
+    # 创建流程后自动填充的起止 link 数（0/1/2 视库状态而定）
+    base = _stage_count(auth_client, process_id)
+
+    created = auth_client.post(
+        LINK_LIST,
+        data={'process_id': process_id, 'stage_id': stage_id, 'order': 1},
+        format='json',
+    )
+    assert created.status_code == 201, created.data
+    link_id = created.data['data']['id']
+    assert _stage_count(auth_client, process_id) == base + 1
+
+    # 软删 1 条 → 回到基线（行还在，旧实现会得 base+1）
+    assert auth_client.delete(f'{LINK_LIST}{link_id}/').status_code == 204
+    assert _stage_count(auth_client, process_id) == base
+
+    # 加回来（复活同一行）→ base+1，且没有新增行
+    readd = auth_client.post(
+        LINK_LIST,
+        data={'process_id': process_id, 'stage_id': stage_id},
+        format='json',
+    )
+    assert readd.status_code == 201, readd.data
+    assert _stage_count(auth_client, process_id) == base + 1
+
+    # 详情端点继承同一个 get_stage_count，口径必须一致
+    detail = auth_client.get(f'{PROCESS_LIST}{process_id}/')
+    assert detail.status_code == 200, detail.data
+    assert detail.data['data']['stage_count'] == base + 1, detail.data
+
+
+def test_detail_stage_links_exclude_soft_deleted(auth_client):
+    """详情接口的 stageLinks 也不能带软删行（实测 W001 返 8 条、活跃只有 2 条）。"""
+    from apps.process.models import ProcessStageLink
+
+    process_id, _ = _make_process_and_stage(auth_client)
+    removed = auth_client.post(
+        STAGE_LIST,
+        data={'name': _uniq('详情软删阶段'), 'stage_type': 'INTERVIEW'},
+        format='json',
+    )
+    assert removed.status_code == 201, removed.data
+    gone = auth_client.post(
+        LINK_LIST,
+        # 不传 order：起止边界校验（BR-001）会拦越界顺序，前端同样省略该字段
+        data={'process_id': process_id, 'stage_id': removed.data['data']['id']},
+        format='json',
+    )
+    assert gone.status_code == 201, gone.data
+    assert auth_client.delete(f'{LINK_LIST}{gone.data["data"]["id"]}/').status_code == 204
+
+    # ⚠️ 基准必须用 _base_manager + 显式过滤：ProcessStageLink 的默认 manager **不过滤**
+    #   软删（正是本次修的这一族问题），拿 objects 当「活跃」基准会把软删行算进去。
+    all_rows = list(ProcessStageLink._base_manager.filter(process_id=process_id))
+    soft_ids = {x.id for x in all_rows if x.deleted_at is not None}
+    live_ids = {x.id for x in all_rows if x.deleted_at is None}
+    assert soft_ids, '前置条件失败：本用例需要至少一条软删 link'
+
+    detail = auth_client.get(f'{PROCESS_LIST}{process_id}/')
+    assert detail.status_code == 200, detail.data
+    returned = {l['id'] for l in detail.data['data']['stage_links']}
+    assert returned == live_ids, (
+        f'详情应恰好返回全部活跃 link：缺 {sorted(live_ids - returned)} / 多 {sorted(returned - live_ids)}'
+    )
+    assert not (returned & soft_ids), '软删 link 混进了详情 stageLinks'
+
+
+def test_reference_count_ignores_soft_deleted(auth_client):
+    """阶段配置「使用」列（reference_count）只数活跃 link + 未软删的启用流程。
+
+    同 stage_count 一族的问题：反向关联 process_stage_links 会数进软删行，
+    「流程里移除该阶段」留下的软删 link 让「使用」列虚高，且 is_referenced
+    （删除/停用守卫 BR-002）会因此误拦。
+    """
+    from apps.process.models import RecruitmentProcess
+
     process_id, stage_id = _make_process_and_stage(auth_client)
 
     created = auth_client.post(
@@ -116,29 +209,29 @@ def test_stage_count_excludes_soft_deleted(auth_client):
     assert created.status_code == 201, created.data
     link_id = created.data['data']['id']
 
-    # 创建流程时自动填充起止 2 条 + 本阶段 1 条 = 3
-    def _count(resp):
+    def _refs() -> int:
+        resp = auth_client.get(f'{STAGE_LIST}?page_size=200')
         assert resp.status_code == 200, resp.data
         rows = resp.data['data'] if isinstance(resp.data['data'], list) else resp.data['data']['results']
-        row = next(r for r in rows if r['id'] == process_id)
-        return row['stage_count']
+        matched = [r for r in rows if r['id'] == stage_id]
+        assert len(matched) == 1, f'阶段 {stage_id} 不在列表首 200 条里（rows={len(rows)}）'
+        # 注意：APIClient 的 resp.data 是渲染前数据，键仍是 snake_case（camelCase 只在 JSON 渲染层）
+        return matched[0]['reference_count']
 
-    assert _count(auth_client.get(PROCESS_LIST)) == 3
+    assert _refs() == 1
 
-    # 软删 1 条 → 2；行还在（共 3 行），旧实现会数成 3
+    # 软删 link → 不再算「被引用」（旧实现会得 1，删除/停用按钮被误置灰）
     assert auth_client.delete(f'{LINK_LIST}{link_id}/').status_code == 204
-    assert _count(auth_client.get(PROCESS_LIST)) == 2
+    assert _refs() == 0
 
-    # 加回来（复活同一行）→ 回到 3，且没有新增行
+    # 加回来（复活）→ 1；随后软删流程本身 → 0（软删流程不算「启用中流程」）
     readd = auth_client.post(
         LINK_LIST,
         data={'process_id': process_id, 'stage_id': stage_id},
         format='json',
     )
     assert readd.status_code == 201, readd.data
-    assert _count(auth_client.get(PROCESS_LIST)) == 3
+    assert _refs() == 1
 
-    # 详情端点继承同一个 get_stage_count，口径必须一致
-    detail = auth_client.get(f'{PROCESS_LIST}{process_id}/')
-    assert detail.status_code == 200, detail.data
-    assert detail.data['data']['stage_count'] == 3, detail.data
+    RecruitmentProcess.objects.get(pk=process_id).soft_delete()
+    assert _refs() == 0
