@@ -413,6 +413,7 @@ import {
   type ScopeTemplate,
   type ScopeTemplateParam,
   type TemplateRef,
+  type OperatorOption,
 } from '@/api/data-permission'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
@@ -477,16 +478,31 @@ const dimensionOptions = computed(() =>
   props.dimensions.map((d) => ({ label: d.label, value: d.key })),
 )
 /** 静态/动态统一运算符选项：第 2 位始终显示。 */
-const UNIFIED_USER_OPERATORS = [
+/**
+ * 运算符下拉项的本地形状 = OperatorOption（带可选 noValue）+ n-select 要求的索引签名。
+ * 直接用 OperatorOption 标注会让 `:options="unifiedOperatorOptions(c)"` 报 TS2322
+ * （SelectMixedOption 需要 `[key: string]: unknown` 索引签名），
+ * 故在此显式声明交集类型，类型信息与 n-select 两侧都能对上。
+ */
+type UnifiedOperatorOption = OperatorOption & Record<string, unknown>
+
+const UNIFIED_USER_OPERATORS: UnifiedOperatorOption[] = [
   { label: '包含', value: 'in' },
   { label: '不包含', value: 'not_in' },
 ]
-/** 人员维度「为空/不为空」运算符（如简历锁定人）。 */
-const NOVALUE_USER_OPERATORS = [
-  { label: '为空', value: 'is_empty', noValue: true },
-  { label: '不为空', value: 'is_not_empty', noValue: true },
-]
-const UNIFIED_DEPT_OPERATORS = [
+/**
+ * 无需业务值的运算符集合（设计文档 §4/§6：is_empty/is_not_empty 出现时
+ * **隐藏值选择器 / 动态源选择器**）。当前仅简历锁定人（lock_owner）下发
+ * 这两个运算符（后端 DIMENSION_META + 编译期均只认 lock_owner）。
+ *
+ * 为什么前端要认这份集合，而不是等后端逐维度 flags：后端编译期本就忽略
+ * values（expr_compiler._compile_lock_owner_condition 空值早退分支），
+ * 保存校验也对 lock_owner 空值运算符整体放行 —— 前端若按"有值"渲染，
+ * 就会出现「选为空 → 控件不消失 → 提示必须选业务值 → 无法保存」的断链。
+ * 后端 operators 若另行下发 noValue 标志，noValueOperator 同样认（增强项）。
+ */
+const NOVALUE_OPERATOR_VALUES = new Set(['is_empty', 'is_not_empty'])
+const UNIFIED_DEPT_OPERATORS: UnifiedOperatorOption[] = [
   { label: '属于', value: 'in:exact' },
   { label: '不属于', value: 'not_in:exact' },
   { label: '属于（含下级）', value: 'in:in_subtree' },
@@ -577,19 +593,25 @@ function dimValueType(c: PermCondition): string {
  * 故 dept 恒用 UNIFIED_DEPT_OPERATORS（组合值规范表，标签即产品文案）；
  * 其余维度仍走后端的按维度 operators（含 noValue 的 is_empty 等）。
  */
-function unifiedOperatorOptions(c: PermCondition) {
+function unifiedOperatorOptions(c: PermCondition): UnifiedOperatorOption[] {
   const vt = dimValueType(c)
   if (vt === 'department') return UNIFIED_DEPT_OPERATORS
   const meta = dimMetaOf(c.dimension || '')
-  if (meta?.operators?.length) return meta.operators
+  // 后端下发的 OperatorOption 无索引签名，此处显式收敛为 UnifiedOperatorOption[]
+  // （值原样透传，不新增/改写任何字段，仅补 n-select 所需的结构类型）。
+  if (meta?.operators?.length) return meta.operators as UnifiedOperatorOption[]
   return UNIFIED_USER_OPERATORS
 }
 
 /** 当前选中的运算符是否无需业务值（如「为空/不为空」）。 */
 function noValueOperator(c: PermCondition): boolean {
   const v = unifiedOperatorValue(c)
-  const meta = dimMetaOf(c.dimension || '')
-  return meta?.operators?.find((o) => o.value === v)?.noValue ?? false
+  // 设计文档 §4：无值运算符出现时隐藏值选择器与动态源选择器。
+  // 集合命中优先；后端 meta.operators 的 noValue 标志为可选增强
+  // （未来其他维度若要无值运算符，补 flag 即可被这里识别）。
+  if (NOVALUE_OPERATOR_VALUES.has(v)) return true
+  // 与下拉选项同一份解析结果（unifiedOperatorOptions），避免两处口径漂移
+  return unifiedOperatorOptions(c).find((o) => o.value === v)?.noValue ?? false
 }
 
 /**
@@ -603,6 +625,12 @@ function unifiedOperatorValue(c: PermCondition): string {
   if (vt === 'department') {
     return `${op}:${rel}`
   }
+  // 🔴 后端按维度下发的运算符必须**原样透传**（2026-10-15 兵哥：「锁定人
+  // 为空/不为空为什么选不了」）。它们是选项表里真实存在的 value；一旦被
+  // 折叠成 'in'，受控下拉的 :value 重算后与用户所选不符，n-select 会把
+  // 选择秒弹回「包含」——这正是「选不了」的病根。同构原则同 rangeValue()：
+  // 绑定值必须能在 unifiedOperatorOptions() 里找到对应项。
+  if (unifiedOperatorOptions(c).some((o) => o.value === op)) return op
   // user 维度：兼容旧数据（eq/neq）与新数据（in/not_in）都映射到 in/not_in 标签
   if (op === 'eq') return 'in'
   if (op === 'neq') return 'not_in'

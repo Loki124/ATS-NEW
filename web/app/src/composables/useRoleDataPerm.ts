@@ -44,6 +44,9 @@ export const DIMENSION_LABELS: Record<string, string> = {
   creator: '创建人',
   unit: '管理单元',
   process: '招聘流程',
+  // 预览句兜底映射（renderCondition 只拿得到 dimension key，拿不到模块标签）。
+  // 与后端 DIMENSION_META['lock_owner'].label 对齐；缺了它预览会裸渲染 key。
+  lock_owner: '简历锁定人',
 };
 
 /** 属性条件运算符 -> 中文标签（与后端 attribute_fields.UNIFIED_OPERATOR_LABELS 对齐）。 */
@@ -55,6 +58,15 @@ export const ATTRIBUTE_OP_LABELS: Record<string, string> = {
 
 /** 无需业务值的运算符（空值类）。 */
 export const ATTR_NOVALUE_OPS = new Set(['IS_EMPTY', 'IS_NOT_EMPTY']);
+/**
+ * 关系维度无需业务值的运算符（简历锁定人的「为空/不为空」）。
+ *
+ * 后端 `expr_compiler._compile_lock_owner_condition` 对这两个运算符忽略 values，
+ * 保存校验（compile 的 lock_owner 空值分支）也整体放行 —— 前端校验必须同口径，
+ * 否则「选为空 → 保存」会被「请为每条条件选择业务值」误拦（兵哥 2026-10-15：
+ * 「锁定人为空/不为空为什么选不了」的后半段断链）。
+ */
+export const REL_NOVALUE_OPS = new Set(['is_empty', 'is_not_empty']);
 /** 业务值为集合（多选）的运算符。 */
 export const ATTR_LIST_OPS = new Set(['IN', 'NOT_IN']);
 
@@ -351,6 +363,12 @@ function renderCondition(c: PermCondition): string {
         : '是';
     const src = DYNAMIC_SOURCE_LABELS[c.dynamicKey || ''] || '当前用户';
     return `${dimLabel} ${rel} ${src}`;
+  }
+  // 无值运算符（简历锁定人的「为空/不为空」）没有业务值可罗列：直接渲染
+  // 「维度 为空」。此前落进下方 opLabel 分支会渲染成「属于 []」（空列表），
+  // 预览句既难读又与真实语义相反。
+  if (REL_NOVALUE_OPS.has(c.operator || '')) {
+    return `${dimLabel} ${c.operator === 'is_empty' ? '为空' : '不为空'}`;
   }
   const opLabel = c.operator === 'not_in' ? '不属于' : '属于';
   const vals = (c.values || []).map((v) => v.label).join('、');
@@ -752,26 +770,30 @@ export function useRoleDataPerm(roleId: Ref<string>) {
               }
             }
           } else {
-            // 动态条件：不校验业务值（运行时注入），只校验来源已选且适应该维度
-            if (c.valueSource === 'dynamic') {
-              if (!c.dynamicKey) {
-                fail(m.moduleKey, '请为动态条件选择取值来源', 'read');
+            // 无值运算符（简历锁定人的「为空/不为空」）：后端编译与保存校验
+            // 均不要求业务值/动态源，前端同口径放行（详见 REL_NOVALUE_OPS 注释）。
+            if (!REL_NOVALUE_OPS.has(c.operator || '')) {
+              // 动态条件：不校验业务值（运行时注入），只校验来源已选且适应该维度
+              if (c.valueSource === 'dynamic') {
+                if (!c.dynamicKey) {
+                  fail(m.moduleKey, '请为动态条件选择取值来源', 'read');
+                  groupBad = true;
+                  break;
+                }
+                // 维度适配（与后端 DYNAMIC_DIMENSION_RULES 对齐的前置校验）：
+                // 来源必须出现在该维度的 contextKeys 里，否则后端保存期也会拒绝。
+                const dims = options.value.find((o) => o.moduleKey === m.moduleKey)?.dimensions || [];
+                const dim = dims.find((d) => d.key === c.dimension);
+                if (dim && dim.contextKeys && !dim.contextKeys.includes(c.dynamicKey)) {
+                  fail(m.moduleKey, `动态取值来源不适用于「${dim.label || c.dimension}」维度`, 'read');
+                  groupBad = true;
+                  break;
+                }
+              } else if ((c.values || []).length === 0) {
+                fail(m.moduleKey, '请为每条条件选择业务值', 'read');
                 groupBad = true;
                 break;
               }
-              // 维度适配（与后端 DYNAMIC_DIMENSION_RULES 对齐的前置校验）：
-              // 来源必须出现在该维度的 contextKeys 里，否则后端保存期也会拒绝。
-              const dims = options.value.find((o) => o.moduleKey === m.moduleKey)?.dimensions || [];
-              const dim = dims.find((d) => d.key === c.dimension);
-              if (dim && dim.contextKeys && !dim.contextKeys.includes(c.dynamicKey)) {
-                fail(m.moduleKey, `动态取值来源不适用于「${dim.label || c.dimension}」维度`, 'read');
-                groupBad = true;
-                break;
-              }
-            } else if ((c.values || []).length === 0) {
-              fail(m.moduleKey, '请为每条条件选择业务值', 'read');
-              groupBad = true;
-              break;
             }
           }
         }
