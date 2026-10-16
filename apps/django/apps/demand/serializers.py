@@ -197,6 +197,19 @@ class DemandUpgradeProcessSerializer(serializers.Serializer):
     )
 
 
+class DemandRebindProcessSerializer(serializers.Serializer):
+    """需求改绑到另一条流程线的入参（方案 A，2026-10-16）。
+
+    与 :class:`DemandUpgradeProcessSerializer`（同 code 线内版本前进）严格分工：
+    upgrade 的 ``target_process_id`` 必须与当前流程同 code，否则 409；本序列化器
+    走的 ``rebind`` 恰好相反——**必须是不同 code**（同 code 换版本请用 upgrade）。
+
+    字段命名沿用 ``target_process_id`` 而非 ``process``，避免与需求本身的
+    ``process`` 字段在日志/审计文案里混淆（一个是要改到的目标，一个是当前值）。
+    """
+    target_process_id = serializers.CharField(max_length=32)
+
+
 class DemandApprovalSerializer(serializers.ModelSerializer):
     approver_name = serializers.CharField(source='approver.username', read_only=True, default='')
 

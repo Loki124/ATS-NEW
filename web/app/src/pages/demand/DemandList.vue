@@ -1,15 +1,5 @@
 <template>
   <div class="demand-container">
-    <div class="page-header">
-      <h1 class="page-title">{{ t('pages.demand.DemandList.s1') }}</h1>
-      <n-space>
-        <n-button type="primary" @click="handleCreate">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          {{ t('pages.demand.DemandList.s4') }}
-        </n-button>
-      </n-space>
-    </div>
-
     <!-- 加载骨架屏 -->
     <div v-if="loading" class="demand-skeleton">
       <div v-for="i in 6" :key="i" class="skeleton-card">
@@ -138,8 +128,12 @@
         >
           全选（{{ selectedIds.length }}/{{ processedDemands.length }}）
         </n-checkbox>
-        <div class="batch-spacer"></div>
+        <n-button type="primary" size="small" @click="handleCreate">
+          <template #icon><n-icon :component="AddOutline" /></template>
+          创建需求
+        </n-button>
         <n-button size="small" :disabled="!selectedIds.length" @click="openBatchPeople">
+          <template #icon><n-icon :component="PeopleOutline" /></template>
           批量变更人员
         </n-button>
       </div>
@@ -212,9 +206,8 @@
                     <span v-if="!hasRequirement(item)" class="req-chip req-chip--muted">未填写任职要求</span>
                   </div>
                   <div class="people-block">
+                    <div class="people-row"><span class="people-label">TBP</span><span class="people-value">{{ item.hrName || '—' }}</span></div>
                     <div class="people-row"><span class="people-label">HRBP</span><span class="people-value">{{ item.hrbpName || '—' }}</span></div>
-                    <div class="people-row"><span class="people-label">用人经理</span><span class="people-value">{{ item.hiringManagerName || '—' }}</span></div>
-                    <div class="people-row"><span class="people-label">用人经理上级</span><span class="people-value">{{ item.hiringManagerSuperiorName || '—' }}</span></div>
                   </div>
                 </div>
 
@@ -242,11 +235,10 @@
                 <div class="card-col card-col--progress">
                   <div class="date-line">
                     <n-icon :component="CalendarOutline" class="date-icon" />
-                    <span v-if="item.dateRange && item.dateRange.length === 2">{{ item.dateRange[0] }} ~ {{ item.dateRange[1] }}</span>
+                    <span v-if="item.dateRange && item.dateRange.length === 2">{{ formatDemandDate(item.dateRange[0]) }}-{{ formatDemandDate(item.dateRange[1]) }}</span>
                     <span v-else class="meta-muted">未设置起止日期</span>
                   </div>
                   <div v-if="timeProgress(item) !== null" class="progress-line">
-                    <div class="bar"><span :style="{ width: timeProgress(item) + '%' }"></span></div>
                     <span class="progress-pct" :class="{ 'progress-pct--warn': (timeProgress(item) || 0) > 80 }">{{ timeProgress(item) }}%</span>
                   </div>
                   <div class="funnel">
@@ -333,7 +325,6 @@
                 <div class="info-grid">
                   <template v-for="m in b.fields" :key="m.field.id">
                     <div
-                      v-if="m.field.fieldKey !== 'jd' && m.field.fieldKey !== 'requirements'"
                       class="info-item"
                       :class="{ 'info-item--wide': WIDE_TYPES.includes(m.field.fieldType) }"
                     >
@@ -357,31 +348,6 @@
                   </template>
                 </div>
               </div>
-            </n-tab-pane>
-
-            <n-tab-pane name="jd" :tab="t('pages.demand.DemandList.s63')">
-              <div class="detail-section">
-                <div class="section-header">
-                  <span class="section-title">{{ t('pages.demand.DemandList.s64') }}</span>
-                </div>
-                <div class="rich-block">
-                  <SafeHtml v-if="selectedDemand.jd" :html="selectedDemand.jd" />
-                  <n-empty v-else :description="t('pages.demand.DemandList.s66')" />
-                </div>
-              </div>
-              <div class="detail-section">
-                <div class="section-header">
-                  <span class="section-title">{{ t('pages.demand.DemandList.s65') }}</span>
-                </div>
-                <div class="rich-block">
-                  <SafeHtml v-if="selectedDemand.requirements" :html="selectedDemand.requirements" />
-                  <n-empty v-else :description="t('pages.demand.DemandList.s67')" />
-                </div>
-              </div>
-            </n-tab-pane>
-
-            <n-tab-pane name="candidates" :tab="t('pages.demand.DemandList.s23')">
-              <n-empty :description="t('pages.demand.DemandList.s24')" />
             </n-tab-pane>
 
             <n-tab-pane name="records" :tab="t('pages.demand.DemandList.s41')">
@@ -453,6 +419,12 @@
                     style="width: 100%"
                     :is-date-disabled="dateDisabled(item.field) || undefined"
                     @update:value="(v: number | [number, number] | null) => onFormDateRangeInput(item.binding.prop, v)"
+                  />
+                  <RichEditor
+                    v-else-if="item.binding.kind === 'richtext'"
+                    v-model:html="formData[item.binding.prop]"
+                    :placeholder="item.field.placeholder || '请输入'"
+                    style="width: 100%"
                   />
                   <n-input
                     v-else-if="item.binding.kind === 'textarea'"
@@ -584,7 +556,7 @@
 import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue'
 import { NButton, NTag, NBadge, useMessage, type DataTableColumns } from 'naive-ui'
-import { AddOutline, SearchOutline, ChevronDownOutline, CalendarOutline } from '@vicons/ionicons5'
+import { AddOutline, SearchOutline, ChevronDownOutline, CalendarOutline, PeopleOutline } from '@vicons/ionicons5'
 import { get, post, put } from '../../api/auth'
 import dayjs from 'dayjs'
 import RichEditor from '../../components/RichEditor.vue'
@@ -631,7 +603,7 @@ const SYSTEM_VALUE_GETTERS: Record<string, (d: any) => any> = {
   hr: (d) => d?.hrName,
 }
 
-const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number' | 'select' | 'department' | 'textarea' | 'daterange' | 'multiselect' }> = {
+const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number' | 'select' | 'department' | 'textarea' | 'daterange' | 'multiselect' | 'richtext' }> = {
   title: { prop: 'name', kind: 'text' },
   department: { prop: 'departmentId', kind: 'department' },
   demand_type: { prop: 'demandType', kind: 'select' },
@@ -639,14 +611,14 @@ const FORM_MODEL_BINDING: Record<string, { prop: string; kind: 'text' | 'number'
   priority: { prop: 'priority', kind: 'select' },
   position_title: { prop: 'positionSeries', kind: 'text' },
   level: { prop: 'jobLevel', kind: 'text' },
-  jd: { prop: 'description', kind: 'textarea' },
-  requirements: { prop: 'requirements', kind: 'textarea' },
+  jd: { prop: 'description', kind: 'richtext' },
+  requirements: { prop: 'requirements', kind: 'richtext' },
   talent_level: { prop: 'talentLevel', kind: 'text' },
   talent_nature: { prop: 'talentNature', kind: 'select' },
   date_range: { prop: 'dateRange', kind: 'daterange' },
   sharers: { prop: 'sharers', kind: 'multiselect' },
 }
-const EDIT_SKIP_KEYS = new Set(['code', 'state', 'hr', 'approval_status'])
+const EDIT_SKIP_KEYS = new Set(['code', 'state', 'approval_status'])
 
 const loading = ref(false)
 const demands = ref<any[]>([])
@@ -1039,6 +1011,14 @@ function priorityTagType(p: string): any {
   if (p === 'P1') return 'warning'
   if (p === 'P2') return 'info'
   return 'default'
+}
+// 起止日期按东八区（UTC+8）显示：后端存 UTC，浏览器时区不定，固定 +8h 换算后用 UTC 取值
+function formatDemandDate(v: any): string {
+  if (!v) return ''
+  const ts = Date.parse(v)
+  if (isNaN(ts)) return String(v)
+  const d = new Date(ts + 8 * 3600 * 1000)
+  return `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`
 }
 // 时间进度%：起止日期区间内当前所处比例
 function timeProgress(item: any): number | null {
@@ -1444,19 +1424,6 @@ onUnmounted(() => {
   animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-5);
-}
-
-.page-title {
-  font-size: var(--fs-24);
-  font-weight: 600;
-  margin: 0;
-}
-
 /* ① 高级筛选区 */
 .filter-region {
   display: flex;
@@ -1479,10 +1446,11 @@ onUnmounted(() => {
   border-top: 1px dashed var(--glass-border);
 }
 
-/* ② 双层状态页签 */
+/* ② 双层状态页签（两组分类两端对齐） */
 .tab-strip {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
   margin-bottom: var(--space-3);
@@ -1511,9 +1479,6 @@ onUnmounted(() => {
   margin-bottom: var(--space-3);
   background: var(--glass-bg-input);
   border-radius: var(--radius-md);
-}
-.batch-spacer {
-  flex: 1;
 }
 
 /* ④ 卡片列表 */

@@ -1,4 +1,6 @@
 """Demand app 测试套件 (PRD v4 §14.1)"""
+import re
+
 import pytest
 from django.core.exceptions import ValidationError
 
@@ -52,7 +54,8 @@ class TestDemandService:
         demand = DemandService.create_demand(data)
         assert demand.id is not None
         assert demand.state == DemandState.DRAFT
-        assert demand.code.startswith('D')
+        # 2026-10-15 兵哥定调：需求编号格式 HC + 6 位流水号
+        assert re.fullmatch(r'HC\d{6}', demand.code)
         assert demand.headcount == 2
 
     def test_submit_for_approval(self, department, hr_user, hrbp_user, process):

@@ -21,6 +21,7 @@ from .serializers import (
     DemandCreateSerializer,
     DemandDetailSerializer,
     DemandListSerializer,
+    DemandRebindProcessSerializer,
     DemandTransitionSerializer,
     DemandUpgradeProcessSerializer,
 )
@@ -38,6 +39,10 @@ class DemandViewSet(BaseModelViewSet):
     # 类级 map 放行持有 approve/edit 任一码的请求进入 action，再按 FSM 动作细查。
     permission_required_map = {
         'transition': ['recruit:demand:approve', 'recruit:demand:edit'],
+        # 2026-10-16: 改绑流程属需求编辑的一部分，沿用 :edit 派生码。
+        # 显式列出而非依赖派生，是因为它是跨实体写入（改动 Position.process），
+        # 将来若要拆独立权限码，这里是唯一改动点。
+        'rebind_process': ['recruit:demand:edit'],
     }
     # 审批人决策动作（PENDING 阶段的 approve/reject）→ 审批码；
     # 其余动作（submit/start_recruiting/pause/...）按 :edit 校验
@@ -47,7 +52,11 @@ class DemandViewSet(BaseModelViewSet):
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['state', 'department', 'hr', 'requested_by', 'priority', 'approval_status']
+    # 2026-10-16: 加 process —— 流程配置页「改绑引用」入口要按流程反查需求，
+    # 否则前端只能拉全量再本地过滤，既漏（受分页截断）又慢。
+    filterset_fields = [
+        'state', 'department', 'hr', 'requested_by', 'priority', 'approval_status', 'process',
+    ]
     search_fields = ['code', 'title', 'position_title']
     ordering_fields = ['code', 'created_at', 'submitted_at']
     ordering = ['-created_at']
@@ -67,6 +76,8 @@ class DemandViewSet(BaseModelViewSet):
             return DemandTransitionSerializer
         if self.action == 'upgrade_process_version':
             return DemandUpgradeProcessSerializer
+        if self.action == 'rebind_process':
+            return DemandRebindProcessSerializer
         return DemandDetailSerializer
 
     def get_queryset(self):
@@ -194,6 +205,48 @@ class DemandViewSet(BaseModelViewSet):
                 'demand': out.data,
                 'moved_position_ids': moved,
                 'upgraded': demand.process_id != old_process_id,
+                'previous_process_id': old_process_id,
+            },
+        })
+
+    @action(detail=True, methods=['post'], url_path='rebind-process')
+    def rebind_process(self, request, pk=None):
+        """需求改绑到另一条流程线（方案 A，2026-10-16）。
+
+        与 ``upgrade_process_version`` 的分工：upgrade 是**同 code 线内**升到最新版；
+        本 action 是**跨 code 换流程**，换掉整套阶段编排。
+
+        契约：
+        - 成功 → 200，``rebound=true``，``moved_position_ids`` 为实际改指的职位 id
+        - 目标与当前已是同一行 → 200 幂等（``rebound=false``）
+        - 目标不存在 / 已归档 / 非最新版 / 跨线有在跑候选人 → 409（StateTransitionError）
+
+        **不动 Application**：BR-102 硬红线，在跑候选人继续走创建时的版本。
+        """
+        instance = self.get_object()
+        ensure_writable(request.user, 'demand', instance, action='edit')
+
+        serializer = DemandRebindProcessSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        target_process = RecruitmentProcess.objects.filter(
+            id=serializer.validated_data['target_process_id'],
+            deleted_at__isnull=True,
+        ).first()
+        if target_process is None:
+            raise NotFound(f'流程 {serializer.validated_data["target_process_id"]} 不存在')
+
+        old_process_id = instance.process_id  # §1.3.2：快照早于任何赋值
+        demand, moved = DemandService.rebind_demand_process(
+            instance, target_process=target_process, actor=request.user,
+        )
+        out = DemandDetailSerializer(demand, context={'request': request})
+        return Response({
+            'success': True,
+            'data': {
+                'demand': out.data,
+                'moved_position_ids': moved,
+                'rebound': demand.process_id != old_process_id,
                 'previous_process_id': old_process_id,
             },
         })

@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass
 from typing import List
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound, PermissionDenied, StateTransitionError
@@ -68,38 +68,61 @@ class DemandService:
         except Department.DoesNotExist as e:
             raise NotFound(f'部门 {data.department_id} 不存在') from e
 
-        # 生成编号 D + yyyymmdd + 4位
-        from nanoid import generate as nanoid_generate
-        code = f'D{timezone.now().strftime("%Y%m%d")}{nanoid_generate(size=4).upper()}'
-
-        demand = Demand.objects.create(
-            code=code,
-            title=data.title,
-            department=department,
-            requested_by_id=data.requested_by_id,
-            hr_id=data.hr_id,
-            headcount=data.headcount,
-            filled_count=0,
-            level=data.level,
-            position_title=data.position_title,
-            process=process,
-            process_version=process.current_version,
-            jd=data.jd,
-            requirements=data.requirements,
-            priority=data.priority,
-            demand_type=data.demand_type,
-            # 2026-10-12 字段结构对齐规范: 新增预置列 (JSONField 空值归一为 [])
-            talent_level=data.talent_level,
-            talent_nature=data.talent_nature,
-            date_range=data.date_range or [],
-            sharers=data.sharers or [],
-            recruit_type=data.recruit_type,
-            state=DemandState.DRAFT,
-            created_by=data.actor,
-            updated_by=data.actor,
-        )
+        # 生成编号 HC + 6 位流水号（取现存 HC 编号最大流水 +1；并发撞 unique 时重试）
+        demand = None
+        for _attempt in range(5):
+            code = DemandService._next_demand_code()
+            try:
+                with transaction.atomic():
+                    demand = Demand.objects.create(
+                        code=code,
+                        title=data.title,
+                        department=department,
+                        requested_by_id=data.requested_by_id,
+                        hr_id=data.hr_id,
+                        headcount=data.headcount,
+                        filled_count=0,
+                        level=data.level,
+                        position_title=data.position_title,
+                        process=process,
+                        process_version=process.current_version,
+                        jd=data.jd,
+                        requirements=data.requirements,
+                        priority=data.priority,
+                        demand_type=data.demand_type,
+                        # 2026-10-12 字段结构对齐规范: 新增预置列 (JSONField 空值归一为 [])
+                        talent_level=data.talent_level,
+                        talent_nature=data.talent_nature,
+                        date_range=data.date_range or [],
+                        sharers=data.sharers or [],
+                        recruit_type=data.recruit_type,
+                        state=DemandState.DRAFT,
+                        created_by=data.actor,
+                        updated_by=data.actor,
+                    )
+                break
+            except IntegrityError as e:
+                # 只重试编号撞 unique（MySQL 1062 / SQLite UNIQUE）；FK 等其他完整性错误原样抛出
+                if '1062' not in str(e) and 'UNIQUE' not in str(e):
+                    raise
+                demand = None
+                logger.warning('Demand code %s collided, retrying (%d/5)', code, _attempt + 1)
+        if demand is None:
+            raise IntegrityError('需求编号生成失败：并发冲突重试耗尽')
         logger.info('Demand created: %s', demand.code)
         return demand
+
+    @staticmethod
+    def _next_demand_code() -> str:
+        """需求编号：HC + 6 位流水号（按现存 HC 前缀编号的最大流水 +1，不足补零）。"""
+        import re
+
+        seq = 0
+        for c in Demand.objects.filter(code__startswith='HC').values_list('code', flat=True):
+            m = re.fullmatch(r'HC(\d{6})', c or '')
+            if m:
+                seq = max(seq, int(m.group(1)))
+        return f'HC{seq + 1:06d}'
 
     @staticmethod
     @transaction.atomic
@@ -276,6 +299,92 @@ class DemandService:
             'Demand %s upgraded process %s → %s (version=%s) by %s; moved positions=%s',
             demand.code, old_pid, target_process.id,
             target_process.current_version,
+            getattr(actor, 'username', None), moved,
+        )
+        return demand, moved
+
+    @staticmethod
+    @transaction.atomic
+    def rebind_demand_process(
+        demand: Demand,
+        target_process: RecruitmentProcess,
+        actor: User | None = None,
+    ) -> tuple[Demand, List[str]]:
+        """把需求**改绑**到另一条流程线（与 upgrade_demand_process 的关键区别：跨 code）。
+
+        2026-10-16 新增。此前全仓不存在任何「解绑/改绑」能力（grep unlink/dissociate/
+        detach/解除/解绑 零命中），而 ``Demand.process`` 是 NOT NULL + PROTECT FK，
+        导致一条需求只要挂过流程就永远删不掉那条流程，用户在流程配置页被
+        「被 N 个需求引用，不可删除」彻底堵死（dev 库实测：VERIFY_PROC 引用数恒为 1）。
+
+        与 ``upgrade_demand_process`` 的边界（务必分清，勿混用）：
+          - upgrade：同一条 ``code`` 流程线内，从历史版本升到 is_latest，语义是「版本前进」
+          - rebind：**跨 code 换一条流程线**，语义是「换流程」，会换掉整套阶段编排
+            ——所以这里必须额外拦截「有在跑候选人」的场景（见下）。
+
+        改绑只改指 Demand + 其 **live** Positions，**绝不动 Application**：
+        BR-102「已在跑的候选人走创建时的版本」是硬红线，级联改指 Application 属违规。
+
+        Raises:
+            StateTransitionError: 目标流程不可用（非 ENABLED / 已软删 / 非最新版本）、
+                目标与当前是同一条流程线的同一行（应走 upgrade 而非 rebind）、
+                或该需求名下存在非终态的在跑候选人申请。
+        """
+        if demand.deleted_at is not None:
+            raise StateTransitionError('该需求已删除，无法改绑流程')
+
+        if target_process.deleted_at is not None:
+            raise StateTransitionError('目标流程已删除，无法绑定')
+        if target_process.status != 'ENABLED':
+            raise StateTransitionError('目标流程已归档，无法绑定')
+        if not target_process.is_latest:
+            raise StateTransitionError(
+                '目标流程不是最新版版本，无法绑定（请选择该流程的最新版本）',
+            )
+
+        # 同 code 同一行 = 幂等，直接返回而不是白跑一遍写入。
+        # 注意：同 code **不同**行（历史版本）不是幂等，那属于 upgrade 的活。
+        if target_process.id == demand.process_id:
+            return demand, []
+
+        # 跨 code 改绑会换掉整套阶段编排，在跑候选人正卡在新流程**不存在**的阶段上。
+        # BR-102 要求他们留在原版本继续跑完，所以这里不碰他的 Application，
+        # 但也绝不能把整条需求改绑走 —— 否则他的 current_stage 会变成孤儿。
+        #
+        # Application **不直接挂 demand**，只有 position → demand 这一条路，
+        # 故必须经该需求名下 live 职位反查；软删职位上的申请同样要算进来
+        # （职位被软删不代表申请也终止了，仍可能是 ACTIVE）。
+        from apps.application.models import Application
+        blocking_states = ('PENDING', 'ACTIVE', 'PAUSED', 'OFFER_SENT')
+        blocking = Application._base_manager.filter(
+            position__demand=demand,
+            state__in=blocking_states,
+        )
+        if blocking.exists():
+            raise StateTransitionError(
+                f'该需求下还有 {blocking.count()} 个在跑的候选人申请，'
+                '换流程会导致他们的阶段错乱，请先处理完这些候选人再改绑',
+            )
+
+        old_pid = demand.process_id  # 审计快照必须早于赋值
+        demand.process = target_process
+        demand.process_version = target_process.current_version
+        demand.save(update_fields=['process', 'process_version', 'updated_at'])
+
+        moved: List[str] = []
+        # 显式过滤软删：与 upgrade_demand_process 同理，.all() 会捞出软删职位一并改指。
+        for pos in demand.positions.filter(deleted_at__isnull=True):
+            if pos.process_id != target_process.id:
+                pos.process = target_process
+                pos.process_version = target_process.current_version
+                pos.save(update_fields=['process', 'process_version', 'updated_at'])
+                moved.append(pos.id)
+
+        logger.info(
+            'Demand %s REBOUND process %s → %s (code %s → %s, version=%s) by %s; '
+            'moved positions=%s; running applications left untouched',
+            demand.code, old_pid, target_process.id,
+            demand.process.code, target_process.code, target_process.current_version,
             getattr(actor, 'username', None), moved,
         )
         return demand, moved
