@@ -613,24 +613,23 @@ export function useRoleDataPerm(roleId: Ref<string>) {
       actionRegistry.value = opts.actionRegistry || [];
       presetPackages.value = opts.presetPackages || [];
       const EMPTY_WRITE = { mode: 'none' as const, expr: '', groups: [], actions: [] };
-      const modules = data.modules && data.modules.length ? data.modules : MODULE_KEYS.map((k) => ({
+      // ⚠️ 兜底骨架的 mode 必须是 'unset'（未配置），**不是** 'all'。
+      // 这两处只在 options 接口失败 / 后端少返回模块时命中，正常 GET 恒返回 5 模块，
+      // 所以过去一直没人发现 —— 但它是有安全方向的错误：把"没配置过"显示并保存成
+      // "全部可见"，等于给一个本该走默认范围（可能只能看自己）的角色**静默放大成全量**。
+      // 后端 GET 对无规则行返回的正是 'unset'，此处必须与之一致。
+      const skeleton = (k: string): ModulePerm => ({
         moduleKey: k,
-        mode: 'all' as DataPermMode,
+        mode: 'unset' as DataPermMode,
         expr: '',
         groups: [],
         featureGranted: true,
         write: { ...EMPTY_WRITE },
-      }));
+      });
+      const modules = data.modules && data.modules.length ? data.modules : MODULE_KEYS.map(skeleton);
       // 统一补齐 5 模块顺序（以 MODULE_KEYS 为准）
       const ordered = MODULE_KEYS.map(
-        (k) => modules.find((m) => m.moduleKey === k) || {
-          moduleKey: k,
-          mode: 'all' as DataPermMode,
-          expr: '',
-          groups: [],
-          featureGranted: true,
-          write: { ...EMPTY_WRITE },
-        },
+        (k) => modules.find((m) => m.moduleKey === k) || skeleton(k),
       );
       saved.value = cloneModules(ordered);
       draft.value = cloneModules(ordered);
@@ -642,9 +641,19 @@ export function useRoleDataPerm(roleId: Ref<string>) {
   function setMode(key: string, mode: DataPermMode): void {
     const m = moduleOf(key);
     if (!m) return;
+    const prev = m.mode;
     m.mode = mode;
     if (mode === 'scope' && m.groups.length === 0) {
       m.groups = [newGroup()];
+    }
+    // 切到「未配置」时清空规则（产品已拍板：切走即清）。
+    // 理由：unset 的后端语义是"该模块没有任何规则行"，前端若把 groups/expr 留在内存里，
+    // 管理员切到 unset 又切回 scope 时会看到一条"还在的旧规则"，误以为系统没清干净，
+    // 而实际上后端已把行删了 —— 这正是数据权限里最容易被当成 bug 报上来的不一致。
+    // 反过来（切 all 时不清）也有害：会把不可见的残留带进 isDirty 比对，制造假脏。
+    if (mode === 'unset' && prev !== 'unset') {
+      m.expr = '';
+      m.groups = [];
     }
   }
 
@@ -821,6 +830,11 @@ export function useRoleDataPerm(roleId: Ref<string>) {
         roleId: roleId.value,
         modules: draft.value.map((m) => ({
           moduleKey: m.moduleKey,
+          // ⚠️ mode 必须**原样下发**（含 'unset'），不得"过滤掉 unset 模块"。
+          // 后端 upsert_modules 对**未被 payload 提及**的模块是"不动（差分的核心）"，
+          // 所以若 unset 模块不下发 → 不进写入循环 → 原有的 scope_type='CUSTOM'
+          // 读行原封不动 → 管理员把模块改回未配置后点保存，**什么都没发生且返回 200**。
+          // 「未配置」必须靠显式下发 unset + 后端真删行来实现，二者缺一即静默失效。
           mode: m.mode,
           expr: m.mode === 'scope' ? m.expr : '',
           groups: m.mode === 'scope' ? m.groups : [],

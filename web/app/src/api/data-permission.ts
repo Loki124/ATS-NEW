@@ -12,7 +12,16 @@ import { api } from '../utils/request'
 
 // ===== 类型定义 =====
 
-export type DataPermMode = 'none' | 'all' | 'scope';
+/**
+ * 读范围模式。
+ * - 'unset' 未配置：该模块**没有任何规则行**，运行时走角色默认数据范围（defaultDataScopeType）。
+ *   🔴 与 'none' 语义完全相反：'none' 是「无权限」（显式落一行 scope_type=NONE），
+ *      'unset' 是「没配过」（库里无行，落库动作= 删除读行）。前端把二者混为一谈会
+ *      渲染出错误的安全语义（把"未配置"显示成"无权限"），且切模式时可能反向放大权限。
+ *      后端见 apps/django/apps/data_permission/role_scope_api.py 的锁定注释。
+ * - 'none' 无权限 / 'all' 全部 / 'scope' 指定范围。
+ */
+export type DataPermMode = 'unset' | 'none' | 'all' | 'scope';
 export type Operator = 'in' | 'not_in';
 
 /** 属性条件的运算符（UnifiedOperator 取值）。 */

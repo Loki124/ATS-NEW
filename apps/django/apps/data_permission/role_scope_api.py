@@ -2,8 +2,10 @@
 
 落库契约（零迁移，全部进 DataPermissionRule.scope_payload）：
   - 一个 (role_code, 模块) 一行 ROW 规则；
-  - mode=none -> scope_type=NONE  / mode=all -> scope_type=ALL / mode=scope -> scope_type=CUSTOM
-    + scope_payload={"expr":<组间>, "groups":[{expr,conditions}]}
+  - mode=none  -> scope_type=NONE/ mode=all  -> scope_type=ALL
+    / mode=scope -> scope_type=CUSTOM + scope_payload={"expr":<组间>, "groups":[{expr,conditions}]}
+    / mode=unset -> **不落行**（删除读行 = 未配置，走角色默认范围）。
+    🔴 unset 与 none 语义完全相反，合并即出安全事故；锁死注释见 upsert_modules。
   - entity = 模块 key（demand/process/position/candidate/talent）。
 """
 from __future__ import annotations
@@ -29,6 +31,24 @@ from .scope_templates import summarize_drift
 _USER_LIMIT = 1000
 _DEPT_LIMIT = 1000
 _UNIT_LIMIT = 500
+
+# 数据权限模块 -> 授予该模块「功能权限」的 PermissionResource.module 集合（卡 1.3 真实接线）。
+# ⚠️ 与 seed_v2_init.RESOURCES 的 module 字段严格对应；改这里必须同步 seed。
+#   - demand/position/candidate 与自身同名模块一一对应；
+#   - talent(人才库数据) 对应功能资源模块 'talent_pool'（人才库功能）；
+#   - process(招聘流程数据) 对应功能资源模块 'settings'（recruit:settings:recruitment-process:*），
+#     既不是 'process' 也不是 'application' —— 工单原文给的 process->application 会让真实
+#     管流程的角色被误判「未授予」而禁用卡片（管理员锁死）。
+DATA_PERM_MODULE_RESOURCE_MODULES: Dict[str, set] = {
+    'demand': {'demand'},
+    'process': {'settings'},
+    'position': {'position'},
+    'candidate': {'candidate'},
+    'talent': {'talent_pool'},
+}
+
+# 数据权限配置本身对「超管角色」恒开放（与 is_super_admin 同义，但本函数只持有 role 不持有 user）。
+_SUPER_ADMIN_ROLE_CODE = 'SUPER_ADMIN'
 
 
 def normalize_modules_payload(modules):
@@ -176,11 +196,40 @@ def build_modules_response(role, normalized_modules: List[str] | None = None) ->
         else:
             read_by_entity[r.entity] = r
 
+    # ---- 卡 1.3：featureGranted 真实接线（替代原恒 True 硬编码）----
+    # 超管角色（role_code=SUPER_ADMIN）恒 True；其余按该角色实际授予的 RolePermissionV2
+    # 资源反查 PermissionResource.module，命中对应数据权限模块即 True。
+    # 跨 system_code 的授权必须过滤，否则别的系统里同名 role_code 的授权会串到本系统
+    # （权限放大，且极难察觉）。
+    is_super_role = (role.role_code == _SUPER_ADMIN_ROLE_CODE)
+    granted_modules: set = set()
+    if not is_super_role:
+        from apps.core.models_permission_v2 import PermissionResource, RolePermissionV2
+        granted_modules = set(
+            PermissionResource.objects.filter(
+                system_code=role.system_code,
+                resource_code__in=RolePermissionV2.objects.filter(
+                    role_code=role.role_code, system_code=role.system_code,
+                ).values('resource_code'),
+            ).values_list('module', flat=True)
+        )
+
     modules = []
     for mk in MODULE_ORDER:
         # ---- 读范围（存量语义不变）----
         r = read_by_entity.get(mk)
-        if r is None or r.scope_type == 'ALL':
+        if r is None:
+            # 🔴 「从未配置过」不是「显式配置为全部」—— 两者语义完全不同，不能合并：
+            #   r is None         = 未配置，该模块没有任何规则，运行时走角色默认数据范围
+            #                       （RoleV2.default_data_scope_type）；
+            #   r.scope_type=ALL  = 管理员显式配置了"全部可见"。
+            # 历史上二者被合并成 mode='all' 上报，管理员无法区分"我配的"与"根本没配"，
+            # 于是出现"我没配过却显示全部"这种看不懂的界面（工单卡 1.2 的由来）。
+            # 现在显式区分；前端据此渲染「未配置」卡并允许管理员一键恢复默认。
+            mode = 'unset'
+            expr = ''
+            groups = []
+        elif r.scope_type == 'ALL':
             mode = 'all'
             expr = ''
             groups = []
@@ -216,8 +265,12 @@ def build_modules_response(role, normalized_modules: List[str] | None = None) ->
             'mode': mode,
             'expr': expr,
             'groups': groups,
-            'featureGranted': True,  # 数据权限配置本身对超管开放；功能权限耦合后续可接 RolePermissionV2
             'templateDrifts': [],   # 由下方统一填充（避免逐模块查模板表）
+            # 卡 1.3：由 RolePermissionV2 ↔ PermissionResource.module 真实推导；
+            # 超管角色恒 True（见上方 is_super_role 短路）。
+            'featureGranted': True if is_super_role else bool(
+                DATA_PERM_MODULE_RESOURCE_MODULES[mk] & granted_modules
+            ),
             'write': write_view,
         })
 
@@ -237,6 +290,52 @@ def build_modules_response(role, normalized_modules: List[str] | None = None) ->
 
 # 写范围 mode -> RowScopeType（v2）。none 不建 WRITE 行。
 _WRITE_MODE_TO_SCOPE = {'all': 'ALL', 'owner': 'OWNER', 'scope': 'CUSTOM'}
+
+
+class UnsetWithWriteRowsError(Exception):
+    """把某模块置为「未配置」（mode=unset）时，库里仍有该模块的存量 WRITE 行。
+
+    业务拒绝（配置冲突），不是崩溃：调用方应转成 400 并把 str(e) 直接回给前端，
+    因为文案本身就是给管理员的操作指引（"先清写范围再置未配置"）。
+    语义背景见 upsert_modules 里unset/none 语义相反的锁死注释。
+    """
+
+
+def _check_unset_against_write_rows(
+    modules: List[Dict], existing: Dict[str, Dict[str, object]],
+) -> str | None:
+    """unset 模块是否撞上存量 WRITE 行。返回首个错误原因或 None。
+
+    🔴 为什么必须拦（fail-closed，产品已拍板）：
+    unset 的语义是"该模块**整体**未配置"，但写范围独立存于 WRITE 行，与读行不同源。
+    若悄悄放行，就会产出「读=未配置（走默认范围）+ 写=有配置」这种自相矛盾的组合：
+    界面看不出异常，可见范围由默认范围决定，可写动作却仍被单独约束 ——
+    最难排查的一类权限错位。所以明确拒绝，并指明下一步操作。
+
+    ⚠️ 这里判的是**存量** WRITE 行（本次 payload 之前就存在的），
+       而不是"本次payload 想不想配写范围"—— 后者由循环里write 分支正常处理：
+       若本次同时下发 write.mode='none'（主动取消写范围），写入循环会**删掉**那条WRITE 行，
+       此时 unset 与它就不再冲突。本函数刻意**不**预判这次删除，
+       否则会拦掉一个其实合法的保存动作（先清写范围再置未配置，一次保存完成）。
+       真正的保护由"删除写行与删除读行在同一事务内"保证。
+    """
+    for m in modules:
+        mk = m.get('module_key') or m.get('moduleKey')
+        if m.get('mode') != 'unset':
+            continue
+        slot = existing.get(mk) or {}
+        if slot.get('write') is None:
+            continue
+        # 本次 payload 若同时显式取消写范围，则写入循环会先删 WRITE 行 → 合法，放行。
+        write = m.get('write')
+        if isinstance(write, dict) and write.get('mode') == 'none':
+            continue
+        return (
+            f'模块 {mk} 存在写范围配置，无法置为「未配置」。'
+            f'请先在「操作权限」页签把 {mk} 的写范围改为「不配置」并保存，'
+            f'再回到本页设置为未配置。'
+        )
+    return None
 
 
 def _validate_write_block(mk: str, write: object) -> str | None:
@@ -283,8 +382,10 @@ def validate_modules(modules: List[Dict]) -> str | None:
             return f'模块 {mk} 重复'
         seen.add(mk)
         mode = m.get('mode')
-        if mode not in ('none', 'all', 'scope'):
-            return f'模块 {mk} 的 mode 非法（应为 none/all/scope）'
+        # 'unset' = 未配置（该模块**无任何规则行**，走角色默认范围），与 'none'（无权限，
+        # 显式落一行 scope_type=NONE）语义完全相反。详见 upsert_modules 中锁死语义的注释。
+        if mode not in ('none', 'all', 'scope', 'unset'):
+            return f'模块 {mk} 的 mode 非法（应为 unset/none/all/scope）'
         if mode == 'scope':
             payload = {'expr': m.get('expr', ''), 'groups': m.get('groups', [])}
             reason = validate_scope_payload(payload, mk)
@@ -352,20 +453,57 @@ def upsert_modules(role, modules: List[Dict], user) -> Dict:
     # 这才是真正需要告警的情况（新建角色补默认值属正常，不记）。
     normalized: List[str] = []
 
+    # ---- unset 与存量 WRITE 行的冲突预检（fail-closed，产品已拍板）----
+    # 放在循环**之前**、一次性判完：报错与payload 顺序无关，管理员看到的是同一条稳定文案。
+    reason = _check_unset_against_write_rows(modules, existing)
+    if reason:
+        # 抛异常而非 return None：调用方（views_permission_v2.data_permissions）
+        # 在 @transaction.atomic 内调用本函数，抛异常让整个保存回滚，杜绝"删了一半"。
+        # 该异常是**业务拒绝**（配置冲突），不是崩溃 —— 视图层统一转 400 并把文案回给前端。
+        raise UnsetWithWriteRowsError(reason)
+
     for m in modules:
         mk = m.get('module_key') or m.get('moduleKey')
         slot = existing.get(mk) or {'read': None, 'write': None}
 
         # ---- 读范围行（row_access=NULL，与存量语义一致）----
         mode = m.get('mode')
-        scope_type = {'none': 'NONE', 'all': 'ALL', 'scope': 'CUSTOM'}[mode]
-        payload = {'expr': m.get('expr', ''), 'groups': m.get('groups', [])} \
-            if scope_type == 'CUSTOM' else None
-        _save_rule_row(
-            slot['read'], dimension_value=role_code, entity=mk,
-            scope_type=scope_type, scope_payload=payload,
-            row_access=None, actions=None, created_by=created_by,
-        )
+
+        # 🔴🔴 unset 与 none 语义完全相反 —— 半年后必有人把这两个合并，本段注释是唯一防线：
+        #   mode='unset' = **未配置**：该模块**没有任何规则行**，运行时回退到角色
+        #                   默认数据范围（RoleV2.default_data_scope_type）。落库行为= **删除读行**。
+        #   mode='none'  = **无权限**：显式拒绝一切数据。落库行为= **保留/新建一行**
+        #                   scope_type='NONE'（读路径上这条行永远存在，是"拒绝"的凭据）。
+        # 反例（真实踩过的坑）：把 unset 当成 none 处理 → 管理员点「恢复默认」后模块变成
+        # 「无权限」，全量数据瞬间消失；把 none 当成 unset 处理 → 显式拒绝被静默吞成默认范围，
+        # 权限反而被放大。后者是 fail-closed 原则的破口，必须靠这行注释挡住。
+        #
+        # ⚠️ 删除动作必须留在本函数内（@transaction.atomic 覆盖），不能挪到调用方：
+        #     若删读行与写行处理不在同一事务，"读行删了、写行没删/没动"的错位会重现，
+        #     正是本函数 docstring 里「读写同生共死」铁律要防的事故。
+        #     存量 WRITE 行的拦截见**循环之前**的预检（_check_unset_against_write_rows）——
+        #     放在循环外的原因不只是"少写几行"：报错必须与模块顺序无关，否则管理员
+        #     先看到哪个错取决于 payload 顺序，无法复现也不可信。
+        if mode == 'unset':
+            # 存量 WRITE 行已在循环前的预检里 fail-closed 拦截（产品已拍板）；
+            # 走到这里说明本次要么没配写范围、要么显式取消写范围 —— 后者由下方
+            # 写范围分支统一处理删行。这里**只**负责读行。
+            #
+            # ⚠️ 禁写 continue：unset 的写行处理必须继续往下走 —— 本次 payload
+            #    同时带 write.mode='none'（管理员"先清写范围再置未配置"一次保存完成）
+            #    时，那条 WRITE 行要被真正删掉。若这里 continue，写行分支被跳过，
+            #    WRITE 行会残留，而预检又已放行 → 产出「读未配置 + 写有配置」的错位，
+            #    正是本函数 docstring 铁律要防的事故（且是"看起来保存成功了"的那种）。
+            _delete_rule_row(slot['read'])
+        else:
+            scope_type = {'none': 'NONE', 'all': 'ALL', 'scope': 'CUSTOM'}[mode]
+            payload = {'expr': m.get('expr', ''), 'groups': m.get('groups', [])} \
+                if scope_type == 'CUSTOM' else None
+            _save_rule_row(
+                slot['read'], dimension_value=role_code, entity=mk,
+                scope_type=scope_type, scope_payload=payload,
+                row_access=None, actions=None, created_by=created_by,
+            )
 
         # ---- 写范围行（row_access=WRITE）----
         # 判据是「**有没有表达过明确意图**」，而不是「mode 是不是 none」。

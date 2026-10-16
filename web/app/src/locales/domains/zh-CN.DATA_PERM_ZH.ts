@@ -3,6 +3,12 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.mode.none': '无权限',
   'dataperm.mode.all': '全部',
   'dataperm.mode.scope': '指定范围',
+  // 「未配置」是独立于 none/all/scope 的第四态（卡 1.2）：
+  // 不是"无权限"，而是"本模块没配过规则，实际走角色默认数据范围"。
+  'dataperm.mode.unset': '未配置',
+  'dataperm.card.unset.hint': '未配置 · 当前走默认范围：{scope}',
+  'dataperm.card.unset.scopeUnknown': '系统默认',
+  'dataperm.card.unset.start': '开始配置',
   'dataperm.card.summary.empty': '暂无配置条件',
   'dataperm.card.ruleCount': '共 {n} 个条件组',
   'dataperm.card.configRule': '配置规则',

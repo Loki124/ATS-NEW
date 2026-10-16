@@ -3,6 +3,12 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.mode.none': 'No Access',
   'dataperm.mode.all': 'All',
   'dataperm.mode.scope': 'Scoped',
+  // Fourth state, distinct from none/all/scope (card 1.2): "never configured",
+  // falling back to the role's default data scope — NOT "no access".
+  'dataperm.mode.unset': 'Not configured',
+  'dataperm.card.unset.hint': 'Not configured · currently using default scope: {scope}',
+  'dataperm.card.unset.scopeUnknown': 'system default',
+  'dataperm.card.unset.start': 'Start configuring',
   'dataperm.card.summary.empty': 'No conditions configured',
   'dataperm.card.ruleCount': '{n} condition group(s)',
   'dataperm.card.configRule': 'Configure Rules',

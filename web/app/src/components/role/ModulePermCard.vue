@@ -44,7 +44,31 @@
     <!-- 段① 看得见什么（读范围）—— 三选一互斥 -->
     <div class="perm-segment">
       <span class="seg-label">{{ t('dataperm.read.title') }}</span>
+      <!-- 🔴 'unset'（未配置）**不能只靠 n-radio-group 表达**：
+             三个 n-radio-button（none/all/scope）里没有 unset 这一档，
+             绑定 'unset' 时三个按钮全不亮 -> 管理员看到的是"这卡什么都没选"，
+             像加载失败，而不像一个明确的"未配置"状态。故单独渲染一张虚线卡。 -->
+      <div v-if="module.mode === 'unset'" class="unset-panel">
+        <div class="unset-head">
+          <span class="unset-tag">{{ t('dataperm.mode.unset') }}</span>
+          <span class="unset-hint">
+            {{ t('dataperm.card.unset.hint', { scope: defaultScopeLabel }) }}
+          </span>
+        </div>
+        <!-- 未授予功能权限的模块仍允许进入编辑（见 cardDisabled 的 unset 例外）：
+             否则「未配置 + 未授予」叠加会让管理员连配置入口都点不到，权限被锁死。 -->
+        <n-button
+          size="small"
+          secondary
+          type="primary"
+          :disabled="!canConfigure"
+          @click="emit('start-configure')"
+        >
+          {{ t('dataperm.card.unset.start') }}
+        </n-button>
+      </div>
       <n-radio-group
+        v-else
         :value="module.mode"
         :disabled="disabled"
         class="mode-group"
@@ -139,14 +163,30 @@ const props = defineProps<{
   error?: string
   /** 维度选项是否可用（options 接口成功才 true），否则「配置规则」禁用 */
   canConfig: boolean
+  /**
+   * 角色默认数据范围的**已翻译文案**（如「全部」/「本部门」）。
+   * unset 卡片必须说清"当前走的是哪个默认范围" —— 只说"未配置"会让管理员
+   * 无法判断现在到底能看到多少数据，等于没解决他点开这张卡想知道的事。
+   */
+  defaultScopeLabel?: string
 }>()
 
 const emit = defineEmits<{
   (e: 'update:mode', v: DataPermMode): void
   (e: 'open-rule'): void
+  /** 从「未配置」态点「开始配置」：进入编辑态（父组件负责切mode 为 scope） */
+  (e: 'start-configure'): void
   /** 升级某个漂移条件组到模板最新版（父组件负责重绑定并替换草稿组） */
   (e: 'upgrade-template', d: TemplateDrift): void
 }>()
+
+/** unset 卡上的默认范围文案，缺省兜底为通用说法（不给 undefined 空洞文案） */
+const defaultScopeLabel = computed(() => props.defaultScopeLabel || t('dataperm.card.unset.scopeUnknown'))
+
+/** unset 态下能否点「开始配置」：只需维度选项可用。
+ *  注意**刻意不看** props.disabled —— 未授予功能权限的模块也必须能进入编辑，
+ *  否则「未配置 + 未授予」叠加会把管理员锁死在配置入口之外（跨卡死锁，见 RoleEditModal.cardDisabled）。 */
+const canConfigure = computed(() => props.canConfig)
 
 /** 正在升级中的条件组下标（驱动按钮 loading），-1 表示空闲 */
 const upgradingGroup = ref(-1)
@@ -250,6 +290,27 @@ const driftTags = computed(() =>
   letter-spacing: 0.02em;
 }
 .mode-group { width: 100%; }
+
+/* ===== 「未配置」显式卡（卡 1.2）=====
+   虚线而非实线：视觉上与"已配置"的三选一分段区明确区分，
+   避免管理员把"没配过"误读成"配了但没选"。
+   背景沿用 --surface 系列令牌以兼容深色模式，不硬编码 #fff（参见 .module-card 暗色修复注释）。 */
+.unset-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-hairline, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface-elevated, #f8fafc);
+}
+.unset-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.unset-tag { font-size: 13px; font-weight: 600; color: var(--ink, #1e293b); }
+.unset-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft, #64748b);
+}
 
 .rule-summary {
   margin-top: 8px;

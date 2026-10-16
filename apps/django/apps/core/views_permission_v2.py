@@ -249,7 +249,9 @@ class RoleViewSet(viewsets.ModelViewSet):
         if request.method == 'POST':
             with transaction.atomic():
                 role = self.get_object()
-                from apps.data_permission.role_scope_api import upsert_modules, validate_modules
+                from apps.data_permission.role_scope_api import (
+                    UnsetWithWriteRowsError, upsert_modules, validate_modules,
+                )
                 modules = request.data.get('modules')
                 reason = validate_modules(modules)
                 if reason:
@@ -257,7 +259,17 @@ class RoleViewSet(viewsets.ModelViewSet):
                         {'success': False, 'message': reason},
                         status=http_status.HTTP_400_BAD_REQUEST,
                     )
-                data = upsert_modules(role, modules, request.user)
+                try:
+                    data = upsert_modules(role, modules, request.user)
+                except UnsetWithWriteRowsError as e:
+                    # 卡 1.2：把模块置为「未配置」但该模块仍有存量写范围配置 → fail-closed 拒绝。
+                    # 属**业务拒绝**（配置冲突），转 400 并把文案原样回给前端 ——
+                    # 文案本身就是给管理员的操作指引（先清写范围再置未配置），
+                    # 不能吞成 500，否则管理员只看到"保存失败"而不知怎么改。
+                    return Response(
+                        {'success': False, 'message': str(e)},
+                        status=http_status.HTTP_400_BAD_REQUEST,
+                    )
                 # 权限 v2 决策④：规则保存写审计（配置变更留痕；失败不阻断，见 _audit_config_change）
                 from apps.data_permission.views import _audit_config_change
                 _audit_config_change(

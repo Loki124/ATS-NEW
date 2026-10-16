@@ -169,8 +169,10 @@
                 :disabled-reason="disabledReason(m)"
                 :error="dpErrors[m.moduleKey]"
                 :can-config="moduleView(m.moduleKey).dimensions.length > 0"
+                :default-scope-label="defaultScopeLabel"
                 @update:mode="(mode) => dpSetMode(m.moduleKey, mode)"
                 @open-rule="openRule(m.moduleKey)"
+                @start-configure="dpSetMode(m.moduleKey, 'scope')"
                 @upgrade-template="(d) => onUpgradeTemplate(m.moduleKey, d)"
               />
             </div>
@@ -401,30 +403,39 @@ function actionModuleView(key: string) {
   return { label: opt?.label || meta.label, desc: meta.desc }
 }
 
-/** 数据权限模块 → 功能权限资源模块 别名（两者命名不一致，需显式映射）。
- *  talent(人才库数据)   ← talent_pool(人才库功能资源)
- *  process(招聘流程数据) ← application(申请/推进流程功能资源) */
-const MODULE_RESOURCE_ALIASES: Record<string, string[]> = {
-  talent: ['talent_pool'],
-  process: ['application'],
-}
-
-/** 数据权限模块是否可用：后端授予 或 本次会话刚在功能权限页签勾了该模块资源 */
+/**
+ * 数据权限模块是否可用：直接取后端下发的 featureGranted（卡 1.3 已真实接线，
+ * 由 RolePermissionV2 ↔ PermissionResource.module 推导，含 process→settings 映射）。
+ *
+ * 🔴 历史口径曾在前端用 `lower.includes('.' + k + '.')` 自判 + MODULE_RESOURCE_ALIASES
+ * （process→application）兜底，但 seed 全部资源码是冒号分隔、无一条含点号，自判恒 false；
+ * 且 process→application 与真实资源（recruit:settings:recruitment-process:*，module='settings'）
+ * 不符，会让管流程的角色被误判未授予、卡片禁用（管理员锁死）。故改为纯取后端字段，
+ * 前端不再自行判断（与 data-permission-ui-design.md §4 口径一致）。
+ */
 function effectiveGranted(m: ModulePerm): boolean {
-  if (m.featureGranted) return true
-  const keys = [m.moduleKey, ...(MODULE_RESOURCE_ALIASES[m.moduleKey] ?? [])]
-  return selectedCodes.value.some((c) => {
-    const lower = c.toLowerCase()
-    return keys.some((k) => lower.includes(`.${k}.`))
-  })
+  return m.featureGranted
 }
 
+/**
+ * 卡片是否置灰。
+ *
+ * 🔴 跨卡死锁豁免（卡 1.2 unset × 卡 1.3 featureGranted）：
+ *    未授予功能权限的模块本应整卡禁用，但叠加上「未配置」态会形成死锁——
+ *    既没配置又被判未授予，管理员连「开始配置」都点不到，权限从此无法自救。
+ *    故 mode==='unset' 时**不置灰**（未配置 = 没有需要保护的东西）。
+ *    禁用只作用于已配置态的卡片（none/all/scope）。
+ */
 function cardDisabled(m: ModulePerm): boolean {
-  return isSuperAdmin.value || !effectiveGranted(m)
+  if (isSuperAdmin.value) return true
+  if (m.mode === 'unset') return false
+  return !effectiveGranted(m)
 }
 
+/** 未授予功能权限但处于未配置态时，提示降级为"可开始配置"而非"已禁用" */
 function disabledReason(m: ModulePerm): string | undefined {
   if (isSuperAdmin.value) return t('dataperm.card.disabled.superAdmin')
+  if (m.mode === 'unset') return undefined
   if (!effectiveGranted(m)) return t('dataperm.card.disabled.feature')
   return undefined
 }
@@ -575,6 +586,17 @@ const dataScopeOptions: { label: string; value: DataScopeType }[] = [
   { label: t('pages.settings.permission.RoleEditModal.s14'), value: 'DEPT_AND_SUB' },
   { label: t('pages.settings.permission.RoleEditModal.s15'), value: 'ALL' },
 ]
+
+/**
+ * unset 卡片要告诉管理员"现在走的是哪个默认范围" —— 只说「未配置」等于没说，
+ * 他点开这张卡就是为了知道当前能看到多少数据。
+ * 复用基础信息页那组选项的 label，保证两处措辞完全一致（不一致会让人怀疑是不是两套规则）。
+ */
+const defaultScopeLabel = computed(() => {
+  const cur = form.defaultDataScopeType
+  if (!cur) return t('pages.settings.permission.RoleEditModal.s11')
+  return dataScopeOptions.find((o) => o.value === cur)?.label ?? String(cur)
+})
 
 // 按 module 分组 (null/空归到未分类)
 const groupedResources = computed(() => {
