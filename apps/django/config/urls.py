@@ -81,6 +81,7 @@ _NON_EMPTY = [
     ('integrations/', 'apps.integration.urls'),
     ('campus/', 'apps.campus_control.urls'),
     ('campus-recruit/', 'apps.campus.urls'),
+    ('campus-rotation/', 'apps.campus_rotation.urls'),
     ('external-sync/', 'apps.external_sync.urls'),
     ('dynamic-fields/', 'apps.dynamic_field.urls'),
     ('brand/', 'apps.brand.urls'),

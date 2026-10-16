@@ -223,6 +223,7 @@ RESOURCES = [
     # 校招管控 (config)
     ('recruit:settings:campus-control:menu:view', '校招管控菜单', 'MENU', 'settings'),
     ('recruit:settings:campus-control:edit', '编辑校招管控', 'BUTTON', 'settings'),
+    ('recruit:settings:campus-control:delete', '删除校招管控', 'BUTTON', 'settings'),
     # 数据字典 (management)
     ('recruit:settings:dictionary:menu:view', '数据字典菜单', 'MENU', 'settings'),
     ('recruit:settings:dictionary:create', '新增字典项', 'BUTTON', 'settings'),
@@ -344,6 +345,24 @@ RESOURCES = [
     ('recruit:settings:metrics:edit', '指标维护', 'BUTTON', 'settings'),
     ('recruit:settings:data-dashboard:list', '数据看板列表', 'BUTTON', 'settings'),
     ('recruit:settings:company-library:list', '公司库列表', 'BUTTON', 'settings'),
+
+    # --- module: campus (校招轮岗: 轮岗安排 / 轮岗资源 / 班级管理) ---
+    ('recruit:campus:menu:view', '校园招聘菜单', 'MENU', 'campus'),
+    ('recruit:campus:rotation:menu:view', '轮岗安排菜单', 'MENU', 'campus'),
+    ('recruit:campus:rotation:list', '轮岗安排列表', 'BUTTON', 'campus'),
+    ('recruit:campus:rotation:create', '新建轮岗安排', 'BUTTON', 'campus'),
+    ('recruit:campus:rotation:edit', '编辑轮岗安排', 'BUTTON', 'campus'),
+    ('recruit:campus:rotation:delete', '删除轮岗安排', 'BUTTON', 'campus'),
+    ('recruit:campus:resource:menu:view', '轮岗资源菜单', 'MENU', 'campus'),
+    ('recruit:campus:resource:list', '轮岗资源列表', 'BUTTON', 'campus'),
+    ('recruit:campus:resource:create', '新建直播间', 'BUTTON', 'campus'),
+    ('recruit:campus:resource:edit', '编辑直播间', 'BUTTON', 'campus'),
+    ('recruit:campus:resource:delete', '删除直播间', 'BUTTON', 'campus'),
+    ('recruit:campus:class:menu:view', '班级管理菜单', 'MENU', 'campus'),
+    ('recruit:campus:class:list', '班级列表', 'BUTTON', 'campus'),
+    ('recruit:campus:class:create', '新建班级', 'BUTTON', 'campus'),
+    ('recruit:campus:class:edit', '编辑班级', 'BUTTON', 'campus'),
+    ('recruit:campus:class:delete', '删除班级', 'BUTTON', 'campus'),
 ]
 
 
@@ -391,7 +410,7 @@ CONFIG_CODES = [
     'recruit:settings:rule-engine:menu:view', 'recruit:settings:rule-engine:list',
     'recruit:settings:rule-engine:edit',
     'recruit:settings:campus-control:menu:view', 'recruit:settings:campus-control:list',
-    'recruit:settings:campus-control:edit',
+    'recruit:settings:campus-control:edit', 'recruit:settings:campus-control:delete',
     'recruit:settings:metrics:list', 'recruit:settings:metrics:edit',
     # 渠道成本 / 通知模板
     'recruit:channel:menu:view', 'recruit:channel:list',
@@ -415,6 +434,17 @@ CONFIG_CODES = [
     'recruit:settings:job_level:category:list', 'recruit:settings:job_level:category:create',
     'recruit:settings:job_level:category:edit', 'recruit:settings:job_level:category:delete',
     'recruit:settings:job_level:grade:edit', 'recruit:settings:job_level:sequence:edit',
+    # 校招轮岗 (campus): 轮岗安排 / 轮岗资源 / 班级管理 全量菜单+按钮码
+    'recruit:campus:menu:view',
+    'recruit:campus:rotation:menu:view', 'recruit:campus:rotation:list',
+    'recruit:campus:rotation:create', 'recruit:campus:rotation:edit',
+    'recruit:campus:rotation:delete',
+    'recruit:campus:resource:menu:view', 'recruit:campus:resource:list',
+    'recruit:campus:resource:create', 'recruit:campus:resource:edit',
+    'recruit:campus:resource:delete',
+    'recruit:campus:class:menu:view', 'recruit:campus:class:list',
+    'recruit:campus:class:create', 'recruit:campus:class:edit',
+    'recruit:campus:class:delete',
 ]
 
 

@@ -44,7 +44,7 @@ class UserViewSet(EnvelopeModelViewSet):
     permission_classes = [UserViewPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['department', 'level', 'is_active']
+    filterset_fields = ['department', 'level', 'is_active', 'direct_manager']
     search_fields = ['username', 'employee_id', 'phone', 'email', 'first_name', 'last_name']
     ordering_fields = ['created_at', 'username']
     ordering = ['username']
@@ -58,8 +58,27 @@ class UserViewSet(EnvelopeModelViewSet):
             qs = qs.filter(user_type=user_type)
         # HRBP+ 看所有在职; 其它角色仅看自己
         if is_super_admin(user) or user_has_any_role(user, HRBP_TIER):
+            qs = self._filter_by_roles(qs)
             return qs
         return qs.filter(pk=user.pk)
+
+    def _filter_by_roles(self, qs):
+        """需求5：?role= 多值并集过滤（按 UserRoleV2.role_code）。
+
+        支持逗号分隔（?role=campus_mentor,head_teacher）与重复参数（?role=x&role=y）。
+        取多个角色命中的 user_id 并集。
+        """
+        params = self.request.query_params
+        raw = params.getlist('role') or []
+        role_codes = []
+        for item in raw:
+            role_codes.extend([r.strip() for r in item.split(',') if r.strip()])
+        if not role_codes:
+            return qs
+        user_ids = UserRoleV2.objects.filter(
+            role_code__in=role_codes, system_code='recruit',
+        ).values_list('user_id', flat=True)
+        return qs.filter(pk__in=user_ids)
 
     def get_serializer_context(self):
         """#9 (2026-10-09): UserMinimalSerializer.to_representation 此前逐行查

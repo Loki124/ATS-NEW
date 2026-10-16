@@ -120,7 +120,7 @@ describe('UserDirectory (整合后用户管理)', () => {
     expect(document.querySelector('.kpi-card')).toBeFalsy()
   })
 
-  it('toolbar has search + 2 selects + spacer + 新建用户 button at right', async () => {
+  it('toolbar has search + 4 selects + spacer + 新建用户 button at right', async () => {
     wrapper = factory()
     await flushPromises()
     await nextTick()
@@ -128,8 +128,8 @@ describe('UserDirectory (整合后用户管理)', () => {
     expect(toolbar).toBeTruthy()
     // 搜索框（.rule-filter-search 内原生 input）
     expect(toolbar!.querySelector('.rule-filter-search input')).toBeTruthy()
-    // 两个筛选项 .rule-filter-select
-    expect(toolbar!.querySelectorAll('.rule-filter-select').length).toBe(2)
+    // 四个筛选项 .rule-filter-select：用户类型 / 状态 / 直属上级 / 身份（需求5）
+    expect(toolbar!.querySelectorAll('.rule-filter-select').length).toBe(4)
     // .spacer 存在，用于把按钮推到最右
     expect(toolbar!.querySelector('.spacer')).toBeTruthy()
     // 新建用户 按钮

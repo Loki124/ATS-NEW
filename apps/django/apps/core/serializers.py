@@ -29,6 +29,32 @@ def _convert_keys_to_snake(data):
     return {_camel_to_snake(k): _convert_keys_to_snake(v) for k, v in data.items()}
 
 
+def _is_subordinate_of(manager_id, user_id):
+    """判断 user_id 是否为 manager_id 的下属（递归遍历 direct_manager 链）。
+
+    用于「直属上级防成环」：把 user_id 设为 manager_id 的直属上级会形成环，则拒绝。
+    避免 campus_rotation 与 core 之间引入反向依赖，故在 core 内本地实现。
+    """
+    if not manager_id or not user_id or manager_id == user_id:
+        return False
+    from django.db.models import Q
+
+    from .models import User
+
+    visited = set()
+    stack = [manager_id]
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        for sub_id in User.objects.filter(direct_manager_id=current).values_list('id', flat=True):
+            if sub_id == user_id:
+                return True
+            stack.append(sub_id)
+    return False
+
+
 class UserSerializer(serializers.ModelSerializer):
     """用户序列化器 - 脱敏字段由 Field ACL 处理
 
@@ -124,6 +150,18 @@ class UserSerializer(serializers.ModelSerializer):
 
         return super().to_internal_value(converted)
 
+    def validate(self, attrs):
+        """需求5：设直属上级时防成环 —— 不能选自己或自己的下属。"""
+        dm = attrs.get('direct_manager')
+        if dm is not None and self.instance is not None:
+            if dm.id == self.instance.id:
+                raise serializers.ValidationError(
+                    {'direct_manager': '不能选自己作为直属上级'})
+            if _is_subordinate_of(self.instance.id, dm.id):
+                raise serializers.ValidationError(
+                    {'direct_manager': '不能选自己或下属作为直属上级'})
+        return attrs
+
     def _apply_role_type(self, instance, validated_data):
         """roleType 写入 UserRoleV2 (覆盖式: 先删后建).
 
@@ -198,7 +236,7 @@ class UserMinimalSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'full_name', 'email', 'phone',
-            'employee_id', 'department',
+            'employee_id', 'department', 'direct_manager',
             'moka_user_id', 'is_active', 'created_at',
         ]
 
@@ -227,6 +265,12 @@ class UserMinimalSerializer(serializers.ModelSerializer):
         # (回归测试 apps/core/tests/test_user_list_nplus1.py 会拦截)。
         # 未注入时给空数组而非 None: 前端直接 .filter(Boolean) 渲染, 无需判空。
         ret['roleNames'] = self.context.get('role_names_map', {}).get(instance.pk, [])
+        # 需求5: 直属上级（id）+ 派生姓名（只读）。list queryset 已 select_related('direct_manager')
+        ret['directManager'] = instance.direct_manager_id
+        ret['directManagerName'] = (
+            instance.direct_manager.full_name
+            if instance.direct_manager_id and instance.direct_manager else ''
+        )
         # 2026-09-19: 用户类型字段接入列表 (前端「用户类型」列 + 客户端筛选依赖此字段)
         ret['userType'] = instance.user_type
         # 用户唯一标识（对外稳定 ID，新建自动生成、存量已回填）
