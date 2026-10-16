@@ -510,13 +510,15 @@ class PersonViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
     queryset = Person.objects.all()
     serializer_class = PersonSerializer
     permission_classes = [V2Permission]
-    # G2: 校招管控配置此前对任意登录用户开放, 现改为资源码校验
-    permission_required = 'recruit:settings:campus-control:list'
+    # 校招生档案属校招业务域，权限码走 recruit:campus:person:*（不再是 campus-control 配置域），
+    # 避免校招 HR 需要「校招管控配置」权限才能维护本域档案。
+    permission_required = 'recruit:campus:person:list'
     permission_required_map = {
-        'create': 'recruit:settings:campus-control:edit',
-        'update': 'recruit:settings:campus-control:edit',
-        'partial_update': 'recruit:settings:campus-control:edit',
-        'destroy': 'recruit:settings:campus-control:edit',
+        'create': 'recruit:campus:person:create',
+        'update': 'recruit:campus:person:edit',
+        'partial_update': 'recruit:campus:person:edit',
+        'destroy': 'recruit:campus:person:delete',
+        'restore': 'recruit:campus:person:edit',
     }
     pagination_class = StandardResultsSetPagination
 

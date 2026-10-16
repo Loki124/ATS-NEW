@@ -363,6 +363,11 @@ RESOURCES = [
     ('recruit:campus:class:create', '新建班级', 'BUTTON', 'campus'),
     ('recruit:campus:class:edit', '编辑班级', 'BUTTON', 'campus'),
     ('recruit:campus:class:delete', '删除班级', 'BUTTON', 'campus'),
+    ('recruit:campus:person:menu:view', '校招生档案菜单', 'MENU', 'campus'),
+    ('recruit:campus:person:list', '校招生档案列表', 'BUTTON', 'campus'),
+    ('recruit:campus:person:create', '新建校招生档案', 'BUTTON', 'campus'),
+    ('recruit:campus:person:edit', '编辑校招生档案', 'BUTTON', 'campus'),
+    ('recruit:campus:person:delete', '删除校招生档案', 'BUTTON', 'campus'),
 ]
 
 
@@ -445,6 +450,9 @@ CONFIG_CODES = [
     'recruit:campus:class:menu:view', 'recruit:campus:class:list',
     'recruit:campus:class:create', 'recruit:campus:class:edit',
     'recruit:campus:class:delete',
+    'recruit:campus:person:menu:view', 'recruit:campus:person:list',
+    'recruit:campus:person:create', 'recruit:campus:person:edit',
+    'recruit:campus:person:delete',
 ]
 
 

@@ -418,7 +418,7 @@ const menuOptions = computed(() => {
         { key: '/campus/rotation-arrangement', label: '轮岗安排' },
         { key: '/campus/live-room', label: '轮岗资源' },
         { key: '/campus/class-room', label: '班级管理' },
-        { key: '/campus/person', label: '人员管理' },
+        { key: '/campus/person', label: '校招生档案' },
       ],
     })
   }

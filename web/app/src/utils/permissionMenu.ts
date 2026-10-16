@@ -87,7 +87,7 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/campus/rotation-arrangement', code: 'recruit:campus:rotation:menu:view' },
   { prefix: '/campus/live-room', code: 'recruit:campus:resource:menu:view' },
   { prefix: '/campus/class-room', code: 'recruit:campus:class:menu:view' },
-  { prefix: '/campus/person', code: 'recruit:settings:users:menu:view' },
+  { prefix: '/campus/person', code: 'recruit:campus:person:menu:view' },
 
   // ===== 招聘分类信息 =====
   { prefix: '/settings/dictionary', code: 'recruit:settings:dictionary:menu:view' },

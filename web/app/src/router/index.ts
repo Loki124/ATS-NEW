@@ -237,8 +237,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'campus/person',
         name: 'CampusPersonManagement',
-        component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserDirectory.vue'),
-        meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] }
+        component: () => import(/* webpackChunkName: "campus-person" */ '../pages/campus/CampusPerson.vue'),
+        meta: { title: '校招生档案' }
       },
       {
         path: 'report',
