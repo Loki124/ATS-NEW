@@ -24,6 +24,7 @@
     "lint:ci": "eslint . --max-warnings=0",
     "locale:audit": "node ../../scripts/locale-audit.mjs",
     "locale:fix": "node ../../scripts/locale-fix.mjs",
+    "tokens:audit": "node ../../scripts/token-doc-audit.mjs",
     "lint:style": "stylelint \"src/**/*.{vue,css}\"",
     "lint:style:ci": "stylelint \"src/**/*.{vue,css}\"",
     "audit:a11y": "node e2e/a11y-smoke.mjs",

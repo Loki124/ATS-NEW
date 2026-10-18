@@ -176,6 +176,30 @@ jobs:
           BRAND_COLOR: ${{ vars.BRAND_COLOR }}
         run: node brand-tokens.mjs --brand "${BRAND_COLOR:-#6366F1}" --ci --out src/styles/brand-tokens.css
 
+  token-docs:
+    # 令牌真源是 web/app/src/styles/tokens.css (L0)。AGENTS.md 与 docs/04-ui 下的
+    # 规范文档 MUST 只引用令牌名, MUST NOT 复制数值 —— 否则 AI 照文档写的 CSS 变量
+    # 不存在, 静默失效 (2026-10-18 实际发生: AGENTS.md 写 --color-success/#EF4444/
+    # data-theme, 真实是 --c-success/#C62828/body.dark)。
+    # 见 docs/04-ui/UI_DOC_AUDIT_2026-10-18.md
+    #
+    # 纯 Node 脚本无外部依赖, 故无需 npm ci, 直接跑。
+    # ⚠️ 存量文档尚有真实问题待清 (迁移步骤 ②~⑥), 故先 allow-failure 观察,
+    #    待存量清零后再把 continue-on-error 摘掉转为强制阻断。
+    name: Token Doc Consistency Gate
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit design-token references in docs
+        run: node scripts/token-doc-audit.mjs
+
   e2e:
     name: Playwright e2e
     runs-on: ubuntu-latest
