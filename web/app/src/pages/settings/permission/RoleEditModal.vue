@@ -45,7 +45,58 @@
         </n-form>
       </n-tab-pane>
 
-      <!-- ===== 页签 2：功能权限 ===== -->
+      <!-- ===== 页签 2：数据权限（2026-10-18 兵哥要求移到基础信息之后）===== -->
+      <n-tab-pane name="data" :tab="renderDataTab" display-directive="show:lazy">
+        <div class="pane-caption-row">
+          <p class="pane-caption" :class="{ 'caption-warn': isSuperAdmin }">
+            {{ isSuperAdmin ? t('dataperm.drawer.desc.superAdmin') : t('dataperm.drawer.descLabel') }}
+          </p>
+          <n-button
+            v-if="form.id"
+            quaternary
+            size="tiny"
+            :disabled="isSuperAdmin || !dpDirty"
+            @click="onResetDataPerm"
+          >
+            {{ t('dataperm.action.reset') }}
+          </n-button>
+        </div>
+
+        <!-- 新建身份：尚未落库，无数据权限可配 -->
+        <n-empty v-if="!form.id" :description="t('pages.settings.permission.RoleEditModal.s36')" class="dp-empty" />
+
+        <div v-else-if="dpLoading" class="dp-spin">
+          <n-spin size="large" />
+        </div>
+
+        <template v-else>
+          <div class="dp-cards">
+            <div
+              v-for="m in draft"
+              :id="`dp-card-${m.moduleKey}`"
+              :key="m.moduleKey"
+              class="dp-card-slot"
+            >
+              <ModulePermCard
+                :module="m"
+                :label="moduleView(m.moduleKey).label"
+                :desc="moduleView(m.moduleKey).desc"
+                :disabled="cardDisabled(m)"
+                :disabled-reason="disabledReason(m)"
+                :error="dpErrors[m.moduleKey]"
+                :can-config="moduleView(m.moduleKey).dimensions.length > 0"
+                :default-scope-label="defaultScopeLabel"
+                @update:mode="(mode) => dpSetMode(m.moduleKey, mode)"
+                @open-rule="openRule(m.moduleKey)"
+                @start-configure="dpSetMode(m.moduleKey, 'scope')"
+                @upgrade-template="(d) => onUpgradeTemplate(m.moduleKey, d)"
+              />
+            </div>
+          </div>
+        </template>
+      </n-tab-pane>
+
+      <!-- ===== 页签 3：功能权限 ===== -->
       <n-tab-pane name="perm" :tab="renderPermTab" display-directive="show:lazy">
         <p class="pane-caption">{{ t('pages.settings.permission.RoleEditModal.s34') }}</p>
         <div v-if="!allResources.length && resourcesFailedMsg" class="res-error">
@@ -129,57 +180,6 @@
             </n-checkbox>
           </n-checkbox-group>
         </div>
-      </n-tab-pane>
-
-      <!-- ===== 页签 3：数据权限 ===== -->
-      <n-tab-pane name="data" :tab="renderDataTab" display-directive="show:lazy">
-        <div class="pane-caption-row">
-          <p class="pane-caption" :class="{ 'caption-warn': isSuperAdmin }">
-            {{ isSuperAdmin ? t('dataperm.drawer.desc.superAdmin') : t('dataperm.drawer.descLabel') }}
-          </p>
-          <n-button
-            v-if="form.id"
-            quaternary
-            size="tiny"
-            :disabled="isSuperAdmin || !dpDirty"
-            @click="onResetDataPerm"
-          >
-            {{ t('dataperm.action.reset') }}
-          </n-button>
-        </div>
-
-        <!-- 新建身份：尚未落库，无数据权限可配 -->
-        <n-empty v-if="!form.id" :description="t('pages.settings.permission.RoleEditModal.s36')" class="dp-empty" />
-
-        <div v-else-if="dpLoading" class="dp-spin">
-          <n-spin size="large" />
-        </div>
-
-        <template v-else>
-          <div class="dp-cards">
-            <div
-              v-for="m in draft"
-              :id="`dp-card-${m.moduleKey}`"
-              :key="m.moduleKey"
-              class="dp-card-slot"
-            >
-              <ModulePermCard
-                :module="m"
-                :label="moduleView(m.moduleKey).label"
-                :desc="moduleView(m.moduleKey).desc"
-                :disabled="cardDisabled(m)"
-                :disabled-reason="disabledReason(m)"
-                :error="dpErrors[m.moduleKey]"
-                :can-config="moduleView(m.moduleKey).dimensions.length > 0"
-                :default-scope-label="defaultScopeLabel"
-                @update:mode="(mode) => dpSetMode(m.moduleKey, mode)"
-                @open-rule="openRule(m.moduleKey)"
-                @start-configure="dpSetMode(m.moduleKey, 'scope')"
-                @upgrade-template="(d) => onUpgradeTemplate(m.moduleKey, d)"
-              />
-            </div>
-          </div>
-        </template>
       </n-tab-pane>
 
       <!-- ===== 页签 4：操作权限（2026-10-15 从数据权限拆出）=====
@@ -282,7 +282,8 @@
 
 <script setup lang="ts">
 /**
- * RoleEditModal.vue — 身份编辑弹窗（四页签：基础信息 / 功能权限 / 数据权限 / 操作权限）
+ * RoleEditModal.vue — 身份编辑弹窗（四页签：基础信息 / 数据权限 / 功能权限 / 操作权限）
+ * （2026-10-18 兵哥要求：数据权限页签从第 3 位移到基础信息之后，「看得见什么」优先于「能做什么」）
  *
  * 2026-10-10 重构：将原「资源授权」内联区块升级为页签布局，并把
  * 原 RoleDataPermDrawer 的数据权限能力（useRoleDataPerm + ModulePermCard + RuleConfigModal）

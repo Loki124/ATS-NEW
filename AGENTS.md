@@ -404,6 +404,37 @@ Web 端按钮 MUST 按小(28–32px) / 中(36–40px) / 大(44–48px) 三档使
 
 静态可判定：检查内容区是否用固定 `height`（或 `min-height` + `height` 双声明）而非仅 `max-height`。
 
+### R-224 [P0][S] 弹窗统一采用居中弹窗（默认形态）
+
+**所有弹窗 MUST 默认使用居中弹窗（Naive UI `n-modal`，`preset="card"`）。除在需求或设计文档中被特别说明外，MUST NOT 使用抽屉（`n-drawer`）。**（2026-10-18 兵哥明确约定）
+
+- 判据很简单：**「默认 = 居中，例外 = 抽屉」**。要开抽屉必须先有书面说明（需求条目 / 设计决策 / 用户明确指示），否则一律居中。
+- 已按本规则回改的实例：`RuleConfigModal.vue`（数据/写范围规则配置，2026-10-18 由抽屉改回居中弹窗）。
+- 居中弹窗 MUST 同时满足：R-223 固定内容区高度、R-215 仅内容区滚动（标题栏与底部操作栏固定）、`mask-closable=false`（防误触丢失，配合 R-106 的关闭守卫）。
+- 底部操作区 MUST 用 `n-modal` 的 `#footer` 插槽承载，MUST NOT 在内容区末尾手写一行动画冒进的按钮组（会导致内容多时按钮被顶出视口）。
+
+```vue
+<!-- ✅ 正确: 居中弹窗 + #footer 操作区 -->
+<n-modal
+  :show="show"
+  preset="card"
+  :title="title"
+  :style="{ width: '860px', maxWidth: '95vw' }"
+  :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+  :mask-closable="false"
+  :bordered="false"
+  @update:show="(v: boolean) => emit('update:show', v)"
+>
+  <!-- 内容 -->
+  <template #footer>
+    <n-space justify="end">…操作按钮…</n-space>
+  </template>
+</n-modal>
+
+<!-- ❌ 违规: 无书面说明即用抽屉 -->
+<n-drawer :show="show" placement="right" :width="720">…</n-drawer>
+```
+
 ## 4. 品牌色系统（Brand Color）
 
 品牌色是唯一必须由外部输入的令牌，其余颜色由它推导或与之解耦。
@@ -769,6 +800,8 @@ if (hits.length) { console.error('X-02 违规：', hits); process.exit(1); }
 - [S-30 P1] 图标尺寸控制在 ≤4 个固定等级？（R-219 / X-19）
 - [S-31 P1] 按钮按 28–32 / 36–40 / 44–48 三档使用，图标按钮命中区 ≥44×44？（R-102 / R-220）
 - [S-32 P1] 表单错误提示靠近对应字段，且图标 + 文字双通道？（R-221）
+- [S-33 P0] 所有弹窗默认居中弹窗（n-modal），无书面说明未使用抽屉？（R-224）
+- [S-34 P1] 重复性提示已收敛（同一文案不逐卡/逐行重复），必要说明用 icon + hover 而非常驻文字块？
 
 ### 7.3 运行时项 [R] — agent MUST 输出"未验证"
 

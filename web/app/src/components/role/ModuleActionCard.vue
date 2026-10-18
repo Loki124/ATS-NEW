@@ -37,43 +37,46 @@
       </n-alert>
 
       <!--
-        fail-closed 语义必须在 UI 显式传达，但**只在真正危险时**才报警：
-        橙色告警仅当「配了范围却一个动作都没勾」才出现（=该模块对所有人只读），
-        常态下不再刷屏。mode==='all' 时不渲染动作墙（全部可写无需逐项勾）。
+        fail-closed 语义必须在 UI 显式传达，但**只在真正危险时**才常驻报警：
+        红色告警仅当「配了范围却一个动作都没勾」才出现（=该模块对所有人只读）。
+        原先 none/failClosed/all 三条默认态 alert **每张卡各重复一遍**（5 张卡 = 15 条同文案），
+        属纯噪声 —— 2026-10-18 兵哥要求清理，收敛为下方「写范围」标签旁一个 info 图标 + hover。
       -->
-      <!-- 未配置 = 不限制：这句是「操作权限」页签最容易被误解的语义，必须常驻解释 -->
-      <n-alert v-if="!writeActive" type="default" :bordered="false" class="ac-alert">
-        {{ t('dataperm.write.noneHint') }}
-      </n-alert>
-      <!-- 常驻语义提示：只在「配了写范围」时给一句总纲，具体风险由下面的 zero 告警承担 -->
-      <n-alert
-        v-else-if="writeActive && !showZeroHint && !isWriteAll"
-        type="default"
-        :bordered="false"
-        class="ac-alert"
-      >
-        {{ t('dataperm.write.failClosedHint') }}
-      </n-alert>
-      <!-- 危险告警：配了写范围但 0 动作 = 该模块对所有人只读（红色，最高优先） -->
+      <!-- 危险告警：配了写范围但 0 动作 = 该模块对所有人只读（红色，最高优先，必须常驻） -->
       <n-alert v-if="showZeroHint" type="error" :bordered="false" class="ac-alert">
         {{ t('dataperm.write.zeroHint') }}
       </n-alert>
-      <!-- mode=all：全部可写，无需逐项勾选动作 -->
-      <n-alert v-if="isWriteAll" type="default" :bordered="false" class="ac-alert">
-        {{ t('dataperm.write.allHint') }}
-      </n-alert>
 
-      <n-radio-group
-        :value="module.write?.mode || 'none'"
-        :disabled="disabled"
-        class="ac-mode-group"
-        @update:value="(v: WriteMode) => emit('update:write-mode', v)"
-      >
-        <n-radio-button value="none">{{ t('dataperm.write.mode.none') }}</n-radio-button>
-        <n-radio-button value="all">{{ t('dataperm.write.mode.all') }}</n-radio-button>
-        <n-radio-button value="owner">{{ t('dataperm.write.mode.owner') }}</n-radio-button>
-        <n-radio-button value="scope">{{ t('dataperm.write.mode.scope') }}</n-radio-button>
-      </n-radio-group>
+      <div class="ac-mode-row">
+        <n-radio-group
+          :value="module.write?.mode || 'none'"
+          :disabled="disabled"
+          class="ac-mode-group"
+          @update:value="(v: WriteMode) => emit('update:write-mode', v)"
+        >
+          <n-radio-button value="none">{{ t('dataperm.write.mode.none') }}</n-radio-button>
+          <n-radio-button value="all">{{ t('dataperm.write.mode.all') }}</n-radio-button>
+          <n-radio-button value="owner">{{ t('dataperm.write.mode.owner') }}</n-radio-button>
+          <n-radio-button value="scope">{{ t('dataperm.write.mode.scope') }}</n-radio-button>
+        </n-radio-group>
+        <!-- 写范围语义说明（原三条常驻 alert 的合并）：icon + hover，R-217 键盘可达 + aria-label -->
+        <n-tooltip trigger="hover" placement="bottom-end">
+          <template #trigger>
+            <button
+              type="button"
+              class="hint-btn"
+              :aria-label="t('dataperm.write.semantics')"
+            >
+              <n-icon :component="InformationCircleOutline" />
+            </button>
+          </template>
+          <div class="semantic-tip">
+            <p>{{ t('dataperm.write.noneHint') }}</p>
+            <p>{{ t('dataperm.write.allHint') }}</p>
+            <p>{{ t('dataperm.write.failClosedHint') }}</p>
+          </div>
+        </n-tooltip>
+      </div>
 
       <!-- 动作墙：仅在 owner / scope（非 all）时渲染；按 普通/高危 分组，带全选/清空 -->
       <template v-if="showActionWall">
@@ -194,8 +197,9 @@
 import { computed, ref, watch } from 'vue'
 import {
   NRadioGroup, NRadioButton, NButton, NTag, NAlert,
-  NCheckbox, NCheckboxGroup,
+  NCheckbox, NCheckboxGroup, NTooltip, NIcon,
 } from 'naive-ui'
+import { InformationCircleOutline } from '@vicons/ionicons5'
 import {
   writeBadge, type ModulePerm, type WriteMode,
   type ActionDictItem, type ActionPreset,
@@ -240,7 +244,6 @@ function toggle(): void {
 }
 
 // ===== v2 写范围 =====
-const isWriteAll = computed(() => (props.module.write?.mode || 'none') === 'all')
 
 /** 写范围可勾选的动作 = 字典中启用且类别为 write/destructive 的项（view/export 归读路径，不进写范围） */
 const writableActions = computed(() =>
@@ -323,12 +326,13 @@ const badgeText = computed(() => t(badge.value.key, { n: badge.value.n }))
 
 <style scoped>
 /* 2026-10-15 从 ModulePermCard 迁出。底色/描边/圆角与原卡保持同一套语义令牌，
-   让「数据权限」与「操作权限」两个页签的卡视觉重量一致（同层同色，不靠色差分主次）。 */
+   让「数据权限」与「操作权限」两个页签的卡视觉重量一致（同层同色，不靠色差分主次）。
+   2026-10-18 兵哥要求精简垂直空间：卡内边距与各区块间距整体收紧一档。 */
 .action-card {
   background: var(--surface);
   border: 1px solid var(--border-hairline, #e2e8f0);
   border-radius: 12px;
-  padding: var(--space-3) 16px 16px;
+  padding: var(--space-2) 16px 12px;
   box-shadow: var(--shadow-xs);
   transition: box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
@@ -365,7 +369,46 @@ const badgeText = computed(() => t(badge.value.key, { n: badge.value.n }))
 
 /* ===== 提示条 ===== */
 .ac-alert { margin: var(--space-2) 0 0; }
-.ac-mode-group { width: 100%; margin-top: var(--space-2); }
+/* 写范围模式行：单选组 + 语义说明 icon（原三条常驻 alert 收敛于此，2026-10-18） */
+.ac-mode-row {
+  margin-top: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.ac-mode-group { flex: 1 1 auto; min-width: 0; }
+/* 语义说明 icon（范式对齐 RuleConfigModal.hint-btn / RuleConfigDrawer.rc-info-btn：
+   button 保键盘可达 + aria-label 供读屏，hover/focus 出 tooltip；cursor:help 明示「是说明不是动作」） */
+.hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: help;
+  padding: 0;
+  font-size: 14px;
+  transition: color .15s ease, background .15s ease;
+}
+.hint-btn:hover,
+.hint-btn:focus-visible {
+  color: var(--brand-fg);
+  background: var(--g1);
+  outline: none;
+}
+.hint-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+/* tooltip 内多段语义说明 */
+.semantic-tip { max-width: 340px; line-height: 1.6; }
+.semantic-tip p { margin: 0 0 4px; }
+.semantic-tip p:last-child { margin-bottom: 0; }
 
 /* ===== 预设包：可见按钮组（替代藏在下拉里的空 placeholder）===== */
 .preset-row {

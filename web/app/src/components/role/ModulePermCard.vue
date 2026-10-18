@@ -43,7 +43,19 @@
 
     <!-- 段① 看得见什么（读范围）—— 三选一互斥 -->
     <div class="perm-segment">
-      <span class="seg-label">{{ t('dataperm.read.title') }}</span>
+      <div class="seg-label-row">
+        <span class="seg-label">{{ t('dataperm.read.title') }}</span>
+        <!-- T09（§10.1 D8）：模块级数据范围与角色级默认范围是两套独立设置，不合并。
+             2026-10-18 兵哥要求：原每卡常驻一行说明文字改 icon + hover，去掉重复行、精简垂直空间 -->
+        <n-tooltip trigger="hover" placement="bottom-start">
+          <template #trigger>
+            <button type="button" class="hint-btn" :aria-label="t('dataperm.card.scopeNote')">
+              <n-icon :component="InformationCircleOutline" />
+            </button>
+          </template>
+          {{ t('dataperm.card.scopeNote') }}
+        </n-tooltip>
+      </div>
       <!-- 🔴 'unset'（未配置）**不能只靠 n-radio-group 表达**：
              三个 n-radio-button（none/all/scope）里没有 unset 这一档，
              绑定 'unset' 时三个按钮全不亮 -> 管理员看到的是"这卡什么都没选"，
@@ -78,8 +90,6 @@
         <n-radio-button value="all">{{ t('dataperm.mode.all') }}</n-radio-button>
         <n-radio-button value="scope">{{ t('dataperm.mode.scope') }}</n-radio-button>
       </n-radio-group>
-      <!-- T09（§10.1 D8）：模块级数据范围与角色级默认范围是两套独立设置，不合并 -->
-      <p class="scope-note">{{ t('dataperm.card.scopeNote') }}</p>
     </div>
 
     <!-- 规则摘要区：仅 scope 模式展开 -->
@@ -148,7 +158,9 @@
 import { computed, ref } from 'vue'
 import {
   NRadioGroup, NRadioButton, NButton, NTag, NText, NAlert,
+  NTooltip, NIcon,
 } from 'naive-ui'
+import { InformationCircleOutline } from '@vicons/ionicons5'
 import type { TemplateDrift } from '@/api/data-permission'
 import {
   previewOf, type DataPermMode, type ModulePerm,
@@ -255,7 +267,7 @@ const driftTags = computed(() =>
   background: var(--surface);
   border: 1px solid var(--border-hairline, #e2e8f0);
   border-radius: 12px;
-  padding: 16px;
+  padding: var(--space-2) 16px 12px;
   box-shadow: var(--shadow-xs);
   transition: box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
@@ -285,11 +297,41 @@ const driftTags = computed(() =>
 
 /* ===== 分段标签（读范围独立成段，视觉分层）===== */
 .perm-segment { display: flex; flex-direction: column; gap: 6px; }
+/* 标签行：文字 + 语义说明 icon（2026-10-18 原常驻说明文字改 hover） */
+.seg-label-row { display: flex; align-items: center; gap: 2px; }
 .seg-label {
   font-size: 12px;
   font-weight: 600;
   color: var(--ink-soft, #64748b);
   letter-spacing: 0.02em;
+}
+/* 语义说明 icon（范式对齐 RuleConfigModal.hint-btn / ModuleActionCard.hint-btn：
+   button 保键盘可达 + aria-label 供读屏，hover/focus 出 tooltip） */
+.hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: help;
+  padding: 0;
+  font-size: 13px;
+  transition: color .15s ease, background .15s ease;
+}
+.hint-btn:hover,
+.hint-btn:focus-visible {
+  color: var(--brand-fg);
+  background: var(--g1);
+  outline: none;
+}
+.hint-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
 }
 .mode-group { width: 100%; }
 
@@ -333,10 +375,4 @@ const driftTags = computed(() =>
 }
 .summary-actions { display: flex; align-items: center; gap: 8px; }
 .count-badge { font-weight: 600; }
-.scope-note {
-  margin: 6px 0 0;
-  font-size: var(--fs-12, 12px);
-  line-height: 1.5;
-  color: var(--ink-faint);
-}
 </style>

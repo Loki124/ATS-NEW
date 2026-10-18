@@ -148,14 +148,14 @@ beforeEach(() => {
 })
 
 describe('RoleEditModal 读/写拆分', () => {
-  it('四个页签齐备，「操作权限」与「数据权限」并列', async () => {
+  it('四个页签齐备，「数据权限」紧随「基础信息」（2026-10-18 兵哥调整）', async () => {
     factory()
     await flushPromises()
     const tabs = $all('.n-tabs-tab').map(text)
     expect(tabs).toHaveLength(4)
     expect(tabs[0]).toContain('基础信息')
-    expect(tabs[1]).toContain('功能权限')
-    expect(tabs[2]).toContain('数据权限')
+    expect(tabs[1]).toContain('数据权限')
+    expect(tabs[2]).toContain('功能权限')
     expect(tabs[3]).toContain('操作权限')
   })
 
