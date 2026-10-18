@@ -70,6 +70,13 @@ KNOWN_UNGUARDED_BY_DESIGN = {
     ('apps.candidate.views', 'CandidateViewSet', 'create'),
     ('apps.application.views', 'ApplicationViewSet', 'create'),
     ('apps.application.views', 'InvitationViewSet', 'create'),
+    # import_candidates：批量新建（Excel/CSV 导入），逐条走 CandidateService.create_candidate
+    # 落地**全新**候选，不存在"既有行"可供 ensure_writable(user, entity, instance, action)
+    # 判定（行级写范围针对的是"改他人可见范围内的既有实例"）。批量导入的归属由 created_by
+    # 语义决定，按设计不接单实例守卫；若未来要控"谁能导入到哪些部门"，应在批量落库前对
+    # 目标部门做作用域校验，而非逐条 ensure_writable。零行为变更：不新增 403 守卫，
+    # 不改 candidate/views.py / enforcement.py。
+    ('apps.candidate.views', 'CandidateViewSet', 'import_candidates'),
 }
 
 
