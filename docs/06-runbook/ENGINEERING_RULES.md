@@ -172,6 +172,8 @@ CSV_TRUNCATION_MARK = '…[已截断'
 - BOM CSV BugFix 完整审计 → `docs/07-audit/BOM_CSV_BUGFIX.md`
 - 数据字典重组 → `docs/03-product/DATA_DICTIONARY_RESTRUCTURING.md`
 - 迁移漂移假绿 → `docs/06-runbook/MIGRATION_DRIFT.md`
+- UI 设计文档收敛审计与 8 步计划 → `docs/04-ui/UI_DOC_AUDIT_2026-10-18.md`
+- UI 规范唯一索引（L0–L5 权威层级）→ `docs/04-ui/README.md`
 
 ## 13. 🔴 数据库：开发/测试统一 MySQL，禁用 SQLite（兵哥定调 2026-10-15）
 
@@ -197,3 +199,41 @@ CSV_TRUNCATION_MARK = '…[已截断'
 ### 13.3 验证纪律
 - 任何涉及**迁移 / 字段 / 索引 / 查询**的改动，必须在**真实 MySQL**（本地或 CI）上跑通，不能只信 SQLite / `:memory:` 测试。
 - 本地起测前确认 `.env` 的 `DATABASE_URL` 指向本地 MySQL；CI 三处 MySQL job 是真实链路闸门。
+
+## 14. UI 设计文档收敛裁决（2026-10-18，兵哥裁定）
+
+> 项目级 UI 文档治理结论。完整审计与 8 步迁移计划见 `docs/04-ui/UI_DOC_AUDIT_2026-10-18.md`；本节省略过程、只收结论与纪律。
+
+### 14.1 权威层级（L0 → L5，唯一裁决标准）
+
+UI 规范的权威来源**只允许一套层级**，定义在 `docs/04-ui/README.md`（L0–L5 表），冲突时自上而下裁决：
+
+| 层级 | 真源 | 性质 |
+|---|---|---|
+| L0 | `web/app/src/styles/tokens.css` + `brand-tokens.mjs` | **唯一真源**：颜色/间距/圆角/阴影/动效数值只此一处定义 |
+| L1 | `AGENTS.md`（仓库根） | 行为/取舍约束（R-xxx / P0–P2），**不写数值** |
+| L2 | `docs/04-ui/UI_DESIGN_SPEC.md` | 人类可读设计规范，引用 L0 |
+| L3 | `frontend-layout-standard.md` + `SETTINGS_PAGE_STRUCTURE.md` | 布局 / 设置页契约 |
+| L4 | 专项规范（NAIVE_UI_PITFALLS / MODAL_DIVIDER_CONVENTION / USE_TABLE_PAGINATION / DROPDOWN_POPOVER_SPEC 等） | 独立主题，保留 |
+| L5 | `docs/04-ui/README.md` | **唯一索引**，不含规范正文 |
+
+🔴 **令牌铁律**：数值只允许出现在 L0。任何文档 MUST 只引用令牌名 + 用途，MUST NOT 复制数值；冲突一律以 `tokens.css` 为准。（`FRONTEND_RULES_CONSOLIDATED.md` §19.1 已收敛到本层级，不再另立分歧优先级表。）
+
+### 14.2 令牌审计门禁（防回归）
+
+- 脚本 `scripts/token-doc-audit.mjs`（纯 Node 无依赖）：正则提取文档 `` `--令牌:值` `` / `` `--令牌` `` 引用 vs `tokens.css` + `brand-tokens.css` 定义比对，查「悬空」（未定义名）与「漂移」（复制数值与真源不符）。
+- 运行：`cd web/app && npm run tokens:audit`（即 `node ../../scripts/token-doc-audit.mjs`）。
+- **已知盲区**：审计只捕获「反引号包裹令牌名 + 同行 `--name: value` 声明」，不捕获 `var(--x)=Npx` 等式写法，也**不捕获**「文档写 24px 但 token 实为 16px」的语义错位——后者须人工比对。
+- CI：`token-docs` job 目前 `continue-on-error`（存量 7 项未清零）。**待 7 项清零后摘除 `continue-on-error`，转强制阻断**（改动见 `.github/workflows/ci.yml`）。
+
+### 14.3 存量 7 项审计问题（清零前置，非本步骤引入）
+
+全部位于 `docs/04-ui/UI_DESIGN_SPEC.md`，属该文件既有问题，须在转阻断前修：
+- L86 悬空令牌 `--g`（占位符残留）→ 删或改真实令牌名。
+- L150 五个 `--z-*`（`--z-sidebar`/`--z-header`/`--z-dropdown`/`--z-drawer`/`--z-modal`）写了字面量 10/20/1000/1100/1200 → 改为只引用令牌名 + 用途。
+- L156 `--font-sans` 复制了字体栈字面量 → 改为只引用令牌名。
+
+### 14.4 待拍板残留（需兵哥定调，勿擅自改）
+
+1. **弹窗内边距 24px vs 16px**：`tokens.css` 中 `--modal-pad-x/y: var(--space-5)` 实际 =16px，但注释写「24px」且 `frontend-layout-standard.md` §1.3 写「`var(--space-6)`=24px」。需先定弹窗内边距该保留 24px（→ token 改 `--space-6`）还是 16px（→ 文档/注释改 16px），再统一，避免真源内部漂移。
+2. **`FRONTEND_RULES_CONSOLIDATED.md` §19.1** 已在本步骤收敛到 README 的 L0–L5（移除已归档的 frontend-DESIGN / UI_INDEX / UI_RECONCILIATION 引用，修正 AGENTS.md「唯一权威源」表述为 L1 行为约束），不再另立分歧优先级表。

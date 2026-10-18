@@ -481,21 +481,22 @@ npx playwright test   # e2e（需后端已启动）
 
 ## 19. 来源文件索引
 
-### 19.1 权威规范源（按优先级）
+### 19.1 权威规范源（以 L0–L5 为准）
 
-| 优先级 | 文件 | 定位 |
-|-------|------|------|
-| **1** | `AGENTS.md`（38KB） | UI 交互约束规范（Agent-Readable），R-101~R-223 + X-01~X-19 + P0/P1/P2 分级 + 交付自检。声明为「唯一权威源」。 |
-| **2** | `docs/04-ui/UI_DESIGN_SPEC.md`（v2.3） | 统一设计规范：色彩/排版/间距/组件/响应式/可访问性/Do-Don't。 |
-| **3** | `docs/04-ui/frontend-layout-standard.md` | 前端布局标准：页面安全边距/容器内边距/弹窗内边距/栅格/断点/间距阶梯/组件级 UI。 |
-| **4** | `docs/04-ui/frontend-DESIGN.md` | 液态玻璃设计系统（**已标注废弃**，内容并入 UI_DESIGN_SPEC + UI_RECONCILIATION，仅作参考）。 |
-| **5** | `docs/06-runbook/ENGINEERING_RULES.md` | 工程铁律与代码假绿坑：品牌色/提交纪律/沙箱陷阱/验证纪律。 |
-| **6** | `docs/04-ui/NAIVE_UI_PITFALLS.md` | Naive UI 2.44.1 实战坑与库联动反模式。 |
-| **7** | `docs/04-ui/UI_INDEX.md` | 04-ui 目录文档总纲（角色标注）。 |
-| **8** | `docs/04-ui/UI_RECONCILIATION.md` | Liquid Glass v2 / 暗色收敛总纲。 |
-| **9** | `docs/04-ui/USE_TABLE_PAGINATION.md` | 分页统一组件 `useTablePagination`。 |
-| **10** | `docs/04-ui/DROPDOWN_POPOVER_SPEC.md` | 下拉弹窗三层结构与层叠圆角规范。 |
-| **11** | `docs/06-runbook/frontend-README.md` | 前端 README（**已标注历史文档**，内容可能过时；Naive UI 拆分规则仍有效）。 |
+> 🔴 UI 规范权威层级**唯一裁决标准**为 `docs/04-ui/README.md` 的 L0–L5 表（2026-10-18 收敛裁定，详见 `docs/06-runbook/ENGINEERING_RULES.md` §14）。下表仅列本索引覆盖文档的**定位**，不再另立优先级；`AGENTS.md` 为 **L1 行为约束**（不写数值），数值真源为 L0 `tokens.css`。
+
+| 层级 | 文件 | 定位 |
+|------|------|------|
+| L0 | `web/app/src/styles/tokens.css` + `brand-tokens.mjs` | 设计令牌唯一真源（数值只此一处） |
+| L1 | `AGENTS.md`（仓库根） | UI 交互约束（R-101~R-223 + X-01~X-19 + P0/P1/P2），**行为/取舍权威，不写数值** |
+| L2 | `docs/04-ui/UI_DESIGN_SPEC.md` | 统一设计规范 v2.3：色彩/排版/间距/组件/响应式/A11y/Do-Don't |
+| L3 | `docs/04-ui/frontend-layout-standard.md` + `SETTINGS_PAGE_STRUCTURE.md` | 布局契约 / 设置页结构规范 |
+| L4 | `NAIVE_UI_PITFALLS.md` / `MODAL_DIVIDER_CONVENTION.md` / `USE_TABLE_PAGINATION.md` / `DROPDOWN_POPOVER_SPEC.md` / `STANDARD_RESUME_SETTINGS.md` / `DATA_DICT_ADD_OBSCURED.md` | 专项规范（独立主题，保留） |
+| L5 | `docs/04-ui/README.md` | 04-ui 目录**唯一索引** |
+| — | `docs/06-runbook/ENGINEERING_RULES.md` | 工程铁律与代码假绿坑（跨前后端工程规则，非 UI 规范层级内） |
+| — | `docs/06-runbook/frontend-README.md` | 前端 README（历史文档，Naive UI 拆分规则仍有效） |
+
+> 📦 以下文档已于 2026-10-18 归档至 `docs/09-archive/ui-docs-2026-10-18/`，**不再作为规范依据**：`frontend-DESIGN.md`、`UI_INDEX.md`、`UI_RECONCILIATION.md`、`UI_REMEDIATION_PLAN.md`、`UI_COMPLIANCE_SELFCHECK.md` 等共 16 份（见 `UI_DOC_AUDIT_2026-10-18.md`）。
 
 ### 19.2 配置文件
 
