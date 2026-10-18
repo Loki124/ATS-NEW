@@ -821,6 +821,7 @@ async function onSubmit() {
   saving.value = true
   try {
     let roleId = form.id
+    let createdNew = false
     if (!roleId) {
       // 新建身份: 先 POST /roles/ 创建元数据, 拿到 id 后再同步资源
       const created = await createRole({
@@ -834,6 +835,11 @@ async function onSubmit() {
       if (!roleId) {
         throw new Error(t('pages.settings.permission.RoleEditModal.s25'))
       }
+      createdNew = true
+      // T07（§9.2 P1-1）：消除「两轮」—— 新建身份拿到 id 后**不关闭弹窗**，
+      // 直接转为已存在身份并加载数据权限草稿，管理员在同一弹窗内一气呵成配完
+      // 数据/操作权限（段1 基础信息 → 段2 权限配置 直通），无需关闭重开。
+      form.id = roleId
     } else {
       // 编辑: 保存身份自身字段 (PUT /roles/{id}/)
       await updateRole(roleId, {
@@ -848,15 +854,35 @@ async function onSubmit() {
     // role_permission 是单独表, PUT /roles/{id}/ 的 permissionCodes 字段是
     // SerializerMethodField (read-only), 会被静默丢弃, 必须走专用 action.
     await syncRolePermissions(roleId, selectedCodes.value)
-    // 数据权限: 仅编辑已有身份且草稿有改动时提交（新建身份保持后端 ALL 兜底默认）
-    if (form.id && dpLoaded.value && dpDirty.value) {
+
+    if (createdNew) {
+      // 新建身份：元数据 + 功能权限已落库，但数据权限本次先不提交（后端 ALL 兜底默认）。
+      // 加载草稿并切到「数据权限」页签，让管理员继续配置写范围/动作授权；
+      // 待其在段2 配完再次点保存时，走下方编辑分支的 dpSubmit 落库。
+      try {
+        await dpLoad()
+        dpLoaded.value = true
+      } catch (e: any) {
+        message.error(t('pages.settings.permission.RoleEditModal.s39') + (e?.message ?? e))
+      }
+      // 以「已落库的元数据 + 功能权限」为新的干净基线，避免关闭时误报未保存改动
+      initialSelectedKey.value = [...selectedCodes.value].sort().join(',')
+      initialFormSnap.value = formSnapshot()
+      activeTab.value = 'data'
+      message.success(t('pages.settings.permission.RoleEditModal.s27') + '，请继续配置数据/操作权限')
+      emit('saved') // 通知列表刷新（新建已落库），弹窗保持打开进入权限配置段
+      return
+    }
+
+    // 数据权限: 编辑已有身份且草稿有改动时提交
+    if (dpLoaded.value && dpDirty.value) {
       try {
         await dpSubmit()
       } catch (e: any) {
         throw new Error(t('pages.settings.permission.RoleEditModal.s40') + (e?.message ?? e))
       }
     }
-    message.success(`${form.id ? t('pages.settings.permission.RoleEditModal.s26') : t('pages.settings.permission.RoleEditModal.s27')} (${selectedCodes.value.length} ${t('pages.settings.permission.RoleEditModal.s28')})`)
+    message.success(`${t('pages.settings.permission.RoleEditModal.s26')} (${selectedCodes.value.length} ${t('pages.settings.permission.RoleEditModal.s28')})`)
     emit('saved')
     emit('update:show', false)
   } catch (e: any) {

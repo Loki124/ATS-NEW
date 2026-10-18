@@ -1,13 +1,16 @@
 <template>
-  <n-modal
+  <!-- T07（§9.2 P1-3）：从 n-modal 改为 n-drawer，从模块卡右侧滑出，不遮挡角色编辑弹窗。
+       内部条件组 / 实时预览句 / 模板引用等逻辑整体平移，emit(update:show/groups/interExpr) 不变。 -->
+  <n-drawer
     :show="show"
-    preset="card"
+    placement="right"
+    :width="720"
     :title="t('dataperm.modal.title', { moduleName })"
-    :style="{ width: '820px', maxWidth: '95vw' }"
     :mask-closable="false"
-    :bordered="false"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
+    <div class="drawer-body">
+      <div class="drawer-content">
     <!-- 条件组列表（一级白卡） -->
     <div v-if="localGroups.length" class="group-list">
       <div
@@ -364,15 +367,16 @@
       <span class="preview-prefix">{{ t('dataperm.preview.prefix') }}</span>
       <span class="preview-text">{{ previewText }}</span>
     </div>
-
-    <template #footer>
-      <n-space justify="end">
-        <n-button @click="clearAll">{{ t('dataperm.modal.clearAll') }}</n-button>
-        <n-button @click="emit('update:show', false)">{{ t('dataperm.action.cancel') }}</n-button>
-        <n-button type="primary" @click="confirm">{{ t('dataperm.modal.confirm') }}</n-button>
-      </n-space>
-    </template>
-  </n-modal>
+      </div><!-- /.drawer-content -->
+      <div class="drawer-footer">
+        <n-space justify="end">
+          <n-button @click="clearAll">{{ t('dataperm.modal.clearAll') }}</n-button>
+          <n-button @click="emit('update:show', false)">{{ t('dataperm.action.cancel') }}</n-button>
+          <n-button type="primary" @click="confirm">{{ t('dataperm.modal.confirm') }}</n-button>
+        </n-space>
+      </div>
+    </div><!-- /.drawer-body -->
+  </n-drawer>
 </template>
 
 <script setup lang="ts">
@@ -392,7 +396,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import {
-  NModal, NButton, NSpace, NSelect, NInput, NTag, NIcon,
+  NDrawer, NButton, NSpace, NSelect, NInput, NTag, NIcon,
   NInputNumber, NTooltip, useMessage,
 } from 'naive-ui'
 import {
@@ -1348,5 +1352,26 @@ function confirm() {
 .input-error :deep(.n-input__input-el) {
   border-color: var(--c-error) !important;
   background: var(--c-error-soft, rgba(239, 68, 68, 0.06));
+}
+
+/* T07（§9.2 P1-3）：抽屉化布局 —— 内容区可滚动，操作按钮固定在底部不随内容滚动。 */
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+}
+.drawer-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* 抽屉 body 自带外边距，内容区仅补竖向节奏，避免与外层内边距叠加溢出 */
+  padding: 4px 2px;
+}
+.drawer-footer {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--g2);
 }
 </style>
