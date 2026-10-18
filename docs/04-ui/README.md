@@ -1,16 +1,30 @@
 # ATS-NEW UI 规范与审查文档
-> 最后更新：2026-09-14（依据 git 最后提交）
+> 最后更新：2026-10-18（UI 设计文档收敛，见 `UI_DOC_AUDIT_2026-10-18.md`）
 
-本目录是 ATS-NEW 前端 UI 的**唯一权威入口**。任何新增 / 修改 UI 之前必须读完本目录下的规范文档，并按规范 + 设计令牌（`tokens.css`）执行。
+本目录是 ATS-NEW 前端 UI 规范的**唯一权威索引**。所有 UI 规范、设计令牌、布局契约的权威来源按下列层级组织；新增 / 修改 UI 前须先读对应层级文档，并按设计令牌（`tokens.css`）执行。
 
-## 文档结构
+## 权威层级（L0 → L5，冲突时自上而下裁决）
 
-| 文档 | 用途 | 阅读顺序 |
-|---|---|---|
-| `UI_DESIGN_SPEC.md` | 统一设计规范 v2.1：颜色 / 排版 / 间距 / 圆角 / 阴影 / 组件 / 响应式 / 可访问性 / Do-Don't / 令牌对照表。**前端 UI 的宪法**。 | ① 必读 |
-| `UI_REMEDIATION_PLAN.md` | 整改技术实施方案：按 P0→P6 推进落地，文件:行号 + 可照抄代码块 + 验收点。 | ② 整改排期 |
-| `UI_COMPLIANCE_SELFCHECK.md` | 规范符合性审查报告 + 交付前自检矩阵（S/R/H，已合并原 REPORT）：🔴 关键 / 🟡 重要 / 🔵 建议 三级问题清单（整改方案的源头）。 | ③ 立项参考 |
-| `SETTINGS_PAGE_STRUCTURE.md` | **设置页统一页面结构规范 v1.0**：Shell/根/标题/KPI/工具条/表格/弹窗/多 tab 看板/自检清单。所有 `pages/settings/**` 下页面（含 permission 子模块）必读。 | ① 设置页改前必读 |
+| 层级 | 文档 / 文件 | 性质 | 冲突裁决 |
+|---|---|---|---|
+| L0 | `web/app/src/styles/tokens.css` + `brand-tokens.mjs` | **唯一真源**：颜色/间距/圆角/阴影/动效数值只此一处定义 | 一切以 L0 为准 |
+| L1 | `AGENTS.md`（仓库根） | Agent 可读约束：行为取舍、P0/P1/P2 规则，**不写数值** | 数值冲突 → 退回 L0 |
+| L2 | `UI_DESIGN_SPEC.md` | 人类可读设计规范（色彩/排版/间距/组件/响应式/A11y/Do-Don't） | 引用 L0，不复制数值 |
+| L3 | `frontend-layout-standard.md` + `SETTINGS_PAGE_STRUCTURE.md` | 布局契约 / 设置页结构规范 | 数值引用 L0 |
+| L4 | 专项规范：`NAIVE_UI_PITFALLS.md` / `MODAL_DIVIDER_CONVENTION.md` / `USE_TABLE_PAGINATION.md` / `DROPDOWN_POPOVER_SPEC.md` 等 | 独立主题，保留 | 不偏离 L0/L2 |
+| L5 | 本文件（`docs/04-ui/README.md`） | **唯一索引**，不含规范正文 | — |
+
+> 🔴 **令牌铁律**：数值只允许出现在 L0（`tokens.css`）。任何文档 MUST 只引用令牌名 + 用途，**MUST NOT 复制数值**；与 L0 冲突一律以 `tokens.css` 为准。复制数值会随代码演进漂移 → AI 照文档写的 CSS 变量不存在 → 静默失效（已发生，见 `UI_DOC_AUDIT_2026-10-18.md`）。门禁 `npm run tokens:audit` 防回归。
+
+## 文档清单
+
+| 文档 | 层级 | 用途 | 阅读顺序 |
+|---|---|---|---|
+| `UI_DESIGN_SPEC.md` | L2 | 统一设计规范 v2.3：颜色/排版/间距/圆角/阴影/组件/响应式/可访问性/Do-Don't/令牌索引 | ① 必读 |
+| `frontend-layout-standard.md` | L3 | 布局契约：页面安全边距、弹窗内边距、栅格与断点、禁止项、校验门禁 | ① 改布局前必读 |
+| `SETTINGS_PAGE_STRUCTURE.md` | L3 | 设置页统一页面结构规范 v1.0（Shell/标题/KPI/工具条/表格/弹窗/多 tab/自检） | ① 设置页改前必读 |
+| `NAIVE_UI_PITFALLS.md` 等专项 | L4 | 独立主题规范（见上表 L4） | 按需 |
+| `FRONTEND_RULES_CONSOLIDATED.md` | — | 规则索引（技术栈/命名已迁入本索引下方；其余章节为归纳参考，其 §19.1 权威表以本索引 L0–L5 为准） | ② 参考 |
 
 ## 强制约束（强制项，请大声读出来）
 
@@ -19,10 +33,6 @@
 3. **玻璃元素必须**带 `-webkit-backdrop-filter` + 不透明兜底。
 4. **新组件**必须复用 `.glass-* / .btn-* / .kpi-* / .toolbar / .page-header` 全局类，不另起一套。
 5. **禁用原生 `confirm() / alert()`**：用 `useDialog().warning(...)`。
-
-## 实施方案当前阶段
-
-按 `UI_REMEDIATION_PLAN.md` 的 P0→P5 推进。本目录文档与 IMA 知识库 `招聘助手` 中同主题文件保持同步（IMA 为单一来源之一，本目录为落地载体）。
 
 ## 维护者
 
