@@ -1577,7 +1577,7 @@ export const APP_UI_EN: Record<string, string> = {
   'uiTemplates.cat.modal': "Modal",
   'uiTemplates.cat.config': "Configuration",
   'uiTemplates.cat.component': "Component",
+  'uiTemplates.cat.button': "Button",
   'uiTemplates.cat.rules': "Rules",
   'uiTemplates.cat.doc': "Style Guide",
 }
-  'uiTemplates.cat.button': "Button",

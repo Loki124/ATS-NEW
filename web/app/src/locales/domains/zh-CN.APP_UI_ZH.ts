@@ -1576,7 +1576,7 @@ export const APP_UI_ZH: Record<string, string> = {
   'uiTemplates.cat.modal': "弹窗",
   'uiTemplates.cat.config': "配置项",
   'uiTemplates.cat.component': "组件",
+  'uiTemplates.cat.button': "按钮",
   'uiTemplates.cat.rules': "规则",
   'uiTemplates.cat.doc': "样式文档",
 }
-  'uiTemplates.cat.button': "按钮",
