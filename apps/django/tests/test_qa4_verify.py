@@ -45,25 +45,43 @@ def test_qa4_r2_superuser_sees_plaintext():
     print("[R2-对照] OK superuser 可见明文")
 
 
-# ---------- R5/R6: 注册/改密 已实现 → 护栏升级为验证真实行为 (不再是 501 stub) ----------
+# ---------- R5/R6: 邮箱登录/改密 已实现 → 护栏升级为验证真实行为 (不再是 501 stub) ----------
 @pytest.mark.django_db
-def test_qa4_register_creates_pending_user_not_fake_success():
-    """R5: 注册必须真建出 is_active=False 的待审用户, 而非假成功 (200 + 假 user)."""
+def test_qa4_email_login_really_activates_pending_user():
+    """R5: 邮箱验证码登录必须真校验验证码并自动激活待激活账号, 而非假成功 (200 + 假 user).
+
+    2026-10-18 兵哥：自助注册下线，账号由管理员开通（默认 PENDING 待激活）。
+    本用例改为验证「待激活账号 → 发码 → 验码 → 自动激活 → 拿到真 access token」全链路。
+    """
+    import re
     from django.contrib.auth import get_user_model
-    from apps.accounts.models import RegistrationApplication
+    from django.core import mail
     User = get_user_model()
     assert not User.objects.filter(email='qa4_reg@corp.com').exists()
+    # 管理员开通账号 → 默认待激活
+    u = User(username='qa4_reg', email='qa4_reg@corp.com')
+    u.set_password('Str0ng!Pass#2026v2')
+    u.set_activation_status('PENDING')
+    u.save()
+    assert u.is_active is False, '新建账号应为待激活 (is_active=False)'
+
     c = APIClient()
-    res = c.post('/api/v1/auth/register',
-                 {'email': 'qa4_reg@corp.com', 'password': 'Str0ng!Pass#2026v2'}, format='json')
-    print(f"\n[R5] POST /api/v1/auth/register -> {res.status_code}")
-    assert res.status_code == 201, f'期望 201, 实际 {res.status_code}: {res.content[:200]}'
+    res = c.post('/api/v1/auth/email-login/send-code',
+                 {'email': 'qa4_reg@corp.com'}, format='json')
+    print(f"\n[R5] POST /api/v1/auth/email-login/send-code -> {res.status_code}")
+    assert res.status_code == 200, f'期望 200, 实际 {res.status_code}: {res.content[:200]}'
     assert res.data['success'] is True
     assert res.headers.get('X-Stub') != 'true', '不应再有 stub 头'
-    user = User.objects.get(email='qa4_reg@corp.com')
-    assert user.is_active is False, '注册后不应直接激活 (假成功)'
-    assert RegistrationApplication.objects.filter(
-        email='qa4_reg@corp.com', status='PENDING').exists(), '应生成待审申请单'
+    assert mail.outbox, '验证码邮件必须真实发出'
+    code = re.search(r'(\d{6})', mail.outbox[-1].body).group(1)
+
+    res = c.post('/api/v1/auth/email-login/verify',
+                 {'email': 'qa4_reg@corp.com', 'code': code}, format='json')
+    assert res.status_code == 200, f'期望 200, 实际 {res.status_code}: {res.content[:200]}'
+    assert 'access' in res.data['data'], '必须真签发 access token'
+    u.refresh_from_db()
+    assert u.activation_status == 'ACTIVE', '待激活账号验证登录后应自动激活'
+    assert u.is_active is True
 
 
 @pytest.mark.django_db

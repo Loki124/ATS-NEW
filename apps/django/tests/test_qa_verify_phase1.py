@@ -160,28 +160,42 @@ class TestAclStrictFailClosed:
 
 
 # ============================================================
-# R5 / R6 — 安全敏感 stub 必须 501, 不许假成功
+# R5 / R6 — 安全敏感端点必须真实现, 不许假成功
 # ============================================================
 @pytest.mark.django_db
 class TestR5R6StubsOverRealHttpApi:
-    def test_register_creates_real_pending_user(self):
-        """注册已实现: 必须真建出 is_active=False 的待审用户, 而非 501 stub 假拒绝."""
-        res = APIClient().post(
-            '/api/v1/auth/register/',
-            {'email': 'qa_new_user@corp.com', 'password': 'Passw0rd!2026'},
-            format='json',
-        )
-        assert res.status_code == 201, f'期望 201, 实际 {res.status_code}: {res.content[:200]}'
+    def test_email_login_really_activates_pending_account(self):
+        """邮箱验证码登录已实现: 必须真校验并自动激活待激活账号, 而非 stub 假拒绝。
+
+        2026-10-18 兵哥：自助注册下线（原 201 建待审用户），改为验证
+        「管理员开通待激活账号 → 发码 → 验码 → 自动激活 → 拿到真 access token」。
+        """
+        import re
+        from django.contrib.auth import get_user_model
+        from django.core import mail
+        User = get_user_model()
+        u = User(username='qa_new_user', email='qa_new_user@corp.com')
+        u.set_password('Passw0rd!2026')
+        u.set_activation_status('PENDING')
+        u.save()
+        assert u.is_active is False, '管理员开通的账号应为待激活'
+
+        c = APIClient()
+        res = c.post('/api/v1/auth/email-login/send-code/',
+                     {'email': 'qa_new_user@corp.com'}, format='json')
+        assert res.status_code == 200, f'期望 200, 实际 {res.status_code}: {res.content[:200]}'
         assert res.json()['success'] is True
         assert res.headers.get('X-Stub') != 'true', dict(res.headers)
-        # 关键: 真建出待审用户 (不再是"拒绝但不建"的 stub)
-        from django.contrib.auth import get_user_model
-        from apps.accounts.models import RegistrationApplication
-        User = get_user_model()
-        user = User.objects.get(email='qa_new_user@corp.com')
-        assert user.is_active is False
-        assert RegistrationApplication.objects.filter(
-            email='qa_new_user@corp.com', status='PENDING').exists()
+        assert mail.outbox, '验证码邮件必须真实发出'
+        code = re.search(r'(\d{6})', mail.outbox[-1].body).group(1)
+
+        res = c.post('/api/v1/auth/email-login/verify/',
+                     {'email': 'qa_new_user@corp.com', 'code': code}, format='json')
+        assert res.status_code == 200, f'期望 200, 实际 {res.status_code}: {res.content[:200]}'
+        assert 'access' in res.json()['data'], '必须真签发 access token'
+        u.refresh_from_db()
+        assert u.activation_status == 'ACTIVE'
+        assert u.is_active is True
 
     @pytest.mark.skip(reason=(
         'change-password 端点已由真实实现接管（apps/core/views_auth.py:109 change_password_view），'

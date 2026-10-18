@@ -1,7 +1,14 @@
-"""注册审核视图: 自助注册 → 邮箱验证码 → 管理员审核 → 激活登录."""
+"""邮箱验证码免密登录视图。
+
+2026-10-18 兵哥：移除自助注册后，本模块由「注册审核」改为「邮箱验证码登录」。
+流程：
+  1) POST /auth/email-login/send-code  输入邮箱 → 先校验账号有效性（存在 + 未停用）
+     → 发验证码。待激活(PENDING)与已激活(ACTIVE)放行；不存在/已停用明确拒绝。
+  2) POST /auth/email-login/verify     输入邮箱 + 验证码 → 校验通过后签发 JWT；
+     若账号为 PENDING（待激活），**自动激活**为 ACTIVE。
+"""
 import logging
 
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import (
@@ -9,81 +16,117 @@ from rest_framework.decorators import (
     permission_classes,
     throttle_classes,
 )
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from apps.common.pagination import StandardResultsSetPagination
 from apps.core.role_v2_query import is_super_admin
-from apps.core.views_auth import RegisterRateThrottle
+from apps.core.views_auth import EmailCodeRateThrottle, LoginRateThrottle
 
 from . import services
-from .models import RegistrationApplication
-from .serializers import (
-    RegisterSerializer,
-    RegistrationApplicationSerializer,
-    RegistrationReviewSerializer,
-    ResendRegisterCodeSerializer,
-    VerifyRegisterCodeSerializer,
-)
+from .serializers import EmailLoginSerializer, SendLoginCodeSerializer
 
 logger = logging.getLogger(__name__)
 
 
+def _find_user_by_email(email: str):
+    """按邮箱定位未删除用户。username 与 email 都可能承载登录名，两者都试。"""
+    from django.db.models import Q
+
+    from apps.core.models import User
+    return User.objects.filter(deleted_at__isnull=True).filter(
+        Q(email__iexact=email) | Q(username__iexact=email),
+    ).first()
+
+
+def _issue_login_token(user):
+    """签发 access/refresh 并组装 login_view 同构的返回体（含 roles + 超管兜底）。"""
+    from django.db.utils import OperationalError, ProgrammingError
+
+    from apps.core.jwt_tokens import MyRefreshToken
+    from apps.core.models_permission_v2 import UserRoleV2
+
+    refresh = MyRefreshToken.for_user(user)
+    try:
+        roles = list(UserRoleV2.objects.filter(
+            user_id=user.id, system_code='recruit',
+        ).values_list('role_code', flat=True))
+    except (OperationalError, ProgrammingError):
+        roles = []
+    if is_super_admin(user) and 'SUPER_ADMIN' not in roles:
+        roles = ['SUPER_ADMIN', *roles]
+    return {
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'full_name': user.full_name,
+            'employee_id': user.employee_id,
+            'department': user.department_id,
+            'roles': roles,
+        },
+    }
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([RegisterRateThrottle])
-def register_view(request):
-    """自助注册. 建 User(is_active=False) + RegistrationApplication(PENDING), 发邮箱验证码."""
-    serializer = RegisterSerializer(data=request.data)
+@throttle_classes([EmailCodeRateThrottle])
+def send_login_code_view(request):
+    """发送邮箱登录验证码。发码前先校验账号有效性。"""
+    serializer = SendLoginCodeSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    email = serializer.validated_data['email']
-    password = serializer.validated_data['password']
-    full_name = serializer.validated_data.get('full_name', '')
+    email = serializer.validated_data['email'].strip().lower()
 
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-    user = User.objects.create_user(
-        username=email,
-        email=email,
-        is_active=False,
-        deleted_at=None,
-    )
-    user.set_password(password)
-    if full_name:
-        # AbstractUser 用 first/last_name 拼 full_name; 中文名整体放 first_name
-        user.first_name = full_name
-    user.save(update_fields=['password', 'first_name', 'updated_at'])
-
-    RegistrationApplication.objects.create(
-        user=user, email=email, full_name=full_name, status='PENDING',
-    )
-
-    try:
-        services.issue_code(email, full_name)
-    except Exception as e:  # noqa: BLE001 — 注册验证码邮件发送失败返 201 (用户已建, 允许后续重发), 不应让注册流程 500
-        logger.error('注册验证码发送失败 email=%s err=%s', email, e, exc_info=True)
-        # 用户已建, 验证码发送失败允许重试 (resend-register-code)
+    user = _find_user_by_email(email)
+    if user is None:
         return Response(
-            {'success': True, 'message': '注册成功，但验证码邮件发送失败，请稍后重新获取验证码',
-             'data': {'email': email, 'email_verified': False}},
-            status=status.HTTP_201_CREATED,
+            {'success': False, 'code': 'account_not_found', 'message': '该邮箱未注册，请联系管理员开通账号'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    if user.activation_status == 'DISABLED':
+        return Response(
+            {'success': False, 'code': 'account_disabled', 'message': '账号已停用，请联系管理员'},
+            status=status.HTTP_403_FORBIDDEN,
         )
 
-    return Response(
-        {'success': True, 'message': '注册申请已提交，验证码已发送至您的邮箱，请完成邮箱验证后等待管理员审核',
-         'data': {'email': email, 'email_verified': False}},
-        status=status.HTTP_201_CREATED,
-    )
+    try:
+        services.issue_code(user.email or email, user.full_name)
+    except Exception as e:  # noqa: BLE001 — 发信失败返 500（前端可重试），状态明确
+        logger.error('登录验证码发送失败 email=%s err=%s', email, e, exc_info=True)
+        return Response(
+            {'success': False, 'code': 'SEND_FAILED', 'message': '验证码发送失败，请稍后重试'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    return Response({
+        'success': True,
+        'message': '验证码已发送至您的邮箱',
+        'data': {'email': user.email or email},
+    })
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def verify_register_code_view(request):
-    """校验邮箱验证码. 成功则置 email_verified=True."""
-    serializer = VerifyRegisterCodeSerializer(data=request.data)
+@throttle_classes([LoginRateThrottle])
+def email_login_view(request):
+    """邮箱验证码免密登录。校验通过后签发 JWT；PENDING 账号自动激活。"""
+    serializer = EmailLoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    email = serializer.validated_data['email']
-    ok, reason = services.verify_code(email, serializer.validated_data['code'])
+    email = serializer.validated_data['email'].strip().lower()
+    code = serializer.validated_data['code']
+
+    user = _find_user_by_email(email)
+    if user is None:
+        return Response(
+            {'success': False, 'code': 'account_not_found', 'message': '该邮箱未注册，请联系管理员开通账号'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    if user.activation_status == 'DISABLED':
+        return Response(
+            {'success': False, 'code': 'account_disabled', 'message': '账号已停用，请联系管理员'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    ok, reason = services.verify_code(user.email or email, code)
     if not ok:
         code_map = {
             'NO_CODE': '请先获取验证码',
@@ -95,108 +138,11 @@ def verify_register_code_view(request):
             {'success': False, 'code': reason, 'message': code_map.get(reason, '验证失败')},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    return Response(
-        {'success': True, 'message': '邮箱验证成功，请等待管理员审核',
-         'data': {'email': email, 'email_verified': True}},
-    )
 
+    # 校验通过：待激活账号自动激活（首次邮箱验证登录即激活）
+    if user.activation_status == 'PENDING':
+        user.set_activation_status('ACTIVE')
+        user.save(update_fields=['activation_status', 'is_active', 'updated_at'])
+        logger.info('账号 %s 首次邮箱验证登录，已自动激活', user.id)
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def resend_register_code_view(request):
-    """重新发送注册验证码 (仅 PENDING 申请可重发)."""
-    serializer = ResendRegisterCodeSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    email = serializer.validated_data['email']
-    app = RegistrationApplication.objects.filter(email=email, status='PENDING').first()
-    if app is None:
-        return Response(
-            {'success': False, 'code': 'NO_APPLICATION', 'message': '没有该邮箱的待审注册申请'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    try:
-        services.issue_code(email, app.full_name)
-    except Exception as e:  # noqa: BLE001 — 重发注册验证码失败返 500 (前端可重试, 但状态明确)
-        logger.error('重发注册验证码失败 email=%s err=%s', email, e, exc_info=True)
-        return Response(
-            {'success': False, 'code': 'SEND_FAILED', 'message': '验证码发送失败，请稍后重试'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-    return Response({'success': True, 'message': '验证码已重新发送至您的邮箱'})
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def registration_list_view(request):
-    """管理员: 注册申请列表 (默认只看待审). per P1 audit 恢复服务端分页 (替代原 [:200] 截断)."""
-    if not is_super_admin(request.user):
-        return Response({'success': False, 'message': '无权限'}, status=status.HTTP_403_FORBIDDEN)
-    status_filter = request.query_params.get('status', 'PENDING')
-    qs = RegistrationApplication.objects.all()
-    if status_filter and status_filter != 'ALL':
-        qs = qs.filter(status=status_filter)
-    qs = qs.order_by('-created_at')
-    paginator = StandardResultsSetPagination()
-    page = paginator.paginate_queryset(qs, request)
-    if page is not None:
-        return paginator.get_paginated_response(
-            RegistrationApplicationSerializer(page, many=True).data
-        )
-    return Response({'success': True, 'data': RegistrationApplicationSerializer(qs, many=True).data})
-
-
-def _admin_app_or_403(request, pk):
-    if not is_super_admin(request.user):
-        return None, Response({'success': False, 'message': '无权限'}, status=status.HTTP_403_FORBIDDEN)
-    app = get_object_or_404(RegistrationApplication, pk=pk)
-    return app, None
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def registration_approve_view(request, pk):
-    """管理员: 通过注册申请 → 激活用户. 要求邮箱已验证."""
-    app, err = _admin_app_or_403(request, pk)
-    if err:
-        return err
-    if app.status != 'PENDING':
-        return Response(
-            {'success': False, 'code': 'BAD_STATUS', 'message': f'该申请状态为 {app.status}，无法重复审核'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    if not app.email_verified:
-        return Response(
-            {'success': False, 'code': 'EMAIL_NOT_VERIFIED',
-             'message': '该申请尚未完成邮箱验证，请先让用户完成邮箱验证码校验'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    app.status = 'APPROVED'
-    app.reviewed_by = request.user
-    app.reviewed_at = timezone.now()
-    app.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'updated_at'])
-    app.user.is_active = True
-    app.user.save(update_fields=['is_active', 'updated_at'])
-    return Response({'success': True, 'message': '已通过并激活账号', 'data': {'email': app.email}})
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def registration_reject_view(request, pk):
-    """管理员: 拒绝注册申请 (保持 is_active=False)."""
-    app, err = _admin_app_or_403(request, pk)
-    if err:
-        return err
-    if app.status != 'PENDING':
-        return Response(
-            {'success': False, 'code': 'BAD_STATUS', 'message': f'该申请状态为 {app.status}，无法重复审核'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    serializer = RegistrationReviewSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    app.status = 'REJECTED'
-    app.reviewed_by = request.user
-    app.reviewed_at = timezone.now()
-    app.reject_reason = serializer.validated_data.get('reject_reason', '')
-    app.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'reject_reason', 'updated_at'])
-    # 拒绝: 保持 user.is_active=False (已建但未激活)
-    return Response({'success': True, 'message': '已拒绝该注册申请', 'data': {'email': app.email}})
+    return Response({'success': True, 'data': _issue_login_token(user)})

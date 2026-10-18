@@ -578,8 +578,11 @@ def resumes_alias(request):
 # ============================================================
 urlpatterns = [
     # Auth — 2026-09-11: auth/register 与 auth/change-password 已由真实实现接管
-    #   (apps/accounts/views.py register_view + apps/core/views_auth.py change_password_view),
-    #   对应 stub 路由与函数已删除, 不再返回 501 假绿.
+    #   (auth/change-password 仍是 apps/core/views_auth.py change_password_view)。
+    #   2026-10-18: 自助注册整体下线，原 auth/register 真实实现
+    #   (apps/accounts/views.py register_view) 已删除；邮箱验证码登录走
+    #   apps/accounts/views.py send_login_code_view + email_login_view。
+    #   对应 stub 路由与函数早已删除, 不再返回 501 假绿.
     path('login', login_alias, name='login-alias'),
     path('login/', login_alias),
 

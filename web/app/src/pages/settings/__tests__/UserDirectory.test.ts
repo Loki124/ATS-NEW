@@ -28,7 +28,9 @@ const MOCK_USERS = Array.from({ length: 12 }, (_, i) => ({
   id: `u-${i + 1}`,
   username: `user-${String(i + 1).padStart(2, '0')}`,
   realName: `用户${i + 1}`,
-  status: i % 3 === 0 ? 'INACTIVE' : 'ACTIVE',
+  // 2026-10-18 兵哥：三态（PENDING 待激活 / ACTIVE 已激活 / DISABLED 已停用），
+  // 与后端 User.activation_status 同源同值；三态各占 1/3 以便筛选断言。
+  status: (['PENDING', 'ACTIVE', 'DISABLED'] as const)[i % 3],
   roleType: 'HR',
   userType: i % 2 === 0 ? 'INTERNAL' : 'EXTERNAL',
   createdAt: '2026-09-19T00:00:00Z',

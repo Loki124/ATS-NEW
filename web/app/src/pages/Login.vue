@@ -93,18 +93,18 @@
             </n-form>
           </n-tab-pane>
 
-          <!-- 短信验证码登录 -->
-          <n-tab-pane name="sms" :tab="t('pages.Login.s5')">
-            <n-form :model="formSms" size="large" @submit.prevent="onSmsFinish">
+          <!-- 邮箱验证码登录（免密） -->
+          <n-tab-pane name="email" :tab="t('pages.Login.s5')">
+            <n-form :model="formEmail" size="large" @submit.prevent="onEmailFinish">
               <n-form-item>
                 <n-input
-                  v-model:value="formSms.phone"
+                  v-model:value="formEmail.email"
                   :placeholder="t('pages.Login.s10')"
                   size="large"
                   class="glass-input login-input"
                 >
                   <template #prefix>
-                    <span class="input-icon">📱</span>
+                    <n-icon :component="MailOutline" />
                   </template>
                 </n-input>
               </n-form-item>
@@ -112,10 +112,11 @@
               <n-form-item>
                 <div class="code-input-wrapper">
                   <n-input
-                  v-model:value="formSms.code"
-                  :placeholder="t('pages.Login.s11')"
+                    v-model:value="formEmail.code"
+                    :placeholder="t('pages.Login.s11')"
                     class="code-input glass-input login-input"
                     size="large"
+                    @keyup.enter="onEmailFinish"
                   >
                     <template #prefix>
                       <n-icon :component="LockClosedOutline" />
@@ -124,8 +125,9 @@
                   <n-button
                     class="code-button"
                     size="large"
+                    :loading="sendingCode"
                     :disabled="codeSent"
-                    @click="sendCode"
+                    @click="sendEmailCode"
                   >
                     {{ codeSent ? `${countdown}s` : t('pages.Login.s12') }}
                   </n-button>
@@ -139,7 +141,7 @@
                   size="large"
                   :loading="loading"
                   attr-type="submit"
-                  @click="onSmsFinish"
+                  @click="onEmailFinish"
                 >
                   {{ t('pages.Login.s9') }}
                 </n-button>
@@ -147,10 +149,6 @@
             </n-form>
           </n-tab-pane>
         </n-tabs>
-
-        <div class="login-footer">
-          <p class="register-hint">{{ t('pages.Login.s14') }}<a href="#" class="forgot-link" @click.prevent="goRegister">{{ t('pages.Login.s15') }}</a></p>
-        </div>
       </div>
     </div>
   </div>
@@ -161,9 +159,9 @@ import { useI18n } from 'vue-i18n'
 import { ref, reactive, nextTick, onBeforeUnmount, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
-import { PersonOutline, LockClosedOutline } from '@vicons/ionicons5'
+import { PersonOutline, LockClosedOutline, MailOutline } from '@vicons/ionicons5'
 import { useUserStore } from '../stores/user'
-import { login } from '../api/auth'
+import { login, sendEmailLoginCode, emailLogin } from '../api/auth'
 import { deriveRoleType } from '../utils/role'
 import { currentLocale, SUPPORTED_LOCALES, type AppLocale } from '../locales'
 const { t } = useI18n()
@@ -182,15 +180,90 @@ const loading = ref(false)
 const activeTab = ref('account')
 const rememberMe = ref(false)
 const codeSent = ref(false)
+const sendingCode = ref(false)
 const countdown = ref(60)
 
 const formAccountRef = ref<FormInst | null>(null)
 const formAccount = reactive({ username: '', password: '' })
-const formSms = reactive({ phone: '', code: '' })
+// 2026-10-18 兵哥：原「短信验证码登录」改为「邮箱验证码登录（免密）」。
+//   自助注册已下线，账号由管理员开通；待激活用户首次完成邮箱验证即自动激活。
+const formEmail = reactive({ email: '', code: '' })
 
 const accountRules: FormRules = {
   username: { required: true, message: '请输入用户名', trigger: 'blur' },
   password: { required: true, message: '请输入密码', trigger: 'blur' },
+}
+
+/**
+ * 登录成功后的统一收尾：写 token / 写用户态 / toast / 跳转。
+ * 账号密码登录与邮箱验证码登录共用（后端两者返回体同构）。
+ */
+const completeLogin = async (data: any) => {
+  // 兼容 Django SimpleJWT 双 token 模式:
+  //   旧 login API 返回 { token: 'xxx' } (单 token)
+  //   新 Django login API 返回 { access, refresh, user } (双 token)
+  const _token = data.data.token || data.data.access
+  const _refresh = data.data.refresh
+  if (_token) {
+    userStore.setAccessToken(_token)
+    // 清掉旧 key (如果历史登录残留): 双写会导致 401 后 router guard 误判
+    localStorage.removeItem('token')
+  }
+  if (_refresh) {
+    userStore.setRefreshToken(_refresh)
+  }
+  // 后端 (apps/core/views_auth.py) emit:
+  //   { id, username, fullName, employeeId, department, roles: string[] }
+  // 2026-06-17: BE 启用 drf-camel-case 后, snake_case 字段自动转 camelCase, FE 直接消费.
+  const roles: string[] = data.data.user.roles ?? []
+  const roleType = deriveRoleType(roles)
+
+  userStore.setUser({
+    id: data.data.user.id,
+    username: data.data.user.username,
+    realName: data.data.user.fullName,
+    employeeId: data.data.user.employeeId,
+    departmentId: data.data.user.department,
+    // roles 是真值 (后端 RBAC); roleType 是 guard / UI 用的派生便利字段
+    roles,
+    roleType,
+  })
+  if (rememberMe.value) {
+    localStorage.setItem('rememberMe', 'true')
+  }
+  // 2026-08-25：登录成功 toast 加半透明绿色底色（Naive 默认 toast 在暗色页面上没背景，看不清）
+  // 注：message API 的 MessageOptions 不含 containerStyle（仅 MessageProvider 才有），故改用 render 自渲染保留下暗色可读性
+  message.success(t('pages.Login.s20'), {
+    render: () => h('div', {
+      style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success-deep); padding: 8px 14px; border-radius: 6px;',
+    }, t('pages.Login.s20')),
+  })
+  // 用 nextTick 避免 message toast 在路由切换时被销毁
+  await nextTick()
+  // 用 replace 而非 push：登录后用替换语义，避免返回按钮回到 /login
+  await router.replace('/dashboard').catch((e: any) => {
+    // Vue Router 在重复 push 或 abort 时 reject NavigationFailure —
+    // replace 通常不会重复，但防御性 catch 防止导航卡住
+    if (e?.name === 'NavigationFailure') return
+    console.error('[login] navigation failed:', e?.message)
+  })
+}
+
+/** 登录失败统一提示：账号状态类错误给出明确指引，其余走通用提示。 */
+const reportLoginError = (error: any) => {
+  console.error('[login] error:', error?.response?.status, error?.message)
+  const status = error?.response?.status
+  const data = error?.response?.data || {}
+  // 待激活 / 已停用账号：后端返回 403 + code=account_pending|account_disabled
+  // （apps/core/views_auth.py login_view）。不再误报"密码错误"，给出明确指引。
+  if (status === 403 && data.code === 'account_pending') {
+    message.warning(data.message || t('pages.Login.s24'))
+  } else if (status === 403 && data.code === 'account_disabled') {
+    message.error(data.message || t('pages.Login.s25'))
+  } else {
+    const msg = data.message || error?.message || t('pages.Login.s26')
+    message.error(msg)
+  }
 }
 
 const handleLogin = async (values: { username: string; password: string }) => {
@@ -199,76 +272,13 @@ const handleLogin = async (values: { username: string; password: string }) => {
     const response = await login(values.username, values.password)
     const data = response.data
     if (data.success) {
-      // 修复: 兼容 Django SimpleJWT 双 token 模式
-      //   旧 login API 返回 { token: 'xxx' } (单 token)
-      //   新 Django login API 返回 { access, refresh, user } (双 token)
-      // 仅写 'accessToken' (新规范). 老 API 文件用
-      //   localStorage.getItem('accessToken') || localStorage.getItem('token')
-      // 已经兼容 (见 web/app/src/api/*.ts).
-      const _token = data.data.token || data.data.access
-      const _refresh = data.data.refresh
-      if (_token) {
-        userStore.setAccessToken(_token)
-        // 清掉旧 key (如果历史登录残留): 双写会导致 401 后 router guard 误判
-        localStorage.removeItem('token')
-      }
-      if (_refresh) {
-        userStore.setRefreshToken(_refresh)
-      }
-      // 后端 (apps/core/views_auth.py:49-56) emit:
-      //   { id, username, fullName, employeeId, department, roles: string[] }
-      // 2026-06-17: BE 启用 drf-camel-case 后, snake_case 字段自动转 camelCase, FE 直接消费.
-      // 单词字段 (id, username, roles, department) 不受影响.
-      const roles: string[] = data.data.user.roles ?? []
-      const roleType = deriveRoleType(roles)
-
-      userStore.setUser({
-        id: data.data.user.id,
-        username: data.data.user.username,
-        realName: data.data.user.fullName,
-        employeeId: data.data.user.employeeId,
-        departmentId: data.data.user.department,
-        // roles 是真值 (后端 RBAC); roleType 是 guard / UI 用的派生便利字段
-        roles,
-        roleType,
-      })
-      if (rememberMe.value) {
-        localStorage.setItem('rememberMe', 'true')
-      }
-      // 2026-08-25：登录成功 toast 加半透明绿色底色（Naive 默认 toast 在暗色页面上没背景，看不清）
-      // 注：message API 的 MessageOptions 不含 containerStyle（仅 MessageProvider 才有），故改用 render 自渲染保留下暗色可读性
-      message.success(t('pages.Login.s20'), {
-        render: () => h('div', {
-          style: 'background: color-mix(in srgb, var(--c-success) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c-success) 35%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--c-success-deep); padding: 8px 14px; border-radius: 6px;',
-        }, t('pages.Login.s20')),
-      })
-      // 用 nextTick 避免 message toast 在路由切换时被销毁
-      await nextTick()
-      // 用 replace 而非 push：登录后用替换语义，避免返回按钮回到 /login
-      await router.replace('/dashboard').catch((e: any) => {
-        // Vue Router 在重复 push 或 abort 时 reject NavigationFailure —
-        // replace 通常不会重复，但防御性 catch 防止导航卡住
-        if (e?.name === 'NavigationFailure') return
-        console.error('[login] navigation failed:', e?.message)
-      })
+      await completeLogin(data)
     } else {
       message.error(data.message || '登录失败')
     }
   } catch (error: any) {
     // 2026-07-02: 网络错误 / 5xx 时给用户反馈, 之前只 console.error 用户无感
-    console.error('[login] error:', error?.response?.status, error?.message)
-    const status = error?.response?.status
-    const data = error?.response?.data || {}
-    // 待审核 / 已拒绝账号：后端返回 403 + code=account_pending|account_rejected
-    // （apps/core/views_auth.py login_view）。不再误报"密码错误"，给出明确指引。
-    if (status === 403 && data.code === 'account_pending') {
-      message.warning(data.message || t('pages.Login.s24'))
-    } else if (status === 403 && data.code === 'account_rejected') {
-      message.error(data.message || t('pages.Login.s25'))
-    } else {
-      const msg = data.message || error?.message || t('pages.Login.s26')
-      message.error(msg)
-    }
+    reportLoginError(error)
   } finally {
     loading.value = false
   }
@@ -283,32 +293,62 @@ const onAccountFinish = (e?: Event) => {
   })
 }
 
-const onSmsFinish = () => {
-  message.info(t('pages.Login.s21'))
-}
-
-const goRegister = () => router.push('/register')
-
-const sendCode = () => {
-  if (!formSms.phone) {
+// ===== 邮箱验证码登录（免密）=====
+const onEmailFinish = (e?: Event) => {
+  e?.preventDefault()
+  if (!formEmail.email) {
     message.warning(t('pages.Login.s10'))
     return
   }
-  codeSent.value = true
-  countdown.value = 60
-  // 2026-07-02: setInterval 提到外面, onBeforeUnmount 清掉, 防路由切换后计时器泄漏
-  if (codeTimer !== null) clearInterval(codeTimer)
-  codeTimer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0) {
-      if (codeTimer !== null) {
-        clearInterval(codeTimer)
-        codeTimer = null
-      }
-      codeSent.value = false
+  if (!formEmail.code) {
+    message.warning(t('pages.Login.s11'))
+    return
+  }
+  loading.value = true
+  emailLogin(formEmail.email, formEmail.code)
+    .then(async (response: any) => {
+      await completeLogin(response.data)
+    })
+    .catch(reportLoginError)
+    .finally(() => {
+      loading.value = false
+    })
+}
+
+/** 发送邮箱验证码：后端会先校验账号有效性（不存在/已停用直接拒绝，不发邮件）。 */
+const sendEmailCode = async () => {
+  if (!formEmail.email) {
+    message.warning(t('pages.Login.s10'))
+    return
+  }
+  sendingCode.value = true
+  try {
+    const response: any = await sendEmailLoginCode(formEmail.email)
+    if (response.data?.success) {
+      codeSent.value = true
+      countdown.value = 60
+      // 2026-07-02: setInterval 提到外面, onBeforeUnmount 清掉, 防路由切换后计时器泄漏
+      if (codeTimer !== null) clearInterval(codeTimer)
+      codeTimer = setInterval(() => {
+        countdown.value--
+        if (countdown.value <= 0) {
+          if (codeTimer !== null) {
+            clearInterval(codeTimer)
+            codeTimer = null
+          }
+          codeSent.value = false
+        }
+      }, 1000)
+      message.success(response.data.message || t('pages.Login.s23'))
+    } else {
+      message.error(response.data?.message || t('pages.Login.s26'))
     }
-  }, 1000)
-  message.success(t('pages.Login.s23'))
+  } catch (error: any) {
+    const data = error?.response?.data || {}
+    message.error(data.message || error?.message || t('pages.Login.s26'))
+  } finally {
+    sendingCode.value = false
+  }
 }
 
 let codeTimer: ReturnType<typeof setInterval> | null = null
@@ -503,19 +543,6 @@ onBeforeUnmount(() => {
   color: var(--ink-faint);
   cursor: not-allowed;
   opacity: .65;
-}
-
-/* === 底部 footer（注册入口）=== */
-.login-footer {
-  text-align: center;
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-hairline);
-}
-.login-footer p {
-  color: var(--ink-faint);
-  font-size: var(--text-meta);
-  margin: 0;
 }
 
 /* === 响应式（DESIGN.md §8）===

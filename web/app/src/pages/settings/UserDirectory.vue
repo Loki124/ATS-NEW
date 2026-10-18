@@ -253,10 +253,15 @@ const message = useMessage();
 //   - 列表保留并独立化为 pagination 分页器
 
 // 用户状态映射
+// 2026-10-18 兵哥：状态改为三态，与后端 User.activation_status 同源同值。
+//   PENDING 待激活（管理员开通后未完成首次邮箱验证登录）
+//   ACTIVE  已激活
+//   DISABLED 已停用（管理员停用 / 软删除）
+// 旧值 INACTIVE / LOCKED 已随后端改造下线，此处不再保留。
 const STATUS_MAP: Record<string, { type: any; label: string }> = {
-  ACTIVE: { type: 'success', label: '正常' },
-  INACTIVE: { type: 'default', label: '禁用' },
-  LOCKED: { type: 'error', label: '锁定' }
+  PENDING: { type: 'warning', label: '待激活' },
+  ACTIVE: { type: 'success', label: '已激活' },
+  DISABLED: { type: 'error', label: '已停用' }
 };
 
 // 用户类型映射（后端 userType: INTERNAL / EXTERNAL）
@@ -333,9 +338,9 @@ const onManagerSearch = async (kw: string) => {
 
 // 下拉选项
 const statusOptions = [
-  { label: '正常', value: 'ACTIVE' },
-  { label: '禁用', value: 'INACTIVE' },
-  { label: '锁定', value: 'LOCKED' },
+  { label: '待激活', value: 'PENDING' },
+  { label: '已激活', value: 'ACTIVE' },
+  { label: '已停用', value: 'DISABLED' },
 ];
 
 const userTypeOptions = [
@@ -362,7 +367,9 @@ const formState = reactive({
   uuid: '',
   roleIds: [] as string[],
   userType: 'INTERNAL',
-  status: 'ACTIVE',
+  // 2026-10-18 兵哥：新建用户默认「待激活」——自助注册已下线，账号只能由管理员开通，
+  //   用户需完成一次邮箱验证码登录才自动转为「已激活」。
+  status: 'PENDING',
   department: null as string | null,
   // 需求5：直属上级（写 directManager；directManagerName 由后端只读派生）
   directManager: null as string | null,
@@ -576,7 +583,7 @@ const openCreateModal = () => {
     uuid: '',
     roleIds: [],
     userType: 'INTERNAL',
-    status: 'ACTIVE',
+    status: 'PENDING',
     department: null,
     directManager: null
   });
@@ -596,7 +603,7 @@ const closeUserModal = () => {
     uuid: '',
     roleIds: [],
     userType: 'INTERNAL',
-    status: 'ACTIVE',
+    status: 'PENDING',
     department: null,
     directManager: null
   });

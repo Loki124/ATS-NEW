@@ -9,6 +9,7 @@ import re
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import F
 from rest_framework import serializers
 
 from .models import Department, User
@@ -27,6 +28,23 @@ def _convert_keys_to_snake(data):
     if not isinstance(data, dict):
         return data
     return {_camel_to_snake(k): _convert_keys_to_snake(v) for k, v in data.items()}
+
+
+def activation_status_of(instance) -> str:
+    """用户三态激活状态（PENDING/ACTIVE/DISABLED），序列化输出的单一事实源。
+
+    2026-10-18: 以 User.activation_status 为准；对存量/未迁移字段做安全兜底
+    （万一某行 activation_status 与其 is_active 语义不一致，仍保证 ACTIVE 只对应
+    is_active=True，避免停用账号被误判为可登录）。
+    """
+    status = getattr(instance, 'activation_status', None)
+    if status in ('PENDING', 'ACTIVE', 'DISABLED'):
+        # 防漂移：DISABLED/PENDING 却 is_active=True（或反之）时，以更保守的为准
+        if status == 'ACTIVE' and not instance.is_active:
+            return 'DISABLED'
+        return status
+    # 兜底：无该字段语义时退回旧的二态派生
+    return 'ACTIVE' if instance.is_active else 'DISABLED'
 
 
 def _is_subordinate_of(manager_id, user_id):
@@ -92,6 +110,7 @@ class UserSerializer(serializers.ModelSerializer):
             'user_type',
             'uuid',
             'is_active', 'last_login_at',
+            'activation_status',
             'created_at', 'updated_at',
             # 2026-07-02: FE input 字段 (write_only, 但必须在 fields 中声明)
             'real_name', 'role_type', 'permission_mode',
@@ -104,10 +123,10 @@ class UserSerializer(serializers.ModelSerializer):
         ret = super().to_representation(instance)
         # 2026-07-02: 派生 FE 期望字段
         ret['realName'] = instance.full_name
-        if instance.is_active:
-            ret['status'] = 'ACTIVE'
-        else:
-            ret['status'] = 'LOCKED' if instance.is_superuser else 'INACTIVE'
+        # 2026-10-18 兵哥：FE「status」直接透出三态激活状态（PENDING 待激活 /
+        #   ACTIVE 已激活 / DISABLED 已停用），与 User.activation_status 同源同值，
+        #   不再由 is_active + is_superuser 二次派生（旧派生无法表达"待激活"）。
+        ret['status'] = activation_status_of(instance)
         ret['roleType'] = (
             UserRoleV2.objects.filter(
                 user_id=instance.pk, system_code='recruit',
@@ -135,9 +154,16 @@ class UserSerializer(serializers.ModelSerializer):
                 converted['first_name'] = parts[0]
                 converted['last_name'] = parts[1] if len(parts) > 1 else ''
 
-        # status (FE 字段) → is_active
-        if 'status' in converted and 'is_active' not in converted:
-            converted['is_active'] = converted.pop('status') == 'ACTIVE'
+        # status (FE 字段) → activation_status（三态）。2026-10-18 兵哥。
+        #   is_active 不再由本处派生（改由 create/update 从 activation_status 统一同步），
+        #   避免两处派生规则漂移。若客户端同时传了 is_active，以 status 为准（丢弃 is_active）。
+        if 'status' in converted:
+            st = converted.pop('status')
+            if st:
+                if st not in ('PENDING', 'ACTIVE', 'DISABLED'):
+                    raise serializers.ValidationError({'status': '状态值非法，只能是 PENDING / ACTIVE / DISABLED'})
+                converted['activation_status'] = st
+                converted.pop('is_active', None)
 
         # roleType / permissionMode / wechat* / mocha* → consume 即可, _apply_role_type 单独处理 roleType
         converted.pop('permission_mode', None)
@@ -194,14 +220,16 @@ class UserSerializer(serializers.ModelSerializer):
         # 否则 **validated_data 重复传入 username -> create_user() 报 multiple values
         username = validated_data.pop('username')
         role_type = validated_data.pop('role_type', None)
-        status = validated_data.pop('status', None)
+        validated_data.pop('status', None)
         # 2026-09-19: 剥离 FE 写入辅助字段(非 User 模型字段), 否则 create_user 报 unexpected keyword
         for _h in ('real_name', 'permission_mode',
                    'wechat_work_user_id', 'wechat_work_dept_id', 'wechat_work_name',
                    'mocha_dept_id', 'mocha_name'):
             validated_data.pop(_h, None)
-        if status is not None:
-            validated_data['is_active'] = (status == 'ACTIVE')
+        # 2026-10-18 兵哥：管理员新建用户默认「待激活」(PENDING)，需用户首次邮箱验证码登录后
+        #   才自动激活（不再有自助注册，所以账号只能由管理员开）。未显式指定时兜底 PENDING。
+        validated_data.setdefault('activation_status', 'PENDING')
+        validated_data['is_active'] = (validated_data['activation_status'] == 'ACTIVE')
         user = User.objects.create_user(
             username=username,
             password=password,
@@ -213,13 +241,19 @@ class UserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         role_type = validated_data.pop('role_type', None)
-        status = validated_data.pop('status', None)
+        validated_data.pop('status', None)
         for _h in ('real_name', 'permission_mode',
                    'wechat_work_user_id', 'wechat_work_dept_id', 'wechat_work_name',
                    'mocha_dept_id', 'mocha_name'):
             validated_data.pop(_h, None)
-        if status is not None:
-            validated_data['is_active'] = (status == 'ACTIVE')
+        # 2026-10-18 兵哥：三态 <-> is_active 同步（真相源 activation_status）。
+        #   停用账号递增 token_version，使改动前签发的 refresh token 立即失效。
+        if 'activation_status' in validated_data:
+            instance.set_activation_status(validated_data.pop('activation_status'))
+            validated_data['activation_status'] = instance.activation_status
+            validated_data['is_active'] = instance.is_active
+            if instance.activation_status == 'DISABLED':
+                validated_data['token_version'] = F('token_version') + 1
         if role_type is not None:
             self._apply_role_type(instance, {'role_type': role_type})
         # 2026-09-20: 放开用户名编辑（用户管理页要求「用户名开放编辑」）。
@@ -244,10 +278,8 @@ class UserMinimalSerializer(serializers.ModelSerializer):
         ret = super().to_representation(instance)
         # 2026-07-02: 派生 FE 期望字段 (UserManagement.vue 表格用)
         ret['realName'] = instance.full_name
-        if instance.is_active:
-            ret['status'] = 'ACTIVE'
-        else:
-            ret['status'] = 'LOCKED' if instance.is_superuser else 'INACTIVE'
+        # 2026-10-18 兵哥：三态激活状态（同 UserSerializer，单一事实源）
+        ret['status'] = activation_status_of(instance)
         role_map = self.context.get('role_map')
         if role_map is not None:
             # #9 (2026-10-09): 列表场景由 get_serializer_context 批量注入, 免逐行查询

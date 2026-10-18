@@ -62,11 +62,10 @@ _SENSITIVE_KEY_RE = _re.compile(
 # 这些路径的请求体整体不记录任何字段结构
 _REDACT_WHOLE_BODY_PATHS = (
     '/api/v1/auth/login',
-    '/api/v1/auth/register',
     '/api/v1/auth/change-password',
     '/api/v1/auth/refresh',
+    '/api/v1/auth/email-login',
     '/api/v1/gdpr',
-    '/api/v1/accounts/register',
 )
 
 _REDACTED = '<redacted>'

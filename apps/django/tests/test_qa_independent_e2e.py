@@ -103,31 +103,43 @@ class TestR2MaskingAtHttpBoundary:
 
 
 # ============================================================
-# R5 / R6 — 注册/改密 已实现 → 验证真实行为 (真建待审用户 / 真改密), 而非 stub 501
+# R5 / R6 — 邮箱登录/改密 已实现 → 验证真实行为 (真激活账号 / 真改密), 而非 stub 501
 # ============================================================
 @pytest.mark.django_db
 class TestR5R6RealEndpointsNotFakeSuccess:
-    def test_register_creates_pending_user_not_fake_success(self):
+    def test_email_login_really_activates_pending_user(self):
+        """2026-10-18 兵哥：自助注册下线。本用例改为验证「待激活账号经邮箱验证码
+        登录后真被激活并拿到真 access token」，而非假成功。"""
+        import re
         from django.contrib.auth import get_user_model
+        from django.core import mail
 
         User = get_user_model()
         before = User.objects.count()
-        resp = APIClient().post(
-            '/api/v1/auth/register/',
-            {'email': 'qa_probe_user@corp.com', 'password': 'Probe@12345'},
-            format='json',
-        )
-        assert resp.status_code == 201, resp.content
+        u = User(username='qa_probe_user', email='qa_probe_user@corp.com')
+        u.set_password('Probe@12345')
+        u.set_activation_status('PENDING')
+        u.save()
+        assert User.objects.count() == before + 1
+
+        c = APIClient()
+        resp = c.post('/api/v1/auth/email-login/send-code/',
+                      {'email': 'qa_probe_user@corp.com'}, format='json')
+        assert resp.status_code == 200, resp.content
         assert resp['Content-Type'].startswith('application/json'), resp['Content-Type']
         assert resp.data['success'] is True
         assert resp.get('X-Stub') != 'true', '不应再有 stub 头'
-        # 真建出 is_active=False 的待审用户, 而非假成功
-        user = User.objects.get(email='qa_probe_user@corp.com')
-        assert user.is_active is False
-        from apps.accounts.models import RegistrationApplication
-        assert RegistrationApplication.objects.filter(
-            email='qa_probe_user@corp.com', status='PENDING').exists()
-        assert User.objects.count() == before + 1
+        assert mail.outbox, '验证码邮件必须真实发出'
+        code = re.search(r'(\d{6})', mail.outbox[-1].body).group(1)
+
+        resp = c.post('/api/v1/auth/email-login/verify/',
+                      {'email': 'qa_probe_user@corp.com', 'code': code}, format='json')
+        assert resp.status_code == 200, resp.content
+        assert 'access' in resp.data['data'], '必须真签发 access token'
+        # 真激活, 而非假成功
+        u.refresh_from_db()
+        assert u.activation_status == 'ACTIVE'
+        assert u.is_active is True
 
     def test_change_password_actually_changes_password(self, hr_user):
         """核心验证: 旧密码必须失效、新密码必须生效 —— 接口真写库了."""
@@ -152,15 +164,20 @@ class TestR5R6RealEndpointsNotFakeSuccess:
         assert authenticate(username='hr_zhang', password='BrandNew@9999') is not None, \
             '新密码未生效, 说明改密没写库'
 
-    def test_register_response_is_json_not_spa_html(self):
-        """确认路径没被 SPA fallback 吃掉 (吃掉会返 200 text/html, 等于假成功)."""
+    def test_email_login_response_is_json_not_spa_html(self):
+        """确认路径没被 SPA fallback 吃掉 (吃掉会返 200 text/html, 等于假成功).
+
+        2026-10-18 兵哥：原以 auth/register 为探针，自助注册下线后改用
+        邮箱验证码发码端点（仍是 SPA 路由下的真实 API 路径）。
+        """
         resp = APIClient().post(
-            '/api/v1/auth/register/',
-            {'email': 'qa_spa@corp.com', 'password': 'Probe@12345'},
+            '/api/v1/auth/email-login/send-code/',
+            {'email': 'qa_spa@corp.com'},
             format='json',
         )
         assert resp['Content-Type'].startswith('application/json'), resp['Content-Type']
-        assert resp.status_code == 201
+        # 账号不存在 → 404（证明命中真实视图而非 SPA fallback 的 200 html）
+        assert resp.status_code == 404, resp.status_code
 
 
 # ============================================================

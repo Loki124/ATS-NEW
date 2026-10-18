@@ -78,29 +78,25 @@ export const updateUiSettings = (uiSettings: Record<string, any>) =>
     { uiSettings },
   );
 
-export const register = (data: { email: string; password: string; fullName?: string }) => {
-  return api.post('/auth/register/', data);
-};
+/**
+ * 发送邮箱登录验证码 - POST /api/v1/auth/email-login/send-code/
+ *
+ * 2026-10-18 兵哥：自助注册下线后新增。后端会先校验账号有效性：
+ *   - 邮箱不存在 → 404 account_not_found
+ *   - 账号已停用 → 403 account_disabled
+ *   - 待激活 / 已激活 → 200 并发出验证码
+ * 注意：失败也会走 axios reject（404/403），调用方需读 error.response.data.message。
+ */
+export const sendEmailLoginCode = (email: string) =>
+  api.post('/auth/email-login/send-code/', { email });
 
-/** 校验注册邮箱验证码 - POST /api/v1/auth/verify-register-code/ */
-export const verifyRegisterCode = (email: string, code: string) =>
-  api.post('/auth/verify-register-code/', { email, code });
-
-/** 重新发送注册验证码 - POST /api/v1/auth/resend-register-code/ */
-export const resendRegisterCode = (email: string) =>
-  api.post('/auth/resend-register-code/', { email });
-
-/** 管理员：注册申请列表 - GET /api/v1/auth/registrations/ */
-export const listRegistrations = (status?: string) =>
-  api.get('/auth/registrations/', { params: status ? { status } : {} });
-
-/** 管理员：通过注册申请并激活 - POST /api/v1/auth/registrations/:id/approve/ */
-export const approveRegistration = (id: string) =>
-  api.post(`/auth/registrations/${id}/approve/`);
-
-/** 管理员：拒绝注册申请 - POST /api/v1/auth/registrations/:id/reject/ */
-export const rejectRegistration = (id: string, rejectReason: string) =>
-  api.post(`/auth/registrations/${id}/reject/`, { rejectReason });
+/**
+ * 邮箱验证码登录（免密）- POST /api/v1/auth/email-login/verify/
+ * 返回体与账号密码登录同构：{ success, data: { access, refresh, user } }。
+ * 待激活账号首次验证成功会自动激活（activation_status PENDING → ACTIVE）。
+ */
+export const emailLogin = (email: string, code: string) =>
+  api.post('/auth/email-login/verify/', { email, code });
 
 export const changePassword = (oldPassword: string, newPassword: string) => {
   return api.post('/auth/change-password/', { oldPassword, newPassword });

@@ -398,8 +398,10 @@ REST_FRAMEWORK = {
         'user': '1000/minute',
         # Fix 6: 登录端点限速 5/min/IP, 防密码爆破
         'login': '5/minute',
-        # 2026-07-02: 注册 + 改密限速, 防撞库和 spam account
-        'register': '3/hour',
+        # 2026-10-18 兵哥：自助注册下线，原 'register' scope 改为「邮箱验证码发码」限速，
+        #   5 次/小时/IP —— 防邮件轰炸（发码是唯一对外部署的写侧动作）。
+        'email_code': '5/hour',
+        # 改密限速, 防撞库
         'change_password': '5/minute',
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',

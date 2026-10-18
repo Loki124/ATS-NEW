@@ -154,29 +154,27 @@ class TestR8DeptScopeNotDropped:
 # ============================================================
 @pytest.mark.django_db
 class TestR5R6StubEndpointsRefuse:
-    # config/urls.py:117 把 api_v1_patterns 挂在 'api/v1/' 下, 所以 stub 的真实路径
-    # 是 /api/v1/auth/register。不带前缀会被 config/urls.py:145 的 SPA fallback
+    # config/urls.py:117 把 api_v1_patterns 挂在 'api/v1/' 下, 所以真实路径
+    # 是 /api/v1/auth/email-login/send-code。不带前缀会被 config/urls.py 的 SPA fallback
     # (re_path 排除了 api/ 开头) 吃掉, 返 200 text/html。
+    # 2026-10-18 兵哥：自助注册下线，原 auth/register 探针改为邮箱验证码发码端点。
     API = '/api/v1'
 
-    def test_register_creates_pending_user_not_fake_success(self):
+    def test_email_login_rejects_unknown_account_not_fake_success(self):
+        """账号不存在必须明确 404 且不发邮件，不得假成功。"""
+        from django.core import mail
+        mail.outbox.clear()
         client = APIClient()
         resp = client.post(
-            f'{self.API}/auth/register',
-            {'email': 'qa_new_user@corp.com', 'password': 'Str0ng!Pass#2026v2'},
+            f'{self.API}/auth/email-login/send-code',
+            {'email': 'qa_new_user@corp.com'},
             format='json',
         )
-        assert resp.status_code == 201, resp.content
-        assert resp.data['success'] is True
+        assert resp.status_code == 404, resp.content
+        assert resp.data['success'] is False
+        assert resp.data['code'] == 'account_not_found'
         assert resp.get('X-Stub') != 'true'
-        # 真建出 is_active=False 的待审用户, 而非假成功
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        user = User.objects.get(email='qa_new_user@corp.com')
-        assert user.is_active is False
-        from apps.accounts.models import RegistrationApplication
-        assert RegistrationApplication.objects.filter(
-            email='qa_new_user@corp.com', status='PENDING').exists()
+        assert not mail.outbox, '账号不存在时不得发出验证码邮件'
 
     def test_change_password_actually_changes_password(self):
         from django.contrib.auth import get_user_model

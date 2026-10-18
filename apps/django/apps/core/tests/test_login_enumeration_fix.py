@@ -3,18 +3,20 @@
 证明:
 - 账号不存在 / 密码错误 / 未激活但密码错误 → 同一通用 401 invalid_credentials,
   攻击者无密码时无法借 403/401 区分账号是否存在 (消除"账号存在性枚举"信号)。
-- 仅当密码正确后, 才对未激活账号返回 403 (account_pending / account_rejected),
+- 仅当密码正确后, 才对非已激活账号返回 403 (account_pending / account_disabled),
   合法用户(掌握密码者)可见, 不泄露账号存在性。
 - 单条 ORM 查询定位账号 (无 4 次串行 User.objects.get + check_password 的 N+1)。
+
+2026-10-18 兵哥：用户状态改三态（PENDING/ACTIVE/DISABLED），原「注册申请
+PENDING/REJECTED」语义已随自助注册下线而移除 —— 待激活账号现在可走
+「邮箱验证码登录」激活，故 account_rejected 分支不再存在，改由 account_disabled 承担。
 """
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
-from apps.accounts.models import RegistrationApplication
-
 BASE = '/api/v1/auth'
-# 与 test_registration_flow 同款合规强密码 (长度≥12 + 大小写+数字+符号)
+# 合规强密码 (长度≥12 + 大小写+数字+符号)
 STRONG_PASSWORD = 'Str0ng!Pass#2026v2'
 
 
@@ -22,17 +24,10 @@ STRONG_PASSWORD = 'Str0ng!Pass#2026v2'
 class TestLoginEnumerationUnified401:
     def _make_inactive_user(self, username, status='PENDING'):
         User = get_user_model()
-        user = User.objects.create_user(
-            username=username,
-            email=f'{username}@corp.com',
-            password=STRONG_PASSWORD,
-            is_active=False,
-        )
-        RegistrationApplication.objects.create(
-            user=user,
-            email=f'{username}@corp.com',
-            status=status,
-        )
+        user = User(username=username, email=f'{username}@corp.com')
+        user.set_password(STRONG_PASSWORD)
+        user.set_activation_status(status)
+        user.save()
         return user
 
     def test_nonexistent_account_returns_401(self):
@@ -66,7 +61,8 @@ class TestLoginEnumerationUnified401:
         assert r.json()['code'] == 'invalid_credentials'
 
     def test_inactive_rejected_wrong_password_returns_401_not_403(self):
-        self._make_inactive_user('rejected_wrong', status='REJECTED')
+        """枚举修复核心: 已停用 + 错误密码必须 401, 不得暴露 403 (账号存在信号)."""
+        self._make_inactive_user('rejected_wrong', status='DISABLED')
         c = APIClient()
         r = c.post(f'{BASE}/login/',
                    {'username': 'rejected_wrong', 'password': 'WrongPass#9999'},
@@ -75,7 +71,7 @@ class TestLoginEnumerationUnified401:
         assert r.json()['code'] == 'invalid_credentials'
 
     def test_inactive_pending_correct_password_returns_403_account_pending(self):
-        """合法用户(掌握密码)可见审核状态: 待审核 + 正确密码 → 403 account_pending."""
+        """合法用户(掌握密码)可见状态: 待激活 + 正确密码 → 403 account_pending."""
         self._make_inactive_user('pending_right', status='PENDING')
         c = APIClient()
         r = c.post(f'{BASE}/login/',
@@ -84,14 +80,15 @@ class TestLoginEnumerationUnified401:
         assert r.status_code == 403, r.content
         assert r.json()['code'] == 'account_pending'
 
-    def test_inactive_rejected_correct_password_returns_403_account_rejected(self):
-        self._make_inactive_user('rejected_right', status='REJECTED')
+    def test_disabled_correct_password_returns_403_account_disabled(self):
+        """已停用 + 正确密码 → 403 account_disabled（原 account_rejected 语义已下线）."""
+        self._make_inactive_user('rejected_right', status='DISABLED')
         c = APIClient()
         r = c.post(f'{BASE}/login/',
                    {'username': 'rejected_right', 'password': STRONG_PASSWORD},
                    format='json')
         assert r.status_code == 403, r.content
-        assert r.json()['code'] == 'account_rejected'
+        assert r.json()['code'] == 'account_disabled'
 
     def test_active_correct_password_logs_in(self):
         User = get_user_model()

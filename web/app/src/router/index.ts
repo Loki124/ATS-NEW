@@ -22,11 +22,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import(/* webpackChunkName: "forbidden" */ '../pages/errors/Forbidden.vue')
   },
   {
-    path: '/register',
-    name: 'Register',
-    component: () => import(/* webpackChunkName: "register" */ '../pages/Register.vue')
-  },
-  {
+    // 2026-10-18 兵哥：自助注册下线，/register 路由与 Register.vue 一并删除。
+    //   账号由管理员在「用户管理」开通（默认待激活），用户走邮箱验证码登录激活。
     path: '/',
     component: () => import(/* webpackChunkName: "layout" */ '../pages/Layout.vue'),
     meta: { requiresAuth: true },
@@ -134,7 +131,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'job-level', name: 'JobLevelManagement', component: () => import(/* webpackChunkName: "settings-job-level" */ '../pages/settings/JobLevelManagement.vue') },
           // ===== 用户管理：内部/外部/全部已整合为单一页面（user_type 字段区分），默认展示全部用户 =====
           { path: 'users/all', name: 'UserDirectoryAll', component: () => import(/* webpackChunkName: "settings-users-all" */ '../pages/settings/UserDirectory.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] } },
-          { path: 'registrations', name: 'RegistrationApproval', component: () => import(/* webpackChunkName: "settings-registrations" */ '../pages/settings/RegistrationApproval.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ONLY] } },
+          // 2026-10-18 兵哥：自助注册下线，注册审核页（原 /settings/registrations）
+          //   与「待激活/已激活/已停用」账号治理一并并入用户管理页（UserDirectory.vue），路由已删除。
           // 2026-07-01 花无缺: 删 /settings/permission 路由 + 删 PermissionManagement.vue (G41 重构合并到 MouManagement 角色管理 tab)
           { path: 'mou', name: 'MouManagement', component: () => import(/* webpackChunkName: "settings-mou" */ '../pages/settings/MouManagement.vue') },
           { path: 'demand-config', name: 'DemandConfig', component: () => import(/* webpackChunkName: "settings-demand-config" */ '../pages/settings/DemandConfig.vue') },
@@ -293,9 +291,6 @@ export async function routeGuard(to: any, _from: any, next: any) {
     return next('/login')
   }
   if (to.path === '/login' && token) {
-    return next('/dashboard')
-  }
-  if (to.path === '/register' && token) {
     return next('/dashboard')
   }
 

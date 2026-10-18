@@ -134,6 +134,19 @@ class User(AbstractUser):
     #   (simplejwt 默认不撤销旧 refresh; 配合缩短后的 access 有效期实现"撤销")。
     token_version = models.PositiveIntegerField(default=0, db_index=True, verbose_name='令牌版本')
 
+    # 2026-10-18 兵哥：账号激活状态三态（待激活 / 已激活 / 已停用）。
+    #   真相源 = 本字段；`is_active`（Django 内置）由 set_activation_status() 同步维护，
+    #   以兼容 ModelBackend.user_can_authenticate 与既有的 is_active 过滤/索引。
+    #   来源语义：管理员新建用户默认 PENDING（待激活），首次邮箱验证码登录后自动激活；
+    #   DISABLED 为管理员停用（含软删除），此时拒绝登录且不签发令牌。
+    activation_status = models.CharField(
+        max_length=16,
+        choices=[('PENDING', '待激活'), ('ACTIVE', '已激活'), ('DISABLED', '已停用')],
+        default='ACTIVE',
+        db_index=True,
+        verbose_name='激活状态',
+    )
+
     objects = UserManager()
 
     # 解决 auth.User 反向访问冲突
@@ -171,10 +184,22 @@ class User(AbstractUser):
     def full_name(self):
         return self.get_full_name() or self.username
 
+    # 三态 <-> is_active 的映射真源：只有 ACTIVE 才可登录（is_active=True）。
+    # 2026-10-18: 抽成方法，避免各处手写 (status == 'ACTIVE') 判断导致漂移。
+    ACTIVATION_STATUSES = ('PENDING', 'ACTIVE', 'DISABLED')
+
+    def set_activation_status(self, value: str) -> None:
+        """设置激活状态并同步 Django 内置 is_active（仅内存赋值，不落库）。"""
+        if value not in self.ACTIVATION_STATUSES:
+            raise ValueError(f'非法激活状态: {value!r}')
+        self.activation_status = value
+        self.is_active = (value == 'ACTIVE')
+
     def soft_delete(self):
         self.deleted_at = timezone.now()
-        self.is_active = False
-        self.save(update_fields=['deleted_at', 'is_active', 'updated_at'])
+        # 软删除语义 = 停用：同步三态字段，避免 is_active=False 但 activation_status 仍为 ACTIVE 的漂移
+        self.set_activation_status('DISABLED')
+        self.save(update_fields=['deleted_at', 'activation_status', 'is_active', 'updated_at'])
 
 
 class Department(models.Model):

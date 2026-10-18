@@ -26,9 +26,13 @@ class LoginRateThrottle(AnonRateThrottle):
     scope = 'login'
 
 
-class RegisterRateThrottle(AnonRateThrottle):
-    """2026-07-02: 注册端点限速 3 次/小时/IP, 防撞库和 spam account."""
-    scope = 'register'
+class EmailCodeRateThrottle(AnonRateThrottle):
+    """2026-10-18 兵哥: 邮箱验证码发码限速 5 次/小时/IP, 防邮件轰炸.
+
+    原 RegisterRateThrottle(scope='register', 3/hour) 随自助注册下线而移除，
+    同一「外部触发发信」语义改由本类承担。
+    """
+    scope = 'email_code'
 
 
 class ChangePasswordRateThrottle(UserRateThrottle):
@@ -53,8 +57,6 @@ def login_view(request):
     # 支持多种登录方式（单一查询定位，避免 4 次串行 ORM + check_password 的 N+1）
     from django.db.models import Q
 
-    from apps.accounts.models import RegistrationApplication
-
     from .models import User
 
     candidate_user = User.objects.filter(deleted_at__isnull=True).filter(
@@ -69,19 +71,19 @@ def login_view(request):
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    # 密码正确后再告知审核状态：仅合法用户（掌握密码者）可见，不泄露账号存在性。
-    # 2026-09-11 需求：待审核/已拒绝账号登录时给出明确提示，避免误报"用户名或密码错误"。
-    if not candidate_user.is_active:
-        app = RegistrationApplication.objects.filter(user=candidate_user).first()
-        if app and app.status == 'REJECTED':
-            return Response(
-                {'success': False, 'code': 'account_rejected',
-                 'message': '您的注册申请已被拒绝，如有疑问请联系管理员'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+    # 密码正确后再告知账号状态：仅合法用户（掌握密码者）可见，不泄露账号存在性。
+    # 2026-10-18 兵哥：用户状态改为三态（PENDING 待激活 / ACTIVE 已激活 / DISABLED 已停用）。
+    #   待激活账号请走「邮箱验证码登录」完成首次激活，故此处给出明确指引而非笼统拒绝。
+    if candidate_user.activation_status == 'DISABLED':
+        return Response(
+            {'success': False, 'code': 'account_disabled',
+             'message': '账号已停用，请联系管理员'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if candidate_user.activation_status == 'PENDING':
         return Response(
             {'success': False, 'code': 'account_pending',
-             'message': '账号正在审核中，请等待管理员审批'},
+             'message': '账号待激活，请使用邮箱验证码登录并完成激活'},
             status=status.HTTP_403_FORBIDDEN,
         )
 

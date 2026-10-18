@@ -64,7 +64,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { NIcon, NMenu } from 'naive-ui'
 import {
   ChevronForwardOutline, ChevronBackOutline,
-  PersonCircleOutline, PersonOutline, PersonAddOutline, BusinessOutline, PeopleOutline, BookOutline, BookmarkOutline,
+  PersonCircleOutline, PersonOutline, BusinessOutline, PeopleOutline, BookOutline, BookmarkOutline,
   ClipboardOutline, StarOutline, SchoolOutline, GitNetworkOutline, GitBranchOutline,
   StopwatchOutline, ConstructOutline, LayersOutline, InformationCircleOutline,
   ServerOutline, AnalyticsOutline,
@@ -125,13 +125,14 @@ const rawSubMenuOptions: MenuItem[] = [
         ],
       },
       {
-        // ★ 北森风格重构：用户管理迁移自「组织信息管理」，承载内部/外部/全部用户 + 注册审核 + 用户组
+        // ★ 北森风格重构：用户管理迁移自「组织信息管理」，承载内部/外部/全部用户 + 用户组
+        // 2026-10-18 兵哥：自助注册下线，原「注册审核」子项已删除 —— 账号开通与
+        //   待激活/已激活/已停用治理统一在「用户管理」页内完成（状态列 + 筛选 + 停用）。
         key: 'g-user',
         label: t('pages.settings.SettingsLayout.s15'),
         icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }),
         children: [
           { key: '/settings/users/all', label: t('pages.settings.SettingsLayout.s15'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
-          { key: '/settings/registrations', label: t('pages.settings.SettingsLayout.s16'), icon: () => h(NIcon, null, { default: () => h(PersonAddOutline) }) },
           { key: '/settings/user-groups', label: t('pages.settings.SettingsLayout.s17'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
         ],
       },

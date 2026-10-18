@@ -27,9 +27,12 @@ def _post(rf, path, payload, **kwargs):
 
 @pytest.mark.parametrize('path', [
     '/api/v1/auth/login',
-    '/api/v1/auth/register',
     '/api/v1/auth/change-password',
     '/api/v1/auth/refresh',
+    # 2026-10-18 兵哥：自助注册下线，注册端点已删除；邮箱验证码登录端点
+    #   同样含 email/code，须与登录一样整体跳过请求体。
+    '/api/v1/auth/email-login/send-code',
+    '/api/v1/auth/email-login/verify',
     '/api/v1/gdpr/requests/',
 ])
 def test_sensitive_endpoints_omit_body_entirely(rf, path):
