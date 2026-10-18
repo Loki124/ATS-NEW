@@ -7,7 +7,7 @@
 
 > ⚠️ **阅读前必读：本仓存在「规范文档 ↔ 代码」已确认漂移。**
 > 规范文档多为早期快照，`tokens.css` 已在其后被收紧（2026-10-15）。**冲突时以 `src/styles/tokens.css` 与实际代码为准**，并用 `getComputedStyle` 取真实解析值。
-> 已定位的 3 处漂移见 §7.2.1b（间距刻度）、§7.3.1b（页面安全边距）、§7.3.1c（弹窗内边距）。
+> 已定位的漂移（间距刻度、页面安全边距、弹窗内边距）见 `frontend-layout-standard.md`（§1.7 间距阶梯 / §1.1 页面安全边距 / §1.3 弹窗内边距），其数值以 `src/styles/tokens.css` §8 / §8.5 为准。
 
 ---
 
@@ -21,7 +21,6 @@
 | 4 | [Lint 与质量门禁](#4-lint-与质量门禁) | 9 | `.stylelintrc.json`、CI |
 | 5 | [类型与类型检查](#5-类型与类型检查) | 7 | `tsconfig.json` |
 | 6 | [组件编写规范](#6-组件编写规范) | 14 | `AGENTS.md` R-101~R-223 |
-| 7 | [样式方案与设计令牌](#7-样式方案与设计令牌) | 15 | `UI_DESIGN_SPEC.md`、`tokens.css` |
 | 8 | [状态管理](#8-状态管理) | 6 | Pinia 实践 |
 | 9 | [路由与权限守卫](#9-路由与权限守卫) | 8 | `router/index.ts` |
 | 10 | [API 与数据层](#10-api-与数据层) | 9 | `utils/request.ts` |
@@ -237,95 +236,6 @@ if (hasSensitiveField(values)) return
 | 6.5.6 | 图标与文字间距 4–8px；同组图标视觉重量需平衡。 | `UI_DESIGN_SPEC.md` §5.9 |
 | 6.5.7 | **禁止 emoji 当功能图标**（X-02）。 | X-02、`frontend-README.md:128` |
 | 6.5.8 | 每屏恰好 1 个 primary action（实心按钮），其余降级为 ghost/text；危险操作与主操作保持 ≥32px 距离。 | R-202 |
-
----
-
-## 7. 样式方案与设计令牌
-
-### 7.1 令牌体系（单一事实来源）
-
-| 编号 | 要求 | 来源 |
-|------|------|------|
-| 7.1.1 | 颜色/间距/圆角/阴影/动效时长一律为 CSS 变量，定义在 `src/styles/tokens.css` 与生成的 `brand-tokens.css`。**MUST NOT 硬编码 hex/rgb/模糊值/圆角/阴影/字号。** | `UI_DESIGN_SPEC.md` §1、`frontend-DESIGN.md` |
-| 7.1.2 | 品牌色令牌 MUST 由 `brand-tokens.mjs` 生成（OKLCH 定义，仅输入 `--brand-h` 色相 + `--brand-c` 彩度），**禁止手工编写**。 | R-209/R-214、X-13、`ENGINEERING_RULES.md` §1 |
-| 7.1.3 | 主按钮色 MUST 自动选阶至对比度 ≥4.5:1，**禁止锁定 `-500` 阶**、禁止前景色写死黑白。 | R-210、X-14 |
-| 7.1.4 | 暗色模式只切 `body.dark`，组件 CSS **MUST NOT** 出现 `dark` 分支。 | `UI_DESIGN_SPEC.md` §1.2、R-212 |
-| 7.1.5 | 暗色 token 须**逐个覆盖 `:root` 别名**——别名继承带计算值，后代 `var(--alias)` 不会随 `body.dark` 重算。验证用 `getComputedStyle(el).getPropertyValue('--alias')` 读解析值，不靠 grep。 | `ENGINEERING_RULES.md` §1 |
-| 7.1.6 | 语义色（success/warning/error/info）独立于品牌色，**MUST NOT 由品牌色推导**。 | R-211、X-15 |
-| 7.1.7 | 引用未定义令牌会导致**静默失效**（历史 `--g1…--g7` 未定义缺陷，现已补齐）。 | `UI_DESIGN_SPEC.md` §2.3 |
-| 7.1.8 | CSS 令牌只用语义令牌，**禁止** `var(--x, #hex)` fallback 写法（暗色回落浅色必崩）。 | 项目记忆/工程实践 |
-
-**反例（R-209）**：
-```css
-/* ❌ 手写预设色板 */
---brand-600: #5050D1;
-/* ✅ 只改 --brand 一个输入，由 brand-tokens.mjs 生成全阶 */
-BRAND_COLOR="#0052D9" npm run tokens
-```
-
-### 7.2 间距 / 圆角 / 断点
-
-| 编号 | 要求 | 来源 |
-|------|------|------|
-| 7.2.1 | 间距 MUST 走 `--space-*` 阶梯，**禁止裸像素间距**（`margin-top:20px` → `var(--space-5)`）。语义分工：区块 `--space-6`；卡片内 `--space-4`；表单控件间隙 `--space-2`；图标微调间隙 `--space-1`。 | `frontend-layout-standard.md` §1.7、`tokens.css:184-192` |
-| 7.2.1b | ⚠️ **文档与代码已漂移**：规范文档 §1.7 列的刻度是 4/8/12/16/20/24/32/48/64，而 `tokens.css:184-192` 实际已收紧为 **4/8/8/16/16/24/32/48/64**（`--space-3` 与 `--space-5` 降为「兼容档位」别名，注释标注「原 12px/20px → 收紧」以免破坏全站既有引用）。**以 `tokens.css` 为准**；引用 `--space-3`/`--space-5` 时须知道其实际值已非文档所载。 | `tokens.css:182-192` |
-| 7.2.2 | 圆角：卡片 `var(--radius-md)`（统一不混用 8/10/14）；小元素 `--radius-sm`；**禁止**手写 `border-radius: 8px` 等硬编码。 | `frontend-layout-standard.md` §1.8.4 |
-| 7.2.3 | 断点三档 MUST 对齐：`--breakpoint-sm 768` / `md 1024` / `lg 1280`。JS 媒体查询、UnoCSS 断点、CSS 媒体查询三者一致。**禁止发明 480/920/1100 等散断点。** | `tokens.css:206-209`、`frontend-layout-standard.md` §1.6 |
-| 7.2.4 | 栅格 MUST 用 `.grid-auto`（`repeat(auto-fit, minmax(var(--col-min), 1fr))`，`--col-min=280px`）；KPI 区用 `.kpi-row`（`minmax(180px,1fr)`）。**禁止**固定列数 + 媒体查询。 | 同上 §1.5 |
-| 7.2.5 | 长表单/单列内容在 >1280px 加 `.content-shell` 收束居中；宽表格不加。 | 同上 §1.4 |
-| 7.2.6 | hover 动效时长 100–150ms（禁 >200ms，X-09）；动效仅用 `transform`/`opacity`；须处理 `prefers-reduced-motion`。 | X-09、R-206/207 |
-
-### 7.3 页面安全边距（防贴边）
-
-| 编号 | 要求 | 来源 |
-|------|------|------|
-| 7.3.1 | 直接挂 Layout 下的页面，根容器用 `.page-container`，全局注入 `padding: var(--page-pad-y) var(--page-pad-x) !important`（防御性 `!important` 防 scoped 覆盖）。 | `frontend-layout-standard.md` §1.1、`glass.css:1021` |
-| 7.3.1b | ⚠️ **文档与代码已漂移**：规范文档 §1.1 记 `--page-pad-x/y = var(--space-6)`（24px）、移动端 `--space-4`（16px）；`tokens.css:198-201` 实际已于 **2026-10-15 收紧为桌面 16px（`--space-4`）、移动端 8px（`--space-2`）**。**以 `tokens.css` 为准**，验证时读 `getComputedStyle` 实际解析值。 | `tokens.css:198-201` |
-| 7.3.1c | 弹窗内边距同样漂移：文档记 `--modal-pad-x = --space-6`(24px) / `--modal-pad-y = --space-5`(20px)；`tokens.css:202-203` 实际**两者均为 `var(--space-5)`（24px）**，注释标明「弹窗保留宽松留白，与页面区分」。 | `tokens.css:202-203` |
-| 7.3.2 | 设置中心由 `.settings-scroll` 的 `padding:20px` 提供边距、`:deep` 清零 `.page-container` —— **唯一允许的清零场景**，且由布局层（`SettingsLayout.vue`）控制，页面不得自行清零。 | `frontend-layout-standard.md` §1.1、`glass.css:1022` |
-| 7.3.3 | 移动端（≤767px）边距自动收紧，页面无需再写，也不得绕过。 | 同上 |
-| 7.3.4 | `.glass-card` 已内置 `padding: var(--space-4)`，直接复用，禁再手写卡片内边距。 | §1.2 |
-| 7.3.5 | `page-header` 与下方 Tabs/表格之间**禁止**额外声明 `margin-top`/`padding-top` 制造留白带；间距一律交给容器 `gap`。原「相邻兄弟 + `*` 注入 margin-top」机制已于 2026-09-30 废弃（无法区分滚动容器与普通块，属武断一刀切）。 | §1.8.3、`glass.css:1003-1010` |
-
-### 7.4 滚动契约（R-215 + 设置页）
-
-| 编号 | 要求 | 来源 |
-|------|------|------|
-| 7.4.1 | 数据列表页 MUST「区域滚动」非整页滚动：容器 `overflow: hidden`，标题/Tabs/筛选 `flex-shrink: 0`，**仅表格区滚动**（`flex:1; min-height:0` + Naive `flex-height`），表头保持可见。 | R-215 |
-| 7.4.2 | 分页器 MUST 固定表格底部，不随数据滚动。 | R-215 |
-| 7.4.3 | **禁止**用 `overflow: hidden` 吞掉表格/滚动容器的真实滚动（真实滚动职责在 `.n-scrollbar-container`）。 | `UI_DESIGN_SPEC.md` §5.5、Don't |
-| 7.4.4 | 设置页 `.page-body` 套 `.glass-panel` 时，玻璃面板自身**无内部 padding**，MUST 在该页 scoped 显式声明内边距。 | `frontend-layout-standard.md` §5 |
-| 7.4.5 | flex 滚动生效的**必要条件**是 item 设 `min-height: 0`。 | `NAIVE_UI_PITFALLS.md` §1.3 |
-
-**正例（R-215）**：
-```css
-.page-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.filter-row { flex-shrink: 0; }
-.data-table { flex: 1; min-height: 0; }
-```
-
-### 7.5 表格列对齐（单一真源）
-
-| 编号 | 要求 | 来源 |
-|------|------|------|
-| 7.5.1 | 表格列对齐 MUST 走 `composables/useTableColumns.ts`，**禁止**各页自行声明 `align`。 | `useTableColumns.ts` |
-| 7.5.2 | 四档规则（按**内容类型**分档，非无脑全居中）：A 短值/枚举/标识→center；B 控件/操作→center；C 数值→center；**D 长文本/富内容→left**（长 SQL 居中极难扫读，「整齐 ≠ 一律居中」）。 | 同上 |
-| 7.5.3 | 操作列统一 `OP_ACTION_BUTTON_SIZE`（small，14px，与正文同字号），禁 `tiny`（12px 视觉矮一截）。 | 同上 |
-| 7.5.4 | 技术原因：`n-data-table` 的 `align` 渲染为**行内 style**，全局 CSS 无法覆盖（表头 th 只有行内 style 无 class），故唯一路径是列定义层声明。 | 同上 |
-| 7.5.5 | 表头居中 MUST 用 `buildTitle()` 块级 span 同源实现。 | 项目约定 |
-| 7.5.6 | 操作列 `NSpace` MUST `wrap: false` + 列宽足够（4 个 tiny 按钮 + icon 推荐 ≥280px）。 | `frontend-layout-standard.md` §1.8.1 |
-
-### 7.6 UnoCSS 使用
-
-| 编号 | 要求 | 来源 |
-|------|------|------|
-| 7.6.1 | `presetUno` + `presetTypography` + `presetIcons`（未启用）+ `presetWebFonts`（`provider:'none'`，不下载 Google Fonts）。 | `uno.config.ts:21-31` |
-| 7.6.2 | 主题色全部映射到 CSS 变量（`primary`→`var(--brand)` 等），改 `tokens.css` 即全站换肤。 | `uno.config.ts:32-50` |
-| 7.6.3 | 动态 className MUST 列入 `safelist` 防 purge（现有 `text-primary`/`bg-primary`/`glass-card`/`glass-panel` 等）。 | `uno.config.ts:74-80` |
-| 7.6.4 | 玻璃态原子类（`glass-card`/`glass-panel`/`btn-*`/`.app-aurora` 等）由 `src/styles/glass.css` 提供**真实样式**，UnoCSS 侧保留类名并 safelist。 | `uno.config.ts:68-72` |
-| 7.6.5 | `page-container` shortcut **已移除**（各页自行管理 padding/height，避免嵌套 flex 中 `min-h-screen` 撑破）。 | `uno.config.ts:60-61` |
-
----
 
 ## 8. 状态管理
 
