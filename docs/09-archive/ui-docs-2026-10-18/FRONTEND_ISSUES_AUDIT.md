@@ -1,3 +1,7 @@
+> ⚠️ 已归档于 2026-10-18（UI 文档收敛，见 `UI_DOC_AUDIT_2026-10-18.md`）。
+> 本文件为历史诊断 / 走查 / 整改快照，**不再作为规范依据**。
+> 当前权威规范见 `UI_DESIGN_SPEC.md`，唯一索引见 `README.md`。
+
 # 前端门禁与工程化问题清单（实跑核实版）
 
 > 核实方式：在本机实跑 `eslint` / `stylelint` / `vue-tsc` / `vitest` / `brand-tokens --ci`，并与 `ci.yml`、`package.json`、`package-lock.json` 交叉比对。
