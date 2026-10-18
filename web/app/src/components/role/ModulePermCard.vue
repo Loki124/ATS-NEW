@@ -78,7 +78,7 @@
       {{ t('dataperm.drift.orphanedHint') }}
     </p>
 
-    <!-- ===== 第二行：未配置面板 / 虚线规则框（原型 .rule-container，仅 scope 展开）===== -->
+    <!-- ===== 第二行：未配置面板 / 模式固定描述 / 虚线规则框（原型 .rule-container，仅 scope 展开）===== -->
     <div v-if="module.mode === 'unset'" class="mc-unset-panel">
       <div class="mc-unset-head">
         <span class="mc-unset-tag">{{ t('dataperm.mode.unset') }}</span>
@@ -96,6 +96,12 @@
       >
         {{ t('dataperm.card.unset.start') }}
       </button>
+    </div>
+    <!-- none/all：固定描述（2026-10-18 兵哥）。这两种模式没有可配置规则，
+         但第二行不能空着 —— 与 scope 的虚线规则框同视觉同位置，各卡二行结构齐整；
+         只放一句状态说明，刻意不给「修改配置」按钮（无可配内容，避免诱导点击）。 -->
+    <div v-else-if="module.mode === 'none' || module.mode === 'all'" class="mc-mode-desc">
+      {{ module.mode === 'none' ? t('dataperm.card.desc.none') : t('dataperm.card.desc.all') }}
     </div>
     <template v-else-if="module.mode === 'scope'">
       <!-- 校验错误替换规则框（fail-loud：不显示可能已过期的摘要） -->
@@ -152,20 +158,23 @@
  *    「操作权限 + 状态徽标 + 去配置」只读摘要条，拆分完成即属冗余 —— 操作权限已有独立页签，
  *    在本页复述状态只会诱导"两处都能配"的错觉，且把两个维度又混回一张卡。彻底移除。
  *
- * 2026-10-18 兵哥三轮调整（同日，按时间顺序）：
+ * 2026-10-18 兵哥四轮调整（同日，按时间顺序）：
  *   ①「同排紧凑版」原型重构（替代原「卡头 + 段标签 + 规则摘要」三区式，见下方结构说明）；
  *   ② **移除模块级 ⓘ icon + hover 提示**（原 desc 与「两套范围不合并」文案）——
  *      身份不再有角色级默认数据范围，数据范围必须且仅在数据权限页签配置，
  *      卡头只留模块名，各模块的单独提示内容全部撤掉；
  *   ③ **与功能权限解耦**：卡片不再因「未分配功能权限」置灰/挂锁标签，
  *      数据范围是独立维度；功能是否存在由「功能权限」页签单独配置。
- *      故 props 不再有 desc / defaultScopeLabel，disabled 只剩超管一种来源。
+ *      故 props 不再有 desc / defaultScopeLabel，disabled 只剩超管一种来源；
+ *   ④ **none/all 二行固定描述**：这两种模式无可配置规则，但第二行不能空着——
+ *      补与规则框同视觉的固定描述行（无当前模块数据权限 / 可查看当前模块的全部数据），
+ *      各卡二行结构齐整；刻意不给「修改配置」按钮（无可配内容，避免诱导点击）。
  *
  * 「同排紧凑版」结构：
  *   第一行 .mc-main-row  标题（min-width 统一，保证各卡分段选择器左对齐）
  *   + 分段选择器 + 重置（仅本卡脏时出现）
- *   第二行 .mc-rule-container（仅 scope）虚线框：条件标签链（组间「或」）+ 修改配置
- *   unset 态第二行换成虚线「未配置」面板。
+ *   第二行：scope → .mc-rule-container 虚线框（条件标签链 + 修改配置）；
+ *   unset → 虚线「未配置」面板；none/all → .mc-mode-desc 固定描述（无可配内容故无按钮）。
  * 与原型样例的刻意差异（均因项目令牌纪律，非随意发挥）：
  *   - 间距：原型 12px 20px 卡内边距 / 12px 行距 → 收敛到 8px 基线令牌
  *     （tokens.css §8「只减不增」：--space-3 / --space-5 已由 12/20 收紧为 8/16）；
@@ -453,6 +462,17 @@ const driftTags = computed(() =>
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+}
+/* none/all 模式固定描述（2026-10-18 兵哥）：与规则框同视觉同位置（虚线 + 灰底），
+   各卡二行结构齐整；只放一句状态说明，无按钮。 */
+.mc-mode-desc {
+  background: var(--g1);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--g4);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  color: var(--ink-soft);
 }
 .mc-tag-list {
   display: flex;

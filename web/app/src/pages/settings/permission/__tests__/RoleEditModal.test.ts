@@ -255,6 +255,25 @@ describe('RoleEditModal 读/写拆分', () => {
     expect(segs[1].classList.contains('active')).toBe(true)
   })
 
+  it('none/all 模式第二行显示固定描述（2026-10-18 兵哥：各卡二行结构齐整）', async () => {
+    factory()
+    await flushPromises()
+    await gotoTab('数据权限')
+
+    // all 模式（fixture: process 卡）→ 固定文案，且不给「修改配置」按钮（无可配内容）
+    const processCard = $one('#dp-card-process .module-card')
+    expect(text(processCard!.querySelector('.mc-mode-desc'))).toBe('可查看当前模块的全部数据')
+    expect(processCard!.querySelector('.summary-actions')).toBeNull()
+
+    // 切到「无权限」（demand 卡点第一段）→ 固定文案切换，规则框仍不展开
+    const segs = $one('#dp-card-demand .module-card')!.querySelectorAll('.mc-segment')
+    segs[0].click()
+    await flushPromises()
+    const demandCard = $one('#dp-card-demand .module-card')
+    expect(text(demandCard!.querySelector('.mc-mode-desc'))).toBe('无当前模块数据权限')
+    expect(demandCard!.querySelector('.mc-rule-container')).toBeNull()
+  })
+
   it('操作权限页签默认只展开已配置（mode!==none）的卡', async () => {
     factory()
     await flushPromises()
