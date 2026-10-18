@@ -320,9 +320,11 @@ RESOURCES = [
 
     # --- module: user_role ---
     # 2026-10-11 (G2 接线): views_permission_v2 声明的 user_app_data_scope 码此前不存在
-    ('recruit:user_app_data_scope:menu:view', '应用数据范围菜单', 'MENU', 'user_role'),
-    ('recruit:user_app_data_scope:list', '应用数据范围列表', 'BUTTON', 'user_role'),
-    ('recruit:user_app_data_scope:edit', '编辑应用数据范围', 'BUTTON', 'user_role'),
+    # 2026-10-18: module 由 'user_role' 修正为 'user_app_data_scope'（规范 R2：module 必须
+    #   等于编码第 2 段）。见 docs/DESIGN_资源编码规范.md + core.0027_fix_module_field。
+    ('recruit:user_app_data_scope:menu:view', '应用数据范围菜单', 'MENU', 'user_app_data_scope'),
+    ('recruit:user_app_data_scope:list', '应用数据范围列表', 'BUTTON', 'user_app_data_scope'),
+    ('recruit:user_app_data_scope:edit', '编辑应用数据范围', 'BUTTON', 'user_app_data_scope'),
 
     # --- 配置类模块补 :list 读码 ---
     # 2026-10-11 (G2 接线): 这些模块此前只有 menu:view + 写码, 缺读码。

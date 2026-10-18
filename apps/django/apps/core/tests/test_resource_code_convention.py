@@ -1,0 +1,215 @@
+"""资源编码规范护栏（2026-10-18 兵哥批准立项）。
+
+规范真源：`docs/DESIGN_资源编码规范.md`
+落地真源：`apps/core/management/commands/seed_v2_init.py` 的 RESOURCES
+
+🔴 本测试**只校验「新增」资源，不对存量报错** —— 存量 285 条里有大量历史债
+   （3/4/5/6 段并存、连字符子模块等，见规范 §6），让存量违规把 CI 常驻变红
+   会让护栏名存实亡。存量债务用 KNOWN_DEBT 白名单显式登记，新违规一律拦下。
+
+校验规则（规范 §4）：
+  R1  MENU 类型 ⟺ 倒数第 2 段 == 'menu'
+  R2  第 2 段 == module 字段
+  R3  最后 1 段 ∈ 动作受控词表
+  R4  段数 >= 3 且第 1 段 == system_code
+  R5  同前缀下 MENU 至多一条
+  R6  模板 permission_codes 里的每个码都能在资源表找到（防悬空码 / 静默失权）
+"""
+import re
+
+import pytest
+from django.conf import settings
+
+# 动作受控词表（规范 §3.2）
+ACTION_WHITELIST = {
+    'view', 'list', 'create', 'edit', 'delete', 'export', 'approve', 'assign',
+    'publish', 'close', 'schedule', 'feedback', 'advance', 'reject', 'start', 'stop',
+    'import', 'sync', 'approve_l1', 'approve_l2',
+}
+
+# ===== 已知存量债务白名单（规范 §6）：命中即放行，但要求「债务量不增」 =====
+KNOWN_DEBT_R2_MODULE_MISMATCH = {
+    # core.0027_fix_module_field 已修；保留记录以防回退时能立刻发现
+}
+
+# 存量里动作段越界的码（规范 §6）。2026-10-18 实测为 0 —— 全部动作已收进词表，
+# 此处保留常量作为「债务只减不增」的显式基线：后人追加即护栏变红。
+KNOWN_ACTION_OUT_OF_WHITELIST = set()
+
+
+def _load_seed_resources():
+    """直接读 seed 命令的 RESOURCES —— 它是新库初始化的唯一真源，
+    抽样校验会漏掉后人追加的违规项，故全量校验。"""
+    import importlib
+    mod = importlib.import_module(
+        'apps.core.management.commands.seed_v2_init'
+    )
+    return mod.RESOURCES
+
+
+def _parts(code):
+    return code.split(':')
+
+
+class TestSeedResourceConvention:
+    """seed_v2_init.RESOURCES 全量合规校验（新增资源必过此处）。"""
+
+    def test_seed_not_empty(self):
+        assert len(_load_seed_resources()) > 200, 'seed RESOURCES 异常为空/被清空'
+
+    def test_no_duplicate_codes(self):
+        codes = [c for c, *_ in _load_seed_resources()]
+        dupes = {c for c in codes if codes.count(c) > 1}
+        assert not dupes, f'seed 中存在重复资源码：{sorted(dupes)}'
+
+    def test_r4_seg_count_and_system_prefix(self):
+        """R4：段数 >= 3 且第 1 段是系统编码。"""
+        for code, *_ in _load_seed_resources():
+            parts = _parts(code)
+            assert len(parts) >= 3, f'{code} 段数不足 3（规范要求 >= 3）'
+            assert parts[0] == 'recruit', f'{code} 第 1 段应为系统编码 recruit'
+
+    def test_r1_menu_type_matches_kind_segment(self):
+        """R1：MENU 类型 ⟺ 倒数第 2 段为 menu。"""
+        bad = []
+        for code, _name, rtype, _module in _load_seed_resources():
+            kind = _parts(code)[-2]
+            if (rtype == 'MENU') != (kind == 'menu'):
+                bad.append((code, rtype, kind))
+        assert not bad, f'MENU 类型与 menu 种类段不一致（规范 R1）：{bad}'
+
+    def test_r2_second_segment_equals_module_field(self):
+        """R2：第 2 段必须等于 module 字段（否则按模块分组展示时语义错位）。"""
+        bad = []
+        for code, _name, _rtype, module in _load_seed_resources():
+            if not module or code in KNOWN_DEBT_R2_MODULE_MISMATCH:
+                continue
+            if _parts(code)[1] != module:
+                bad.append((code, _parts(code)[1], module))
+        assert not bad, f'第 2 段与 module 字段不一致（规范 R2）：{bad}'
+
+    def test_r3_action_segment_in_whitelist(self):
+        """R3：动作段必须在受控词表内，否则是前端无按钮的僵尸资源。"""
+        bad = [
+            c for c, *_ in _load_seed_resources()
+            if _parts(c)[-1] not in ACTION_WHITELIST
+        ]
+        assert not bad, (
+            f'动作段不在受控词表（规范 R3）：{bad}；'
+            f'新增动作须先更新规范 §3.2 与 ACTION_WHITELIST，并同步前端按钮'
+        )
+
+    def test_r5_one_menu_per_prefix(self):
+        """R5：同一前缀（去掉末尾 kind:action）下 MENU 至多一条。"""
+        seen = {}
+        for code, _name, rtype, _module in _load_seed_resources():
+            if rtype != 'MENU':
+                continue
+            prefix = ':'.join(_parts(code)[:-2])
+            assert prefix not in seen, (
+                f'前缀 {prefix} 下有多条 MENU：{seen.get(prefix)} 与 {code}'
+            )
+            seen[prefix] = code
+
+
+@pytest.mark.django_db
+class TestDbResourceConvention:
+    """库内实际资源的护栏（存量白名单放行，新违规拦下）。"""
+
+    def test_r2_no_new_module_mismatch(self):
+        """R2：module 字段必须等于编码第 2 段（0027 迁移后应零违规）。"""
+        from apps.core.models_permission_v2 import PermissionResource
+        bad = [
+            r.resource_code for r in PermissionResource.objects.all()
+            if len(_parts(r.resource_code)) >= 2
+            and r.module
+            and _parts(r.resource_code)[1] != r.module
+            and r.resource_code not in KNOWN_DEBT_R2_MODULE_MISMATCH
+        ]
+        assert not bad, (
+            f'以下资源 module 字段与编码第 2 段不一致（规范 R2）：{bad}'
+        )
+
+    def test_r3_no_new_action_outside_whitelist(self):
+        """R3：启用资源的动作段必须在受控词表内。
+
+        存量越界项登记在 KNOWN_ACTION_OUT_OF_WHITELIST（规范 §6）。
+        该白名单**只许变短不许变长** —— 新增项即视为新违规。
+        """
+        from apps.core.models_permission_v2 import PermissionResource
+        bad = {
+            r.resource_code for r in PermissionResource.objects.filter(status=1)
+            if _parts(r.resource_code)[-1] not in ACTION_WHITELIST
+        }
+        unexpected = bad - KNOWN_ACTION_OUT_OF_WHITELIST
+        assert not unexpected, (
+            f'以下启用资源的动作段不在受控词表（规范 R3）：{sorted(unexpected)}；'
+            f'若确需新动作，先更新规范 §3.2 + ACTION_WHITELIST + KNOWN 白名单，并同步前端按钮'
+        )
+
+    def test_r4_system_prefix_consistent(self):
+        """R4：第 1 段必须等于 system_code 字段。"""
+        from apps.core.models_permission_v2 import PermissionResource
+        bad = [
+            r.resource_code for r in PermissionResource.objects.all()
+            if _parts(r.resource_code)[0] != r.system_code
+        ]
+        assert not bad, f'以下资源第 1 段与 system_code 不一致（规范 R4）：{bad}'
+
+    def test_r6_template_codes_all_exist(self):
+        """R6（P0）：模板里的每个码都必须在资源表中存在。
+
+        背景：`permission_templates.permission_codes` 是 JSON 数组存码字面量，
+        迁移/级联完全不覆盖它。资源被改名或删除后模板会留下悬空码 →
+        该身份**静默丢失**对应功能，不报错、测不出。本测试是唯一的护栏。
+        """
+        from apps.core.models_permission_v2 import PermissionResource, PermissionTemplate
+        existing = set(PermissionResource.objects.values_list('resource_code', flat=True))
+        dangling = {}
+        for tpl in PermissionTemplate.objects.all():
+            missing = [c for c in (tpl.permission_codes or []) if c not in existing]
+            if missing:
+                dangling[tpl.template_code] = missing
+        assert not dangling, (
+            f'权限模板存在悬空资源码（会导致身份静默失权）：{dangling}'
+        )
+
+    def test_template_codes_cover_all_enabled_resources(self):
+        """模板应覆盖全部启用资源（实测 4 模板覆盖 285/285）。
+
+        反向护栏：若某资源**从未**被任何模板收录，新建模板时容易漏带，
+        这里只做统计输出提醒不断言 —— 覆盖率不足未必是 bug（可能有意的窄模板）。
+        """
+        from apps.core.models_permission_v2 import PermissionResource, PermissionTemplate
+        all_codes = set()
+        for tpl in PermissionTemplate.objects.all():
+            all_codes |= set(tpl.permission_codes or [])
+        enabled = PermissionResource.objects.filter(status=1)
+        uncovered = [
+            r.resource_code for r in enabled if r.resource_code not in all_codes
+        ]
+        print(
+            f'\n[模板覆盖] 启用 {enabled.count()} 条 / 模板收录 {len(all_codes)} 条'
+            f' / 未收录 {len(uncovered)} 条'
+        )
+
+    def test_r1_menu_type_consistency_db(self):
+        """R1（库内）：MENU 类型 ⟺ 倒数第 2 段为 menu。"""
+        from apps.core.models_permission_v2 import PermissionResource
+        bad = []
+        for r in PermissionResource.objects.all():
+            kind = _parts(r.resource_code)[-2] if len(_parts(r.resource_code)) >= 2 else ''
+            if r.resource_type == 'MENU' and kind != 'menu':
+                bad.append((r.resource_code, 'MENU 但种类段非 menu'))
+            if r.resource_type != 'MENU' and kind == 'menu':
+                bad.append((r.resource_code, f'{r.resource_type} 却用了 menu 段'))
+        assert not bad, f'资源类型与编码种类段不一致（规范 R1）：{bad}'
+
+
+def test_convention_doc_exists():
+    """规范文档是本护栏的判据来源，缺失即护栏失去依据。"""
+    from pathlib import Path
+    # BASE_DIR = <repo>/apps/django，文档在 <repo>/docs → 上溯两级
+    doc = Path(settings.BASE_DIR).parent.parent / 'docs' / 'DESIGN_资源编码规范.md'
+    assert doc.exists(), f'规范文档缺失：{doc}'
+    assert '受控词表' in doc.read_text(encoding='utf-8')
