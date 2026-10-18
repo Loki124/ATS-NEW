@@ -13,7 +13,7 @@
  */
 
 /** 模板分类标识 */
-export type TemplateCategory = 'list' | 'form' | 'modal' | 'config' | 'component' | 'rules' | 'doc';
+export type TemplateCategory = 'list' | 'form' | 'modal' | 'config' | 'component' | 'button' | 'rules' | 'doc';
 
 /** 单个模板的元数据 */
 export interface TemplateMeta {
@@ -63,6 +63,7 @@ export const CATEGORIES: CategoryMeta[] = [
   { key: 'modal', label: 'uiTemplates.cat.modal', desc: '卡片式编辑弹窗与确认对话框的两类标准形态' },
   { key: 'config', label: 'uiTemplates.cat.config', desc: '分组卡片 + 脏检查 + 统一保存栏' },
   { key: 'component', label: 'uiTemplates.cat.component', desc: '可复用组件与 composable 的引用约定' },
+  { key: 'button', label: 'uiTemplates.cat.button', desc: '主/次/幽灵/危险四态与交互六状态，图标间距固定 4px' },
   { key: 'rules', label: 'uiTemplates.cat.rules', desc: '全站硬规则的活演示：列对齐 / 弹窗宽度 / 间距 / 按钮状态 / 令牌' },
   { key: 'doc', label: 'uiTemplates.cat.doc', desc: '《前端UI样式文档》结构化全文输出' },
 ];
@@ -183,7 +184,6 @@ export const TEMPLATES: TemplateMeta[] = [
       'pages/settings/DepartmentManagement.vue（标杆）',
       'pages/settings/JobLevelManagement.vue',
       'pages/settings/RecruitmentStage.vue',
-      'pages/settings/RegistrationApproval.vue',
       'ui-templates/templates/ListTemplate.vue（皮肤 v2 落地载体）',
     ],
     caveats: [
@@ -484,7 +484,49 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
     caveats: ['StateView 目前硬编码中文且不接受 t() 注入，接入前需先改造'],
   },
 
-  // ══════════════════════ 6. 规则标准（活演示） ══════════════════════
+  // ══════════════════════ 6. 按钮模板 ══════════════════════
+  {
+    key: 'button-states',
+    category: 'button',
+    name: '按钮四态与交互状态',
+    summary: '主/次/幽灵/危险四态 + 交互六状态（default/hover/active/focus/loading/disabled），图标与文字间距固定 4px。',
+    code: `<!-- 四态按钮：统一基于 quaternary 基底 + .stpl-btn--* 皮肤类 -->
+<n-button class="stpl-btn stpl-btn--primary" quaternary type="primary">
+  <template #icon><n-icon :component="AddOutline" /></template>新建角色
+</n-button>
+<n-button class="stpl-btn stpl-btn--default" quaternary>取消</n-button>
+<n-button class="stpl-btn stpl-btn--ghost" quaternary>刷新</n-button>
+<n-button class="stpl-btn stpl-btn--danger" quaternary type="error">
+  <template #icon><n-icon :component="TrashOutline" /></template>删除
+</n-button>
+
+/* 皮肤（纯色 / 无阴影 / 无边框 / 图标间距 4px，落地见 templates/ListTemplate.vue）：
+ * .stpl-btn--primary { background: var(--brand); color: var(--on-brand) }        主按钮：每区仅一个
+ * .stpl-btn--default { background: var(--stpl-inset-bg); color: var(--ink) }     次按钮：取消/返回
+ * .stpl-btn--ghost   { background: transparent; color: var(--ink-soft) }         幽灵：刷新/行内编辑
+ * .stpl-btn--danger  { background: var(--c-error); color: var(--on-brand) }      危险：破坏性操作
+ * .stpl-btn--danger-text { background: transparent; color: var(--c-error-deep) } 行内删除（表格内）
+ * .stpl-btn { border:none; box-shadow:none; --n-icon-margin: var(--space-1) }    通用：无边框无投影 */
+`,
+    rules: [
+      '四态固定：主按钮（brand 实色，每视觉区仅一个）/ 次按钮（内嵌底实色）/ 幽灵按钮（透明底）/ 危险按钮（c-error 实色）',
+      '主按钮唯一性：同一工具栏/弹窗 footer 只放一个主按钮，其余降级为次/幽灵，避免多主争抢',
+      '危险操作按钮保留 type="error" —— 危险色是安全信号，不允许改成中性色',
+      '表格行内操作（编辑/删除）用幽灵 + danger-text 文字按钮，不用实色，保持行内清爽',
+      '交互六态齐全：default / hover / active / focus-visible / loading / disabled；异步提交 loading 期间必须 disabled',
+      '图标与文字间距固定 4px（--n-icon-margin: var(--space-1)），不随按钮尺寸变化',
+      '同组按钮要么全有 icon 要么全无；操作列 size 一律引用 OP_ACTION_BUTTON_SIZE',
+      '按钮基于 quaternary 基底（不渲染 __border），避开 .settings-scroll 全局渐变注入规则',
+    ],
+    references: [
+      'ui-templates/templates/ListTemplate.vue（皮肤载体：工具条/表格行内实例）',
+      'docs/04-ui/frontend-layout-standard.md §1.8.1/§1.10（同组 icon 一致性 · 皮肤规范）',
+      'composables/useTableColumns.ts（OP_ACTION_BUTTON_SIZE 唯一真源）',
+    ],
+    caveats: ['行内删除用 danger-text（无底红字）而非 danger（实色红底）：表格行内实色块会严重干扰扫读'],
+  },
+
+  // ══════════════════════ 7. 规则标准（活演示） ══════════════════════
   {
     key: 'rules-playground',
     category: 'rules',

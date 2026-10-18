@@ -1,0 +1,102 @@
+/**
+ * button-skin.css — 按钮皮肤 v2（2026-10-18 兵哥专项规范）
+ *
+ * 定位：模板中心的按钮/列表模板共享皮肤。**全局文件但类名带 .stpl- 前缀**，
+ * 只影响显式挂载该类的元素，对未使用的其它页面零视觉影响；
+ * 兵哥确认全局推行时，本文件内容原样并入 glass.css 即可。
+ *
+ * 皮肤规范（与 docs/04-ui/frontend-layout-standard.md §1.10 同源）：
+ *   1. 纯色背景（禁渐变禁 blur） 2. 无投影 3. 无边框、背景色差异分区
+ *   4. 间距 8px 对齐 5. 按钮四态（主/次/幽灵/危险） 6. 边距成对
+ *   7. 图标与文字间距固定 4px
+ */
+
+/* ── 分区三级纯色令牌：页底 < 内嵌 < 面板（背景色差异区分，无边框）── */
+.stpl-root {
+  --stpl-page-bg: color-mix(in srgb, var(--ink) 3%, var(--surface));
+  --stpl-inset-bg: color-mix(in srgb, var(--ink) 6%, var(--surface));
+  --stpl-panel-bg: var(--surface);
+  --stpl-gap-page: var(--space-6);   /* 24px：区块与区块 */
+  --stpl-gap-inner: var(--space-4);  /* 16px：容器内 */
+  --stpl-gap-tight: var(--space-2);  /* 8px：紧密元素 */
+  --stpl-icon-gap: var(--space-1);   /* 4px：按钮图标与文字 */
+}
+
+/* ── 按钮通用：纯色、无阴影、无边框、圆角小、图标间距 4px ──
+ * 基于 naive quaternary 基底：quaternary 不渲染 __border，天然避开
+ * .settings-scroll 全局渐变注入规则（:has(> .n-button__border)），零特异性冲突。 */
+.stpl-btn {
+  border: none;
+  box-shadow: none;
+  border-radius: var(--radius-sm);
+  font-weight: 400;
+  --n-icon-margin: var(--stpl-icon-gap);
+}
+/* 兜底：naive 若以 margin 方式实现 icon 间距，直接钉死 4px */
+.stpl-btn .n-button__icon {
+  margin-right: var(--stpl-icon-gap);
+  margin-left: 0;
+}
+.stpl-btn .n-button__content {
+  margin-left: 0;
+}
+
+/* 主按钮：品牌实色底 + 白字（hover/pressed 由 brand 派生，不引用不存在的令牌） */
+.stpl-btn--primary {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+.stpl-btn--primary:hover {
+  background: color-mix(in srgb, var(--on-brand) 12%, var(--brand));
+  color: var(--on-brand);
+}
+.stpl-btn--primary:active {
+  background: color-mix(in srgb, var(--ink) 14%, var(--brand));
+}
+
+/* 次按钮：内嵌底实色 + 主文本色（取消 / 返回） */
+.stpl-btn--default {
+  background: var(--stpl-inset-bg);
+  color: var(--ink);
+}
+.stpl-btn--default:hover {
+  background: color-mix(in srgb, var(--ink) 10%, var(--surface));
+  color: var(--ink);
+}
+
+/* 幽灵按钮：透明底 + 次要文本色（刷新 / 行内编辑） */
+.stpl-btn--ghost {
+  background: transparent;
+  color: var(--ink-soft);
+}
+.stpl-btn--ghost:hover {
+  background: var(--stpl-inset-bg);
+  color: var(--ink);
+}
+
+/* 危险按钮：实色 error 底 + 白字（破坏性操作） */
+.stpl-btn--danger {
+  background: var(--c-error);
+  color: var(--on-brand);
+}
+.stpl-btn--danger:hover {
+  background: var(--c-error-deep);
+  color: var(--on-brand);
+}
+
+/* 行内危险文字按钮：无底红字（表格行内删除，保持行内清爽） */
+.stpl-btn--danger-text {
+  background: transparent;
+  color: var(--c-error-deep);
+}
+.stpl-btn--danger-text:hover {
+  background: var(--c-error-soft);
+  color: var(--c-error-deep);
+}
+
+/* loading / disabled：去阴影 + 降透明 */
+.stpl-btn.n-button--loading,
+.stpl-btn.n-button--disabled {
+  box-shadow: none;
+  opacity: .6;
+}

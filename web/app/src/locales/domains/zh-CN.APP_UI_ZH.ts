@@ -1579,3 +1579,4 @@ export const APP_UI_ZH: Record<string, string> = {
   'uiTemplates.cat.rules': "规则",
   'uiTemplates.cat.doc': "样式文档",
 }
+  'uiTemplates.cat.button': "按钮",

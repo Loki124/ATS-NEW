@@ -140,6 +140,7 @@ export const STYLE_GUIDE_DOC: DocSection[] = [
       { level: 'must', text: '间距只用 --space-*（4/8/16/24…），容器边距成对出现：padding 上下、左右各自对称' },
       { level: 'must', text: '按钮四态固定：主按钮 = brand 实色 + 白字；次按钮 = 内嵌底实色 + 主文本；幽灵按钮 = 透明底 + 次要文本；危险按钮 = c-error 实色 + 白字' },
       { level: 'must', text: '按钮图标与文字间距固定 4px（--n-icon-margin: var(--space-1)）' },
+      { level: 'note', text: '按钮四态已独立为「按钮」页签（四态定义 + 工具条/弹窗 footer/表格行内/破坏性确认四个场景的模拟数据演示）' },
       { level: 'note', text: '实现要点：按钮基于 quaternary 基底（不渲染 __border，天然避开设置页全局渐变注入规则），皮肤用 .stpl-btn--* 类自绘，冲突零风险' },
       { level: 'note', text: '令牌从现有语义色派生（color-mix），不新增设计令牌、不硬编码 hex' },
     ],

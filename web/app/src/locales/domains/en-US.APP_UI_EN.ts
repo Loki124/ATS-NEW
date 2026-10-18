@@ -1580,3 +1580,4 @@ export const APP_UI_EN: Record<string, string> = {
   'uiTemplates.cat.rules': "Rules",
   'uiTemplates.cat.doc': "Style Guide",
 }
+  'uiTemplates.cat.button': "Button",

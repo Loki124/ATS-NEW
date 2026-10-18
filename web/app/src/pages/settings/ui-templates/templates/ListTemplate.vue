@@ -2,14 +2,13 @@
   <!--
     ListTemplate.vue — 设置页列表模板（乙系 · 皮肤规范 v2，2026-10-18 兵哥专项调整）
 
-    皮肤 7 条规范（仅限本模板，不影响其他页面；全局化时把 .stpl-* 样式搬入 glass.css）：
+    皮肤 7 条规范（见 templates/button-skin.css 与 <style>，仅模板级局部，
+    不影响其他页面；全局化时原样搬入 glass.css）：
       1. 纯色背景：分区三级纯色（页底 < 内嵌 < 面板），禁渐变、禁 backdrop 模糊
-      2. 按钮无阴影：box-shadow 全清
-      3. 无边框：border 全清，分区只靠背景色差异
-      4. 间距 8px 对齐：--space-1/2/4/6/8（4/8/16/24/32）
-      5. 按钮四态：主(实色brand)/次(浅灰)/幽灵(透明)/危险(实色error)
-      6. 容器边距成对：上下、左右各自对称
-      7. 图标与文字间距固定 4px（--space-1）
+      2. 按钮无阴影 3. 无边框：分区只靠背景色差异
+      4. 间距 8px 对齐 5. 按钮四态（独立「按钮」页签展示）
+      6. 容器边距成对 7. 图标与文字间距固定 4px
+    渲染效果区带完整模拟数据（6 行角色 + 空态双态切换），可直接操作。
   -->
   <div class="stpl-root">
     <!-- 页头：与内容区间距 24px（--space-6） -->
@@ -20,7 +19,7 @@
       </div>
     </div>
 
-    <!-- 主体：面板内上下 16px、左右 16px（成对）；面板与页头间距 24px -->
+    <!-- 主体：面板上下 16px（成对）；面板与页头间距 24px -->
     <div class="stpl-body">
       <div class="stpl-panel">
         <!-- 工具条：与表格区间距 8px（--space-2）；左搜索/筛选 + 右操作 -->
@@ -41,49 +40,36 @@
             placeholder="状态"
           />
           <div class="spacer"></div>
+          <!-- 幽灵按钮：刷新 -->
           <n-button class="stpl-btn stpl-btn--ghost" quaternary @click="refresh">
             <template #icon><n-icon :component="RefreshOutline" /></template>
             刷新
           </n-button>
+          <!-- 幽灵按钮：切换空态演示 -->
+          <n-button class="stpl-btn stpl-btn--ghost" quaternary @click="emptyDemo = !emptyDemo">
+            <template #icon><n-icon :component="EyeOutline" /></template>
+            {{ emptyDemo ? '恢复数据' : '模拟空态' }}
+          </n-button>
+          <!-- 主按钮：本视觉区唯一 -->
           <n-button class="stpl-btn stpl-btn--primary" quaternary type="primary" @click="create">
             <template #icon><n-icon :component="AddOutline" /></template>
             新建角色
           </n-button>
         </div>
 
-        <!-- 表格：flex 撑满，仅表体滚动 -->
+        <!-- 表格：flex 撑满面板，仅表体内部滚动 -->
         <div class="table-wrap">
           <n-data-table
             :columns="columns"
-            :data="rows"
+            :data="displayRows"
             :row-key="(r: DemoRow) => r.id"
             :bordered="false"
             flex-height
           >
             <template #empty>
-              <n-empty :description="rows.length === 0 ? '暂无角色数据' : '没有匹配当前搜索/筛选条件的角色'" />
+              <n-empty :description="emptyDemo ? '暂无角色数据' : '没有匹配当前搜索/筛选条件的角色'" />
             </template>
           </n-data-table>
-        </div>
-      </div>
-
-      <!-- 按钮四态速览：主 / 次 / 幽灵 / 危险（间距 8px） -->
-      <div class="stpl-panel stpl-btn-spec">
-        <p class="stpl-spec-title">按钮四态（图标与文字间距固定 4px）</p>
-        <div class="stpl-btn-row">
-          <n-button class="stpl-btn stpl-btn--primary" quaternary type="primary">
-            <template #icon><n-icon :component="AddOutline" /></template>
-            主按钮
-          </n-button>
-          <n-button class="stpl-btn stpl-btn--default" quaternary>
-            <template #icon><n-icon :component="RefreshOutline" /></template>
-            次按钮
-          </n-button>
-          <n-button class="stpl-btn stpl-btn--ghost" quaternary>幽灵按钮</n-button>
-          <n-button class="stpl-btn stpl-btn--danger" quaternary type="error">
-            <template #icon><n-icon :component="TrashOutline" /></template>
-            危险按钮
-          </n-button>
         </div>
       </div>
     </div>
@@ -94,18 +80,26 @@
 /**
  * ListTemplate.vue — 设置页列表模板（乙系）的皮肤规范 v2 落地载体
  *
- * 定位：模板中心「数据列表 → 独立设置页列表」的渲染预览。结构骨架与
- * templateRegistry.ts 的 list-standalone code 一致；皮肤（纯色/无边框/
- * 无阴影/四态按钮/4px 图标间距）全部收敛在本文件 scoped 内，
+ * 定位：模板中心「数据列表 → 独立设置页列表」的渲染预览。
+ * 结构骨架与 templateRegistry.ts 的 list-standalone code 一致；皮肤收敛在
+ * templates/button-skin.css（按钮）+ 本文件 scoped（布局），
  * 不碰 glass.css 全局样式、不影响任何业务页面。
  *
- * 全局推行路径（兵哥确认方案后）：把 <style> 中的 .stpl-* 令牌与覆写
- * 原样搬入 glass.css 的对应区块即可，结构零改动。
+ * 全局推行路径（兵哥确认方案后）：把 button-skin.css 与 .stpl-* 布局
+ * 原样搬入 glass.css 即可，结构零改动。
  */
-import { ref, h } from 'vue'
+import { ref, computed, h } from 'vue'
 import { NDataTable, NSpace, NButton, NIcon, useMessage } from 'naive-ui'
-import { AddOutline, RefreshOutline, CreateOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
+import {
+  AddOutline,
+  RefreshOutline,
+  CreateOutline,
+  TrashOutline,
+  SearchOutline,
+  EyeOutline,
+} from '@vicons/ionicons5'
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
+import './button-skin.css'
 
 const message = useMessage()
 
@@ -118,24 +112,37 @@ interface DemoRow {
 
 const keyword = ref('')
 const statusFilter = ref<string | null>(null)
+const emptyDemo = ref(false)
 const statusOptions = [
   { label: '启用', value: 'ACTIVE' },
   { label: '停用', value: 'INACTIVE' },
 ]
 
-const rows = ref<DemoRow[]>([
+const allRows = ref<DemoRow[]>([
   { id: 1, code: 'ROLE_ADMIN', count: 42, desc: '拥有全部数据权限，可管理身份与字典配置' },
   { id: 2, code: 'ROLE_HRBP', count: 18, desc: '负责所辖部门的人事业务' },
   { id: 3, code: 'ROLE_HR', count: 12, desc: '负责需求发布与候选人推进' },
   { id: 4, code: 'ROLE_TB', count: 6, desc: '仅查看所辖团队需求与简历' },
+  { id: 5, code: 'ROLE_INTERVIEWER', count: 9, desc: '负责面试评价与日程确认' },
+  { id: 6, code: 'ROLE_FINANCE', count: 4, desc: '负责 offer 薪资审批与合同归档' },
 ])
 
+/** 空态演示开 → 「暂无数据」态；关 → 有数据；搜索命中空 → 「筛选无结果」态 */
+const displayRows = computed<DemoRow[]>(() => {
+  if (emptyDemo.value) return []
+  const kw = keyword.value.trim()
+  if (!kw) return allRows.value
+  return allRows.value.filter(
+    r => r.code.includes(kw.toUpperCase()) || r.desc.includes(kw)
+  )
+})
+
 const columns = [
-  column({ title: '编码', key: 'code', width: 160 }, 'short'),
-  column({ title: '权限码数', key: 'count', width: 100 }, 'numeric'),
+  column({ title: '编码', key: 'code', width: 200 }, 'short'),
+  column({ title: '权限码数', key: 'count', width: 110 }, 'numeric'),
   column({ title: '说明', key: 'desc', width: 320 }, 'text'),
   column({
-    title: '操作', key: 'actions', width: 176, fixed: 'right',
+    title: '操作', key: 'actions', width: 150, fixed: 'right',
     render: (row: DemoRow) => h(NSpace, { size: 8, wrap: false }, () => [
       h(NButton, {
         class: 'stpl-btn stpl-btn--ghost',
@@ -164,20 +171,16 @@ function create() { message.info('新建角色（演示）') }
 </script>
 
 <style scoped>
-/* ═══════════ 皮肤令牌：全部引用现有语义令牌，零硬编码 hex ═══════════
- * 分区三级纯色 —— 页底 < 内嵌 < 面板，靠背景色差异区分，不使用边框。 */
-.stpl-root {
-  --stpl-page-bg: color-mix(in srgb, var(--ink) 3%, var(--surface));
-  --stpl-inset-bg: color-mix(in srgb, var(--ink) 6%, var(--surface));
-  --stpl-panel-bg: var(--surface);
-  --stpl-gap-page: var(--space-6);   /* 24px：区块与区块 */
-  --stpl-gap-inner: var(--space-4);  /* 16px：容器内 */
-  --stpl-gap-tight: var(--space-2);  /* 8px：紧密元素 */
-  --stpl-icon-gap: var(--space-1);   /* 4px：按钮图标与文字 */
+/* ═══════════ 布局皮肤（令牌与按钮皮肤在 templates/button-skin.css 全局定义）═══ */
 
+/* 舞台：定高 + 完整 flex 链，让 .table-wrap + flex-height 拿到确定高度
+ * （缺确定高度时 naive 会把数据行压成 0 高——只渲染表头，即「看不出效果」） */
+.stpl-root {
   background: var(--stpl-page-bg);
   display: flex;
   flex-direction: column;
+  height: 560px;
+  min-height: 0;
   gap: var(--stpl-gap-page);
   padding: var(--stpl-gap-page);            /* 上下左右对称 24px */
   border-radius: var(--radius-lg);
@@ -185,6 +188,7 @@ function create() { message.info('新建角色（演示）') }
 
 /* 页头：无边框，与面板只用背景差异 + 间距区分 */
 .stpl-header {
+  flex: none;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -203,15 +207,20 @@ function create() { message.info('新建角色（演示）') }
   line-height: 1.6;
 }
 
-/* 主体：卡片之间间距 24px */
+/* 主体：撑满剩余高度 */
 .stpl-body {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--stpl-gap-page);
 }
 
-/* 面板：纯色底 + 无边框 + 无阴影 + 无模糊 */
+/* 面板：纯色底 + 无边框 + 无阴影 + 无模糊，撑满主体 */
 .stpl-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--stpl-panel-bg);
   border: none;
   border-radius: var(--radius-lg);
@@ -220,6 +229,7 @@ function create() { message.info('新建角色（演示）') }
 
 /* 工具条：与表格间距 8px */
 .stpl-toolbar {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -227,98 +237,4 @@ function create() { message.info('新建角色（演示）') }
   margin-bottom: var(--stpl-gap-tight);
 }
 .stpl-toolbar .spacer { flex: 1; }
-
-/* ═══════════ 按钮四态皮肤（模板级局部，全局推行时搬入 glass.css）═══════════
- * 全部基于 naive quaternary 基底（不渲染 __border，不会被设置页全局渐变
- * 注入规则命中，特异度冲突零风险）；阴影/渐变/边框一律清除。 */
-.stpl-root :deep(.stpl-btn) {
-  border: none;
-  box-shadow: none;
-  border-radius: var(--radius-sm);
-  font-weight: 400;
-  --n-icon-margin: var(--stpl-icon-gap);   /* 图标与文字固定 4px */
-}
-/* 兜底：若 naive 以 margin 方式实现 icon 间距，直接钉死 4px */
-.stpl-root :deep(.stpl-btn .n-button__icon) {
-  margin-right: var(--stpl-icon-gap);
-  margin-left: 0;
-}
-.stpl-root :deep(.stpl-btn .n-button__content) {
-  margin-left: 0;
-}
-
-/* 主按钮：品牌实色底 + 白字；hover/pressed 由 brand 派生（不引用不存在的令牌） */
-.stpl-root :deep(.stpl-btn--primary) {
-  background: var(--brand);
-  color: var(--on-brand);
-}
-.stpl-root :deep(.stpl-btn--primary:hover) {
-  background: color-mix(in srgb, var(--on-brand) 12%, var(--brand));
-  color: var(--on-brand);
-}
-.stpl-root :deep(.stpl-btn--primary:active) {
-  background: color-mix(in srgb, var(--ink) 14%, var(--brand));
-}
-
-/* 次按钮：浅灰实底 + 主文本色（无边框） */
-.stpl-root :deep(.stpl-btn--default) {
-  background: var(--stpl-inset-bg);
-  color: var(--ink);
-}
-.stpl-root :deep(.stpl-btn--default:hover) {
-  background: color-mix(in srgb, var(--ink) 10%, var(--surface));
-  color: var(--ink);
-}
-
-/* 幽灵按钮：透明底 + 次要文本色，hover 才显底 */
-.stpl-root :deep(.stpl-btn--ghost) {
-  background: transparent;
-  color: var(--ink-soft);
-}
-.stpl-root :deep(.stpl-btn--ghost:hover) {
-  background: var(--stpl-inset-bg);
-  color: var(--ink);
-}
-
-/* 危险按钮：实色 error 底 + 白字 */
-.stpl-root :deep(.stpl-btn--danger) {
-  background: var(--c-error);
-  color: var(--on-brand);
-}
-.stpl-root :deep(.stpl-btn--danger:hover) {
-  background: var(--c-error-deep);
-  color: var(--on-brand);
-}
-/* 行内危险文字按钮（操作列删除）：无底、红色文字，保持表格行清爽 */
-.stpl-root :deep(.stpl-btn--danger-text) {
-  background: transparent;
-  color: var(--c-error-deep);
-}
-.stpl-root :deep(.stpl-btn--danger-text:hover) {
-  background: var(--c-error-soft);
-  color: var(--c-error-deep);
-}
-
-/* loading / disabled 态：去阴影、降透明 */
-.stpl-root :deep(.stpl-btn.n-button--loading),
-.stpl-root :deep(.stpl-btn.n-button--disabled) {
-  box-shadow: none;
-  opacity: .6;
-}
-
-/* ═══════════ 按钮四态速览区 ═══════════ */
-.stpl-btn-spec {
-  background: var(--stpl-inset-bg);
-}
-.stpl-spec-title {
-  margin: 0 0 var(--stpl-gap-tight);
-  font-size: var(--text-meta);
-  color: var(--ink-soft);
-}
-.stpl-btn-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--stpl-gap-tight);
-}
 </style>

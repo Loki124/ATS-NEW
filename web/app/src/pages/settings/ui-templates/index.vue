@@ -184,6 +184,7 @@ import FormDemo from './demos/FormDemo.vue'
 import ConfigDemo from './demos/ConfigDemo.vue'
 import ComponentDemo from './demos/ComponentDemo.vue'
 import RulesDemo from './demos/RulesDemo.vue'
+import ButtonDemo from './demos/ButtonDemo.vue'
 import StyleDoc from './StyleDoc.vue'
 import ListTemplate from './templates/ListTemplate.vue'
 
@@ -200,6 +201,7 @@ const DEMO_MAP: Record<string, unknown> = {
   'form-standard': FormDemo,
   'config-page': ConfigDemo,
   'component-contracts': ComponentDemo,
+  'button-states': ButtonDemo,
   'rules-playground': RulesDemo,
 }
 
