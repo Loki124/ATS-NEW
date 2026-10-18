@@ -2130,7 +2130,7 @@ graph TD
 | **D4** | `approve_l1`/`approve_l2` 当前零消费点 → T06 先只下发 `read`/`write`/`destructive` 三组；`approve` 组**暂不在动作墙呈现**（保留权限码，标注「尚未接入审批流」）。不阻塞 T06 主体 | T06 |
 | **D8** | 接受已拟定义：角色级 `default_data_scope_type` 为本部 scope 权威；模块级 `module.mode` 独立**不合并**（DEPT 不含祖先 / DEPT_AND_SUB 含子树，R8 已落实）。UI 文案明示两套语义差异 | T09 |
 | **S4'** | 保守默认：**标注未启用**（代码保留，UI 不暴露；文档 + 后端注释标注「当前不开放配置」），避免管理员误配。后续明确要启用再单独开 | T09 |
-| **原子性** | 推荐默认 **方案 B（单事务）**：整次保存用 `@transaction.atomic` 包裹，任一维度（读/写/字段）失败整体回滚 + 400 fail-closed，与卡1.2 的 `UnsetWithWriteRowsError` 一致 | T08 |
+| **原子性** | 采用 **方案 A（分步提交 + 前端编排）**：段1 POST 角色 / 段2 PUT 数据权限本就是独立 HTTP 端点，无法跨请求共享单事务；数据权限端点自身已 `@transaction.atomic`（卡1.2 `UnsetWithWriteRowsError`），字段 ACL 独立页（R2）已解耦。每段独立落库，任一段失败仅提示该段、可重试，与现有架构一致 | T08 |
 | **WRITE 迁移对象** | 0 条 WRITE 行 → **不主动迁移**；改为「上线后增量守卫」（新建写范围走标准 upsert，防旧格式孤儿行；运行时校验无 legacy WRITE 行）。未来若回填另立专项 | T10（解除阻塞） |
 | **原型** | **走兜底**：不依赖 Alice 原型，按 AGENTS.md R-202/R-106 用 naive-ui `Drawer` + `Tabs` 兜底实现「身份与功能 / 数据与操作权限」两段式 + 抽屉交互，交互合规即可 | T07（解除阻塞） |
 
