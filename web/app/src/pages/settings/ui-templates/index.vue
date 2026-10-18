@@ -171,6 +171,8 @@ import {
   GLOBAL_CLASSES,
   COLUMN_TIERS,
   MODAL_WIDTHS,
+  PAGINATION_SPEC,
+  BUTTON_STATES,
   templatesByCategory,
   type TemplateCategory,
   type TemplateMeta,
@@ -256,19 +258,26 @@ const relatedTables = computed<{ title: string; rows: SpecRow[] }[]>(() => {
     case 'list':
       return [
         { title: '列对齐四档（useTableColumns 单一真源）', rows: COLUMN_TIERS },
+        { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
       ]
     case 'modal':
       return [
         { title: '弹窗宽度档位（由站内存量 20+ 种收敛）', rows: MODAL_WIDTHS },
       ]
+    case 'button':
+      return [
+        { title: '按钮 6 态判定标准（4 类通用，差别只在取色）', rows: BUTTON_STATES },
+      ]
     case 'rules':
       return [
         { title: '列对齐四档（useTableColumns 单一真源）', rows: COLUMN_TIERS },
+        { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
         { title: '弹窗宽度档位（由站内存量 20+ 种收敛）', rows: MODAL_WIDTHS },
         { title: '全局基础类（glass.css 提供，页面禁止重复定义）', rows: GLOBAL_CLASSES },
       ]
     case 'component':
       return [
+        { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
         { title: '全局基础类（glass.css 提供，页面禁止重复定义）', rows: GLOBAL_CLASSES },
       ]
     default:

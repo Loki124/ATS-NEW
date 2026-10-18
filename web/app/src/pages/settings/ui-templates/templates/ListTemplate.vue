@@ -104,6 +104,8 @@ import {
   EyeOutline,
 } from '@vicons/ionicons5'
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
+// 🔴 分页统一入口：禁在本页手写 { pageSize: N } 或自造 prefix（兵哥 2026-10-18 16:00 指定）
+import { remotePagination, TABLE_PAGE_SIZE } from '@/composables/useTablePagination'
 import './button-skin.css'
 
 const message = useMessage()
@@ -119,7 +121,7 @@ const keyword = ref('')
 const statusFilter = ref<string | null>(null)
 const emptyDemo = ref(false)
 const page = ref(1)
-const pageSize = 4
+const pageSize = ref(TABLE_PAGE_SIZE)
 const statusOptions = [
   { label: '启用', value: 'ACTIVE' },
   { label: '停用', value: 'INACTIVE' },
@@ -146,21 +148,27 @@ const displayRows = computed<DemoRow[]>(() => {
 
 /** 分页切片：remote 模式 + 本地 mock，真实页面把这段换成后端 count/page 即可 */
 const pagedRows = computed<DemoRow[]>(() => {
-  const start = (page.value - 1) * pageSize
-  return displayRows.value.slice(start, start + pageSize)
+  const start = (page.value - 1) * pageSize.value
+  return displayRows.value.slice(start, start + pageSize.value)
 })
 
-const pagination = computed(() => ({
-  page: page.value,
+/**
+ * 🔴 分页配置统一走 remotePagination（composable 单一真源）：
+ * 产出「共 N 条 │ ‹ 1 2 › │ 20 / 页 ▾ │ 跳至 [__]」标准形态，
+ * 含 showSizePicker（pageSizes 10/20/50/100）+ showQuickJumper。
+ * 本页禁手写 { pageSize: N } / 自造 prefix —— 见 composables/useTablePagination.ts 头注。
+ */
+const pagination = remotePagination({
+  page,
+  itemCount: computed(() => displayRows.value.length),
   pageSize,
-  itemCount: displayRows.value.length,
-  showSizePicker: false,
-  prefix: ({ itemCount }: { itemCount: number }) => `共 ${itemCount} 条`,
-  // 模板页禁用跳页器，避免演示时误跳到空页
-  showQuickJumper: false,
-}))
+  showSizePicker: true,
+  onPageSizeChange: () => {
+    // mock 演示：真实页面在此重新拉取
+  },
+})
 
-/** 搜索变化时回到第 1 页，否则停留在越界页码会显示空表 */
+/** 搜索 / 空态切换时回到第 1 页，否则停留在越界页码会显示空表 */
 watch([keyword, emptyDemo], () => {
   page.value = 1
 })

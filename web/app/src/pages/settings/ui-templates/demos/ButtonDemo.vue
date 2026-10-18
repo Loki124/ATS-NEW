@@ -44,22 +44,29 @@
       </div>
     </section>
 
-    <!-- 2. 六态矩阵（实拍：悬停 / 按下 / Tab 聚焦均可在真实控件上验证） -->
+    <!-- 2. 六态矩阵（强制状态类：6 态并排同屏可见） -->
     <section class="demo-block">
       <div class="demo-block-head">
-        <span class="demo-block-title">六态矩阵 · 逐格可交互实测</span>
-        <n-tag type="info" size="small" :bordered="false">悬停 / 按下 / Tab 聚焦看差异</n-tag>
+        <span class="demo-block-title">六态矩阵 · 6 态同屏并排对比</span>
+        <n-tag type="info" size="small" :bordered="false">force-state 类强制固化</n-tag>
       </div>
       <p class="demo-block-desc">
-        前 5 列是<b>可交互</b>的活按钮（鼠标悬停、按下、Tab 聚焦均即时变化）；
-        失效列强制 <code>disabled</code>。
+        <b>为什么要用强制态类</b>：hover / active / focus 三个态是<b>交互伪类</b>，
+        同一时刻只有一个按钮能进入该态 —— 直接摆一排按钮，视觉上全是默认态，
+        根本对比不出差异。所以把伪类状态<b>固化成 <code>.stpl-btn--force-*</code> 类</b>，
+        让 6 个状态在同一张矩阵里并排可见、可逐格核对。
+        <br />
+        下方每格还可在鼠标真实悬停 / 按下 / Tab 聚焦时叠加真伪类效果，两种验证方式一致。
       </p>
       <div class="matrix-scroll">
         <table class="matrix">
           <thead>
             <tr>
               <th class="matrix-corner">类 \ 态</th>
-              <th v-for="st in stateNames" :key="st.key">{{ st.label }}</th>
+              <th v-for="st in stateNames" :key="st.key" :class="st.key">
+                {{ st.label }}
+                <span class="matrix-statehint">{{ st.hint }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -71,13 +78,15 @@
               <td v-for="st in stateNames" :key="st.key" :class="st.key">
                 <n-button
                   class="stpl-btn"
-                  :class="row.cls"
+                  :class="[row.cls, st.cls]"
                   quaternary
                   :type="row.type"
                   :disabled="st.key === 'disabled'"
-                  :loading="false"
+                  :loading="st.key === 'loading'"
                 >
-                  <template v-if="row.icon" #icon><n-icon :component="row.icon" /></template>
+                  <template v-if="row.icon && st.key !== 'loading'" #icon>
+                    <n-icon :component="row.icon" />
+                  </template>
                   {{ row.label }}
                 </n-button>
               </td>
@@ -85,6 +94,14 @@
           </tbody>
         </table>
       </div>
+      <p class="demo-block-desc matrix-legend">
+        <b>各态判定标准</b>（4 类通用，差别只在取色）：
+        默认 = 该类基色；悬浮 = 基色 +12% 反色混合（主按钮用 <code>--brand-hover</code>）；
+        激活 = 基色 +14% 墨色混合（主按钮用 <code>--brand-pressed</code>，明显更深）；
+        聚焦 = 底色同默认 + <b>2px 品牌色焦点环</b>（偏移 2px，键盘 Tab 可见）；
+        加载 = 底色同默认 + spinner + <code>cursor: wait</code>；
+        失效 = 底色降 30% 不透明 + 文字降为 <code>--ink-faint</code> + <code>not-allowed</code>。
+      </p>
     </section>
 
     <!-- 3. 场景 A：工具条（模拟数据表格） -->
@@ -342,13 +359,19 @@ const specs = [
   },
 ]
 
-/** 六态定义（列头） */
+/**
+ * 六态定义（列头）
+ * 🔴 cls 是「强制状态类」：把 hover/active/focus/loading/disabled 伪类固化成类，
+ *    让 6 态在同一张矩阵里并排可见（否则并排看全是默认态，对比不出差异）。
+ *    ⚠️ 这些类仅供模板中心演示，业务页面不要挂。
+ */
 const stateNames = [
-  { key: 'default', label: '默认' },
-  { key: 'hover', label: '悬浮' },
-  { key: 'active', label: '激活' },
-  { key: 'focus', label: '聚焦' },
-  { key: 'disabled', label: '失效' },
+  { key: 'default', label: '默认', cls: '', hint: '基色' },
+  { key: 'hover', label: '悬浮', cls: 'stpl-btn--force-hover', hint: '基色 +12%' },
+  { key: 'active', label: '激活', cls: 'stpl-btn--force-active', hint: '基色 +14% 墨' },
+  { key: 'focus', label: '聚焦', cls: 'stpl-btn--force-focus', hint: '同底 +2px 焦点环' },
+  { key: 'loading', label: '加载', cls: 'stpl-btn--force-loading', hint: '同底 + spinner' },
+  { key: 'disabled', label: '失效', cls: 'stpl-btn--force-disabled', hint: '降透明 + 淡字' },
 ]
 
 /** 六态矩阵行 = 四类按钮（加载态统一在场景 E 单独演示，避免矩阵里 spinner 干扰对比） */
@@ -558,6 +581,13 @@ const rowActionColumns = [
   color: var(--ink-soft);
   white-space: nowrap;
 }
+.matrix-statehint {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
 .matrix-corner { width: 132px; }
 .matrix-rowhead {
   display: table-cell;
@@ -578,6 +608,12 @@ const rowActionColumns = [
 .matrix tbody tr:hover th {
   background: color-mix(in srgb, var(--ink) 2%, transparent);
 }
+.matrix-legend {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-hairline);
+}
+.matrix-legend b { color: var(--ink); font-weight: 500; }
 
 /* 场景舞台 */
 .scene-stage {

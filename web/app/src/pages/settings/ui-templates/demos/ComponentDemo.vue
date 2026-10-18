@@ -55,7 +55,38 @@
       </div>
     </section>
 
-    <!-- 3. composable 契约 -->
+    <!-- 3. useTablePagination：分页统一模板（系统唯一入口） -->
+    <section class="demo-block">
+      <div class="demo-block-head">
+        <span class="demo-block-title">useTablePagination — 分页统一模板</span>
+        <n-tag type="success" size="small" :bordered="false">24 页在用 · 系统唯一入口</n-tag>
+      </div>
+      <p class="demo-block-desc">
+        统一外观：<b>共 N 条 │ ‹ 1 2 3 › │ [20 / 页 ▾] │ 跳至 [__]</b>。
+        禁在页面里手写 <code>{ pageSize: N }</code>、自造 prefix、或自己算 itemCount ——
+        每页条数与可选项由 <code>TABLE_PAGE_SIZE</code> / <code>TABLE_PAGE_SIZE_OPTIONS</code> 单一真源决定。
+      </p>
+
+      <div class="demo-pager-row">
+        <div class="demo-pager-item">
+          <span class="demo-pager-label">本地分页 localPagination()</span>
+          <n-pagination v-bind="localPg" />
+        </div>
+        <div class="demo-pager-item">
+          <span class="demo-pager-label">远程分页 remotePagination()</span>
+          <n-pagination v-bind="remotePg" @update:page="onRemotePage" />
+        </div>
+      </div>
+
+      <ul class="demo-list">
+        <li v-for="r in paginationRules" :key="r.name">
+          <code>{{ r.name }}</code>
+          <span class="demo-list-desc">{{ r.desc }}</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- 4. composable 契约 -->
     <section class="demo-block">
       <div class="demo-block-head">
         <span class="demo-block-title">composable 契约 — 逻辑单一真源</span>
@@ -84,11 +115,12 @@
  *   3. composable 契约说明（useTableColumns / useTablePagination / useCloseGuard）
  * ⚠️ StateView 内部文案为中文硬编码且不接受 t() 注入，接入业务页前需先做 i18n 改造。
  */
-import { ref } from 'vue'
-import { NIcon } from 'naive-ui'
+import { ref, computed } from 'vue'
+import { NIcon, NPagination } from 'naive-ui'
 import { ReorderThreeOutline } from '@vicons/ionicons5'
 import StateView from '@/components/common/StateView.vue'
 import DraggableList from '@/components/DraggableList.vue'
+import { localPagination, remotePagination } from '@/composables/useTablePagination'
 
 const stateKeys = ['loading', 'empty', 'error', 'partial', 'no-permission', 'offline', 'limit'] as const
 type StateKey = (typeof stateKeys)[number]
@@ -102,9 +134,35 @@ const draggable = ref([
   { id: 4, label: 'Offer 审批' },
 ])
 
+/** 本地分页演示：一口气 11 条，n-pagination 自行切片 */
+const localPg = localPagination()
+
+/** 远程分页演示：服务端给 itemCount，切页触发重新拉取 */
+const remotePage = ref(1)
+const remoteItemCount = ref(11)
+const remotePg = remotePagination({
+  page: remotePage,
+  itemCount: remoteItemCount,
+  onPageChange: () => {
+    // 真实页面在此 fetch
+  },
+})
+
+function onRemotePage(p: number) {
+  remotePage.value = p
+}
+
+const paginationRules = [
+  { name: 'localPagination(pageSize?)', desc: '客户端分页：一口气取全量，n-data-table / n-pagination 自行切片。必须用非受控的 defaultPage / defaultPageSize' },
+  { name: 'remotePagination({ page, itemCount, ... })', desc: '服务端分页：page 与 itemCount 由调用方以 Ref 维护；⚠️ naive 远程分页用 itemCount（非 total）表达总数' },
+  { name: 'TABLE_PAGE_SIZE = 20', desc: '统一默认每页条数，全站唯一；禁页面自定义' },
+  { name: 'TABLE_PAGE_SIZE_OPTIONS', desc: '统一每页条数可选项 [10, 20, 50, 100]；禁页面私加档位' },
+  { name: '禁手写约定', desc: '页面内不得出现 { pageSize: N } 字面量、自造 prefix、或直接给 n-data-table 传 pagination 对象' },
+]
+
 const composables = [
   { name: 'useTableColumns', desc: '列对齐四档工厂 + 操作列规格常量', usage: '28 页在用' },
-  { name: 'useTablePagination', desc: '分页统一入口（local / remote）', usage: '24 页在用' },
+  { name: 'useTablePagination', desc: '分页统一入口（local / remote）', usage: '24 页在用 · 系统唯一' },
   { name: 'useCloseGuard', desc: '弹窗脏数据关闭守卫', usage: '15 页在用' },
 ]
 </script>
@@ -183,6 +241,26 @@ const composables = [
 }
 .demo-list-desc {
   margin-left: var(--space-2);
+  color: var(--ink-soft);
+}
+
+/* 分页统一模板演示 */
+.demo-pager-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-hairline);
+}
+.demo-pager-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.demo-pager-label {
+  font-size: var(--text-meta);
   color: var(--ink-soft);
 }
 </style>

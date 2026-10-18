@@ -41,6 +41,9 @@
 .stpl-btn {
   border: none;
   box-shadow: none;
+  /* 🔴 必须显式清 background-image：全局 glass.css 会给按钮注入 linear-gradient 渐变，
+     只设 background-color 压不住 image 层，渐变会盖在纯色底上 */
+  background-image: none !important;
   border-radius: var(--radius-sm);
   font-weight: 400;
   --n-icon-margin: var(--stpl-icon-gap) !important;
@@ -78,19 +81,19 @@
   --n-color-pressed: var(--brand-pressed) !important;
   --n-color-focus: var(--brand-button) !important;
   --n-color-disabled: var(--brand-button) !important;
-  background: var(--brand-button) !important;
+  background-color: var(--brand-button) !important;
   color: var(--on-brand) !important;
 }
 .stpl-btn--primary:hover {
-  background: var(--brand-hover) !important;
+  background-color: var(--brand-hover) !important;
   color: var(--on-brand) !important;
 }
 .stpl-btn--primary:active {
-  background: var(--brand-pressed) !important;
+  background-color: var(--brand-pressed) !important;
   color: var(--on-brand) !important;
 }
 .stpl-btn--primary.n-button--disabled {
-  background: color-mix(in srgb, var(--on-brand) 30%, var(--brand-button)) !important;
+  background-color: color-mix(in srgb, var(--on-brand) 30%, var(--brand-button)) !important;
   color: color-mix(in srgb, var(--on-brand) 70%, var(--brand-button)) !important;
 }
 
@@ -102,19 +105,19 @@
   --n-color-pressed: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
   --n-color-focus: var(--stpl-inset-bg) !important;
   --n-color-disabled: var(--stpl-inset-bg) !important;
-  background: var(--stpl-inset-bg) !important;
+  background-color: var(--stpl-inset-bg) !important;
   color: var(--ink) !important;
 }
 .stpl-btn--default:hover {
-  background: color-mix(in srgb, var(--ink) 10%, var(--surface)) !important;
+  background-color: color-mix(in srgb, var(--ink) 10%, var(--surface)) !important;
   color: var(--ink) !important;
 }
 .stpl-btn--default:active {
-  background: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
+  background-color: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
   color: var(--ink) !important;
 }
 .stpl-btn--default.n-button--disabled {
-  background: var(--stpl-inset-bg) !important;
+  background-color: var(--stpl-inset-bg) !important;
   color: var(--ink-faint) !important;
 }
 
@@ -132,15 +135,16 @@
   --n-text-color-pressed: var(--ink) !important;
   --n-text-color-focus: var(--ink) !important;
   --n-text-color-disabled: var(--ink-faint) !important;
-  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   color: var(--ink-soft) !important;
 }
 .stpl-btn--ghost:hover {
-  background: var(--stpl-inset-bg) !important;
+  background-color: var(--stpl-inset-bg) !important;
   color: var(--ink) !important;
 }
 .stpl-btn--ghost:active {
-  background: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
+  background-color: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
   color: var(--ink) !important;
 }
 
@@ -153,19 +157,19 @@
   --n-color-pressed: var(--c-error-deep) !important;
   --n-color-focus: var(--c-error) !important;
   --n-color-disabled: var(--c-error) !important;
-  background: var(--c-error) !important;
+  background-color: var(--c-error) !important;
   color: var(--on-brand) !important;
 }
 .stpl-btn--danger:hover {
-  background: color-mix(in srgb, #fff 12%, var(--c-error)) !important;
+  background-color: color-mix(in srgb, #fff 12%, var(--c-error)) !important;
   color: var(--on-brand) !important;
 }
 .stpl-btn--danger:active {
-  background: var(--c-error-deep) !important;
+  background-color: var(--c-error-deep) !important;
   color: var(--on-brand) !important;
 }
 .stpl-btn--danger.n-button--disabled {
-  background: color-mix(in srgb, #fff 40%, var(--c-error)) !important;
+  background-color: color-mix(in srgb, #fff 40%, var(--c-error)) !important;
   color: color-mix(in srgb, var(--on-brand) 70%, var(--c-error)) !important;
 }
 
@@ -184,15 +188,121 @@
   --n-text-color-pressed: var(--c-error-deep) !important;
   --n-text-color-focus: var(--c-error-deep) !important;
   --n-text-color-disabled: var(--ink-faint) !important;
-  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   color: var(--c-error-deep) !important;
 }
 .stpl-btn--danger-text:hover {
-  background: var(--c-error-soft) !important;
+  background-color: var(--c-error-soft) !important;
   color: var(--c-error-deep) !important;
 }
 
 /* 加载态：naive 会盖 loading 图标，仅需去阴影 + 保持文字色可读 */
 .stpl-btn.n-button--loading {
   box-shadow: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 强制状态类（force-state）—— 兵哥 2026-10-18 16:00 追加
+ *
+ * 为什么需要：6 态里 hover / active / focus 都是**交互触发**的伪类，
+ * 同一时刻只有一个按钮能处于该态，六态矩阵里并排看全是默认态，
+ * 根本对比不出差异（兵哥反馈「除了失效其他的样式都是一样的」）。
+ *
+ * 解法：把伪类状态**固化成类**，让 6 个状态能在同一张矩阵里并排对比。
+ * ⚠️ 仅供模板中心演示 / 设计走查使用；业务页面不要挂这些类。
+ * ═══════════════════════════════════════════════════════════════════════════ */
+.stpl-btn--force-hover {
+  --n-color: var(--stpl-force-color-hover) !important;
+  --n-text-color: var(--stpl-force-text-hover) !important;
+  background-color: var(--stpl-force-color-hover) !important;
+  color: var(--stpl-force-text-hover) !important;
+}
+.stpl-btn--force-active {
+  --n-color: var(--stpl-force-color-pressed) !important;
+  --n-text-color: var(--stpl-force-text-pressed) !important;
+  background-color: var(--stpl-force-color-pressed) !important;
+  color: var(--stpl-force-text-pressed) !important;
+}
+.stpl-btn--force-focus {
+  --n-color: var(--stpl-force-color-focus) !important;
+  --n-text-color: var(--stpl-force-text-focus) !important;
+  background-color: var(--stpl-force-color-focus) !important;
+  color: var(--stpl-force-text-focus) !important;
+  /* 焦点环：与 :focus-visible 一致，双保险（force 类脱离真实焦点也可见） */
+  outline: 2px solid var(--brand) !important;
+  outline-offset: 2px !important;
+}
+.stpl-btn--force-loading {
+  /* loading 不换底色（naive 靠 spinner 表达），仅锁死为当前态底色并保留 spinner 位 */
+  --n-color: var(--stpl-force-color) !important;
+  --n-text-color: var(--stpl-force-text) !important;
+  background-color: var(--stpl-force-color) !important;
+  color: var(--stpl-force-text) !important;
+  cursor: wait;
+}
+/* 失效态：底色不透明度降到 35%，文字降到 ink-faint，与六态矩阵里的可交互态拉开对比 */
+.stpl-btn--force-disabled {
+  --n-color: var(--stpl-force-color-disabled) !important;
+  --n-color-hover: var(--stpl-force-color-disabled) !important;
+  --n-color-pressed: var(--stpl-force-color-disabled) !important;
+  --n-text-color: var(--ink-faint) !important;
+  --n-text-color-hover: var(--ink-faint) !important;
+  --n-text-color-pressed: var(--ink-faint) !important;
+  --n-text-color-focus: var(--ink-faint) !important;
+  --n-text-color-disabled: var(--ink-faint) !important;
+  --n-opacity-disabled: 1 !important;
+  background-color: var(--stpl-force-color-disabled) !important;
+  color: var(--ink-faint) !important;
+  cursor: not-allowed;
+}
+
+/* 各类的强制态取色（与对应类的 hover/active/focus 保持同一套值） */
+.stpl-btn--primary {
+  --stpl-force-color: var(--brand-button);
+  --stpl-force-color-hover: var(--brand-hover);
+  --stpl-force-color-pressed: var(--brand-pressed);
+  --stpl-force-color-focus: var(--brand-button);
+  --stpl-force-color-disabled: color-mix(in srgb, var(--on-brand) 30%, var(--brand-button));
+}
+.stpl-btn--default {
+  --stpl-force-color: var(--stpl-inset-bg);
+  --stpl-force-color-hover: color-mix(in srgb, var(--ink) 10%, var(--surface));
+  --stpl-force-color-pressed: color-mix(in srgb, var(--ink) 14%, var(--surface));
+  --stpl-force-color-focus: var(--stpl-inset-bg);
+  --stpl-force-color-disabled: var(--stpl-inset-bg);
+}
+.stpl-btn--ghost {
+  --stpl-force-color: transparent;
+  --stpl-force-color-hover: var(--stpl-inset-bg);
+  --stpl-force-color-pressed: color-mix(in srgb, var(--ink) 14%, var(--surface));
+  --stpl-force-color-focus: var(--stpl-inset-bg);
+  --stpl-force-color-disabled: transparent;
+}
+.stpl-btn--danger {
+  --stpl-force-color: var(--c-error);
+  --stpl-force-color-hover: color-mix(in srgb, #fff 12%, var(--c-error));
+  --stpl-force-color-pressed: var(--c-error-deep);
+  --stpl-force-color-focus: var(--c-error);
+  --stpl-force-color-disabled: color-mix(in srgb, #fff 40%, var(--c-error));
+}
+/* 每类的强制态文字色（背景变深时仍需可读） */
+.stpl-btn--primary,
+.stpl-btn--danger {
+  --stpl-force-text: var(--on-brand);
+  --stpl-force-text-hover: var(--on-brand);
+  --stpl-force-text-pressed: var(--on-brand);
+  --stpl-force-text-focus: var(--on-brand);
+}
+.stpl-btn--default {
+  --stpl-force-text: var(--ink);
+  --stpl-force-text-hover: var(--ink);
+  --stpl-force-text-pressed: var(--ink);
+  --stpl-force-text-focus: var(--ink);
+}
+.stpl-btn--ghost {
+  --stpl-force-text: var(--ink-soft);
+  --stpl-force-text-hover: var(--ink);
+  --stpl-force-text-pressed: var(--ink);
+  --stpl-force-text-focus: var(--ink);
 }

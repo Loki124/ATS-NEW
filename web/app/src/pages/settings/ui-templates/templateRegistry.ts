@@ -101,6 +101,33 @@ export const MODAL_WIDTHS: SpecRow[] = [
   { key: '960px', desc: '多 tab / 字段编排型' },
 ];
 
+/**
+ * 分页统一模板规格（单一真源：composables/useTablePagination.ts）
+ * 兵哥 2026-10-18 16:00 指定：分页组件纳入组件模板作为全站统一模板
+ */
+export const PAGINATION_SPEC: SpecRow[] = [
+  { key: '共 N 条', desc: 'prefix 固定文案，由 totalPrefix() 统一渲染', mono: true },
+  { key: '‹ 1 2 3 ›', desc: '页码器：当前页品牌色实心 + 圆角', mono: true },
+  { key: '20 / 页 ▾', desc: '每页条数选择器，档位固定 [10, 20, 50, 100]', mono: true },
+  { key: '跳至 [__]', desc: '跳页器（showQuickJumper），大结果集必备', mono: true },
+  { key: 'localPagination()', desc: '客户端分页：一口气取全量，组件自行切片；用非受控 defaultPage/defaultPageSize', mono: true },
+  { key: 'remotePagination()', desc: '服务端分页：page + itemCount 由调用方 Ref 维护；⚠️ naive 远程分页用 itemCount（非 total）', mono: true },
+  { key: '禁手写', desc: '页面内不得出现 { pageSize: N } 字面量、自造 prefix、或直接给表格传 pagination 对象', mono: true },
+];
+
+/**
+ * 按钮 6 态判定标准（兵哥 2026-10-18 16:00：4 类 6 态需可并排对比）
+ * 配套强制态类 .stpl-btn--force-*，见 templates/button-skin.css
+ */
+export const BUTTON_STATES: SpecRow[] = [
+  { key: '默认 default', desc: '该类基色：主 = --brand-button，次 = 内嵌底，幽灵 = 透明，危险 = --c-error', mono: true },
+  { key: '悬浮 hover', desc: '基色 + 12% 反色混合；主按钮用 --brand-hover，危险用 12% 白', mono: true },
+  { key: '激活 active', desc: '基色 + 14% 墨色混合（明显更深）；主按钮用 --brand-pressed，危险用 --c-error-deep', mono: true },
+  { key: '聚焦 focus', desc: '底色同默认 + 2px 品牌色焦点环（offset 2px）—— naive 默认只换文字色，必须补', mono: true },
+  { key: '加载 loading', desc: '底色同默认 + spinner + cursor:wait；🔴 必须同时 disabled 防重复提交', mono: true },
+  { key: '失效 disabled', desc: '底色降 30% 不透明 + 文字降 --ink-faint + cursor:not-allowed', mono: true },
+];
+
 /** 全部模板 */
 export const TEMPLATES: TemplateMeta[] = [
   // ══════════════════════ 1. 数据列表模板 ══════════════════════
@@ -456,7 +483,7 @@ const columns = [
     key: 'component-contracts',
     category: 'component',
     name: '可复用组件与 composable 契约',
-    summary: '组件层必须接入 glass.css 全局类体系；通用逻辑下沉到 composable，禁止在页面内重复实现。',
+    summary: '组件层必须接入 glass.css 全局类体系；通用逻辑下沉到 composable，禁止在页面内重复实现。分页组件（useTablePagination）为全站唯一分页模板。',
     code: `// composables/useTableColumns.ts —— 列对齐与操作列规格的唯一真源
 import { column, columns, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import type { ColumnAlignTier, ColumnInput } from '@/composables/useTableColumns'
@@ -467,8 +494,11 @@ import { localPagination, remotePagination, TABLE_PAGE_SIZE } from '@/composable
 // composables/useCloseGuard.ts —— 弹窗脏数据关闭守卫（15 处已复用）
 import { useCloseGuard } from '@/composables/useCloseGuard'`,
     rules: [
+      '🔴 分页组件 = useTablePagination，是全站唯一分页模板（兵哥 2026-10-18 16:00 指定）：外观固定「共 N 条 │ ‹ 1 2 3 › │ 20 / 页 ▾ │ 跳至 [__]」',
+      '🔴 页面内禁出现 { pageSize: N } 字面量、自造 prefix、或直接给 n-data-table 传 pagination 对象；一律 import localPagination / remotePagination',
+      'naive 远程分页用 itemCount（非 total）表达总数，remotePagination 已对齐；切页在 onPageChange 里重新拉取',
       '组件内禁止自建 .toolbar / .table-wrap / .glass-panel 同名样式，一律用全局类',
-      '已定型 composable：useTableColumns（28 页）、useTablePagination（24 页）、useCloseGuard（15 页）',
+      '已定型 composable：useTableColumns（28 页）、useTablePagination（24 页 · 系统唯一）、useCloseGuard（15 页）',
       '单页专用逻辑应下沉为 composable（如草稿、脏检查），禁多页各写各的',
       '通用组件放 components/common/ 且不耦合业务 API；业务组件留在域目录',
       '组件的 props 类型必须导出，供调用方类型标注',
@@ -477,9 +507,10 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
     ],
     references: [
       'composables/useTableColumns.ts',
-      'composables/useTablePagination.ts',
+      'composables/useTablePagination.ts（分页统一模板唯一真源）',
       'composables/useCloseGuard.ts',
       'components/common/StateView.vue（loading/empty/error/partial/no-permission/offline/limit）',
+      'ui-templates/demos/ComponentDemo.vue（分页本地/远程双形态活演示）',
     ],
     caveats: ['StateView 目前硬编码中文且不接受 t() 注入，接入前需先改造'],
   },
@@ -524,9 +555,11 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
       '图标与文字间距固定 4px（--n-icon-margin: var(--space-1)），不随按钮尺寸变化',
       '同组按钮要么全有 icon 要么全无；操作列 size 一律引用 OP_ACTION_BUTTON_SIZE',
       '按钮基于 quaternary 基底（不渲染 __border），避开 .settings-scroll 全局渐变注入规则',
+      '🔴 6 态必须能在同一屏并排对比：hover/active/focus 是交互伪类，同一时刻只有一个按钮能进入 → 模板中心用 .stpl-btn--force-{hover|active|focus|loading|disabled} 把伪类固化成类做实拍矩阵',
+      '🔴 .stpl-btn--force-* 仅供模板中心演示与设计走查，业务页面禁止挂（业务靠真实交互触发伪类）',
     ],
     references: [
-      'ui-templates/templates/button-skin.css（4 类 6 态皮肤唯一载体）',
+      'ui-templates/templates/button-skin.css（4 类 6 态皮肤唯一载体 + 强制态类）',
       'ui-templates/demos/ButtonDemo.vue（六态矩阵实拍 + 五个场景化 mock）',
       'docs/04-ui/frontend-layout-standard.md §1.8.1/§1.10（同组 icon 一致性 · 皮肤规范）',
       'composables/useTableColumns.ts（OP_ACTION_BUTTON_SIZE 唯一真源）',
