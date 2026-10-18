@@ -185,13 +185,14 @@ import ConfigDemo from './demos/ConfigDemo.vue'
 import ComponentDemo from './demos/ComponentDemo.vue'
 import RulesDemo from './demos/RulesDemo.vue'
 import StyleDoc from './StyleDoc.vue'
+import ListTemplate from './templates/ListTemplate.vue'
 
 const { t } = useI18n()
 const message = useMessage()
 
 /** 分类 → Demo 组件映射（注册表 key 与 Demo 文件一一对应） */
 const DEMO_MAP: Record<string, unknown> = {
-  'list-standalone': ListDemo,
+  'list-standalone': ListTemplate,
   'list-embedded': ListDemo,
   'list-columns': ListDemo,
   'modal-card': ModalDemo,

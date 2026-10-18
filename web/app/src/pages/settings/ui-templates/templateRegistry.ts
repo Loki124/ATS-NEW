@@ -127,11 +127,11 @@ export const TEMPLATES: TemplateMeta[] = [
         <n-select v-model:value="statusFilter" :options="statusOptions"
                   :placeholder="t('ph.status')" class="rule-filter-select" clearable />
         <div class="spacer"></div>
-        <!-- 工具按钮：quaternary 文字按钮，主操作保留 primary -->
-        <n-button quaternary @click="onRefresh">
+        <!-- 工具按钮：幽灵按钮 quaternary，主操作实色 primary -->
+        <n-button class="stpl-btn stpl-btn--ghost" quaternary @click="onRefresh">
           <template #icon><n-icon :component="RefreshOutline" /></template>{{ t('act.refresh') }}
         </n-button>
-        <n-button type="primary" class="gradient-btn" @click="onCreate">
+        <n-button class="stpl-btn stpl-btn--primary" quaternary type="primary" @click="onCreate">
           <template #icon><n-icon :component="AddOutline" /></template>{{ t('act.create') }}
         </n-button>
       </div>
@@ -147,7 +147,22 @@ export const TEMPLATES: TemplateMeta[] = [
       </div>
     </div>
   </div>
-</div>`,
+</div>
+
+/* ── 皮肤规范 v2（2026-10-18 兵哥专项调整，模板级局部，全局推行时搬入 glass.css）──
+ * 令牌（纯色三级分区，背景色差异区分，无边框）：
+ *   --stpl-page-bg : color-mix(in srgb, var(--ink) 3%, var(--surface))   页底
+ *   --stpl-inset-bg: color-mix(in srgb, var(--ink) 6%, var(--surface))   内嵌
+ *   --stpl-panel-bg: var(--surface)                                       面板
+ *   --stpl-gap-*   : --space-1/2/4/6 = 4/8/16/24px
+ * 按钮皮肤（quaternary 基底 + .stpl-btn--primary|default|ghost|danger，
+ *   纯色、无渐变、无阴影、图标间距 --space-1）：
+ *   .stpl-btn--primary      { background: var(--brand); color: var(--on-brand) }
+ *   .stpl-btn--default      { background: var(--stpl-inset-bg); color: var(--ink) }
+ *   .stpl-btn--ghost        { background: transparent; color: var(--ink-soft) }
+ *   .stpl-btn--danger       { background: var(--c-error); color: var(--on-brand) }
+ *   .stpl-btn { border:none; box-shadow:none; --n-icon-margin: var(--space-1) }
+ * 提示：quaternary 基底不渲染 __border，不会被设置页全局渐变注入规则命中。 */`,
     rules: [
       '【全站唯一标准 · 2026-10-18 兵哥拍板】新列表页一律用乙系；甲系仅为存量形态，不得在新页面使用',
       '.page-header 只放标题 + 副标题，操作控件一律移入面板内 .toolbar',
@@ -158,14 +173,23 @@ export const TEMPLATES: TemplateMeta[] = [
       '操作列走 column(col, "control")：size 用 OP_ACTION_BUTTON_SIZE、quaternary、删除 type="error"',
       '必须提供 #empty 空态，并区分「无数据」与「筛选无结果」两态',
       '分页用 localPagination()，禁内联 { pageSize: N } 对象',
+      '【皮肤 v2 · 2026-10-18】背景一律纯色（页底<内嵌<面板三级），禁渐变、禁 backdrop 模糊',
+      '【皮肤 v2】组件 box-shadow 一律清除；不用边框线分区，只用背景色差异',
+      '【皮肤 v2】容器边距成对出现：padding 上下、左右各自对称，取值只用 --space-*（8 的倍数）',
+      '【皮肤 v2】按钮四态固定：主=brand 实色 / 次=内嵌底实色 / 幽灵=透明 / 危险=c-error 实色',
+      '【皮肤 v2】按钮图标与文字间距固定 4px（--n-icon-margin: var(--space-1)）',
     ],
     references: [
       'pages/settings/DepartmentManagement.vue（标杆）',
       'pages/settings/JobLevelManagement.vue',
       'pages/settings/RecruitmentStage.vue',
       'pages/settings/RegistrationApproval.vue',
+      'ui-templates/templates/ListTemplate.vue（皮肤 v2 落地载体）',
     ],
-    caveats: ['页面根需保证 flex 链完整：.page-container(height:100%) → .page-body(flex:1) → .panel-shell(flex:1) → .table-wrap(flex:1)'],
+    caveats: [
+      '页面根需保证 flex 链完整：.page-container(height:100%) → .page-body(flex:1) → .panel-shell(flex:1) → .table-wrap(flex:1)',
+      '皮肤 v2 当前仅落地在模板中心（ListTemplate.vue scoped），业务页面仍为全局玻璃外观；全局推行时把 .stpl-* 样式搬入 glass.css 即可',
+    ],
   },
   {
     key: 'list-embedded',

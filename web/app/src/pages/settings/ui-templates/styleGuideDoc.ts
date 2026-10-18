@@ -131,8 +131,22 @@ export const STYLE_GUIDE_DOC: DocSection[] = [
     ],
   },
   {
+    key: 'skin',
+    title: '十一、设置页列表模板皮肤规范（v2 · 2026-10-18）',
+    intro: '页面骨架之上的视觉皮肤七条。当前仅落地在模板中心 ListTemplate.vue（scoped 局部），兵哥确认后搬入 glass.css 全局推行，结构零改动。',
+    items: [
+      { level: 'must', text: '背景一律纯色：分区三级（页底 < 内嵌 < 面板），由背景色差异区分，禁渐变、禁 backdrop 模糊' },
+      { level: 'never', text: '按钮与组件的 box-shadow / 投影；用边框线对不同分区做视觉分隔' },
+      { level: 'must', text: '间距只用 --space-*（4/8/16/24…），容器边距成对出现：padding 上下、左右各自对称' },
+      { level: 'must', text: '按钮四态固定：主按钮 = brand 实色 + 白字；次按钮 = 内嵌底实色 + 主文本；幽灵按钮 = 透明底 + 次要文本；危险按钮 = c-error 实色 + 白字' },
+      { level: 'must', text: '按钮图标与文字间距固定 4px（--n-icon-margin: var(--space-1)）' },
+      { level: 'note', text: '实现要点：按钮基于 quaternary 基底（不渲染 __border，天然避开设置页全局渐变注入规则），皮肤用 .stpl-btn--* 类自绘，冲突零风险' },
+      { level: 'note', text: '令牌从现有语义色派生（color-mix），不新增设计令牌、不硬编码 hex' },
+    ],
+  },
+  {
     key: 'checklist',
-    title: '十、新增页面检查清单',
+    title: '十二、新增页面检查清单',
     intro: '新建页面前逐条过一遍；任何一条不过，Code Review 打回。',
     items: [
       { level: 'must', text: '① 从模板中心复制乙系骨架（?cat=list&tpl=list-standalone），未自造页面结构' },
