@@ -32,15 +32,15 @@
 
 | 令牌 | 值 | 说明 |
 | --- | --- | --- |
-| `--page-pad-x` | `var(--space-6)` = 24px | 桌面（≥768px）页面水平安全边距 |
-| `--page-pad-y` | `var(--space-6)` = 24px | 桌面页面垂直安全边距 |
-| `--page-pad-x-sm` | `var(--space-4)` = 16px | 移动端（≤767px）水平安全边距 |
-| `--page-pad-y-sm` | `var(--space-4)` = 16px | 移动端垂直安全边距 |
+| `--page-pad-x` | `var(--space-4)` = 16px | 桌面（≥768px）页面水平安全边距 |
+| `--page-pad-y` | `var(--space-4)` = 16px | 桌面页面垂直安全边距 |
+| `--page-pad-x-sm` | `var(--space-2)` = 8px | 移动端（≤767px）水平安全边距 |
+| `--page-pad-y-sm` | `var(--space-2)` = 8px | 移动端垂直安全边距 |
 
 **规则**：
 - 直接挂在 Layout 下的页面，根容器使用 `.page-container`，由全局规则统一注入 `padding: var(--page-pad-y) var(--page-pad-x) !important`（防御性 `!important`，禁止 scoped 覆盖）。
 - 设置中心页面：安全边距由 `.settings-scroll` 的 `padding:20px` 提供，`.page-container` 被 `:deep` 清零——**这是唯一允许的清零场景**，且由布局层（非页面）控制，页面不得自行清零。
-- 移动端（≤767px）安全边距**自动降到 16px**：全局 `.page-container` 已用 `@media (max-width: 767px)` 统一收束，页面无需再写；页面 scoped 不得用 `:deep` 等绕过该值（不得低于 16px）。
+- 移动端（≤767px）安全边距**自动降到 8px**：全局 `.page-container` 已用 `@media (max-width: 767px)` 统一收束，页面无需再写；页面 scoped 不得用 `:deep` 等绕过该值（不得低于 8px）。
 
 ### 1.2 容器内边距（Container / Card Padding）
 
@@ -83,12 +83,12 @@
 | `--breakpoint-lg` | 1280px | 桌面 |
 
 - JS 媒体查询、UnoCSS 断点、CSS 媒体查询**必须**对齐这三档，禁止发明 480/920/1100 等散断点。
-- 间距/边距在 ≤767px 下从 24px 收敛到 16px（见 1.1）。
+- 桌面端页面安全边距 16px，移动端（≤767px）进一步收敛到 8px（见 1.1）。
 
 ### 1.7 间距阶梯（Spacing Scale）
 
-全部走 `--space-*`：1=4 / 2=8 / 3=12 / 4=16 / 5=20 / 6=24 / 8=32 / 12=48 / 16=64（px）。
-- 区块间距：`--space-6`（24px）；卡片内：`--space-4`（16px）；表单项间距：`--space-3`（12px）；紧密元素：`--space-2`（8px）。
+全部走 `--space-*`：1=4 / 2=8 / 3=8 / 4=16 / 5=16 / 6=24 / 8=32 / 12=48 / 16=64（px）。（注：`--space-3`/`--space-5` 为兼容档位，取值已向下取整到 8 的倍数：3=8、5=16，详见 tokens.css §8。）
+- 区块间距：`--space-6`（24px）；卡片内：`--space-4`（16px）；表单项间距：`--space-3`（8px）；紧密元素：`--space-2`（8px）。
 - 禁止裸像素间距（如 `margin-top:20px` → `margin-top: var(--space-5)`）。
 
 ### 1.8 组件级 UI 规范（按钮 / 卡片 / Tab 间距 / 圆角）
