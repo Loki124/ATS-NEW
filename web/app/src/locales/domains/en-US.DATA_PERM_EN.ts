@@ -10,6 +10,10 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.card.unset.scopeUnknown': 'system default',
   'dataperm.card.unset.start': 'Start configuring',
   'dataperm.card.summary.empty': 'No conditions configured',
+  // T09 (§10.1 D8): module-level scope and role-level default scope are two independent
+  // settings that do NOT merge — clarify beside the module read-scope selector.
+  'dataperm.card.scopeNote': 'Module-level data scope (this card) and the role default scope (see role basics) are two independent settings and do not merge.',
+  'dataperm.roleScopeNote': 'The role default scope only applies to modules without a separately configured module-level scope.',
   'dataperm.card.ruleCount': '{n} condition group(s)',
   'dataperm.card.configRule': 'Configure Rules',
   'dataperm.card.disabled.superAdmin': 'Super admin has full data access by default',

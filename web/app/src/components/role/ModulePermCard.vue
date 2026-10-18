@@ -78,6 +78,8 @@
         <n-radio-button value="all">{{ t('dataperm.mode.all') }}</n-radio-button>
         <n-radio-button value="scope">{{ t('dataperm.mode.scope') }}</n-radio-button>
       </n-radio-group>
+      <!-- T09（§10.1 D8）：模块级数据范围与角色级默认范围是两套独立设置，不合并 -->
+      <p class="scope-note">{{ t('dataperm.card.scopeNote') }}</p>
     </div>
 
     <!-- 规则摘要区：仅 scope 模式展开 -->
@@ -331,4 +333,10 @@ const driftTags = computed(() =>
 }
 .summary-actions { display: flex; align-items: center; gap: 8px; }
 .count-badge { font-weight: 600; }
+.scope-note {
+  margin: 6px 0 0;
+  font-size: var(--fs-12, 12px);
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
 </style>

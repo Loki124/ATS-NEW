@@ -93,6 +93,9 @@ def resolve_scope(user, resource_code: str = None, app_code: str = None) -> dict
     # app_code 命中 UserRoleV2.app_data_scopes(per-app) 时优先返回其 management_unit_ids;
     # 否则回退到下方全局兜底(UserRoleV2.management_unit_ids).
     # 数据源已合并进 UserRoleV2.app_data_scopes(独立 user_app_data_scope 表已删除).
+    # S4'(2026-10-16 决策台账)：app_data_scopes 当前**不开放配置**——代码实现保留供后续启用，
+    #   前端不暴露其编辑入口、序列化器不暴露写入口；管理员不应以为配了即生效。
+    #   故此处逻辑维持原样，仅以注释固化「未启用」决策，不做任何行为改动。
     if app_code:
         try:
             app_units = []

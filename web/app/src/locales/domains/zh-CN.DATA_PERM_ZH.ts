@@ -10,6 +10,10 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.card.unset.scopeUnknown': '系统默认',
   'dataperm.card.unset.start': '开始配置',
   'dataperm.card.summary.empty': '暂无配置条件',
+  // T09（§10.1 D8）：模块级数据范围与角色级默认范围是两套独立设置，不合并 ——
+  // 在模块卡「看得见什么」选择器旁明示，避免管理员误以为两者会叠加/覆盖。
+  'dataperm.card.scopeNote': '模块级数据范围（本卡）与「角色默认范围」（见角色基础信息）是两套独立设置，不互相合并。',
+  'dataperm.roleScopeNote': '角色默认范围仅作用于未单独配置模块级数据范围的模块。',
   'dataperm.card.ruleCount': '共 {n} 个条件组',
   'dataperm.card.configRule': '配置规则',
   'dataperm.card.disabled.superAdmin': '超级管理员默认拥有全部数据权限',

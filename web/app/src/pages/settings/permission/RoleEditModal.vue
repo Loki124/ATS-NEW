@@ -30,6 +30,8 @@
               clearable
               :placeholder="t('pages.settings.permission.RoleEditModal.s11')"
             />
+            <!-- T09（§10.1 D8）：角色默认范围与模块级数据范围独立，不合并 -->
+            <p class="scope-note">{{ t('dataperm.roleScopeNote') }}</p>
           </n-form-item>
           <n-form-item :label="t('pages.settings.permission.RoleEditModal.s9')">
             <n-input v-model:value="form.description" type="textarea" :rows="2" />
@@ -1170,5 +1172,11 @@ async function onSubmit() {
 }
 .dp-card-slot {
   scroll-margin: 16px;
+}
+.scope-note {
+  margin: 4px 0 0;
+  font-size: var(--fs-12, 12px);
+  line-height: 1.5;
+  color: var(--ink-faint);
 }
 </style>
