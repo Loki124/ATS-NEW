@@ -488,9 +488,9 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
   {
     key: 'button-states',
     category: 'button',
-    name: '按钮四态与交互状态',
-    summary: '主/次/幽灵/危险四态 + 交互六状态（default/hover/active/focus/loading/disabled），图标与文字间距固定 4px。',
-    code: `<!-- 四态按钮：统一基于 quaternary 基底 + .stpl-btn--* 皮肤类 -->
+    name: '按钮 4 类 6 态',
+    summary: '主/次/幽灵/危险 4 类 × 默认/悬浮/激活/聚焦/加载/失效 6 态。仅幽灵按钮默认态无背景，其余三类均为实色底；纯色、无阴影、无边框，图标与文字间距固定 4px。',
+    code: `<!-- 4 类按钮：统一基于 quaternary 基底 + .stpl-btn--* 皮肤类 -->
 <n-button class="stpl-btn stpl-btn--primary" quaternary type="primary">
   <template #icon><n-icon :component="AddOutline" /></template>新建角色
 </n-button>
@@ -500,30 +500,42 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
   <template #icon><n-icon :component="TrashOutline" /></template>删除
 </n-button>
 
-/* 皮肤（纯色 / 无阴影 / 无边框 / 图标间距 4px，落地见 templates/ListTemplate.vue）：
- * .stpl-btn--primary { background: var(--brand); color: var(--on-brand) }        主按钮：每区仅一个
- * .stpl-btn--default { background: var(--stpl-inset-bg); color: var(--ink) }     次按钮：取消/返回
- * .stpl-btn--ghost   { background: transparent; color: var(--ink-soft) }         幽灵：刷新/行内编辑
- * .stpl-btn--danger  { background: var(--c-error); color: var(--on-brand) }      危险：破坏性操作
- * .stpl-btn--danger-text { background: transparent; color: var(--c-error-deep) } 行内删除（表格内）
- * .stpl-btn { border:none; box-shadow:none; --n-icon-margin: var(--space-1) }    通用：无边框无投影 */
-`,
+/* 🔴 皮肤（落地见 templates/button-skin.css）：
+ * 必须同时钉死 --n-color*，否则 naive 的 quaternary inline style 会盖掉 class 里的背景色
+ * .stpl-btn { --n-color: var(--stpl-inset-bg); --n-icon-margin: var(--space-1); border:none; box-shadow:none }
+ * .stpl-btn--primary { --n-color: var(--brand-button); color: var(--on-brand) }  主：每区仅一个
+ * .stpl-btn--default { --n-color: var(--stpl-inset-bg); color: var(--ink) }       次：取消/返回
+ * .stpl-btn--ghost   { --n-color: transparent;      color: var(--ink-soft) }     幽灵：🔴唯一默认无底
+ * .stpl-btn--danger  { --n-color: var(--c-error);   color: var(--on-brand) }      危险：破坏性操作
+ * .stpl-btn--danger-text { --n-color: transparent; color: var(--c-error-deep) }   行内删除（危险类紧凑变体）
+ * .stpl-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px } 焦点环统一
+ *
+ * 🔴 使用前提：组件根节点必须挂 .stpl-root —— 皮肤令牌定义在其上，
+ * 漏挂会导致 var(--stpl-inset-bg) 解析失败、按钮底色消失 */`,
     rules: [
-      '四态固定：主按钮（brand 实色，每视觉区仅一个）/ 次按钮（内嵌底实色）/ 幽灵按钮（透明底）/ 危险按钮（c-error 实色）',
+      '概念是「4 类 6 态」：类 = 主/次/幽灵/危险；态 = 默认/悬浮/激活/聚焦/加载/失效。每类都必须实现全部 6 态',
+      '🔴 仅幽灵按钮默认态无背景（透明底）；主/次/危险三类默认态必须是实色底 —— 缺一层底色会让按钮在浅底上「消失」',
       '主按钮唯一性：同一工具栏/弹窗 footer 只放一个主按钮，其余降级为次/幽灵，避免多主争抢',
-      '危险操作按钮保留 type="error" —— 危险色是安全信号，不允许改成中性色',
-      '表格行内操作（编辑/删除）用幽灵 + danger-text 文字按钮，不用实色，保持行内清爽',
-      '交互六态齐全：default / hover / active / focus-visible / loading / disabled；异步提交 loading 期间必须 disabled',
+      '主按钮用规范令牌 --brand-button（R-210 禁锁 --brand），hover/pressed 用既有 --brand-hover / --brand-pressed，禁自造 color-mix',
+      '危险操作按钮保留 type="error" —— 危险色是安全信号，不允许改成中性色或降级为幽灵按钮',
+      '焦点态必须可见：naive 默认 focus 只换文字色、看不出焦点位置，统一补 outline: 2px solid var(--brand) + outline-offset: 2px',
+      '表格行内操作用幽灵 + danger-text（危险类的紧凑变体，无底红字），不用实色块，保持行内扫读',
+      '异步提交必须 loading + disabled 同时出现，只转圈不禁用会被重复点击',
       '图标与文字间距固定 4px（--n-icon-margin: var(--space-1)），不随按钮尺寸变化',
       '同组按钮要么全有 icon 要么全无；操作列 size 一律引用 OP_ACTION_BUTTON_SIZE',
       '按钮基于 quaternary 基底（不渲染 __border），避开 .settings-scroll 全局渐变注入规则',
     ],
     references: [
-      'ui-templates/templates/ListTemplate.vue（皮肤载体：工具条/表格行内实例）',
+      'ui-templates/templates/button-skin.css（4 类 6 态皮肤唯一载体）',
+      'ui-templates/demos/ButtonDemo.vue（六态矩阵实拍 + 五个场景化 mock）',
       'docs/04-ui/frontend-layout-standard.md §1.8.1/§1.10（同组 icon 一致性 · 皮肤规范）',
       'composables/useTableColumns.ts（OP_ACTION_BUTTON_SIZE 唯一真源）',
     ],
-    caveats: ['行内删除用 danger-text（无底红字）而非 danger（实色红底）：表格行内实色块会严重干扰扫读'],
+    caveats: [
+      '行内删除用 danger-text（无底红字）而非 danger（实色红底）：表格行内实色块会严重干扰扫读；它是危险按钮的紧凑变体，不是第 5 类',
+      'naive 以 inline style 注入 --n-color / --n-text-color，优先级高于 class 选择器：不显式钉死这些变量，自定义背景会被静默盖掉',
+      '皮肤令牌（--stpl-inset-bg 等）定义在 .stpl-root 上，组件根节点必须挂 .stpl-root，否则 var() 解析失败导致底色消失',
+    ],
   },
 
   // ══════════════════════ 7. 规则标准（活演示） ══════════════════════

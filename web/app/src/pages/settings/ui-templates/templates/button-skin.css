@@ -1,5 +1,5 @@
 /**
- * button-skin.css — 按钮皮肤 v2（2026-10-18 兵哥专项规范）
+ * button-skin.css — 按钮皮肤 v3（2026-10-18 兵哥专项规范 · 第二轮调整）
  *
  * 定位：模板中心的按钮/列表模板共享皮肤。**全局文件但类名带 .stpl- 前缀**，
  * 只影响显式挂载该类的元素，对未使用的其它页面零视觉影响；
@@ -7,8 +7,16 @@
  *
  * 皮肤规范（与 docs/04-ui/frontend-layout-standard.md §1.10 同源）：
  *   1. 纯色背景（禁渐变禁 blur） 2. 无投影 3. 无边框、背景色差异分区
- *   4. 间距 8px 对齐 5. 按钮四态（主/次/幽灵/危险） 6. 边距成对
- *   7. 图标与文字间距固定 4px
+ *   4. 间距 8px 对齐 5. 边距成对 6. 图标与文字间距固定 4px
+ *
+ * 🔴 本轮修订（兵哥 15:43 反馈）：
+ *   · 概念从「四态」改为「**4 类 6 态**」：类=主/次/幽灵/危险，态=默认/悬浮/激活/聚焦/加载/失效
+ *   · **仅幽灵按钮默认态无背景**；主/次/危险三类默认态均有实色底
+ *   · 主按钮改用规范令牌 `--brand-button`（R-210 禁锁 `--brand`），hover/pressed 用既有
+ *     `--brand-hover` / `--brand-pressed`，不再 color-mix 私造
+ *   · 焦点态统一 `outline: 2px solid var(--brand) + outline-offset: 2px`（naive 默认 focus
+ *     只换文字色，看不出焦点在哪）
+ *   · 危险按钮六态齐备（含激活态 `--c-error-deep`）
  */
 
 /* ── 分区三级纯色令牌：页底 < 内嵌 < 面板（背景色差异区分，无边框）── */
@@ -16,23 +24,38 @@
   --stpl-page-bg: color-mix(in srgb, var(--ink) 3%, var(--surface));
   --stpl-inset-bg: color-mix(in srgb, var(--ink) 6%, var(--surface));
   --stpl-panel-bg: var(--surface);
-  --stpl-gap-page: var(--space-6);   /* 24px：区块与区块 */
-  --stpl-gap-inner: var(--space-4);  /* 16px：容器内 */
-  --stpl-gap-tight: var(--space-2);  /* 8px：紧密元素 */
-  --stpl-icon-gap: var(--space-1);   /* 4px：按钮图标与文字 */
+  --stpl-row-alt-bg: color-mix(in srgb, var(--ink) 3%, var(--surface));
+  --stpl-th-bg: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  --stpl-gap-page: var(--space-4);  /* 16px：最大容器内边距（兵哥 15:43：24 → 16） */
+  --stpl-gap-inner: var(--space-4); /* 16px：容器内、区块与区块 */
+  --stpl-gap-tight: var(--space-2); /* 8px：紧密元素 */
+  --stpl-icon-gap: var(--space-1);  /* 4px：按钮图标与文字 */
 }
 
-/* ── 按钮通用：纯色、无阴影、无边框、圆角小、图标间距 4px ──
+/* ── 按钮通用：纯色、无阴影、无边框、小圆角、图标间距 4px ──
  * 基于 naive quaternary 基底：quaternary 不渲染 __border，天然避开
- * .settings-scroll 全局渐变注入规则（:has(> .n-button__border)），零特异性冲突。 */
+ * .settings-scroll 全局渐变注入规则（:has(> .n-button__border)），零特异性冲突。
+ * 🔴 必须钉死 --n-color*：naive 以 inline style 注入同名变量，其优先级高于本文件的
+ * class 选择器，不钉死则 .stpl-btn--primary 的背景会被 quaternary 的透明覆盖掉
+ * （兵哥 15:43 反馈「主按钮和危险按钮都看不到了」的根因）。 */
 .stpl-btn {
   border: none;
   box-shadow: none;
   border-radius: var(--radius-sm);
   font-weight: 400;
-  --n-icon-margin: var(--stpl-icon-gap);
+  --n-icon-margin: var(--stpl-icon-gap) !important;
+  --n-color: var(--stpl-inset-bg) !important;
+  --n-color-hover: var(--stpl-inset-bg) !important;
+  --n-color-pressed: var(--stpl-inset-bg) !important;
+  --n-color-focus: var(--stpl-inset-bg) !important;
+  --n-color-disabled: var(--stpl-inset-bg) !important;
+  --n-text-color: var(--ink) !important;
+  --n-text-color-hover: var(--ink) !important;
+  --n-text-color-pressed: var(--ink) !important;
+  --n-text-color-focus: var(--ink) !important;
+  --n-text-color-disabled: var(--ink-faint) !important;
+  --n-opacity-disabled: 1 !important;
 }
-/* 兜底：naive 若以 margin 方式实现 icon 间距，直接钉死 4px */
 .stpl-btn .n-button__icon {
   margin-right: var(--stpl-icon-gap);
   margin-left: 0;
@@ -41,62 +64,135 @@
   margin-left: 0;
 }
 
-/* 主按钮：品牌实色底 + 白字（hover/pressed 由 brand 派生，不引用不存在的令牌） */
+/* 焦点态统一规则：naive 默认 focus 只换文字色，看不出焦点位置 → 补可见焦点环 */
+.stpl-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ───────────────────────── 主按钮 primary ─────────────────────────
+ * 实色底 + 反色字；每个视觉区有且仅有一个（新建 / 保存 / 提交） */
 .stpl-btn--primary {
-  background: var(--brand);
-  color: var(--on-brand);
+  --n-color: var(--brand-button) !important;
+  --n-color-hover: var(--brand-hover) !important;
+  --n-color-pressed: var(--brand-pressed) !important;
+  --n-color-focus: var(--brand-button) !important;
+  --n-color-disabled: var(--brand-button) !important;
+  background: var(--brand-button) !important;
+  color: var(--on-brand) !important;
 }
 .stpl-btn--primary:hover {
-  background: color-mix(in srgb, var(--on-brand) 12%, var(--brand));
-  color: var(--on-brand);
+  background: var(--brand-hover) !important;
+  color: var(--on-brand) !important;
 }
 .stpl-btn--primary:active {
-  background: color-mix(in srgb, var(--ink) 14%, var(--brand));
+  background: var(--brand-pressed) !important;
+  color: var(--on-brand) !important;
+}
+.stpl-btn--primary.n-button--disabled {
+  background: color-mix(in srgb, var(--on-brand) 30%, var(--brand-button)) !important;
+  color: color-mix(in srgb, var(--on-brand) 70%, var(--brand-button)) !important;
 }
 
-/* 次按钮：内嵌底实色 + 主文本色（取消 / 返回） */
+/* ───────────────────────── 次按钮 default ─────────────────────────
+ * 内嵌底实色 + 主文本色；取消 / 返回 / 关闭等非破坏性次要动作 */
 .stpl-btn--default {
-  background: var(--stpl-inset-bg);
-  color: var(--ink);
+  --n-color: var(--stpl-inset-bg) !important;
+  --n-color-hover: color-mix(in srgb, var(--ink) 10%, var(--surface)) !important;
+  --n-color-pressed: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
+  --n-color-focus: var(--stpl-inset-bg) !important;
+  --n-color-disabled: var(--stpl-inset-bg) !important;
+  background: var(--stpl-inset-bg) !important;
+  color: var(--ink) !important;
 }
 .stpl-btn--default:hover {
-  background: color-mix(in srgb, var(--ink) 10%, var(--surface));
-  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 10%, var(--surface)) !important;
+  color: var(--ink) !important;
+}
+.stpl-btn--default:active {
+  background: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
+  color: var(--ink) !important;
+}
+.stpl-btn--default.n-button--disabled {
+  background: var(--stpl-inset-bg) !important;
+  color: var(--ink-faint) !important;
 }
 
-/* 幽灵按钮：透明底 + 次要文本色（刷新 / 行内编辑） */
+/* ───────────────────────── 幽灵按钮 ghost ─────────────────────────
+ * 🔴 唯一默认态无背景的类：默认透明底 + 次要文本色；
+ * hover 才显内嵌底 —— 用于工具条次要动作（刷新 / 导出）与表格行内操作 */
 .stpl-btn--ghost {
-  background: transparent;
-  color: var(--ink-soft);
+  --n-color: transparent !important;
+  --n-color-hover: var(--stpl-inset-bg) !important;
+  --n-color-pressed: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
+  --n-color-focus: var(--stpl-inset-bg) !important;
+  --n-color-disabled: transparent !important;
+  --n-text-color: var(--ink-soft) !important;
+  --n-text-color-hover: var(--ink) !important;
+  --n-text-color-pressed: var(--ink) !important;
+  --n-text-color-focus: var(--ink) !important;
+  --n-text-color-disabled: var(--ink-faint) !important;
+  background: transparent !important;
+  color: var(--ink-soft) !important;
 }
 .stpl-btn--ghost:hover {
-  background: var(--stpl-inset-bg);
-  color: var(--ink);
+  background: var(--stpl-inset-bg) !important;
+  color: var(--ink) !important;
+}
+.stpl-btn--ghost:active {
+  background: color-mix(in srgb, var(--ink) 14%, var(--surface)) !important;
+  color: var(--ink) !important;
 }
 
-/* 危险按钮：实色 error 底 + 白字（破坏性操作） */
+/* ───────────────────────── 危险按钮 danger ─────────────────────────
+ * 实色 error 底 + 白字；破坏性操作（删除 / 清空 / 撤销授权）。
+ * 危险色是安全信号，不许降级为普通文字按钮 */
 .stpl-btn--danger {
-  background: var(--c-error);
-  color: var(--on-brand);
+  --n-color: var(--c-error) !important;
+  --n-color-hover: color-mix(in srgb, #fff 12%, var(--c-error)) !important;
+  --n-color-pressed: var(--c-error-deep) !important;
+  --n-color-focus: var(--c-error) !important;
+  --n-color-disabled: var(--c-error) !important;
+  background: var(--c-error) !important;
+  color: var(--on-brand) !important;
 }
 .stpl-btn--danger:hover {
-  background: var(--c-error-deep);
-  color: var(--on-brand);
+  background: color-mix(in srgb, #fff 12%, var(--c-error)) !important;
+  color: var(--on-brand) !important;
+}
+.stpl-btn--danger:active {
+  background: var(--c-error-deep) !important;
+  color: var(--on-brand) !important;
+}
+.stpl-btn--danger.n-button--disabled {
+  background: color-mix(in srgb, #fff 40%, var(--c-error)) !important;
+  color: color-mix(in srgb, var(--on-brand) 70%, var(--c-error)) !important;
 }
 
-/* 行内危险文字按钮：无底红字（表格行内删除，保持行内清爽） */
+/* ───────────────────── 行内危险文字按钮 danger-text ─────────────────────
+ * 无底红字（表格行内删除，保持行内清爽）；
+ * 🔴 注意：这是**危险按钮在表格行内的紧凑变体**，不是第 5 类，
+ * 六态规则与 danger 一致，仅去掉实色底 */
 .stpl-btn--danger-text {
-  background: transparent;
-  color: var(--c-error-deep);
+  --n-color: transparent !important;
+  --n-color-hover: var(--c-error-soft) !important;
+  --n-color-pressed: var(--c-error-bg) !important;
+  --n-color-focus: var(--c-error-soft) !important;
+  --n-color-disabled: transparent !important;
+  --n-text-color: var(--c-error-deep) !important;
+  --n-text-color-hover: var(--c-error-deep) !important;
+  --n-text-color-pressed: var(--c-error-deep) !important;
+  --n-text-color-focus: var(--c-error-deep) !important;
+  --n-text-color-disabled: var(--ink-faint) !important;
+  background: transparent !important;
+  color: var(--c-error-deep) !important;
 }
 .stpl-btn--danger-text:hover {
-  background: var(--c-error-soft);
-  color: var(--c-error-deep);
+  background: var(--c-error-soft) !important;
+  color: var(--c-error-deep) !important;
 }
 
-/* loading / disabled：去阴影 + 降透明 */
-.stpl-btn.n-button--loading,
-.stpl-btn.n-button--disabled {
+/* 加载态：naive 会盖 loading 图标，仅需去阴影 + 保持文字色可读 */
+.stpl-btn.n-button--loading {
   box-shadow: none;
-  opacity: .6;
 }

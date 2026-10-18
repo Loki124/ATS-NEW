@@ -11,7 +11,7 @@
     渲染效果区带完整模拟数据（6 行角色 + 空态双态切换），可直接操作。
   -->
   <div class="stpl-root">
-    <!-- 页头：与内容区间距 24px（--space-6） -->
+    <!-- 页头：与内容区间距 16px（--stpl-gap-inner） -->
     <div class="stpl-header">
       <div>
         <h1 class="stpl-title">角色管理</h1>
@@ -19,7 +19,7 @@
       </div>
     </div>
 
-    <!-- 主体：面板上下 16px（成对）；面板与页头间距 24px -->
+    <!-- 主体：面板内边距 16px（成对）；面板与页头间距 16px -->
     <div class="stpl-body">
       <div class="stpl-panel">
         <!-- 工具条：与表格区间距 8px（--space-2）；左搜索/筛选 + 右操作 -->
@@ -57,14 +57,19 @@
           </n-button>
         </div>
 
-        <!-- 表格：flex 撑满面板，仅表体内部滚动 -->
+        <!-- 表格：flex 撑满面板，仅表体内部滚动
+             · striped 斑马纹替代竖向边线（标题行底色常驻，见 <style>） -->
         <div class="table-wrap">
           <n-data-table
             :columns="columns"
-            :data="displayRows"
+            :data="pagedRows"
             :row-key="(r: DemoRow) => r.id"
             :bordered="false"
+            striped
             flex-height
+            remote
+            :pagination="pagination"
+            @update:page="onPageChange"
           >
             <template #empty>
               <n-empty :description="emptyDemo ? '暂无角色数据' : '没有匹配当前搜索/筛选条件的角色'" />
@@ -88,8 +93,8 @@
  * 全局推行路径（兵哥确认方案后）：把 button-skin.css 与 .stpl-* 布局
  * 原样搬入 glass.css 即可，结构零改动。
  */
-import { ref, computed, h } from 'vue'
-import { NDataTable, NSpace, NButton, NIcon, useMessage } from 'naive-ui'
+import { ref, computed, watch, h } from 'vue'
+import { NDataTable, NSpace, NButton, NIcon, NEmpty, useMessage } from 'naive-ui'
 import {
   AddOutline,
   RefreshOutline,
@@ -113,6 +118,8 @@ interface DemoRow {
 const keyword = ref('')
 const statusFilter = ref<string | null>(null)
 const emptyDemo = ref(false)
+const page = ref(1)
+const pageSize = 4
 const statusOptions = [
   { label: '启用', value: 'ACTIVE' },
   { label: '停用', value: 'INACTIVE' },
@@ -136,6 +143,31 @@ const displayRows = computed<DemoRow[]>(() => {
     r => r.code.includes(kw.toUpperCase()) || r.desc.includes(kw)
   )
 })
+
+/** 分页切片：remote 模式 + 本地 mock，真实页面把这段换成后端 count/page 即可 */
+const pagedRows = computed<DemoRow[]>(() => {
+  const start = (page.value - 1) * pageSize
+  return displayRows.value.slice(start, start + pageSize)
+})
+
+const pagination = computed(() => ({
+  page: page.value,
+  pageSize,
+  itemCount: displayRows.value.length,
+  showSizePicker: false,
+  prefix: ({ itemCount }: { itemCount: number }) => `共 ${itemCount} 条`,
+  // 模板页禁用跳页器，避免演示时误跳到空页
+  showQuickJumper: false,
+}))
+
+/** 搜索变化时回到第 1 页，否则停留在越界页码会显示空表 */
+watch([keyword, emptyDemo], () => {
+  page.value = 1
+})
+
+function onPageChange(p: number) {
+  page.value = p
+}
 
 const columns = [
   column({ title: '编码', key: 'code', width: 200 }, 'short'),
@@ -174,7 +206,8 @@ function create() { message.info('新建角色（演示）') }
 /* ═══════════ 布局皮肤（令牌与按钮皮肤在 templates/button-skin.css 全局定义）═══ */
 
 /* 舞台：定高 + 完整 flex 链，让 .table-wrap + flex-height 拿到确定高度
- * （缺确定高度时 naive 会把数据行压成 0 高——只渲染表头，即「看不出效果」） */
+ * （缺确定高度时 naive 会把数据行压成 0 高——只渲染表头，即「看不出效果」）
+ * 兵哥 15:43：最大容器内边距 24 → 16px（--stpl-gap-page） */
 .stpl-root {
   background: var(--stpl-page-bg);
   display: flex;
@@ -182,7 +215,7 @@ function create() { message.info('新建角色（演示）') }
   height: 560px;
   min-height: 0;
   gap: var(--stpl-gap-page);
-  padding: var(--stpl-gap-page);            /* 上下左右对称 24px */
+  padding: var(--stpl-gap-page);            /* 上下左右对称 16px */
   border-radius: var(--radius-lg);
 }
 
@@ -193,6 +226,10 @@ function create() { message.info('新建角色（演示）') }
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--stpl-gap-inner);
+}
+/* 兵哥 15:43：页头与 body 间距 16px（--stpl-gap-inner，原 24px） */
+.stpl-header + .stpl-body {
+  margin-top: 0;
 }
 .stpl-title {
   margin: 0;
@@ -215,7 +252,7 @@ function create() { message.info('新建角色（演示）') }
   flex-direction: column;
 }
 
-/* 面板：纯色底 + 无边框 + 无阴影 + 无模糊，撑满主体 */
+/* 面板：纯色底 + 无边框 + 无阴影 + 无模糊，撑满主体；内边距 16px 成对 */
 .stpl-panel {
   flex: 1;
   min-height: 0;
@@ -237,4 +274,36 @@ function create() { message.info('新建角色（演示）') }
   margin-bottom: var(--stpl-gap-tight);
 }
 .stpl-toolbar .spacer { flex: 1; }
+
+/* ── 表格皮肤 ──
+ * 兵哥 15:43：标题行背景色常驻（--n-th-color），数据行用斑马纹区分，
+ * 去掉所有横竖边线 —— 纯靠底色分区，无边框。
+ * naive 以 inline style 注入 --n-th-color / --n-td-color-striped，
+ * 必须在 :deep() 里显式覆写其 CSS 变量才生效。 */
+.table-wrap :deep(.n-data-table-th) {
+  --n-th-color: var(--stpl-th-bg);
+  --n-th-color-hover: var(--stpl-th-bg);
+  background-color: var(--stpl-th-bg);
+}
+.table-wrap :deep(.n-data-table-td) {
+  --n-td-color: var(--stpl-panel-bg);
+  --n-td-color-hover: color-mix(in srgb, var(--ink) 4%, var(--surface));
+  --n-td-color-striped: var(--stpl-row-alt-bg);
+}
+/* 去掉行分隔线：表头下沿与行间横线全清，靠底色分区 */
+.table-wrap :deep(.n-data-table-base-table-body::before) {
+  display: none;
+}
+.table-wrap :deep(.n-data-table-th),
+.table-wrap :deep(.n-data-table-td) {
+  border-bottom: none !important;
+}
+.table-wrap :deep(.n-data-table-td:last-child) {
+  border-bottom: none;
+}
+
+/* 分页条：与表格间距 8px，纯色无边框 */
+.table-wrap :deep(.n-data-table__pagination) {
+  margin-top: var(--stpl-gap-tight);
+}
 </style>
