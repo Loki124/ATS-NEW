@@ -1572,9 +1572,12 @@ export const APP_UI_ZH: Record<string, string> = {
   'pages.settings.UiTemplates.s12': "已知例外",
   'pages.settings.UiTemplates.s13': "代码已复制到剪贴板",
   'pages.settings.UiTemplates.s14': "复制失败，请手动选择代码文本",
+  'pages.settings.UiTemplates.s15': "共",
   'uiTemplates.cat.list': "数据列表",
   'uiTemplates.cat.form': "表单",
   'uiTemplates.cat.modal': "弹窗",
   'uiTemplates.cat.config': "配置项",
   'uiTemplates.cat.component': "组件",
+  'uiTemplates.cat.rules': "规则",
+  'uiTemplates.cat.doc': "样式文档",
 }

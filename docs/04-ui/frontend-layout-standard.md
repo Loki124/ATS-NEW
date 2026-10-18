@@ -1,9 +1,10 @@
 # 前端布局标准规范（Frontend Layout Standard）
-> 最后更新：2026-09-15（依据 git 最后提交）
+> 最后更新：2026-10-18（列表页统一乙系；新增「前端UI模板」中心入口）
 
 > 单一事实来源：`src/styles/tokens.css`（§8.5 布局令牌）+ `src/styles/glass.css`（布局契约）。
 > 本文件是所有新页面开发必须遵守的统一标准，禁止页面级 scoped 样式私自覆盖布局边距。
 > 适用范围：ATS-NEW 全部前端页面（设置中心 / 招聘主流程 / 校招管控 / 工作台 / 弹窗 / 抽屉）。
+> **规范活文档**：`/settings/ui-templates`（设置 → 主题外观 → 前端UI模板）可按分类查看每个范式的渲染效果与代码；「样式文档」页签输出本规范的结构化全文。
 
 ---
 
@@ -146,6 +147,21 @@
 ```
 
 **已落地检查点**：RuleConfigModal 的条件值 / 属性条件多选均已配置 `max-tag-count="responsive"`。新增多选框时必须遵守本条；Code Review 把 `multiple` 缺少 `max-tag-count` 视为阻塞项。
+
+### 1.9 页面结构范式（列表页统一乙系）
+
+**2026-10-18 兵哥拍板：列表页统一「乙系」（独立设置页列表）为全站唯一标准**，「甲系」（Tab 内嵌列表）降为存量形态。
+
+| 范式 | 结构 | 适用范围 |
+| --- | --- | --- |
+| 乙系（唯一标准） | `.page-container > .page-header + .page-body > .glass-panel.panel-shell > .toolbar + .table-wrap` | 所有新列表页 |
+| 甲系（存量） | 根节点 flex 列 + `.toolbar + .table-wrap`，无页头、无玻璃面板 | 仅存量 4 页（RolesTab / ResourcesTab / reason-library 两页），随迭代收口，新页面禁用 |
+
+规则：
+- 乙系页头只放标题 + 副标题，操作控件一律移入面板内 `.toolbar`；页头与内容区间禁加额外 margin 制造留白带。
+- `n-data-table` 必须包 `.table-wrap` 并加 `flex-height`，否则面板下方留白、表体不滚动。
+- 确有 tab 嵌入场景时，应由父页直接渲染乙系结构，不再新起甲系根节点。
+- 各范式骨架、约束与渲染效果以 `/settings/ui-templates`（模板中心）为准，两处必须同步。
 
 ---
 

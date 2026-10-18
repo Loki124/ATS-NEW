@@ -22,14 +22,19 @@
           </n-radio-group>
           <div class="spacer"></div>
           <span class="stat-line">
-            {{ t('pages.settings.UiTemplates.s3') }} {{ currentTemplates.length }} ·
-            {{ t('pages.settings.UiTemplates.s4') }} {{ allTemplates.length }}
+            <template v-if="isDoc">
+              {{ t('pages.settings.UiTemplates.s15') }} {{ STYLE_GUIDE_DOC.length }}
+            </template>
+            <template v-else>
+              {{ t('pages.settings.UiTemplates.s3') }} {{ currentTemplates.length }} ·
+              {{ t('pages.settings.UiTemplates.s4') }} {{ allTemplates.length }}
+            </template>
           </span>
         </div>
 
         <div class="tpl-body">
-          <!-- 左：模板清单 -->
-          <nav class="tpl-nav">
+          <!-- 左：模板清单（样式文档页签无模板列表，右栏全宽） -->
+          <nav v-if="!isDoc" class="tpl-nav">
             <button
               v-for="tpl in currentTemplates"
               :key="tpl.key"
@@ -125,6 +130,11 @@
               </template>
             </div>
           </section>
+
+          <!-- 样式文档页签：直接输出规范全文 -->
+          <section v-else-if="isDoc" class="tpl-detail tpl-detail--full">
+            <StyleDoc />
+          </section>
         </div>
       </div>
     </div>
@@ -135,13 +145,14 @@
 /**
  * UiTemplates.vue — 前端 UI 模板中心（2026-10-18 兵哥立项）
  *
- * 职责：集中管理与预览系统级前端 UI 模板，按「数据列表 / 表单 / 弹窗 / 配置项 / 组件」
- * 五类组织，支持查看每个模板的**代码结构**与**实际渲染效果**（活代码 Demo，非静态截图）。
+ * 职责：集中管理与预览系统级前端 UI 模板，按「数据列表 / 表单 / 弹窗 / 配置项 / 组件 /
+ * 规则」六类组织，另有「样式文档」页签输出规范全文。支持查看每个模板的**代码结构**
+ * 与**实际渲染效果**（活代码 Demo，非静态截图）。
  *
- * 数据来源：templateRegistry.ts（唯一真源）。本文件只负责渲染与交互，
- * 新增/修改模板规格一律改注册表，不改此处。
+ * 数据来源：templateRegistry.ts（模板唯一真源）+ styleGuideDoc.ts（文档唯一数据源）。
+ * 本文件只负责渲染与交互，新增/修改模板规格一律改数据文件，不改此处。
  *
- * ⚠️ 分类切换用的是 radio-button 而非 select：模板分类只有 5 个、需要一眼看到全部，
+ * ⚠️ 分类切换用的是 radio-button 而非 select：模板分类需要一眼看到全部，
  *    属于规范中「穷举可见」的场景（枚举筛选才统一用 n-select）。
  */
 import { ref, computed, watch } from 'vue'
@@ -165,12 +176,15 @@ import {
   type TemplateMeta,
   type SpecRow,
 } from './templateRegistry'
+import { STYLE_GUIDE_DOC } from './styleGuideDoc'
 
 import ListDemo from './demos/ListDemo.vue'
 import ModalDemo from './demos/ModalDemo.vue'
 import FormDemo from './demos/FormDemo.vue'
 import ConfigDemo from './demos/ConfigDemo.vue'
 import ComponentDemo from './demos/ComponentDemo.vue'
+import RulesDemo from './demos/RulesDemo.vue'
+import StyleDoc from './StyleDoc.vue'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -185,6 +199,7 @@ const DEMO_MAP: Record<string, unknown> = {
   'form-standard': FormDemo,
   'config-page': ConfigDemo,
   'component-contracts': ComponentDemo,
+  'rules-playground': RulesDemo,
 }
 
 const allTemplates = TEMPLATES
@@ -203,6 +218,7 @@ function resolveCat(v: unknown): TemplateCategory {
 
 const activeCat = ref<TemplateCategory>(resolveCat(route.query.cat))
 const currentTemplates = computed(() => templatesByCategory(activeCat.value))
+const isDoc = computed(() => activeCat.value === 'doc')
 
 /** 切换分类时自动选中该类第一个模板（除非 URL 显式指定了该类模板），避免右侧空白 */
 function resolveTpl(v: unknown, cat: TemplateCategory): string {
@@ -220,6 +236,10 @@ const demoComp = computed(() => (active.value ? DEMO_MAP[active.value.key] : nul
 
 // 反向同步：用户点分类 / 点模板时回写 query（replace 不污染历史栈）
 watch(activeCat, (c) => {
+  if (c === 'doc') {
+    router.replace({ query: { ...route.query, cat: c } })
+    return
+  }
   activeKey.value = resolveTpl(route.query.tpl, c)
   router.replace({ query: { ...route.query, cat: c, tpl: activeKey.value } })
 })
@@ -237,6 +257,12 @@ const relatedTables = computed<{ title: string; rows: SpecRow[] }[]>(() => {
     case 'modal':
       return [
         { title: '弹窗宽度档位（由站内存量 20+ 种收敛）', rows: MODAL_WIDTHS },
+      ]
+    case 'rules':
+      return [
+        { title: '列对齐四档（useTableColumns 单一真源）', rows: COLUMN_TIERS },
+        { title: '弹窗宽度档位（由站内存量 20+ 种收敛）', rows: MODAL_WIDTHS },
+        { title: '全局基础类（glass.css 提供，页面禁止重复定义）', rows: GLOBAL_CLASSES },
       ]
     case 'component':
       return [

@@ -1573,9 +1573,12 @@ export const APP_UI_EN: Record<string, string> = {
   'pages.settings.UiTemplates.s12': "Known caveats",
   'pages.settings.UiTemplates.s13': "Code copied to clipboard",
   'pages.settings.UiTemplates.s14': "Copy failed, please select the code manually",
+  'pages.settings.UiTemplates.s15': "Sections",
   'uiTemplates.cat.list': "Data List",
   'uiTemplates.cat.form': "Form",
   'uiTemplates.cat.modal': "Modal",
   'uiTemplates.cat.config': "Configuration",
   'uiTemplates.cat.component': "Component",
+  'uiTemplates.cat.rules': "Rules",
+  'uiTemplates.cat.doc': "Style Guide",
 }

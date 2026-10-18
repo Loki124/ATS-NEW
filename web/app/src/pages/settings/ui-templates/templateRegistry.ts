@@ -13,7 +13,7 @@
  */
 
 /** 模板分类标识 */
-export type TemplateCategory = 'list' | 'form' | 'modal' | 'config' | 'component';
+export type TemplateCategory = 'list' | 'form' | 'modal' | 'config' | 'component' | 'rules' | 'doc';
 
 /** 单个模板的元数据 */
 export interface TemplateMeta {
@@ -55,6 +55,7 @@ export interface CategoryMeta {
 /**
  * 分类定义（顺序即左侧导航顺序）
  * 注：枚举筛选统一用 n-select；单选语义强、需一眼可见全貌的（如主题模式三态图示）才用 radio。
+ * doc 为特殊页签：不挂模板，直接输出《前端UI样式文档》（结构化规则全文）。
  */
 export const CATEGORIES: CategoryMeta[] = [
   { key: 'list', label: 'uiTemplates.cat.list', desc: '以身份管理为范本：工具条 + flex-height 表格' },
@@ -62,6 +63,8 @@ export const CATEGORIES: CategoryMeta[] = [
   { key: 'modal', label: 'uiTemplates.cat.modal', desc: '卡片式编辑弹窗与确认对话框的两类标准形态' },
   { key: 'config', label: 'uiTemplates.cat.config', desc: '分组卡片 + 脏检查 + 统一保存栏' },
   { key: 'component', label: 'uiTemplates.cat.component', desc: '可复用组件与 composable 的引用约定' },
+  { key: 'rules', label: 'uiTemplates.cat.rules', desc: '全站硬规则的活演示：列对齐 / 弹窗宽度 / 间距 / 按钮状态 / 令牌' },
+  { key: 'doc', label: 'uiTemplates.cat.doc', desc: '《前端UI样式文档》结构化全文输出' },
 ];
 
 /** 全局类清单（模板依赖的基础设施，渲染为速查表） */
@@ -103,7 +106,7 @@ export const TEMPLATES: TemplateMeta[] = [
   {
     key: 'list-standalone',
     category: 'list',
-    name: '独立设置页列表（乙系 · 推荐）',
+    name: '独立设置页列表（乙系 · 全站唯一标准）',
     summary: '设置中心标准列表页结构：页头 + 玻璃面板 + 工具条 + flex-height 表格，表格撑满面板、表体内部滚动。',
     code: `<div class="page-container">
   <div class="page-header">
@@ -146,6 +149,7 @@ export const TEMPLATES: TemplateMeta[] = [
   </div>
 </div>`,
     rules: [
+      '【全站唯一标准 · 2026-10-18 兵哥拍板】新列表页一律用乙系；甲系仅为存量形态，不得在新页面使用',
       '.page-header 只放标题 + 副标题，操作控件一律移入面板内 .toolbar',
       '.toolbar 必须用 <div class="spacer"></div> 推右，不用 n-space 分组',
       'n-data-table 必须包 .table-wrap 并加 flex-height，否则面板下方留白、表体不滚动',
@@ -166,8 +170,8 @@ export const TEMPLATES: TemplateMeta[] = [
   {
     key: 'list-embedded',
     category: 'list',
-    name: 'Tab 内嵌列表（甲系）',
-    summary: '被父页以 tab / 路由子页嵌入的列表组件：不加玻璃面板，根节点只需 flex 列，滚动与内衬交给父页。',
+    name: 'Tab 内嵌列表（甲系 · 存量形态）',
+    summary: '历史存量形态：被父页以 tab 嵌入的列表组件，不加玻璃面板，滚动与内衬交给父页。仅供存量页对照，新页面禁用。',
     code: `<div class="xxx-tab">   <!-- scoped: flex:1; min-height:0; gap:var(--space-2) -->
   <div class="toolbar">
     <n-input v-model:value="kw" class="rule-filter-search" clearable />
@@ -184,16 +188,18 @@ export const TEMPLATES: TemplateMeta[] = [
   </div>
 </div>`,
     rules: [
+      '⚠️ 新页面禁用本形态（2026-10-18 兵哥拍板乙系统一）；确有 tab 嵌入场景时，应由父页直接渲染乙系结构',
       '根节点不加 .glass-panel / .panel-shell —— 父页已提供面板外壳，再加会多一层内衬',
       '根节点必须 flex 列 + flex:1 + min-height:0 + gap:var(--space-2)，否则 flex-height 找不到确定高度',
       '.toolbar 与 .table-wrap 的内部写法与乙系完全一致',
     ],
     references: [
-      'pages/settings/permission/RolesTab.vue（身份管理 · 模板原点）',
-      'pages/settings/permission/ResourcesTab.vue',
-      'pages/settings/reason-library/tags.vue',
-      'pages/settings/reason-library/rules.vue',
+      'pages/settings/permission/RolesTab.vue（存量 · 模板原点）',
+      'pages/settings/permission/ResourcesTab.vue（存量）',
+      'pages/settings/reason-library/tags.vue（存量）',
+      'pages/settings/reason-library/rules.vue（存量）',
     ],
+    caveats: ['存量 4 页暂不改造，随各页迭代时收口为乙系；新页面误用甲系一律打回'],
   },
   {
     key: 'list-columns',
@@ -452,6 +458,41 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
       'components/common/StateView.vue（loading/empty/error/partial/no-permission/offline/limit）',
     ],
     caveats: ['StateView 目前硬编码中文且不接受 t() 注入，接入前需先改造'],
+  },
+
+  // ══════════════════════ 6. 规则标准（活演示） ══════════════════════
+  {
+    key: 'rules-playground',
+    category: 'rules',
+    name: '规则标准活演示',
+    summary: '把全站硬规则做成可操作的实物：列对齐四档、弹窗宽度 4 档、8px 间距体系、按钮六态、语义令牌——改 Demo 里的值就等于违反规则，可用来对照排查。',
+    code: `// 规则引用速查：写页面时这些就是「规则的入口」
+// 1. 列对齐    → import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
+// 2. 分页      → import { localPagination, remotePagination } from '@/composables/useTablePagination'
+// 3. 关闭守卫  → import { useCloseGuard } from '@/composables/useCloseGuard'
+// 4. 结构类    → .panel-shell / .toolbar / .table-wrap / .grid-auto / .field-hint / .drawer-footer（glass.css 全局）
+// 5. 筛选宽    → .rule-filter-search(240px) / .rule-filter-select(136px)
+// 6. 间距      → var(--space-1/2/3/4/6) = 4/8/12/16/24px，只用 8 的倍数
+// 7. 颜色      → var(--brand*) / var(--ink*) / var(--c-success|warning|error|info)，禁硬编码 hex
+// 8. 弹窗宽度  → 420 / 520 / 640 / 960px + max-width:92vw，其它值不允许`,
+    rules: [
+      '间距：所有 margin/padding/gap 用 8 的整数倍（--space-2=8 / --space-4=16 / --space-6=24）',
+      '颜色：一律语义令牌，禁硬编码 hex；禁 var(--x, #hex) 兜底写法（暗色回落浅色必崩）',
+      '列对齐：column(col, tier) 四档，禁手写 align；长文本 text 档左对齐，禁居中',
+      '弹窗宽度：只用 420/520/640/960 四档 + max-width:92vw；存量 40 个无 max-width 弹窗随迭代补齐',
+      '按钮六态：交互组件必须实现 default/hover/active/focus-visible/loading/disabled；异步提交 loading 期间 disabled',
+      '同组按钮要么全有 icon 要么全无；危险操作删除红 type="error" 是安全信号，不许去掉',
+      '空态双态：数据视图必须区分「暂无数据」与「筛选无结果」',
+      '多选控件必须加 max-tag-count，禁 n-grid :cols 硬编码列数、禁 n-row/n-col',
+      '破坏性操作按 R-106 分级：可逆直接执行、中等 Toast 撤销、高危确认框；禁一律 confirm 弹窗',
+    ],
+    references: [
+      'styles/glass.css（全局类与令牌定义）',
+      'docs/04-ui/frontend-layout-standard.md（规范全文）',
+      'AGENTS.md（机器约束，RFC 2119）',
+      'composables/useTableColumns.ts（列对齐唯一真源）',
+    ],
+    caveats: ['本模板的 Demo 即规则本身：Demo 里的每个控件都按规则渲染，可直接对照自己的页面排查偏差'],
   },
 ];
 
