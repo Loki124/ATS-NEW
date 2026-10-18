@@ -86,10 +86,12 @@
                 :error="dpErrors[m.moduleKey]"
                 :can-config="moduleView(m.moduleKey).dimensions.length > 0"
                 :default-scope-label="defaultScopeLabel"
+                :read-dirty="dpModuleReadDirty(m.moduleKey)"
                 @update:mode="(mode) => dpSetMode(m.moduleKey, mode)"
                 @open-rule="openRule(m.moduleKey)"
                 @start-configure="dpSetMode(m.moduleKey, 'scope')"
                 @upgrade-template="(d) => onUpgradeTemplate(m.moduleKey, d)"
+                @reset-module="onResetModule(m.moduleKey)"
               />
             </div>
           </div>
@@ -355,7 +357,7 @@ const {
   actionRegistry: dpActionRegistry, presetPackages: dpPresetPackages,
   load: dpLoad, setMode: dpSetMode, setGroups: dpSetGroups, validate: dpValidate,
   setWriteMode: dpSetWriteMode, setWriteGroups: dpSetWriteGroups, setWriteActions: dpSetWriteActions,
-  submit: dpSubmit, reset: dpReset,
+  submit: dpSubmit, reset: dpReset, resetModule: dpResetModule, moduleReadDirty: dpModuleReadDirty,
 } = useRoleDataPerm(roleIdRef)
 const dpLoaded = ref(false)
 
@@ -445,6 +447,16 @@ function disabledReason(m: ModulePerm): string | undefined {
 
 function onResetDataPerm() {
   dpReset()
+  message.success(t('dataperm.action.resetToast'))
+}
+
+/**
+ * 卡内「重置」（2026-10-18 兵哥原型：配置卡右上角，仅本卡有未保存改动时出现）：
+ * 只还原该模块的读范围草稿。页级 onResetDataPerm 是全量还原 —— 为改一张卡
+ * 丢掉其它模块的在途配置得不偿失，两个粒度互补，不是重复入口。
+ */
+function onResetModule(key: string) {
+  dpResetModule(key)
   message.success(t('dataperm.action.resetToast'))
 }
 

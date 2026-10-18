@@ -15,7 +15,10 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.card.scopeNote': '模块级数据范围（本卡）与「角色默认范围」（见角色基础信息）是两套独立设置，不互相合并。',
   'dataperm.roleScopeNote': '角色默认范围仅作用于未单独配置模块级数据范围的模块。',
   'dataperm.card.ruleCount': '共 {n} 个条件组',
-  'dataperm.card.configRule': '配置规则',
+  // 2026-10-18 兵哥「同排紧凑版」原型：按钮文案对齐样例「修改配置」
+  'dataperm.card.configRule': '修改配置',
+  // 规则框标签链的组间连接词（原型 .tag-logic「或」；组间默认 OR，见 previewTags）
+  'dataperm.card.logicOr': '或',
   'dataperm.card.disabled.superAdmin': '超级管理员默认拥有全部数据权限',
   'dataperm.card.disabled.feature': '未分配功能权限',
   'dataperm.drawer.title': '{roleName} 的数据权限',

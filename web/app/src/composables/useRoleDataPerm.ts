@@ -387,6 +387,16 @@ function renderExpr(expr: string, renderNum: (n: number) => string): string {
     .join(' ');
 }
 
+/** 单个条件组的可读文本（**不含外层括号**）。
+ *  口径与后端 expr_compiler 对齐：组内表达式留空 -> 组内条件按 **且(AND)** 组合。
+ *  2026-10-18 从 previewOf 内联函数抽出：配置卡标签链（previewTags）要逐组渲染，
+ *  而括号是整句预览才需要的包装，抽走后两处共用同一渲染源，不会各漂移。 */
+export function previewGroupText(g: PermConditionGroup): string {
+  return (g.expr || '').trim()
+    ? renderExpr(g.expr, (cn) => renderCondition(g.conditions[cn - 1] ?? newCondition()))
+    : g.conditions.map((c) => renderCondition(c)).join(' 且 ');
+}
+
 /** 给定模块（含 expr + groups），生成可读预览句 "可见数据 = ..."（不含前缀）。
  *  语义与后端 expr_compiler 对齐：
  *    - 组内表达式留空 -> 组内条件按 **且(AND)** 组合；
@@ -394,18 +404,30 @@ function renderExpr(expr: string, renderNum: (n: number) => string): string {
  */
 export function previewOf(m: ModulePerm): string {
   if (m.mode !== 'scope') return '';
-  const groupText = (g: PermConditionGroup): string => {
-    const inner = (g.expr || '').trim()
-      ? renderExpr(g.expr, (cn) => renderCondition(g.conditions[cn - 1] ?? newCondition()))
-      : g.conditions.map((c) => renderCondition(c)).join(' 且 ');
-    return `（${inner}）`;
-  };
+  const groupText = (g: PermConditionGroup): string => `（${previewGroupText(g)}）`;
   const groups = m.groups.filter((g) => g.conditions.length > 0);
   if (groups.length === 0) return '';
   const inter = (m.expr || '').trim();
   return inter
     ? renderExpr(m.expr, (gn) => groupText(m.groups[gn - 1]))
     : groups.map((g) => groupText(g)).join(' 或 ');
+}
+
+/**
+ * 配置卡「规则摘要标签链」（2026-10-18 兵哥原型 .tag-list）：
+ * 每个**有条件**组一个标签文本，UI 层在标签之间插入「或」连接词
+ * （组间组合留空时各组按 OR 组合，与 previewOf 同口径）。
+ *
+ * 🔴 组间是自定义组合表达式（如「1 且 2」）时**不拆成扁平标签链**，
+ *    整句作为单一标签返回 —— 否则 UI 插的「或」连接词会把「且」渲染成「或」，
+ *    属于放大权限的安全语义错误（管理员以为收窄、实际放宽）。
+ */
+export function previewTags(m: ModulePerm): string[] {
+  if (m.mode !== 'scope') return [];
+  const groups = m.groups.filter((g) => g.conditions.length > 0);
+  if (groups.length === 0) return [];
+  if ((m.expr || '').trim()) return [previewOf(m)];
+  return groups.map((g) => previewGroupText(g));
 }
 
 // ---------------------------------------------------------------------------
@@ -877,6 +899,52 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     errorKinds.value = {};
   }
 
+  /**
+   * 单模块「重置」（2026-10-18 兵哥原型：配置卡右上角「重置」按钮）：
+   * 只把该模块**读范围**草稿还原为已保存版本 —— mode / expr / groups，
+   * 以及随草稿展示的 templateDrifts（升级未保存时本地已摘掉漂移标记，还原时一并恢复，
+   * 否则卡上会停在被撤销的升级所制造的"无漂移"假象上）。
+   *
+   * 与页级 reset() 的分工：页级是全量还原，为改一张卡而丢掉其它模块的在途配置得不偿失；
+   * 单卡粒度让管理员只撤销这一张卡的未保存改动。
+   * 🔴 刻意**不碰 write 半边**：写范围归「操作权限」页签的卡管，
+   *    读卡的按钮静默撤销另一个页签的改动，会超出按钮所在卡片的语义。
+   */
+  function resetModule(key: string): void {
+    const m = moduleOf(key);
+    const src = saved.value.find((x) => x.moduleKey === key);
+    if (!m || !src) return;
+    const fresh = cloneModules([src])[0];
+    m.mode = fresh.mode;
+    m.expr = fresh.expr;
+    m.groups = fresh.groups;
+    m.templateDrifts = fresh.templateDrifts;
+    // 该模块的校验错误针对的是已被丢弃的编辑，随草稿还原一并清除
+    // （不清会出现「按钮已重置、红字仍在」的罗生门）。
+    if (errors.value[key]) {
+      const next = { ...errors.value };
+      delete next[key];
+      errors.value = next;
+    }
+    if (errorKinds.value[key]) {
+      const next = { ...errorKinds.value };
+      delete next[key];
+      errorKinds.value = next;
+    }
+  }
+
+  /**
+   * 单模块读范围脏检查 —— 驱动卡内「重置」按钮的显隐。
+   * 口径与 readDirty 完全同源（serializeRead 逐字段），只是粒度到模块：
+   * 改了别的模块不算本卡脏（否则每张卡都亮「重置」，逼管理员做全量放弃）。
+   */
+  function moduleReadDirty(key: string): boolean {
+    const d = moduleOf(key);
+    const s = saved.value.find((x) => x.moduleKey === key);
+    if (!d || !s) return false;
+    return serializeRead([d]) !== serializeRead([s]);
+  }
+
   return {
     saved,
     draft,
@@ -901,6 +969,10 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     validate,
     submit,
     reset,
+    resetModule,
+    moduleReadDirty,
     previewOf,
+    previewGroupText,
+    previewTags,
   };
 }

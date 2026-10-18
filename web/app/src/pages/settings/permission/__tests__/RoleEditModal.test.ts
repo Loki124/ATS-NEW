@@ -198,6 +198,56 @@ describe('RoleEditModal 读/写拆分', () => {
     expect(document.getElementById('ap-card-demand')).toBeTruthy()
   })
 
+  it('数据权限卡为「同排紧凑版」两行结构：分段选择器 + 虚线规则框 + 标签链（2026-10-18 兵哥原型）', async () => {
+    factory()
+    await flushPromises()
+    await gotoTab('数据权限')
+
+    const demand = $one('#dp-card-demand .module-card')
+    expect(demand).toBeTruthy()
+    // 第一行：分段选择器三选一，scope 卡选中「指定范围」（ARIA radiogroup）
+    const segs = demand!.querySelectorAll('.mc-segment')
+    expect(segs).toHaveLength(3)
+    expect(text(segs[0])).toBe('无权限')
+    expect(text(segs[1])).toBe('全部')
+    expect(text(segs[2])).toBe('指定范围')
+    expect(segs[2].classList.contains('active')).toBe(true)
+    expect(segs[2].getAttribute('aria-checked')).toBe('true')
+    // 第二行：虚线规则框（仅 scope 展开）+ 条件标签链 + 修改配置（文案对齐原型）
+    expect(demand!.querySelector('.mc-rule-container')).toBeTruthy()
+    expect(text(demand!.querySelector('.mc-tag'))).toBe('部门 属于 [技术部]')
+    expect(text(demand!.querySelector('.summary-actions button'))).toBe('修改配置')
+    // 干净基线不出现「重置」（不常驻多半禁用的按钮）
+    expect(demand!.querySelector('.mc-btn-reset')).toBeNull()
+
+    // 切到「全部」：规则框收起，本卡变脏 → 「重置」出现（模块粒度脏检查）
+    segs[1].click()
+    await flushPromises()
+    expect($one('#dp-card-demand .mc-rule-container')).toBeNull()
+    const resetBtn = $one('#dp-card-demand .mc-btn-reset')
+    expect(resetBtn).toBeTruthy()
+    expect(text(resetBtn)).toBe('重置')
+
+    // 点重置：只还原本卡读范围（规则框回来、重置消失），不影响其它卡
+    resetBtn!.click()
+    await flushPromises()
+    expect($one('#dp-card-demand .mc-rule-container')).toBeTruthy()
+    expect($one('#dp-card-demand .mc-btn-reset')).toBeNull()
+  })
+
+  it('none/all 模式的卡不展开规则框（与原型"仅指定范围展示"一致）', async () => {
+    factory()
+    await flushPromises()
+    await gotoTab('数据权限')
+
+    // fixture：process/position/candidate/talent 均为 mode='all'
+    const processCard = $one('#dp-card-process .module-card')
+    expect(processCard!.querySelector('.mc-rule-container')).toBeNull()
+    const segs = processCard!.querySelectorAll('.mc-segment')
+    expect(text(segs[1])).toBe('全部')
+    expect(segs[1].classList.contains('active')).toBe(true)
+  })
+
   it('操作权限页签默认只展开已配置（mode!==none）的卡', async () => {
     factory()
     await flushPromises()

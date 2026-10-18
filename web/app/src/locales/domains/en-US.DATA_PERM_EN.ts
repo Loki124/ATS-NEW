@@ -15,7 +15,10 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.card.scopeNote': 'Module-level data scope (this card) and the role default scope (see role basics) are two independent settings and do not merge.',
   'dataperm.roleScopeNote': 'The role default scope only applies to modules without a separately configured module-level scope.',
   'dataperm.card.ruleCount': '{n} condition group(s)',
-  'dataperm.card.configRule': 'Configure Rules',
+  // 2026-10-18 "same-row compact" prototype: button copy aligned with the sample ("Modify Rules")
+  'dataperm.card.configRule': 'Modify Rules',
+  // Inter-group connector in the rule-box tag chain (prototype .tag-logic "OR"; groups are OR'd by default, see previewTags)
+  'dataperm.card.logicOr': 'OR',
   'dataperm.card.disabled.superAdmin': 'Super admin has full data access by default',
   'dataperm.card.disabled.feature': 'Feature permission not granted',
   'dataperm.drawer.title': 'Data Permissions · {roleName}',
