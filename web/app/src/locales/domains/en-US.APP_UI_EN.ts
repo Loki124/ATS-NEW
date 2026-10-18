@@ -1474,8 +1474,6 @@ export const APP_UI_EN: Record<string, string> = {
   'pages.settings.permission.RoleEditModal.s4': "Display Name",
   'pages.settings.permission.RoleEditModal.s5': "Identity Code",
   'pages.settings.permission.RoleEditModal.s6': "Identity Name",
-  'pages.settings.permission.RoleEditModal.s7': "Source Template",
-  'pages.settings.permission.RoleEditModal.s8': "Default Data Scope",
   'pages.settings.permission.RoleEditModal.s9': "Description",
   'pages.settings.permission.TemplatesTab.s1': "Refresh",
   'pages.settings.stage-rule.StageRuleConfigModal.s1': "Takes Effect Immediately",

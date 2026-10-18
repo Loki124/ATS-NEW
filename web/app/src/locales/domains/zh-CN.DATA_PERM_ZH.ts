@@ -4,16 +4,12 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.mode.all': '全部',
   'dataperm.mode.scope': '指定范围',
   // 「未配置」是独立于 none/all/scope 的第四态（卡 1.2）：
-  // 不是"无权限"，而是"本模块没配过规则，实际走角色默认数据范围"。
+  // 不是"无权限"，而是"本模块尚未配置数据规则"（2026-10-18 起身份不再有默认数据范围，
+  // 数据范围必须且仅在数据权限页签中按模块显式配置；未配置模块运行时走租户配置/仅自己兜底）。
   'dataperm.mode.unset': '未配置',
-  'dataperm.card.unset.hint': '未配置 · 当前走默认范围：{scope}',
-  'dataperm.card.unset.scopeUnknown': '系统默认',
+  'dataperm.card.unset.hint': '未配置 · 尚未为本模块配置数据范围',
   'dataperm.card.unset.start': '开始配置',
   'dataperm.card.summary.empty': '暂无配置条件',
-  // T09（§10.1 D8）：模块级数据范围与角色级默认范围是两套独立设置，不合并 ——
-  // 在模块卡「看得见什么」选择器旁明示，避免管理员误以为两者会叠加/覆盖。
-  'dataperm.card.scopeNote': '模块级数据范围（本卡）与「角色默认范围」（见角色基础信息）是两套独立设置，不互相合并。',
-  'dataperm.roleScopeNote': '角色默认范围仅作用于未单独配置模块级数据范围的模块。',
   'dataperm.card.ruleCount': '共 {n} 个条件组',
   // 2026-10-18 兵哥「同排紧凑版」原型：按钮文案对齐样例「修改配置」
   'dataperm.card.configRule': '修改配置',
@@ -1273,11 +1269,6 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.FieldAclSettings.s12': "资源.字段",
   'pages.settings.FieldAclSettings.s13': "动作",
   'pages.settings.FieldAclSettings.s14': "结果",
-  'pages.settings.permission.RoleEditModal.s11': "不设置 (默认 ALL 兜底)",
-  'pages.settings.permission.RoleEditModal.s12': "仅本人 (SELF)",
-  'pages.settings.permission.RoleEditModal.s13': "本部门 (DEPT)",
-  'pages.settings.permission.RoleEditModal.s14': "本部门+下级 (DEPT_AND_SUB)",
-  'pages.settings.permission.RoleEditModal.s15': "全公司 (ALL)",
   'pages.settings.permission.RoleEditModal.s16': "身份编码和名称必填",
   'pages.settings.FieldAclSettings.s15': "面试官",
   'pages.settings.FieldAclSettings.s16': "用人经理",
@@ -1311,7 +1302,6 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.EntryConditionCard.s21': "条件组",
   'pages.settings.permission.RoleEditModal.s17': "编辑身份: {name}",
   'pages.settings.permission.RoleEditModal.s18': "新建身份",
-  'pages.settings.permission.RoleEditModal.s19': "无 — 自定义",
   'pages.settings.permission.RoleEditModal.s20': "启用",
   'pages.settings.permission.RoleEditModal.s21': "禁用",
   'pages.settings.permission.RoleEditModal.s23': "未分类",
@@ -1324,7 +1314,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.permission.RoleEditModal.s30': "基础信息",
   'pages.settings.permission.RoleEditModal.s31': "功能权限",
   'pages.settings.permission.RoleEditModal.s32': "数据权限",
-  'pages.settings.permission.RoleEditModal.s33': "配置身份的基本属性与默认数据范围",
+  'pages.settings.permission.RoleEditModal.s33': "配置身份的基本属性",
   'pages.settings.permission.RoleEditModal.s34': "勾选该身份可访问的功能资源，按模块分组",
   'pages.settings.permission.RoleEditModal.s36': "身份保存后即可在此配置各业务模块的数据可见范围",
   'pages.settings.permission.RoleEditModal.s37': "全选",

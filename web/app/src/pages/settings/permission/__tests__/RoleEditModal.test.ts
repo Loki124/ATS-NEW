@@ -15,11 +15,18 @@
  *
  * 🔴 查询必须走 document：NModal 默认 teleport 到 body，wrapper.findAll 只能看到
  *    Wrapper 那一层（挂在 attachTo 的容器里），摸不到弹窗内容。
+ *
+ * 2026-10-18 兵哥权限模型简化（追加锁定）：
+ *   - 基础信息页签只剩 roleCode/roleName/description/status 四项
+ *     （「来源模板」「默认数据范围」移除：模板仅创建时引用，数据范围仅数据权限页签配置）
+ *   - 数据权限卡无 ⓘ icon + hover 提示（与功能权限解耦），标题列宽统一（min-width:5em）
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
+import fs from 'node:fs'
+import path from 'node:path'
 import { NConfigProvider, NMessageProvider } from 'naive-ui'
 import { naivePlugin } from '../../../../plugins/naive'
 import RoleEditModal from '../RoleEditModal.vue'
@@ -307,5 +314,41 @@ describe('RoleEditModal 读/写拆分', () => {
     await gotoTab('操作权限')
     // 默认 store 无角色 → 非超管 → 不渲染（后端 IsSuperAdmin 双保险）
     expect($all('button').some((b) => text(b).includes('动作与预设包管理'))).toBe(false)
+  })
+
+  it('基础信息页签只剩四项：无「来源模板」「默认数据范围」（2026-10-18 兵哥调整）', async () => {
+    factory()
+    await flushPromises()
+    // 首个页签（基础信息）默认激活，四个字段一项不多一项不少
+    // （required 字段的 label 带 * 后缀，剥离后比对字段名本身）
+    const labels = $all('.basic-form .n-form-item-label')
+      .map(text)
+      .map((s) => s.replace(/\s*\*$/, ''))
+    expect(labels).toEqual(['身份编码', '身份名称', '描述', '状态'])
+    // 已删字段的残留锚点与说明文字不得复现
+    expect($all('.scope-note')).toHaveLength(0)
+    const doc = document.body.textContent || ''
+    expect(doc).not.toContain('来源模板')
+    expect(doc).not.toContain('默认数据范围')
+  })
+
+  it('数据权限卡不再有 ⓘ 图标 + hover 提示，标题列宽统一（2026-10-18 兵哥调整）', async () => {
+    factory()
+    await flushPromises()
+    await gotoTab('数据权限')
+
+    // ① 模块级 icon + hover 提示整条移除（与功能权限解耦，各模块单独提示内容全部撤掉）
+    expect($all('.hint-btn')).toHaveLength(0)
+    expect($all('.module-card .mc-tip')).toHaveLength(0)
+    // ② 每张卡都有标题元素（5 模块）
+    expect($all('.module-card .mc-title')).toHaveLength(5)
+    // ③ 标题列宽统一（.mc-title min-width:5em）→ 各卡分段选择器左边缘对齐。
+    //    vitest 默认 css:false，scoped 样式不注入 DOM，改源码级正则守护规则存在性与数值
+    //    （范式同 styles/__tests__/table-alignment-rules.test.ts）。
+    const src = fs.readFileSync(
+      path.resolve(__dirname, '../../../../components/role/ModulePermCard.vue'),
+      'utf8',
+    )
+    expect(src).toMatch(/\.mc-title\s*\{[^}]*min-width:\s*5em/)
   })
 })

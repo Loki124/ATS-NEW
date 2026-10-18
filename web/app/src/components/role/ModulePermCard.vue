@@ -8,20 +8,6 @@
       <div class="mc-left-group">
         <div class="mc-title-cluster">
           <span class="mc-title">{{ label }}</span>
-          <!-- 语义说明 icon + hover（范式同 RuleConfigModal.hint-btn / ModuleActionCard.hint-btn）：
-               内容 = 模块职责描述（desc）+ 模块级/角色级两套范围不合并提示（T09 §10.1 D8）。
-               原「卡头文字描述行 + 段标签说明行」两处常驻文字收敛到这里，垂直空间减半。 -->
-          <n-tooltip trigger="hover" placement="bottom-start">
-            <template #trigger>
-              <button type="button" class="hint-btn" :aria-label="hintAriaLabel">
-                <n-icon :component="InformationCircleOutline" />
-              </button>
-            </template>
-            <div class="mc-tip">
-              <p v-if="desc" class="mc-tip-desc">{{ desc }}</p>
-              <p class="mc-tip-note">{{ t('dataperm.card.scopeNote') }}</p>
-            </div>
-          </n-tooltip>
           <n-tag v-if="disabledReason" size="small" :bordered="false" type="warning" class="lock-tag">
             {{ disabledReason }}
           </n-tag>
@@ -97,11 +83,11 @@
       <div class="mc-unset-head">
         <span class="mc-unset-tag">{{ t('dataperm.mode.unset') }}</span>
         <span class="mc-unset-hint">
-          {{ t('dataperm.card.unset.hint', { scope: defaultScopeLabel }) }}
+          {{ t('dataperm.card.unset.hint') }}
         </span>
       </div>
-      <!-- 未授予功能权限的模块仍允许进入编辑（见 cardDisabled 的 unset 例外）：
-           否则「未配置 + 未授予」叠加会让管理员连配置入口都点不到，权限被锁死。 -->
+      <!-- 未配置态同样允许进入编辑：数据权限与功能权限已解耦（2026-10-18 兵哥），
+           不再看功能权限是否授予 —— 数据范围是独立维度，功能有无由功能权限页签单独管理。 -->
       <button
         type="button"
         class="mc-btn-configure"
@@ -166,10 +152,20 @@
  *    「操作权限 + 状态徽标 + 去配置」只读摘要条，拆分完成即属冗余 —— 操作权限已有独立页签，
  *    在本页复述状态只会诱导"两处都能配"的错觉，且把两个维度又混回一张卡。彻底移除。
  *
- * 2026-10-18 兵哥「同排紧凑版」原型重构（替代原「卡头 + 段标签 + 规则摘要」三区式）：
- *   第一行 .mc-main-row  标题 + ⓘ(desc/scopeNote hover) + 分段选择器 + 重置（仅本卡脏时出现）
+ * 2026-10-18 兵哥三轮调整（同日，按时间顺序）：
+ *   ①「同排紧凑版」原型重构（替代原「卡头 + 段标签 + 规则摘要」三区式，见下方结构说明）；
+ *   ② **移除模块级 ⓘ icon + hover 提示**（原 desc 与「两套范围不合并」文案）——
+ *      身份不再有角色级默认数据范围，数据范围必须且仅在数据权限页签配置，
+ *      卡头只留模块名，各模块的单独提示内容全部撤掉；
+ *   ③ **与功能权限解耦**：卡片不再因「未分配功能权限」置灰/挂锁标签，
+ *      数据范围是独立维度；功能是否存在由「功能权限」页签单独配置。
+ *      故 props 不再有 desc / defaultScopeLabel，disabled 只剩超管一种来源。
+ *
+ * 「同排紧凑版」结构：
+ *   第一行 .mc-main-row  标题（min-width 统一，保证各卡分段选择器左对齐）
+ *   + 分段选择器 + 重置（仅本卡脏时出现）
  *   第二行 .mc-rule-container（仅 scope）虚线框：条件标签链（组间「或」）+ 修改配置
- *   unset 态第二行换成虚线「未配置」面板（含当前生效的默认范围文案 + 开始配置）。
+ *   unset 态第二行换成虚线「未配置」面板。
  * 与原型样例的刻意差异（均因项目令牌纪律，非随意发挥）：
  *   - 间距：原型 12px 20px 卡内边距 / 12px 行距 → 收敛到 8px 基线令牌
  *     （tokens.css §8「只减不增」：--space-3 / --space-5 已由 12/20 收紧为 8/16）；
@@ -180,14 +176,12 @@
  *
  * props.module 直接是 useRoleDataPerm.draft 中的响应式元素（引用），
  * 切模式通过 emit('update:mode') 由弹窗调用 composable.setMode 处理（保持语义单一来源）。
- * disabled 时整卡置灰（超管 / 功能权限未分配），disabledReason 显示原因。
+ * disabled 时整卡置灰（仅超管：超管恒全量可见，无需配置），disabledReason 显示原因。
  */
 import { computed, ref } from 'vue'
 import {
   NButton, NTag, NAlert,
-  NTooltip, NIcon,
 } from 'naive-ui'
-import { InformationCircleOutline } from '@vicons/ionicons5'
 import type { TemplateDrift } from '@/api/data-permission'
 import {
   previewTags, type DataPermMode, type ModulePerm,
@@ -198,18 +192,11 @@ const { t } = useI18n()
 const props = defineProps<{
   module: ModulePerm
   label: string
-  desc: string
   disabled: boolean
   disabledReason?: string
   error?: string
   /** 维度选项是否可用（options 接口成功才 true），否则「配置规则」禁用 */
   canConfig: boolean
-  /**
-   * 角色默认数据范围的**已翻译文案**（如「全部」/「本部门」）。
-   * unset 卡片必须说清"当前走的是哪个默认范围" —— 只说"未配置"会让管理员
-   * 无法判断现在到底能看到多少数据，等于没解决他点开这张卡想知道的事。
-   */
-  defaultScopeLabel?: string
   /**
    * 本卡读范围是否有未保存改动（父组件按模块粒度脏检查后下发）。
    * 驱动「重置」按钮显隐：只有真改过才给撤销入口，避免每张卡常驻一个多半禁用的按钮。
@@ -228,12 +215,9 @@ const emit = defineEmits<{
   (e: 'reset-module'): void
 }>()
 
-/** unset 卡上的默认范围文案，缺省兜底为通用说法（不给 undefined 空洞文案） */
-const defaultScopeLabel = computed(() => props.defaultScopeLabel || t('dataperm.card.unset.scopeUnknown'))
-
 /** unset 态下能否点「开始配置」：只需维度选项可用。
- *  注意**刻意不看** props.disabled —— 未授予功能权限的模块也必须能进入编辑，
- *  否则「未配置 + 未授予」叠加会把管理员锁死在配置入口之外（跨卡死锁，见 RoleEditModal.cardDisabled）。 */
+ *  数据权限与功能权限已解耦（2026-10-18 兵哥）：不再因未授予功能权限禁用，
+ *  未配置态同样可直接进入编辑。 */
 const canConfigure = computed(() => props.canConfig)
 
 /** 正在升级中的条件组下标（驱动按钮 loading），-1 表示空闲 */
@@ -264,11 +248,6 @@ const modeOptions = computed<{ value: DataPermMode; label: string }[]>(() => [
   { value: 'all', label: t('dataperm.mode.all') },
   { value: 'scope', label: t('dataperm.mode.scope') },
 ])
-
-/** ⓘ 的可访问名称：模块职责 + 两套范围不合并提示（tooltip 全文的压缩版，供读屏） */
-const hintAriaLabel = computed(() =>
-  props.desc ? `${props.desc} — ${t('dataperm.card.scopeNote')}` : t('dataperm.card.scopeNote'),
-)
 
 /**
  * 分段选择器键盘导航（ARIA radiogroup 范式）：左右 / 上下箭头移动焦点并选中。
@@ -347,8 +326,8 @@ const driftTags = computed(() =>
  *   --text-secondary     → var(--ink-soft)       分段未选中 / 重置 / 「或」连接词
  *   --primary-color      → var(--brand-fg)       分段选中字 / 修改配置字 / hover 描边
  *   tag 蓝底/蓝字/蓝边   → var(--brand-soft) / var(--brand-fg) / var(--brand-a22)
- *   ⓘ 次级色             → var(--ink-faint)（hover 升 --brand-fg，范式同既有 hint-btn）
  *   card 阴影            → var(--shadow-xs) / hover var(--shadow-sm)
+ * （2026-10-18：模块级 ⓘ icon + hover 提示已按兵哥要求移除，卡头只留标题。）
  * 间距收敛（tokens.css §8 8px 基线「只减不增」）：原型 12px 20px → var(--space-3) var(--space-5)；
  *   行距 12px → var(--space-3)。控件内部微间距（分段项 4px 14px、标签 2px 8px 等）
  *   按原型比例保留 —— 它们定义控件自身比例，不属于布局边距治理范围。
@@ -369,7 +348,7 @@ const driftTags = computed(() =>
    比卡片底更暗，会被读成"凹陷"而非"禁用"。 */
 .module-card.disabled { opacity: 0.6; }
 
-/* ===== 第一行：标题 + ⓘ + 分段选择器 + 重置 ===== */
+/* ===== 第一行：标题 + 分段选择器 + 重置 ===== */
 .mc-main-row {
   display: flex;
   justify-content: space-between;
@@ -391,48 +370,19 @@ const driftTags = computed(() =>
   flex-wrap: wrap;
   min-width: 0;
 }
+/* 标题统一宽度（2026-10-18 兵哥）：最长模块名 5 个全角字符（候选人管理），
+   取 min-width: 5em 让各卡标题占位一致 → 分段选择器左边缘对齐。
+   后端若下发更长标签会自然撑开（不截断），不影响可用性。 */
 .mc-title {
   font-size: var(--fs-15);
   font-weight: 600;
   color: var(--ink);
   white-space: nowrap;
+  min-width: 5em;
 }
 .lock-tag { font-weight: 600; }
 /* 模板状态偏差标记：与 lock-tag 同级，靠文字+颜色双通道表达 */
 .drift-tag { font-weight: 600; max-width: 100%; }
-
-/* 语义说明 icon（范式对齐 RuleConfigModal.hint-btn / ModuleActionCard.hint-btn：
-   button 保键盘可达 + aria-label 供读屏，hover/focus 出 tooltip） */
-.hint-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--ink-faint);
-  cursor: help;
-  padding: 0;
-  font-size: 13px;
-  transition: color .15s ease, background .15s ease;
-}
-.hint-btn:hover,
-.hint-btn:focus-visible {
-  color: var(--brand-fg);
-  background: var(--g1);
-  outline: none;
-}
-.hint-btn:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 1px;
-}
-/* tooltip 内容：模块职责（desc）+ 两套范围不合并提示 */
-.mc-tip { max-width: 320px; }
-.mc-tip-desc { margin: 0 0 4px; font-size: var(--fs-12); line-height: 1.6; }
-.mc-tip-note { margin: 0; font-size: var(--fs-12); line-height: 1.6; color: var(--ink-soft); }
 
 /* 分段选择器（原型 .segmented-control）：灰槽 + 白底浮起选中项 */
 .mc-segmented {

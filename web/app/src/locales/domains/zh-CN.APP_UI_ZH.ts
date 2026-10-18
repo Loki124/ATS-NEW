@@ -1473,8 +1473,6 @@ export const APP_UI_ZH: Record<string, string> = {
   'pages.settings.permission.RoleEditModal.s4': "显示名",
   'pages.settings.permission.RoleEditModal.s5': "身份编码",
   'pages.settings.permission.RoleEditModal.s6': "身份名称",
-  'pages.settings.permission.RoleEditModal.s7': "来源模板",
-  'pages.settings.permission.RoleEditModal.s8': "默认数据范围",
   'pages.settings.permission.RoleEditModal.s9': "描述",
   'pages.settings.permission.TemplatesTab.s1': "刷新",
   'pages.settings.stage-rule.StageRuleConfigModal.s1': "即时生效",

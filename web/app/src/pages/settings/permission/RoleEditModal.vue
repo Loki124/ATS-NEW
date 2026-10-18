@@ -10,7 +10,11 @@
     @update:show="(v: boolean) => !v && requestClose()"
   >
     <n-tabs v-model:value="activeTab" type="line" class="edit-tabs" data-testid="role-edit-tabs">
-      <!-- ===== 页签 1：基础信息 ===== -->
+      <!-- ===== 页签 1：基础信息 =====
+           2026-10-18 兵哥调整：移除「来源模板」与「默认数据范围」两个字段 ——
+           模板仅在创建身份时被引用（clone-from-template 拷贝权限快照），
+           创建后实际权限以实际配置为准，不与来源模板关联；
+           数据范围必须且仅在「数据权限」页签中按模块配置，身份不再有默认数据范围。 -->
       <n-tab-pane name="basic" :tab="t('pages.settings.permission.RoleEditModal.s30')" display-directive="show:lazy">
         <p class="pane-caption">{{ t('pages.settings.permission.RoleEditModal.s33') }}</p>
         <n-form :model="form" label-placement="left" label-width="100" class="basic-form">
@@ -19,19 +23,6 @@
           </n-form-item>
           <n-form-item :label="t('pages.settings.permission.RoleEditModal.s6')" required>
             <n-input v-model:value="form.roleName" :placeholder="t('pages.settings.permission.RoleEditModal.s4')" />
-          </n-form-item>
-          <n-form-item :label="t('pages.settings.permission.RoleEditModal.s7')">
-            <n-input :value="form.templateCode || t('pages.settings.permission.RoleEditModal.s19')" disabled />
-          </n-form-item>
-          <n-form-item :label="t('pages.settings.permission.RoleEditModal.s8')">
-            <n-select
-              v-model:value="form.defaultDataScopeType"
-              :options="dataScopeOptions"
-              clearable
-              :placeholder="t('pages.settings.permission.RoleEditModal.s11')"
-            />
-            <!-- T09（§10.1 D8）：角色默认范围与模块级数据范围独立，不合并 -->
-            <p class="scope-note">{{ t('dataperm.roleScopeNote') }}</p>
           </n-form-item>
           <n-form-item :label="t('pages.settings.permission.RoleEditModal.s9')">
             <n-input v-model:value="form.description" type="textarea" :rows="2" />
@@ -80,12 +71,10 @@
               <ModulePermCard
                 :module="m"
                 :label="moduleView(m.moduleKey).label"
-                :desc="moduleView(m.moduleKey).desc"
-                :disabled="cardDisabled(m)"
-                :disabled-reason="disabledReason(m)"
+                :disabled="isSuperAdmin"
+                :disabled-reason="isSuperAdmin ? t('dataperm.card.disabled.superAdmin') : undefined"
                 :error="dpErrors[m.moduleKey]"
                 :can-config="moduleView(m.moduleKey).dimensions.length > 0"
-                :default-scope-label="defaultScopeLabel"
                 :read-dirty="dpModuleReadDirty(m.moduleKey)"
                 @update:mode="(mode) => dpSetMode(m.moduleKey, mode)"
                 @open-rule="openRule(m.moduleKey)"
@@ -303,20 +292,32 @@
  *   各自的「自定义范围」是两份独立条件组。「不限制」≠「0 动作」——前者沿用功能权限，
  *   后者是 fail-closed 只读（红色报警）。
  *
+ * 2026-10-18 兵哥权限模型简化（三处联动，本文件 + ModulePermCard + locale）：
+ *   ① 基础信息**移除「默认数据范围」**：身份不再有角色级默认数据范围，
+ *      数据范围必须且仅在「数据权限」页签按模块配置。payload 随之不再下发
+ *      default_data_scope_type（存量角色库内旧值原样保留、不做静默清除 ——
+ *      清不清是产品决策，见交付说明）；
+ *   ② 基础信息**移除「来源模板」**：模板仅在创建身份时被引用
+ *      （clone-from-template 拷贝权限快照，后端 test_template_edit_does_not_affect_cloned_role
+ *      已背书「改模板不影响已建身份」），创建后实际权限以实际配置为准；
+ *   ③ 数据权限卡**与功能权限解耦**：不再因「未分配功能权限」置灰/挂锁，
+ *      功能是否存在由「功能权限」页签单独配置（操作权限卡保留该耦合，
+ *      「没功能可操作」在那里提示仍有意义）。
+ *
  * 数据权限的 featureGranted 以加载时后端返回为准；若本次会话在功能权限页签
  * 新勾选了某模块的资源（resourceCode 含 `.{moduleKey}.`），则立即视为已授予，
- * 无需先保存再回来配置。
+ * 无需先保存再回来配置。（该字段现仅驱动操作权限卡与 none 二次确认，不再禁用数据卡。）
  */
 import { useI18n } from 'vue-i18n'
 import { computed, h, nextTick, reactive, ref, watch } from 'vue'
 import {
-  NModal, NForm, NFormItem, NInput, NSelect, NSwitch, NButton, NSpace, NIcon,
+  NModal, NForm, NFormItem, NInput, NSwitch, NButton, NSpace, NIcon,
   NCheckbox, NCheckboxGroup, NTabs, NTabPane, NAlert, NEmpty, NSpin,
   NCollapse, NCollapseItem,
   useMessage, useDialog,
 } from 'naive-ui'
 import { ShieldCheckmarkOutline } from '@vicons/ionicons5'
-import { createRole, updateRole, syncRolePermissions, type RoleV2, type DataScopeType } from '@/api/role-v2'
+import { createRole, updateRole, syncRolePermissions, type RoleV2 } from '@/api/role-v2'
 import { fetchAllResources, type PermissionResource } from '@/api/permission-resource'
 import { useCloseGuard } from '@/composables/useCloseGuard'
 import { useUserStore } from '@/stores/user'
@@ -369,12 +370,14 @@ const currentUserIsSuperAdmin = computed(() => (userStore.user?.roles ?? []).inc
 const actionManageShow = ref(false)
 
 // 模块展示元数据兜底（options 接口成功时以 options 为准）
-const MODULE_META: Record<string, { label: string; desc: string }> = {
-  demand: { label: '招聘需求', desc: '控制招聘需求（HC）单的可见范围' },
-  process: { label: '招聘流程', desc: '控制招聘流程实例与流转记录的可见范围' },
-  position: { label: '招聘职位', desc: '控制招聘职位信息的可见范围' },
-  candidate: { label: '候选人管理', desc: '控制候选人简历与跟进记录的可见范围' },
-  talent: { label: '人才库', desc: '控制人才库档案的可见范围' },
+// 2026-10-18：desc 已随模块级 ⓘ 提示一并移除（兵哥：删除各模块的单独提示内容），
+// 数据权限卡头只留标题；操作权限卡的说明在 ACTION_MODULE_META，两维度刻意区分。
+const MODULE_META: Record<string, { label: string }> = {
+  demand: { label: '招聘需求' },
+  process: { label: '招聘流程' },
+  position: { label: '招聘职位' },
+  candidate: { label: '候选人管理' },
+  talent: { label: '人才库' },
 }
 
 /**
@@ -392,10 +395,9 @@ const ACTION_MODULE_META: Record<string, { label: string; desc: string }> = {
 
 function moduleView(key: string) {
   const opt = dpOptions.value.find((o) => o.moduleKey === key)
-  const meta = MODULE_META[key] || { label: key, desc: '' }
+  const meta = MODULE_META[key] || { label: key }
   return {
     label: opt?.label || meta.label,
-    desc: meta.desc,
     dimensions: opt?.dimensions || [],
     attributeFields: opt?.attributeFields || [],
   }
@@ -423,7 +425,11 @@ function effectiveGranted(m: ModulePerm): boolean {
 }
 
 /**
- * 卡片是否置灰。
+ * 卡片是否置灰 —— 🔴 2026-10-18 起**仅服务「操作权限」卡**（ModuleActionCard）。
+ *
+ * 数据权限卡已与功能权限解耦（兵哥：数据范围是独立维度，功能有无由功能权限页签
+ * 单独配置），其置灰只剩超管一种原因，模板里直接写 `:disabled="isSuperAdmin"`。
+ * 本函数保留给操作权限卡：「没授予功能 → 没有可操作的数据」在那里提示仍有意义。
  *
  * 🔴 跨卡死锁豁免（卡 1.2 unset × 卡 1.3 featureGranted）：
  *    未授予功能权限的模块本应整卡禁用，但叠加上「未配置」态会形成死锁——
@@ -437,7 +443,8 @@ function cardDisabled(m: ModulePerm): boolean {
   return !effectiveGranted(m)
 }
 
-/** 未授予功能权限但处于未配置态时，提示降级为"可开始配置"而非"已禁用" */
+/** 未授予功能权限但处于未配置态时，提示降级为「可开始配置」而非「已禁用」。
+ *  同 cardDisabled：仅服务操作权限卡。 */
 function disabledReason(m: ModulePerm): string | undefined {
   if (isSuperAdmin.value) return t('dataperm.card.disabled.superAdmin')
   if (m.mode === 'unset') return undefined
@@ -561,7 +568,7 @@ const initialSelectedKey = ref('')
 
 function formSnapshot(): string {
   return JSON.stringify({
-    roleCode: form.roleCode, roleName: form.roleName, defaultDataScopeType: form.defaultDataScopeType,
+    roleCode: form.roleCode, roleName: form.roleName,
     description: form.description, status: form.status,
   })
 }
@@ -580,12 +587,13 @@ const allResources = ref<PermissionResource[]>([])
 const selectedCodes = ref<string[]>([])
 const resourcesFailedMsg = ref('')
 
+// 2026-10-18 兵哥：基础信息不再有「来源模板 / 默认数据范围」——
+//   模板仅创建时引用（clone 流程打戳，本表单不持有）；
+//   数据范围只在数据权限页签按模块配，故 form 不再有 defaultDataScopeType。
 const form = reactive({
   id: '' as string,
   roleCode: '',
   roleName: '',
-  templateCode: '',
-  defaultDataScopeType: null as DataScopeType | null,
   description: '',
   status: 1 as number,
 })
@@ -593,24 +601,6 @@ const form = reactive({
 const statusSwitch = computed({
   get: () => form.status === 1,
   set: (v: boolean) => { form.status = v ? 1 : 0 },
-})
-
-const dataScopeOptions: { label: string; value: DataScopeType }[] = [
-  { label: t('pages.settings.permission.RoleEditModal.s12'), value: 'SELF' },
-  { label: t('pages.settings.permission.RoleEditModal.s13'), value: 'DEPT' },
-  { label: t('pages.settings.permission.RoleEditModal.s14'), value: 'DEPT_AND_SUB' },
-  { label: t('pages.settings.permission.RoleEditModal.s15'), value: 'ALL' },
-]
-
-/**
- * unset 卡片要告诉管理员"现在走的是哪个默认范围" —— 只说「未配置」等于没说，
- * 他点开这张卡就是为了知道当前能看到多少数据。
- * 复用基础信息页那组选项的 label，保证两处措辞完全一致（不一致会让人怀疑是不是两套规则）。
- */
-const defaultScopeLabel = computed(() => {
-  const cur = form.defaultDataScopeType
-  if (!cur) return t('pages.settings.permission.RoleEditModal.s11')
-  return dataScopeOptions.find((o) => o.value === cur)?.label ?? String(cur)
 })
 
 // 按 module 分组 (null/空归到未分类)
@@ -759,8 +749,6 @@ watch(
       form.id = role.id
       form.roleCode = role.roleCode
       form.roleName = role.roleName
-      form.templateCode = role.templateCode ?? ''
-      form.defaultDataScopeType = (role.defaultDataScopeType as DataScopeType) ?? null
       form.description = role.description ?? ''
       form.status = role.status
       selectedCodes.value = [...(role.permissionCodes ?? [])]
@@ -768,8 +756,6 @@ watch(
       form.id = ''
       form.roleCode = ''
       form.roleName = ''
-      form.templateCode = ''
-      form.defaultDataScopeType = null
       form.description = ''
       form.status = 1
       selectedCodes.value = []
@@ -839,10 +825,11 @@ async function onSubmit() {
     let createdNew = false
     if (!roleId) {
       // 新建身份: 先 POST /roles/ 创建元数据, 拿到 id 后再同步资源
+      // （2026-10-18：不再下发 defaultDataScopeType —— 身份无默认数据范围，
+      //  数据范围在数据权限页签按模块配置；库内旧值原样保留，不静默清除。）
       const created = await createRole({
         roleCode: form.roleCode,
         roleName: form.roleName,
-        defaultDataScopeType: form.defaultDataScopeType,
         description: form.description,
         status: form.status,
       })
@@ -857,10 +844,11 @@ async function onSubmit() {
       form.id = roleId
     } else {
       // 编辑: 保存身份自身字段 (PUT /roles/{id}/)
+      // 刻意不含 defaultDataScopeType：字段已从表单移除，编辑即不触碰该列，
+      // 避免「改个名称就把存量角色的默认范围清掉」这种不可见副作用。
       await updateRole(roleId, {
         roleCode: form.roleCode,
         roleName: form.roleName,
-        defaultDataScopeType: form.defaultDataScopeType,
         description: form.description,
         status: form.status,
       })
@@ -1185,11 +1173,5 @@ async function onSubmit() {
 }
 .dp-card-slot {
   scroll-margin: 16px;
-}
-.scope-note {
-  margin: 4px 0 0;
-  font-size: var(--fs-12, 12px);
-  line-height: 1.5;
-  color: var(--ink-faint);
 }
 </style>

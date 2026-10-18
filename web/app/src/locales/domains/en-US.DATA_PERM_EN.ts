@@ -4,16 +4,13 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.mode.all': 'All',
   'dataperm.mode.scope': 'Scoped',
   // Fourth state, distinct from none/all/scope (card 1.2): "never configured",
-  // falling back to the role's default data scope — NOT "no access".
+  // falling back to the tenant default / self — NOT "no access". As of 2026-10-18
+  // identities no longer have a default data scope; scope must be configured
+  // explicitly per module in the Data Permissions tab.
   'dataperm.mode.unset': 'Not configured',
-  'dataperm.card.unset.hint': 'Not configured · currently using default scope: {scope}',
-  'dataperm.card.unset.scopeUnknown': 'system default',
+  'dataperm.card.unset.hint': 'Not configured · no data scope configured for this module yet',
   'dataperm.card.unset.start': 'Start configuring',
   'dataperm.card.summary.empty': 'No conditions configured',
-  // T09 (§10.1 D8): module-level scope and role-level default scope are two independent
-  // settings that do NOT merge — clarify beside the module read-scope selector.
-  'dataperm.card.scopeNote': 'Module-level data scope (this card) and the role default scope (see role basics) are two independent settings and do not merge.',
-  'dataperm.roleScopeNote': 'The role default scope only applies to modules without a separately configured module-level scope.',
   'dataperm.card.ruleCount': '{n} condition group(s)',
   // 2026-10-18 "same-row compact" prototype: button copy aligned with the sample ("Modify Rules")
   'dataperm.card.configRule': 'Modify Rules',
@@ -1273,11 +1270,6 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.FieldAclSettings.s12': "Resource.Field",
   'pages.settings.FieldAclSettings.s13': "Action",
   'pages.settings.FieldAclSettings.s14': "Result",
-  'pages.settings.permission.RoleEditModal.s11': "Not set (defaults to ALL)",
-  'pages.settings.permission.RoleEditModal.s12': "Self only (SELF)",
-  'pages.settings.permission.RoleEditModal.s13': "This department (DEPT)",
-  'pages.settings.permission.RoleEditModal.s14': "This dept + sub (DEPT_AND_SUB)",
-  'pages.settings.permission.RoleEditModal.s15': "Whole company (ALL)",
   'pages.settings.permission.RoleEditModal.s16': "Identity code and name are required",
   'pages.settings.FieldAclSettings.s15': "Interviewer",
   'pages.settings.FieldAclSettings.s16': "Hiring Manager",
@@ -1311,7 +1303,6 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.EntryConditionCard.s21': "Condition group ",
   'pages.settings.permission.RoleEditModal.s17': "Edit identity: {name}",
   'pages.settings.permission.RoleEditModal.s18': "New identity",
-  'pages.settings.permission.RoleEditModal.s19': "None — Custom",
   'pages.settings.permission.RoleEditModal.s20': "Enabled",
   'pages.settings.permission.RoleEditModal.s21': "Disabled",
   'pages.settings.permission.RoleEditModal.s23': "Uncategorized",
@@ -1324,7 +1315,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.permission.RoleEditModal.s30': "Basics",
   'pages.settings.permission.RoleEditModal.s31': "Function Permissions",
   'pages.settings.permission.RoleEditModal.s32': "Data Permissions",
-  'pages.settings.permission.RoleEditModal.s33': "Basic identity attributes and default data scope",
+  'pages.settings.permission.RoleEditModal.s33': "Basic identity attributes",
   'pages.settings.permission.RoleEditModal.s34': "Select the functional resources this identity can access, grouped by module",
   'pages.settings.permission.RoleEditModal.s36': "Save the identity first, then configure data visibility per module here",
   'pages.settings.permission.RoleEditModal.s37': "Select All",
