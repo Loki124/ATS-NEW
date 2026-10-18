@@ -1,50 +1,56 @@
 <template>
   <div class="page-container">
-<div class="page-body">
+    <!-- 遵循「数据列表模板 · 独立设置页列表（乙系）」：page-header 与 page-body 是兄弟节点，
+         操作控件一律移入面板内 .toolbar（不在页头堆按钮） -->
     <div class="page-header">
       <h1 class="page-title">{{ t('pages.settings.CompanySettings.s1') }}</h1>
       <p class="page-subtitle">{{ t('pages.settings.CompanySettings.s2') }}</p>
     </div>
 
-    <n-card :title="t('pages.settings.CompanySettings.s3')">
-      <n-space vertical>
-        <n-space>
-          <n-button
-            type="primary"
-            :loading="loadingList"
-            @click="loadSyncs"
-          >
+    <div class="page-body">
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <!-- 说明文字属列表语义 → 用全局 .field-hint，禁私建 tip 类名（8px 间距 + 语义色令牌） -->
+          <p class="field-hint toolbar-hint">{{ t('pages.settings.CompanySettings.s5') }}</p>
+          <div class="spacer"></div>
+          <n-button type="primary" class="gradient-btn" :loading="loadingList" @click="loadSyncs">
+            <template #icon><n-icon :component="RefreshOutline" /></template>
             {{ t('pages.settings.CompanySettings.s4') }}
           </n-button>
-          <n-text depth="3">
-            {{ t('pages.settings.CompanySettings.s5') }}
-          </n-text>
-        </n-space>
+        </div>
 
-        <n-data-table
-          :columns="columns"
-          :data="syncs"
-          :bordered="false"
-          size="small"
-          :pagination="localPagination()"
-        />
+        <div class="table-wrap">
+          <n-data-table
+            :columns="columns"
+            :data="syncs"
+            :bordered="false"
+            :loading="loadingList"
+            :row-key="(row: CompanySync) => row.id"
+            :pagination="localPagination()"
+            flex-height
+          >
+            <!-- 空态双态：区分「尚未同步过」与「筛选无匹配」 -->
+            <template #empty>
+              <n-empty
+                :description="syncs.length === 0
+                  ? t('pages.settings.CompanySettings.s19')
+                  : t('pages.settings.CompanySettings.s20')"
+              />
+            </template>
+          </n-data-table>
+        </div>
+      </div>
 
-        <n-divider />
-
-        <n-text depth="3" style="font-size: 12px">
-          {{ t('pages.settings.CompanySettings.s6') }}
-        </n-text>
-      </n-space>
-    </n-card>
-    </div><!-- /.page-body -->
-</div>
+      <p class="field-hint sync-note">{{ t('pages.settings.CompanySettings.s6') }}</p>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { localPagination } from '@/composables/useTablePagination'
 import { h, onMounted, ref } from 'vue'
-import { NButton, NSpace, NTag, NIcon, useMessage, type DataTableColumns } from 'naive-ui'
+import { NButton, NSpace, NTag, NIcon, NEmpty, useMessage, type DataTableColumns } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 import { fetchSyncs, retrySync, type CompanySync } from '../../api/external-sync'
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
@@ -123,30 +129,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
-.page-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  padding: 0;
+/* 全局 glass.css 已提供 .page-container / .page-header / .page-title / .page-subtitle /
+   .panel-shell / .toolbar / .table-wrap，本页不再私有重写（SETTINGS_PAGE_STRUCTURE.md §0）。
+   仅保留两处页面专属微调：
+   1. 工具条内的说明文字：需吃掉 n-form-item 式外边距并顶对齐，不撑高工具条 */
+.toolbar-hint {
+  margin: 0;
+  align-self: center;
 }
-.page-header {
-  flex-shrink: 0;
+/* 列表下方的补充说明：与上方面板留 8px（--space-2），由 .page-body 的 gap 统一管控 */
+.sync-note {
+  margin: 0;
 }
-.page-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-
-/* 删除 scoped .page-header/.page-title 覆盖（规范：复用全局 glass.css） */
 </style>

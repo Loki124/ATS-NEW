@@ -395,13 +395,6 @@ onMounted(loadList)
   gap: var(--space-2);
 }
 /* 玻璃面板内 = KPI 下方工具条 + 主表（与身份管理 RolesTab / DepartmentManagement 同构） */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 .kpi-foot { color: var(--ink-faint); font-size: var(--fs-12); margin-top: 4px; }
 
 .rule-name { font-weight: 500; color: var(--ink); }

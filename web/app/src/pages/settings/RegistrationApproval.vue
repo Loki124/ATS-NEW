@@ -229,11 +229,4 @@ onMounted(loadList)
 /* .page-header 的 flex-shrink:0 与 .spacer 的 flex:1 已由 glass.css 全局提供，此处不私有重写 */
 /* .glass-panel 已是全局类（glass.css §4）；panel-shell 让面板撑满 page-body，
  * 内部 .toolbar + .table-wrap(flex-height) 与身份管理 RolesTab 同构 */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 </style>

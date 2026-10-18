@@ -553,9 +553,6 @@ onMounted(() => {
   align-items: center;
   gap: var(--space-2);
 }
-.rule-filter-search {
-  width: 240px;
-}
 .spacer {
   flex: 1;
 }

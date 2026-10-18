@@ -868,12 +868,12 @@ body.dark .n-data-table .n-data-table-th {
    提升为全局工具类以单一令牌源，供 UserDirectory 等同构数据列表页复用。
    与 CampusControl 既有 scoped 副本取值一致，不冲突） */
 .rule-filter-search {
-  width: 200px;
-  max-width: 200px; /* 压住 n-input 自带 width:100%，否则独占整行 */
+  width: 240px;
+  max-width: 240px; /* 压住 n-input 自带 width:100%，否则独占整行 */
   flex-shrink: 0;
 }
 .rule-filter-select {
-  width: 130px;
+  width: 136px;
   flex-shrink: 0;
 }
 
@@ -1057,6 +1057,62 @@ body.dark .kpi-card.kpi-card--accent {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--col-min), 1fr));
   gap: var(--space-4);
+}
+
+/* === .panel-shell：数据列表页内容面板（2026-10-18 兵哥「前端UI模板」体系 · 提升为全局）
+ * 用途：设置中心独立页的列表区容器 = glass-panel + 撑满高度 + 8px 内衬。
+ *   结构：.page-container > .page-header + .page-body > .glass-panel.panel-shell
+ *           > .toolbar + .table-wrap > n-data-table[flex-height]
+ * 背景：此前该规则在 11 个页面各自抄了一份 scoped 副本（值逐字相同），
+ *   属「伪全局类」重复。新页面再抄一份只会继续扩大分叉，故提升到全局唯一真源。
+ *   ⚠️ tab 内嵌型列表页（RolesTab / ResourcesTab / reason-library/*）**不要**加本类——
+ *   它们由父页提供面板外壳，加了会多一层内衬。此类页面根节点只需 flex 列 + gap:var(--space-2)。
+ * 内衬 8px（--space-2）：面板已无投影 + 无页头分隔线，再叠 16px 会让内容框显小、行密度虚低。 */
+.panel-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2);
+}
+
+/* === .field-hint：表单/配置项的统一说明文字（2026-10-18 兵哥「前端UI模板」体系）
+ * 背景：此前全站有 19 种私有命名（switch-tip / input-tip / section-desc / field-hint /
+ *   dc-row-desc / block-desc …）各带各的色值，其中 6 个文件甚至硬编码 var(--n-400)。
+ *   收敛为唯一真源：字号 --text-meta(12px)、色值 --ink-soft（暗色自动联动）。
+ * 用法：紧跟控件之后，作为 n-form-item / 配置项行的补充说明。
+ *
+ * ⚠️ 布局陷阱（2026-10-18 浏览器实测发现）：naive 的 n-form-item 内容区是
+ *   `display:flex` 且**不换行**，.field-hint 作为控件的兄弟节点会被横排到控件右侧，
+ *   文字直接溢出弹窗右边界（520px 弹窗实测复现）。故本类必须自带整行能力，
+ *   且父容器必须允许换行。 */
+.field-hint {
+  font-size: var(--text-meta);
+  color: var(--ink-soft);
+  margin: var(--space-1) 0 0;
+  line-height: 1.5;
+  display: block;
+  /* 三重保险，任一生效即可独占整行：
+     ① width:100%      —— 在普通块容器里独占整行
+     ② flex-basis:100% —— 在 flex 容器里配合父级 wrap 独占整行
+     ③ min-width:0 + overflow-wrap —— 长文本按容器宽度折行，不撑破边界 */
+  width: 100%;
+  max-width: 100%;
+  flex: 0 0 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* 父容器换行：naive 的 form-item 内容容器类名是 **.n-form-item-blank**
+ * （源码 FormItem.mjs：`${clsPrefix}-form-item-blank`），它默认 flex + nowrap，
+ * .field-hint 的 flex-basis:100% 在 nowrap 下会被压缩而非换行，故须放开 wrap。
+ * ⚠️ 只在「含 .field-hint 的行」上生效：feedback(校验错误) 等场景靠 blank 的
+ *   布局放置，无条件 wrap 会挤乱既有页面。:has() 需 Chrome 105+/Safari 15.4+，
+ *   CI 与生产均为现代浏览器；若未来要支持旧浏览器，改为给 .field-hint 加
+ *   `display:block` 包裹容器（见 FormDemo 中的 .hint-wrap）。 */
+.n-form-item-blank:has(.field-hint) {
+  flex-wrap: wrap;
 }
 
 /* =============================================================
@@ -1405,7 +1461,8 @@ body:has(.n-modal-body-wrapper) .page-body {
 
 /* === .drawer-footer（范本：校招管控弹窗底部操作区，右对齐）=== */
 /* 2026-09-08 修复：操作栏按钮贴底——补底部内边距，让操作区与卡片底边留出呼吸间距（兵哥反馈「不要贴底」，统一处理所有弹窗）。 */
-.drawer-footer { display: flex; justify-content: flex-end; gap: var(--space-3); padding-bottom: var(--space-4); }
+/* 2026-10-18 兵哥 8px 间距标准：gap 由 --space-3(12px) 收敛为 --space-2(8px) */
+.drawer-footer { display: flex; justify-content: flex-end; gap: var(--space-2); padding-bottom: var(--space-4); }
 
 /* === 设置页 KPI 无边框变体（与校招管控 .kpi-card 同源：玻璃底 + 无边框 + hover 品牌浅底）=== */
 .settings-scroll .kpi-card {

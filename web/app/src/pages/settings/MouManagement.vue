@@ -965,13 +965,6 @@ onMounted(() => {
   gap: var(--space-2);
 }
 /* 玻璃面板内 = 工具条 + table-wrap(flex-height)，与身份管理 RolesTab 同构（原 n-card 改为 div 以打通 flex 链） */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 .scope-edit {
   display: flex;
   align-items: center;

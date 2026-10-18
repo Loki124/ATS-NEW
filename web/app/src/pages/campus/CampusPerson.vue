@@ -457,6 +457,8 @@ onMounted(() => {
   gap: var(--space-2);
   flex-wrap: wrap;
 }
+/* 本页有 9 个筛选下拉，为控制工具栏单行不换行，搜索框收窄至 220px
+ * （全局 .rule-filter-search 为 240px）。属有意例外，非遗漏。 */
 .rule-filter-search {
   width: 220px;
 }

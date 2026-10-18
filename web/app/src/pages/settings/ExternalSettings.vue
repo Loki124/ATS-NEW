@@ -1349,13 +1349,6 @@ onMounted(() => {
 }
 /* 玻璃面板内 = 工具条 + table-wrap(flex-height)，与身份管理 RolesTab 同构；
    page-container 为 block 流，panel-shell 此处退化为自然高度（flex-height 随页面整体滚动），以视觉统一为先。 */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 /* KPI 卡片复用全局 .kpi-card；仅强调数字用变量化色阶，不硬编码 hex 破坏暗色 */
 .kpi-value--ok { color: var(--c-success-deep); }
 .kpi-value--info { color: var(--c-info-deep); }

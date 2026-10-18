@@ -654,13 +654,5 @@ onMounted(() => {
 }
 /* .glass-panel 已是全局类（glass.css §4）；panel-shell 让面板撑满 page-body，
  * 内部 .toolbar + .table-wrap(flex-height) 与身份管理 RolesTab 同构（2026-10-15 兵哥：页面结构统一） */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 /* 搜索框宽度与身份管理工具条一致（RolesTab scoped 同款覆盖全局 200px） */
-.rule-filter-search { width: 240px; max-width: 240px; }
 </style>

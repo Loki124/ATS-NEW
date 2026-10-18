@@ -71,7 +71,7 @@ import {
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
   ShieldOutline, ShieldCheckmarkOutline, LockClosedOutline, PeopleCircleOutline, OptionsOutline,
   DocumentTextOutline, FileTrayFullOutline, GridOutline, CopyOutline,
-  BriefcaseOutline, CalendarOutline, GiftOutline, PricetagsOutline,
+  BriefcaseOutline, CalendarOutline, GiftOutline, PricetagsOutline, CodeSlashOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -238,7 +238,18 @@ const rawSubMenuOptions: MenuItem[] = [
     type: 'group',
     label: t('pages.settings.SettingsLayout.s50'),
     children: [
-      { key: '/settings/theme', label: t('pages.settings.SettingsLayout.s61'), icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
+      {
+        // 2026-10-18 兵哥：/settings/theme 由普通子项提升为可展开父项（去掉 type:'group'，
+        //   与 g-company / g-org / g-user / g-permission 同款形态），
+        //   「前端UI模板」作为其二级子项。父项自身仍有路由，点击即进入主题外观页。
+        key: 'g-theme',
+        label: t('pages.settings.SettingsLayout.s61'),
+        icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }),
+        children: [
+          { key: '/settings/theme', label: t('pages.settings.SettingsLayout.s61'), icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }) },
+          { key: '/settings/ui-templates', label: t('pages.settings.SettingsLayout.s65'), icon: () => h(NIcon, null, { default: () => h(CodeSlashOutline) }) },
+        ],
+      },
       {
         // 2026-09-18 基础数据：分为静态数据（标准码表，只读）/ 动态数据（公司库+院校库，可维护）
         key: 'g-basic-data',

@@ -439,9 +439,8 @@ onMounted(load)
   min-height: 0;
   gap: var(--space-2);
 }
-/* 搜索/筛选输入宽度（对齐 CampusControl rules tab 视觉密度） */
-.rule-filter-search { width: 240px; }
-.rule-filter-select { width: 136px; }
+/* 搜索/筛选输入宽度：2026-10-18 起由 glass.css 全局 .rule-filter-search(240px) /
+   .rule-filter-select(136px) 提供唯一真源，此处不再覆写（曾逐字重复全局值）。 */
 
 /* === 2026-10-15 兵哥纠偏：撤回过度单色化，回归前端标准
  * 初版把工具栏全改 ghost、删除改「hover 才转红」，与两处权威规范冲突：

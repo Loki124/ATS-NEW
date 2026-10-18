@@ -56,18 +56,30 @@
             :expanded-row-keys="expandedKeys"
             flex-height
             @update:expanded-row-keys="onExpandedKeysChange"
-          />
+          >
+            <!-- 空态双态（列表模板硬性要求）：区分「系统内暂无数据」与「当前筛选/搜索无匹配」 -->
+            <template #empty>
+              <n-empty
+                :description="searchKeyword.trim() || statusFilter !== 'ALL'
+                  ? t('pages.settings.DepartmentManagement.s115')
+                  : t('pages.settings.DepartmentManagement.s116')"
+              />
+            </template>
+          </n-data-table>
         </div>
       </div>
     </div>
 
-    <!-- 部门详情 / 编辑 合一弹窗（居中） -->
+    <!-- 部门详情 / 编辑 合一弹窗（居中）
+         遵循「弹窗模板 · 卡片式编辑弹窗」：宽度取 640px 档（9 字段双列）+ max-width 92vw 兜底窄屏
+         + mask-closable/close-on-esc/on-mask-click 三件套，footer 走全局 .drawer-footer -->
     <n-modal
       v-model:show="deptModalVisible"
       preset="card"
       :title="modalTitle"
-      :style="{ width: '720px' }"
+      style="width: 640px; max-width: 92vw"
       :mask-closable="false"
+      :close-on-esc="false"
       :centered="true"
       :auto-focus="false"
     >
@@ -106,119 +118,106 @@
         <n-descriptions-item :label="t('pages.settings.DepartmentManagement.s25')">{{ formatTime(viewDept.updatedAt) }}</n-descriptions-item>
       </n-descriptions>
 
-      <!-- 编辑态：可编辑表单 -->
+      <!-- 编辑态：可编辑表单（遵循「表单模板 · 标准表单区块」）
+           label 在上 · 控件在下 · 双列用 .grid-auto 自适应栅格（禁 n-grid 硬编码列数） -->
       <n-form v-else :model="formState" label-placement="top">
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s26')">
-              <n-input
-                v-model:value="formState.code"
-                :placeholder="t('pages.settings.DepartmentManagement.s27')"
-                :disabled="true"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s28')" required>
-              <n-input v-model:value="formState.name" :placeholder="t('pages.settings.DepartmentManagement.s29')" />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <div class="grid-auto">
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s26')">
+            <n-input
+              v-model:value="formState.code"
+              :placeholder="t('pages.settings.DepartmentManagement.s27')"
+              :disabled="true"
+            />
+          </n-form-item>
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s28')" required>
+            <n-input v-model:value="formState.name" :placeholder="t('pages.settings.DepartmentManagement.s29')" />
+          </n-form-item>
+        </div>
 
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s30')">
-              <n-tree-select
-                v-model:value="formState.parentId"
-                :options="parentTreeData"
-                :placeholder="t('pages.settings.DepartmentManagement.s31')"
-                clearable
-                default-expand-all
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s32')">
-              <n-input-number
-                v-model:value="formState.sortOrder"
-                :min="0"
-                :max="9999"
-                style="width: 100%"
-                :placeholder="t('pages.settings.DepartmentManagement.s33')"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <div class="grid-auto">
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s30')">
+            <n-tree-select
+              v-model:value="formState.parentId"
+              :options="parentTreeData"
+              :placeholder="t('pages.settings.DepartmentManagement.s31')"
+              clearable
+              default-expand-all
+            />
+          </n-form-item>
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s32')">
+            <n-input-number
+              v-model:value="formState.sortOrder"
+              :min="0"
+              :max="9999"
+              style="width: 100%"
+              :placeholder="t('pages.settings.DepartmentManagement.s33')"
+            />
+          </n-form-item>
+        </div>
 
         <n-divider title-placement="left">{{ t('pages.settings.DepartmentManagement.s34') }}</n-divider>
 
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s35')">
-              <n-select
-                v-model:value="formState.managerId"
-                :placeholder="t('pages.settings.DepartmentManagement.s36')"
-                clearable
-                filterable
-                :options="userOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s37')">
-              <n-select
-                v-model:value="formState.manager2Id"
-                :placeholder="t('pages.settings.DepartmentManagement.s38')"
-                clearable
-                filterable
-                :options="userOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <div class="grid-auto">
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s35')">
+            <n-select
+              v-model:value="formState.managerId"
+              :placeholder="t('pages.settings.DepartmentManagement.s36')"
+              clearable
+              filterable
+              :max-tag-count="1"
+              :options="userOptions"
+            />
+          </n-form-item>
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s37')">
+            <n-select
+              v-model:value="formState.manager2Id"
+              :placeholder="t('pages.settings.DepartmentManagement.s38')"
+              clearable
+              filterable
+              :max-tag-count="1"
+              :options="userOptions"
+            />
+          </n-form-item>
+        </div>
 
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s39')">
-              <n-select
-                v-model:value="formState.hrbpId"
-                :placeholder="t('pages.settings.DepartmentManagement.s40')"
-                clearable
-                filterable
-                :options="userOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s41')">
-              <n-select
-                v-model:value="formState.manager3Id"
-                :placeholder="t('pages.settings.DepartmentManagement.s42')"
-                clearable
-                filterable
-                :options="userOptions"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <div class="grid-auto">
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s39')">
+            <n-select
+              v-model:value="formState.hrbpId"
+              :placeholder="t('pages.settings.DepartmentManagement.s40')"
+              clearable
+              filterable
+              :max-tag-count="1"
+              :options="userOptions"
+            />
+          </n-form-item>
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s41')">
+            <n-select
+              v-model:value="formState.manager3Id"
+              :placeholder="t('pages.settings.DepartmentManagement.s42')"
+              clearable
+              filterable
+              :max-tag-count="1"
+              :options="userOptions"
+            />
+          </n-form-item>
+        </div>
 
-        <n-grid :cols="2" :x-gap="16">
-          <n-grid-item>
-            <n-form-item :label="t('pages.settings.DepartmentManagement.s43')">
-              <n-radio-group v-model:value="formState.status">
-                <n-radio value="ACTIVE">{{ t('pages.settings.DepartmentManagement.s44') }}</n-radio>
-                <n-radio value="INACTIVE">{{ t('pages.settings.DepartmentManagement.s45') }}</n-radio>
-              </n-radio-group>
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
+        <div class="grid-auto">
+          <n-form-item :label="t('pages.settings.DepartmentManagement.s43')">
+            <n-radio-group v-model:value="formState.status">
+              <n-radio value="ACTIVE">{{ t('pages.settings.DepartmentManagement.s44') }}</n-radio>
+              <n-radio value="INACTIVE">{{ t('pages.settings.DepartmentManagement.s45') }}</n-radio>
+            </n-radio-group>
+          </n-form-item>
+        </div>
       </n-form>
 
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+        <div class="drawer-footer">
           <!-- 查看态：关闭 + 编辑 -->
           <template v-if="deptModalMode === 'view'">
-            <n-button text @click="closeDeptModal">{{ t('pages.settings.DepartmentManagement.s46') }}</n-button>
+            <n-button @click="closeDeptModal">{{ t('pages.settings.DepartmentManagement.s46') }}</n-button>
             <n-button type="primary" class="gradient-btn" @click="startEdit(viewDept)">
               <template #icon><n-icon :component="CreateOutline" /></template>
               {{ t('pages.settings.DepartmentManagement.s47') }}
@@ -226,20 +225,21 @@
           </template>
           <!-- 编辑态：取消 + 保存 -->
           <template v-else>
-            <n-button text @click="closeDeptModal">{{ t('pages.settings.DepartmentManagement.s48') }}</n-button>
+            <n-button :disabled="submitting" @click="closeDeptModal">{{ t('pages.settings.DepartmentManagement.s48') }}</n-button>
             <n-button type="primary" class="gradient-btn" :loading="submitting" @click="handleDeptSubmit">{{ t('pages.settings.DepartmentManagement.s49') }}</n-button>
           </template>
         </div>
       </template>
     </n-modal>
 
-    <!-- 部门导入弹窗 -->
+    <!-- 部门导入弹窗（520px 档：上传 + 预览表 + 告警，单列即可） -->
     <n-modal
       v-model:show="importModalVisible"
       preset="card"
       :title="t('pages.settings.DepartmentManagement.s50')"
-      :style="{ width: '720px' }"
+      style="width: 640px; max-width: 92vw"
       :mask-closable="false"
+      :close-on-esc="false"
       :centered="true"
       :auto-focus="false"
     >
@@ -278,8 +278,8 @@
       </n-space>
 
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
-          <n-button text @click="closeImportModal">{{ t('pages.settings.DepartmentManagement.s54') }}</n-button>
+        <div class="drawer-footer">
+          <n-button :disabled="importing" @click="closeImportModal">{{ t('pages.settings.DepartmentManagement.s54') }}</n-button>
           <n-button
             type="primary"
             class="gradient-btn"
@@ -317,18 +317,15 @@ import {
   NInput,
   NModal,
   NForm,
-  NGrid,
-  NGridItem,
   NFormItem,
   NTreeSelect,
   NSelect,
   NInputNumber,
   NRadioGroup,
   NRadio,
-  NRadioButton,
   NDivider,
-  NCard,
   NDescriptions,
+  NEmpty,
   NDescriptionsItem,
   NUpload,
   NAlert,
@@ -696,7 +693,7 @@ const getUserName = (userId?: string | null) => {
 
 const renderUser = (userId?: string | null) => {
   const name = getUserName(userId);
-  if (!name) return h('span', { style: 'color: #bfbfbf' }, '—');
+  if (!name) return h('span', { style: 'color: var(--ink-faint)' }, '—');
   return h(NTag, { type: 'info', size: 'small' }, {
     default: () => name,
     icon: () => h(NIcon, { component: PersonOutline }),
@@ -708,7 +705,7 @@ const renderParent = (record: Department) => {
     return h(NTag, { type: 'warning', size: 'small' }, { default: () => t('pages.settings.DepartmentManagement.s15') });
   }
   const parent = departments.value.find(d => d.id === record.parentId);
-  if (!parent) return h('span', { style: 'color: #bfbfbf' }, '—');
+  if (!parent) return h('span', { style: 'color: var(--ink-faint)' }, '—');
   return h('span', {}, `${parent.name} (${parent.code})`);
 };
 
@@ -773,7 +770,7 @@ const columns = computed(() => [
     title: t('pages.settings.DepartmentManagement.s65'),
     key: 'sortOrder',
     width: 90,
-    render: (row: Department) => (row.sortOrder != null ? String(row.sortOrder) : h('span', { style: 'color:#bfbfbf' }, '—')),
+    render: (row: Department) => (row.sortOrder != null ? String(row.sortOrder) : h('span', { style: 'color:var(--ink-faint)' }, '—')),
   }, 'numeric'),
   column({
     title: t('pages.settings.DepartmentManagement.s66'),
@@ -972,7 +969,7 @@ const importPreviewColumns = [
   { title: t('pages.settings.DepartmentManagement.s73'), key: 'action', width: 80,
     render: (r: any) => h(NTag, { type: r.action === '更新' ? 'warning' : 'success', size: 'small', bordered: false }, { default: () => r.action }) },
   { title: t('pages.settings.DepartmentManagement.s74'), key: 'note', minWidth: 160,
-    render: (r: any) => r.note ? h('span', { style: 'color: var(--ink-soft); font-size: 12px' }, r.note) : h('span', { style: 'color:#bfbfbf' }, '—') },
+    render: (r: any) => r.note ? h('span', { style: 'color: var(--ink-soft); font-size: 12px' }, r.note) : h('span', { style: 'color:var(--ink-faint)' }, '—') },
 ];
 
 const openImportModal = async () => {
@@ -1173,13 +1170,5 @@ onMounted(() => {
 
 /* .glass-panel 已是全局类（glass.css §4）；panel-shell 让面板撑满 page-body，
  * 内部 .toolbar + .table-wrap(flex-height) 与身份管理 RolesTab 同构（2026-10-15 兵哥：页面结构统一） */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 /* 搜索框宽度与身份管理工具条一致（RolesTab scoped 同款覆盖全局 200px） */
-.rule-filter-search { width: 240px; }
 </style>

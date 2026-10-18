@@ -200,6 +200,9 @@ const routes: RouteRecordRaw[] = [
           { path: 'announcements', name: 'AnnouncementManagement', component: () => import(/* webpackChunkName: "settings-announcements" */ '../pages/settings/AnnouncementSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_HRBP_HR] } },
           // ===== G44 V2 主题外观 (液态玻璃 v2) — 全员可见 =====
           { path: 'theme', name: 'ThemeSettings', component: () => import(/* webpackChunkName: "settings-theme" */ '../pages/settings/ThemeSettings.vue') },
+          // ===== 前端UI模板（2026-10-18 兵哥立项）：集中管理/预览系统级前端UI模板 =====
+          // 菜单挂在「主题外观」父项下（见 SettingsLayout.vue 的 g-theme），全员可见。
+          { path: 'ui-templates', name: 'UiTemplates', component: () => import(/* webpackChunkName: "settings-ui-templates" */ '../pages/settings/ui-templates/index.vue') },
           // ===== 规则引擎 (重构)：规则配置与执行 + 规则管理 + 规则总览（聚合只读） =====
           { path: 'rule-engine', name: 'RuleAuthoring', component: () => import(/* webpackChunkName: "settings-rule-authoring" */ '../pages/settings/RuleAuthoring.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           // ===== 原因库 (G47 / ATS-NEW Reason Library) — 嵌套父布局, 默认重定向到 tags =====

@@ -94,6 +94,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'dataperm.write.badge.zero': 'No actions allowed',
   'dataperm.write.badge.all': 'All writable',
   'dataperm.write.failClosedHint': 'Write scope configured: unchecked actions are ALWAYS denied (no fallback to functional permissions).',
+  'dataperm.write.semantics': 'Write scope semantics',
   'dataperm.write.zeroHint': 'No action is currently allowed — this module is read-only for everyone.',
   'dataperm.write.allHint': 'All actions are writable, no need to tick them one by one.',
   'dataperm.write.noneHint': 'No write scope = anyone who can see a record can act on it (current behavior).',
@@ -596,6 +597,9 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.CompanySettings.s16': "Retry",
   'pages.settings.CompanySettings.s17': "Failed to load sync status: ",
   'pages.settings.CompanySettings.s18': "Retry failed: ",
+  // ===== 2026-10-18 UI 模板中心试点：列表模板空态双态 =====
+  'pages.settings.CompanySettings.s19': "No company data has been synced yet",
+  'pages.settings.CompanySettings.s20': "No sync records match the current search or filter",
 
   // === DynamicFieldManager (Batch 4) ===
   'pages.settings.DynamicFieldManager.s2': "Field definitions / groups / linkage rules (bound to the current module; no module config needed)",
@@ -1589,6 +1593,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.SettingsLayout.s62': "Organization",
   'pages.settings.SettingsLayout.s63': "Job Title",
   'pages.settings.SettingsLayout.s64': "Job Level",
+  'pages.settings.SettingsLayout.s65': "Frontend UI Templates",
   'pages.settings.RecruitmentRound.s4': "Add Round",
   'pages.settings.RecruitmentRound.s5': "Round Name",
   'pages.settings.RecruitmentRound.s6': "e.g. Initial / Interview / Final",
@@ -2653,6 +2658,9 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.permission.RolesTab.s19': "Delete",
 
   'pages.settings.RecruitmentStage.s23': "Stage ",
+  // ===== 2026-10-18 UI 模板中心试点：列表模板空态双态 =====
+  'pages.settings.RecruitmentStage.s24': "No stages match the current search or filter",
+  'pages.settings.RecruitmentStage.s25': "No stage data yet",
 
   'pages.announcement.AnnouncementDetail.s5': "Attachments ({n})",
   'pages.candidate.CandidateList.s52': "Batch notify ({n})",

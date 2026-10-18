@@ -99,9 +99,11 @@
   - 编辑 → `CreateOutline` / `PencilOutline`
   - 停用 → `BanOutline` / `StopCircleOutline`；启用 → `PlayOutline` / `CheckmarkOutline`
   - 删除 → `TrashOutline` / `TrashBinOutline`
-- size 默认 `tiny`（quaternary），列表/卡片操作列密集场景用 tiny；工具栏主操作（如「新建」「刷新」）用 `small`/`medium`。
+- size 统一 `small`（quaternary），代码常量 `OP_ACTION_BUTTON_SIZE = 'small'`（`useTableColumns.ts`）为唯一真源，操作列一律引用该常量、禁写字面量。
+  - **2026-10-18 修订**：原文写「默认 tiny」，与代码常量 `small` 矛盾，且 tiny(12px) 比表格正文(14px)小一档、视觉矮一截（2026-10-15 兵哥纠偏原话：「文字和 icon 太小了，感觉就不是一个层级的」）。以代码为准，规范同步改为 `small`。
+  - ⚠️ `glass.css` 仍保留 `.n-button--tiny-type` 的 14px 兜底补丁，属过渡期保险；待全站 tiny 清零后评估废弃。
 - 颜色语义：默认/主操作 `default` 或 `primary`；停用/启用反转为 `primary`（启用态视觉更突出）；删除 `type="error"`。
-- 表格操作列 `NSpace` 必须 `wrap:false` + 列宽足够容纳所有按钮（4 个 tiny 按钮 + icon 推荐 ≥280px）。
+- 表格操作列 `NSpace` 必须 `wrap:false` + 列宽足够容纳所有按钮（4 个 small 按钮 + icon 推荐 ≥280px）。
 
 **1.8.2 卡片内边距**（自定义分组卡片 / 容器）
 - 卡片内 padding **不得低于 16px**（`--space-4`）。

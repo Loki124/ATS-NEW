@@ -955,13 +955,6 @@ onUnmounted(() => {
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
 /* 列表模式玻璃面板：工具条 + table-wrap 同构身份管理；编辑模式 page-container 为 block 流，
    panel-shell 此处退化为自然高度（flex-height 随页面整体滚动），以视觉统一为先。 */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 .section { margin-bottom: var(--space-4); }
 .section--info :deep(.n-card__content) { padding: var(--space-3) var(--space-4) !important; }
 /* 元素卡片：自然高度（随行数生长，由 .page-container.edit-mode 整体滚动）。

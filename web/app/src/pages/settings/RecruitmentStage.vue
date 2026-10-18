@@ -1,24 +1,26 @@
 <template>
   <div class="page-container recruitment-stage">
-    <div class="page-body">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">{{ t('pages.settings.RecruitmentStage.s1') }}</h1>
-          <p class="page-subtitle">{{ t('pages.settings.RecruitmentStage.s2') }}</p>
-        </div>
+    <!-- 遵循「数据列表模板 · 独立设置页列表（乙系）」：page-header 与 page-body 是兄弟节点，
+         面板在 page-body 内撑满（.panel-shell）→ .table-wrap(flex-height) 仅表体滚动 -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">{{ t('pages.settings.RecruitmentStage.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.RecruitmentStage.s2') }}</p>
       </div>
+    </div>
 
-      <n-alert type="info" :show-icon="false" style="margin-bottom: 8px">
+    <div class="page-body">
+      <n-alert type="info" :show-icon="false" class="stage-tip">
         {{ t('pages.settings.RecruitmentStage.s23') }}<strong>{{ t('pages.settings.RecruitmentStage.s3') }}</strong>{{ t('pages.settings.RecruitmentStage.s17') }}「{{ t('pages.settings.RecruitmentStage.s18') }}」「{{ t('pages.settings.RecruitmentStage.s19') }}」{{ t('pages.settings.RecruitmentStage.s20') }}「{{ t('pages.settings.RecruitmentStage.s21') }}」{{ t('pages.settings.RecruitmentStage.s22') }}
       </n-alert>
 
       <div class="glass-panel panel-shell">
         <div class="toolbar">
-          <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentStage.s4')" clearable style="width: 200px">
+          <n-input v-model:value="keyword" :placeholder="t('pages.settings.RecruitmentStage.s4')" class="rule-filter-search" clearable>
             <template #prefix><n-icon :component="SearchOutline" /></template>
           </n-input>
-          <n-select v-model:value="filterType" :options="typeFilterOptions" :placeholder="t('pages.settings.RecruitmentStage.s5')" clearable style="width: 160px" />
-          <n-select v-model:value="filterStatus" :options="statusFilterOptions" style="width: 120px" />
+          <n-select v-model:value="filterType" :options="typeFilterOptions" :placeholder="t('pages.settings.RecruitmentStage.s5')" class="rule-filter-select" clearable />
+          <n-select v-model:value="filterStatus" :options="statusFilterOptions" class="rule-filter-select" />
           <div class="spacer"></div>
           <n-button type="primary" class="gradient-btn" @click="handleCreate">
             <template #icon><n-icon :component="AddOutline" /></template>
@@ -35,14 +37,24 @@
             :row-key="(r) => r.id"
             :row-height="TABLE_ROW_HEIGHT"
             flex-height
-          />
+          >
+            <!-- 空态双态：区分「系统内暂无阶段」与「当前筛选无匹配」 -->
+            <template #empty>
+              <n-empty
+                :description="keyword.trim() || filterType || filterStatus
+                  ? t('pages.settings.RecruitmentStage.s24')
+                  : t('pages.settings.RecruitmentStage.s25')"
+              />
+            </template>
+          </n-data-table>
         </div>
       </div>
-
-      <!-- 新增/编辑阶段弹窗 -->
     </div><!-- /.page-body -->
-<!-- P1-4: 弹窗 560→600px 给 4 字段 + 4 checkbox + textarea + 双按钮更舒展的横向空间 -->
-<n-modal :show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 600px; max-width: 92vw" :bordered="false" :segmented="{ content: true, footer: true }" :mask-closable="false" :on-mask-click="requestClose" @update:show="(v: boolean) => !v && requestClose()">
+
+    <!-- 新增/编辑阶段弹窗（遵循「弹窗模板 · 卡片式编辑弹窗」）
+         宽度取 640px 档（4 字段 + 4 checkbox + textarea）+ max-width 92vw 兜底窄屏（原 600px 非标档）
+         mask-closable / close-on-esc / on-mask-click 三件套齐全，关闭经 useCloseGuard 脏检查 -->
+    <n-modal :show="showCreateModal" preset="card" :title="editing ? '编辑阶段' : '新增阶段'" style="width: 640px; max-width: 92vw" :bordered="false" :segmented="{ content: true, footer: true }" :mask-closable="false" :close-on-esc="false" :on-mask-click="requestClose" @update:show="(v: boolean) => !v && requestClose()">
       <n-form :model="form" label-placement="top">
         <!-- P1-3: 错误就近显示（R-209），不再只走全局 toast -->
         <n-form-item
@@ -540,13 +552,6 @@ onMounted(async () => {
 }
 
 /* 玻璃面板内 = 工具条 + 主表（与身份管理 RolesTab / DepartmentManagement 同构） */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 
 .recruitment-stage {
   /* 2026-08-30 UX 五改：容器外边距交还 SettingsLayout 统一管控（.settings-scroll 20px + 清零规则 !important），
@@ -561,7 +566,7 @@ onMounted(async () => {
   padding: 8px 8px !important;
 }
 
-/* === 2026-09-08 弹窗修复（P0-3 / P1-4）=== */
+/* 2026-09-08 弹窗修复（P0-3 / P1-4）*/
 /* P0-3: textarea 不得撑破布局（R-110）—— 禁用拖拽 + 限高 + 长文字换行 */
 .recruitment-stage :deep(.n-input .n-input__textarea-el) {
   resize: none;
@@ -576,5 +581,11 @@ onMounted(async () => {
 .feature-checks {
   flex-wrap: wrap;
   gap: var(--space-3) var(--space-4);
+}
+
+/* 2026-10-18 UI 模板试点：顶部提示条的下边距交给 .page-body 的 gap（8px）统一管控，
+   替换原行内 style="margin-bottom: 8px"（禁行内间距，8px 间距硬规则） */
+.stage-tip {
+  margin: 0;
 }
 </style>

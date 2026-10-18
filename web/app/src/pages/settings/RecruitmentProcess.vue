@@ -311,13 +311,6 @@ onMounted(async () => { await loadDepartments(); loadList() })
 }
 
 /* 玻璃面板内 = 工具条 + table-wrap(flex-height)，与身份管理 RolesTab 同构 */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 
 .recruitment-process {
   /* 2026-08-30 UX 五改：容器外边距交还 SettingsLayout 统一管控（.settings-scroll 20px + 清零规则 !important），

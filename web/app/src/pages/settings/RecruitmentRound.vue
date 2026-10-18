@@ -223,13 +223,6 @@ onMounted(() => loadList())
 }
 
 /* 玻璃面板内 = 工具条 + 主表（与身份管理 RolesTab / DepartmentManagement 同构） */
-.panel-shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--space-2);
-}
 
 .interview-round {
   /* 2026-08-30 UX 五改：容器外边距交还 SettingsLayout 统一管控（.settings-scroll 20px + 清零规则 !important），

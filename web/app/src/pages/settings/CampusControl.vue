@@ -1547,10 +1547,6 @@ onMounted(async () => {
 }
 
 /* 规则配置工具条：搜索稍宽 + 4 个筛选下拉等宽，避免 1440px 视口被挤换行 */
-.rule-filter-search {
-  width: 200px;
-  flex-shrink: 0;
-}
 .rule-filter-select {
   width: 130px;
   flex-shrink: 0;

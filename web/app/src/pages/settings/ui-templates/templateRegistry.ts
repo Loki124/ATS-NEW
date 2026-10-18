@@ -1,0 +1,466 @@
+/**
+ * templateRegistry.ts — 前端 UI 模板元数据注册表（单一真源）
+ *
+ * 2026-10-18 兵哥「前端UI模板」体系立项。本文件是模板清单的**唯一权威数据源**：
+ * 模板中心页面（index.vue）按此渲染分类导航、代码结构、渲染预览与用法说明。
+ * 新增模板 / 修改模板规格 → 只改本文件，不改页面渲染逻辑。
+ *
+ * 设计约束（与 docs/04-ui/frontend-layout-standard.md 同步）：
+ *   1. 间距只用 8 的整数倍（--space-2=8px / --space-4=16px / --space-6=24px）。
+ *   2. 颜色一律走语义令牌（--brand / --ink / --ink-soft / --border-hairline），禁硬编码 hex。
+ *   3. 结构类优先复用 glass.css 全局类，不在页面 scoped 重复定义。
+ *   4. 列对齐走 useTableColumns.column(col, tier) 四档工厂，禁手写 align。
+ */
+
+/** 模板分类标识 */
+export type TemplateCategory = 'list' | 'form' | 'modal' | 'config' | 'component';
+
+/** 单个模板的元数据 */
+export interface TemplateMeta {
+  /** 模板唯一标识（同时作为 Demo 组件的注册 key） */
+  key: string;
+  /** 分类 */
+  category: TemplateCategory;
+  /** 中文名 */
+  name: string;
+  /** 一句话用途说明 */
+  summary: string;
+  /** 标准骨架代码（template 片段，可直接复制） */
+  code: string;
+  /** 必须遵守的约束清单 */
+  rules: string[];
+  /** 已落地该模板的参考页面（file:line 或页面名） */
+  references: string[];
+  /** 已知例外 / 不适用场景 */
+  caveats?: string[];
+}
+
+/** 速查表行（三类速查表统一形状，便于页面统一渲染） */
+export interface SpecRow {
+  /** 主标识（tier / width / 类名） */
+  key: string;
+  /** 补充说明 */
+  desc: string;
+  /** 是否等宽显示（类名 / 代码标识用 true） */
+  mono?: boolean;
+}
+
+/** 分类元信息（渲染左侧导航用） */
+export interface CategoryMeta {
+  key: TemplateCategory;
+  label: string;
+  desc: string;
+}
+
+/**
+ * 分类定义（顺序即左侧导航顺序）
+ * 注：枚举筛选统一用 n-select；单选语义强、需一眼可见全貌的（如主题模式三态图示）才用 radio。
+ */
+export const CATEGORIES: CategoryMeta[] = [
+  { key: 'list', label: 'uiTemplates.cat.list', desc: '以身份管理为范本：工具条 + flex-height 表格' },
+  { key: 'form', label: 'uiTemplates.cat.form', desc: 'label 排布、栅格、分组与校验的统一写法' },
+  { key: 'modal', label: 'uiTemplates.cat.modal', desc: '卡片式编辑弹窗与确认对话框的两类标准形态' },
+  { key: 'config', label: 'uiTemplates.cat.config', desc: '分组卡片 + 脏检查 + 统一保存栏' },
+  { key: 'component', label: 'uiTemplates.cat.component', desc: '可复用组件与 composable 的引用约定' },
+];
+
+/** 全局类清单（模板依赖的基础设施，渲染为速查表） */
+export const GLOBAL_CLASSES: SpecRow[] = [
+  { key: '.panel-shell', desc: '列表面板容器：flex 列 + 撑满高 + 8px 内衬（2026-10-18 提升为全局）', mono: true },
+  { key: '.toolbar', desc: '工具条：flex + gap 8px + 下边距 8px + 换行', mono: true },
+  { key: '.toolbar .spacer', desc: 'flex:1 占位，把右侧操作按钮推到行尾', mono: true },
+  { key: '.table-wrap', desc: '表格滚动链：flex:1 + min-height:0，配合 flex-height 实现仅表体滚动', mono: true },
+  { key: '.rule-filter-search', desc: '搜索框宽度 240px（含 max-width 压住 n-input 的 100%）', mono: true },
+  { key: '.rule-filter-select', desc: '筛选下拉宽度 136px', mono: true },
+  { key: '.glass-panel', desc: '玻璃面板：背景/模糊/圆角/边框，无内边距', mono: true },
+  { key: '.glass-panel--card', desc: '卡片变体：用于表单分组卡片', mono: true },
+  { key: '.gradient-btn', desc: '主操作按钮渐变底（primary 按钮挂此 class）', mono: true },
+  { key: '.content-shell', desc: '超宽屏内容收束（max-width + 居中），已定义待推广', mono: true },
+  { key: '.grid-auto', desc: '自适应栅格 auto-fit + minmax，替代硬编码列数', mono: true },
+  { key: '.page-container', desc: '页面根：flex 列 + height 100%', mono: true },
+  { key: '.page-header', desc: '标题区：仅标题 + 副标题，flex-shrink:0', mono: true },
+];
+
+/** 列对齐四档（单一真源：composables/useTableColumns.ts） */
+export const COLUMN_TIERS: SpecRow[] = [
+  { key: 'short', desc: '居中 · 短值/枚举/标识（编码、状态、类型）' },
+  { key: 'control', desc: '居中 · 控件/操作列（按钮、开关、行内编辑）' },
+  { key: 'numeric', desc: '居中 · 数值（数量、金额、百分比）' },
+  { key: 'text', desc: '左对齐 · 长文本（描述、规则表达式、拒绝原因）—— 禁居中，居中毁扫读' },
+];
+
+/** 弹窗宽度档位（收敛自站内存量 20+ 种） */
+export const MODAL_WIDTHS: SpecRow[] = [
+  { key: '420px', desc: '2 个字段的简单编辑' },
+  { key: '520px', desc: '3–4 个字段（最常用）' },
+  { key: '640px', desc: '5–8 个字段 / 含分组' },
+  { key: '960px', desc: '多 tab / 字段编排型' },
+];
+
+/** 全部模板 */
+export const TEMPLATES: TemplateMeta[] = [
+  // ══════════════════════ 1. 数据列表模板 ══════════════════════
+  {
+    key: 'list-standalone',
+    category: 'list',
+    name: '独立设置页列表（乙系 · 推荐）',
+    summary: '设置中心标准列表页结构：页头 + 玻璃面板 + 工具条 + flex-height 表格，表格撑满面板、表体内部滚动。',
+    code: `<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{{ t('title') }}</h1>
+      <p class="page-subtitle">{{ t('subtitle') }}</p>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="glass-panel panel-shell">
+      <!-- 工具条：左=搜索/筛选，spacer，右=操作按钮 -->
+      <div class="toolbar">
+        <n-input v-model:value="kw" :placeholder="t('ph.search')"
+                 class="rule-filter-search" clearable>
+          <template #prefix><n-icon :component="SearchOutline" /></template>
+        </n-input>
+        <n-select v-model:value="statusFilter" :options="statusOptions"
+                  :placeholder="t('ph.status')" class="rule-filter-select" clearable />
+        <div class="spacer"></div>
+        <!-- 工具按钮：quaternary 文字按钮，主操作保留 primary -->
+        <n-button quaternary @click="onRefresh">
+          <template #icon><n-icon :component="RefreshOutline" /></template>{{ t('act.refresh') }}
+        </n-button>
+        <n-button type="primary" class="gradient-btn" @click="onCreate">
+          <template #icon><n-icon :component="AddOutline" /></template>{{ t('act.create') }}
+        </n-button>
+      </div>
+
+      <div class="table-wrap">
+        <n-data-table :columns="columns" :data="rows" :loading="loading"
+                      :row-key="(r: Row) => r.id" :pagination="localPagination()"
+                      :bordered="false" flex-height>
+          <template #empty>
+            <n-empty :description="rows.length === 0 ? t('empty.noData') : t('empty.noMatch')" />
+          </template>
+        </n-data-table>
+      </div>
+    </div>
+  </div>
+</div>`,
+    rules: [
+      '.page-header 只放标题 + 副标题，操作控件一律移入面板内 .toolbar',
+      '.toolbar 必须用 <div class="spacer"></div> 推右，不用 n-space 分组',
+      'n-data-table 必须包 .table-wrap 并加 flex-height，否则面板下方留白、表体不滚动',
+      '搜索/筛选用类 .rule-filter-search / .rule-filter-select，禁行内 style="width:NNNpx"',
+      '枚举筛选统一 n-select（穷举可见时才用 radio-group）',
+      '操作列走 column(col, "control")：size 用 OP_ACTION_BUTTON_SIZE、quaternary、删除 type="error"',
+      '必须提供 #empty 空态，并区分「无数据」与「筛选无结果」两态',
+      '分页用 localPagination()，禁内联 { pageSize: N } 对象',
+    ],
+    references: [
+      'pages/settings/DepartmentManagement.vue（标杆）',
+      'pages/settings/JobLevelManagement.vue',
+      'pages/settings/RecruitmentStage.vue',
+      'pages/settings/RegistrationApproval.vue',
+    ],
+    caveats: ['页面根需保证 flex 链完整：.page-container(height:100%) → .page-body(flex:1) → .panel-shell(flex:1) → .table-wrap(flex:1)'],
+  },
+  {
+    key: 'list-embedded',
+    category: 'list',
+    name: 'Tab 内嵌列表（甲系）',
+    summary: '被父页以 tab / 路由子页嵌入的列表组件：不加玻璃面板，根节点只需 flex 列，滚动与内衬交给父页。',
+    code: `<div class="xxx-tab">   <!-- scoped: flex:1; min-height:0; gap:var(--space-2) -->
+  <div class="toolbar">
+    <n-input v-model:value="kw" class="rule-filter-search" clearable />
+    <n-select v-model:value="f" :options="opts" class="rule-filter-select" />
+    <div class="spacer"></div>
+    <n-button type="primary" class="gradient-btn" @click="onCreate">新建</n-button>
+  </div>
+
+  <div class="table-wrap">
+    <n-data-table :columns="columns" :data="rows" :pagination="localPagination()"
+                  :row-key="(r: Row) => r.id" flex-height>
+      <template #empty><n-empty description="暂无数据" /></template>
+    </n-data-table>
+  </div>
+</div>`,
+    rules: [
+      '根节点不加 .glass-panel / .panel-shell —— 父页已提供面板外壳，再加会多一层内衬',
+      '根节点必须 flex 列 + flex:1 + min-height:0 + gap:var(--space-2)，否则 flex-height 找不到确定高度',
+      '.toolbar 与 .table-wrap 的内部写法与乙系完全一致',
+    ],
+    references: [
+      'pages/settings/permission/RolesTab.vue（身份管理 · 模板原点）',
+      'pages/settings/permission/ResourcesTab.vue',
+      'pages/settings/reason-library/tags.vue',
+      'pages/settings/reason-library/rules.vue',
+    ],
+  },
+  {
+    key: 'list-columns',
+    category: 'list',
+    name: '列定义四档对齐工厂',
+    summary: '所有表格列必须走 column(col, tier) 工厂声明对齐档位，禁止手写 align 属性。',
+    code: `import { h, NSpace, NButton, NIcon } from 'naive-ui'
+import { CreateOutline, TrashOutline } from '@vicons/ionicons5'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
+import { localPagination } from '@/composables/useTablePagination'
+
+const columns = [
+  // A 档 short：短值/枚举/标识 → 居中
+  column({ title: '编码', key: 'code', width: 160 }, 'short'),
+  // C 档 numeric：数值 → 居中
+  column({ title: '权限码数', key: 'count', width: 100 }, 'numeric'),
+  // D 档 text：长文本 → 左对齐（禁居中）
+  column({ title: '描述', key: 'desc', width: 320 }, 'text'),
+  // B 档 control：操作列 → 居中 + 固定右侧
+  column({
+    title: '操作', key: 'actions', width: 176, fixed: 'right',
+    render: (row: Row) => h(NSpace, { size: 8, wrap: false }, () => [
+      h(NButton, {
+        size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'primary',
+        onClick: () => onEdit(row),
+      }, {
+        icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
+        default: () => '编辑',
+      }),
+      h(NButton, {
+        size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error',
+        onClick: () => onDelete(row),
+      }, {
+        icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+        default: () => '删除',
+      }),
+    ]),
+  }, 'control'),
+]`,
+    rules: [
+      "tier 四档：short（短值/枚举）· control（控件/操作）· numeric（数值）· text（长文本，左对齐）",
+      '长文本列必须用 text 档（左对齐），居中会毁掉扫读效率',
+      '操作列固定 fixed:"right"，宽度按按钮数裁定：2 个→176px，3 个→210px，4 个→260px',
+      '按钮 size 一律引用 OP_ACTION_BUTTON_SIZE 常量，禁写字面量 "small"/"tiny"',
+      '同组按钮必须全有 icon 或全无 icon（frontend-layout-standard §1.8.1）',
+      'NSpace 必须 wrap:false，防止按钮折行',
+      '删除按钮保留 type="error" —— 危险色是安全信号，不许去掉',
+    ],
+    references: [
+      'composables/useTableColumns.ts（唯一真源，166 行）',
+      'styles/__tests__/table-alignment-rules.test.ts（对齐规则单测）',
+    ],
+  },
+
+  // ══════════════════════ 2. 弹窗模板 ══════════════════════
+  {
+    key: 'modal-card',
+    category: 'modal',
+    name: '卡片式编辑弹窗',
+    summary: '承载表单的编辑弹窗标准形态：preset="card" + 宽度分档 + 遮罩守卫 + 右对齐 footer。',
+    code: `<n-modal
+  :show="show" preset="card" :title="title"
+  style="width: 520px; max-width: 92vw"
+  :mask-closable="false" :close-on-esc="false"
+  :on-mask-click="requestClose"
+  @update:show="(v: boolean) => !v && requestClose()"
+>
+  <n-form ref="formRef" :model="form" :rules="rules"
+         label-placement="top" size="medium">
+    <n-form-item label="名称" path="name">
+      <n-input v-model:value="form.name" placeholder="请输入名称" />
+    </n-form-item>
+    <n-form-item label="类型" path="type">
+      <n-select v-model:value="form.type" :options="typeOptions" clearable />
+    </n-form-item>
+  </n-form>
+
+  <template #footer>
+    <div class="drawer-footer">
+      <n-button :disabled="saving" @click="requestClose">取消</n-button>
+      <n-button type="primary" class="gradient-btn"
+                :loading="saving" @click="handleSave">保存</n-button>
+    </div>
+  </template>
+</n-modal>`,
+    rules: [
+      '宽度只用 4 档：420 / 520 / 640 / 960px，并统一带 max-width: 92vw 兜底窄屏',
+      '必须 :mask-closable="false" + :close-on-esc="false" + :on-mask-click="requestClose" 三件套',
+      '关闭走 useCloseGuard composable，脏数据时弹二次确认',
+      'footer 用全局 .drawer-footer（右对齐），禁各页 scoped 重复定义 footer 类',
+      '主操作 type="primary" class="gradient-btn" + :loading，且 loading 期间禁重复提交',
+      '多选控件必须加 max-tag-count（frontend-layout-standard §1.8.5 阻塞项）',
+      '⚠️ naive preset="card" 把 .n-modal 直接打在 card 元素上（.n-card.n-modal 同元素），全局样式须用复合选择器',
+    ],
+    references: [
+      'pages/settings/RecruitmentStage.vue',
+      'pages/settings/RecruitmentRound.vue',
+      'pages/settings/DepartmentManagement.vue',
+    ],
+    caveats: ['960px 档用于多 tab / 字段编排型弹窗，字段超单屏时不要降到 640px 以下，否则出现双滚动'],
+  },
+  {
+    key: 'modal-confirm',
+    category: 'modal',
+    name: '确认对话框',
+    summary: '二次确认与结果告知的标准形态：preset="dialog" + 内置按钮联动，不要改写成 card。',
+    code: `<n-modal
+  :show="show" preset="dialog" :title="title"
+  :positive-text="confirmText" :negative-text="cancelText"
+  :loading="submitting"
+  :positive-button-props="{ type: isDanger ? 'error' : 'primary', loading: submitting }"
+  :mask-closable="false" :close-on-esc="false"
+  @positive-click="handleConfirm" @negative-click="requestClose"
+>
+  <n-space vertical>
+    <n-alert :type="isDanger ? 'error' : 'warning'" :show-icon="true">
+      {{ impactText }}
+    </n-alert>
+  </n-space>
+</n-modal>`,
+    rules: [
+      'preset="dialog" 依赖 Naive 内置的 positive-button loading/disabled 联动，改成 card 会丢掉该能力',
+      '危险操作通过 :positive-button-props 传 type:"error"，不要自己拼按钮',
+      '文案必须说明具体后果与影响范围，不写「是否确认」',
+      '禁止触发原生 confirm()，统一走 n-modal / useDialog',
+    ],
+    references: [
+      'components/reason-library/RiskConfirmModal.vue',
+      'pages/talent/TalentPool.vue:262',
+      'pages/resume/SpecialApproval.vue:66',
+    ],
+  },
+
+  // ══════════════════════ 3. 表单模板 ══════════════════════
+  {
+    key: 'form-standard',
+    category: 'form',
+    name: '标准表单区块',
+    summary: '字段的标准排布：label 在上、控件在下、说明文字用统一类，支持 1–2 列自适应栅格。',
+    code: `<n-form ref="formRef" :model="form" :rules="rules"
+         label-placement="top" size="medium">
+  <!-- 单列 -->
+  <n-form-item label="名称" path="name">
+    <n-input v-model:value="form.name" placeholder="请输入名称" />
+    <p class="field-hint">用于列表展示与搜索匹配</p>
+  </n-form-item>
+
+  <!-- 双列：优先 .grid-auto 自适应，禁硬编码列数 -->
+  <div class="grid-auto">
+    <n-form-item label="类型" path="type">
+      <n-select v-model:value="form.type" :options="typeOptions" clearable />
+    </n-form-item>
+    <n-form-item label="生效日期" path="date">
+      <n-date-picker v-model:formatted-value="form.date" value-format="yyyy-MM-dd"
+                     type="date" clearable style="width: 100%" />
+    </n-form-item>
+  </div>
+</n-form>`,
+    rules: [
+      'label-placement 全站收敛为 top；确需左排布的独立配置页，label-width 统一 180px',
+      '说明文字统一用 .field-hint（色值 --ink-soft），禁私建 switch-tip / input-tip 等 19 种命名',
+      '同语义字段必须同控件：枚举一律 n-select、日期一律 n-date-picker',
+      '多选必须加 max-tag-count，避免标签撑破弹窗',
+      '校验三件套齐全：n-form 上 :model + :rules，n-form-item 上 path，提交前 formRef.validate()',
+      '双列布局用 .grid-auto（auto-fit + minmax），禁 n-grid :cols="2" 硬编码（窄屏不折叠）',
+      '禁 n-row / n-col（全站 0 使用，勿引入新写法）',
+    ],
+    references: [
+      'pages/settings/CompanyBrand.vue',
+      'pages/settings/permission/RoleEditModal.vue',
+    ],
+  },
+
+  // ══════════════════════ 4. 配置项模板 ══════════════════════
+  {
+    key: 'config-page',
+    category: 'config',
+    name: '配置项页面',
+    summary: '以分组卡片承载配置项，配脏检查与统一保存栏，保存前给出明确反馈。',
+    code: `<div class="page-container">
+  <!-- 模型 B：header 必须是 page-body 的兄弟节点 -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{{ t('title') }}</h1>
+      <p class="page-subtitle">{{ t('subtitle') }}</p>
+    </div>
+    <div class="page-header-actions">
+      <n-button size="small" @click="onReset">重置</n-button>
+      <n-button type="primary" class="gradient-btn" size="small"
+                :loading="saving" :disabled="!isDirty" @click="onSave">保存</n-button>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <section v-for="g in groups" :key="g.key" class="glass-panel glass-panel--card">
+      <div class="glass-panel__title">
+        <span>{{ t(g.titleKey) }}</span>
+        <n-tag v-if="g.badge" type="info" size="small">{{ t(g.badge) }}</n-tag>
+      </div>
+      <div class="glass-panel__body">
+        <n-form :model="form" label-placement="top" size="small">
+          <n-form-item v-for="f in g.fields" :key="f.key" :label="t(f.labelKey)" :path="f.key">
+            <component :is="f.widget" v-bind="f.props" v-model="form[f.key]" />
+            <p v-if="f.hintKey" class="field-hint">{{ t(f.hintKey) }}</p>
+          </n-form-item>
+        </n-form>
+      </div>
+    </section>
+  </div>
+</div>`,
+    rules: [
+      '保存交互三选一，全站不混用：统一保存按钮 / watch 自动保存（须有保存状态提示）/ switch 即时保存',
+      '必须实现脏检查 isDirty，未改动时保存按钮 disabled',
+      '「恢复默认」等破坏性操作必须二次确认 —— 尤其影响全局状态（品牌色走 store，跨用户共享）的操作',
+      '离开路由前需脏检查拦截（onBeforeRouteLeave），否则左侧菜单一切换编辑即丢',
+      '控件 size 全站收敛为 small',
+      '分组用 glass-panel--card + glass-panel__title，禁各页私建 pane-caption 之类',
+      '可切换预览型页面用 .content-shell 收束超宽内容',
+    ],
+    references: [
+      'pages/settings/DemandConfig.vue（统一保存范本）',
+      'pages/settings/CandidateInfoTable.vue',
+      'pages/settings/ThemeSettings.vue（三段式 section）',
+    ],
+    caveats: ['自动保存型页面须在页内显示「保存中/已自动保存/未保存」三态提示，不发 message 弹窗打断'],
+  },
+
+  // ══════════════════════ 5. 组件模板 ══════════════════════
+  {
+    key: 'component-contracts',
+    category: 'component',
+    name: '可复用组件与 composable 契约',
+    summary: '组件层必须接入 glass.css 全局类体系；通用逻辑下沉到 composable，禁止在页面内重复实现。',
+    code: `// composables/useTableColumns.ts —— 列对齐与操作列规格的唯一真源
+import { column, columns, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
+import type { ColumnAlignTier, ColumnInput } from '@/composables/useTableColumns'
+
+// composables/useTablePagination.ts —— 分页统一入口
+import { localPagination, remotePagination, TABLE_PAGE_SIZE } from '@/composables/useTablePagination'
+
+// composables/useCloseGuard.ts —— 弹窗脏数据关闭守卫（15 处已复用）
+import { useCloseGuard } from '@/composables/useCloseGuard'`,
+    rules: [
+      '组件内禁止自建 .toolbar / .table-wrap / .glass-panel 同名样式，一律用全局类',
+      '已定型 composable：useTableColumns（28 页）、useTablePagination（24 页）、useCloseGuard（15 页）',
+      '单页专用逻辑应下沉为 composable（如草稿、脏检查），禁多页各写各的',
+      '通用组件放 components/common/ 且不耦合业务 API；业务组件留在域目录',
+      '组件的 props 类型必须导出，供调用方类型标注',
+      '新组件必须实现 loading / empty / disabled 三态（AGENTS.md R-104、R-111）',
+      '状态展示优先复用 components/common/StateView.vue（七态统一状态机）',
+    ],
+    references: [
+      'composables/useTableColumns.ts',
+      'composables/useTablePagination.ts',
+      'composables/useCloseGuard.ts',
+      'components/common/StateView.vue（loading/empty/error/partial/no-permission/offline/limit）',
+    ],
+    caveats: ['StateView 目前硬编码中文且不接受 t() 注入，接入前需先改造'],
+  },
+];
+
+/** 按分类取模板 */
+export function templatesByCategory(cat: TemplateCategory): TemplateMeta[] {
+  return TEMPLATES.filter(t => t.category === cat);
+}
+
+/** 取单个模板 */
+export function getTemplate(key: string): TemplateMeta | undefined {
+  return TEMPLATES.find(t => t.key === key);
+}

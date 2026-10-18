@@ -96,6 +96,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'dataperm.write.badge.zero': '未授权任何操作',
   'dataperm.write.badge.all': '全部可写',
   'dataperm.write.failClosedHint': '已配置写范围：未勾选的动作将一律拒绝（不再回落到功能权限）。',
+  'dataperm.write.semantics': '写范围语义说明',
   'dataperm.write.zeroHint': '当前未授权任何操作 —— 该模块对该身份只读，所有人都改不了。',
   'dataperm.write.allHint': '全部动作都可写，无需逐项勾选。',
   'dataperm.write.noneHint': '未配置写范围 = 可见即可操作（沿用既有功能权限）。',
@@ -598,6 +599,9 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.CompanySettings.s16': "重试",
   'pages.settings.CompanySettings.s17': "加载同步状态失败:",
   'pages.settings.CompanySettings.s18': "重试失败:",
+  // ===== 2026-10-18 UI 模板中心试点：列表模板空态双态 =====
+  'pages.settings.CompanySettings.s19': "尚未同步过任何公司数据",
+  'pages.settings.CompanySettings.s20': "没有匹配当前搜索/筛选条件的同步记录",
 
   // === DynamicFieldManager (Batch 4) ===
   'pages.settings.DynamicFieldManager.s2': "字段定义 / 分组 / 联动规则（已绑定到当前模块，无需再配置模块）",
@@ -1589,6 +1593,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.SettingsLayout.s62': "组织管理",
   'pages.settings.SettingsLayout.s63': "职务",
   'pages.settings.SettingsLayout.s64': "职级",
+  'pages.settings.SettingsLayout.s65': "前端UI模板",
   'pages.settings.RecruitmentRound.s4': "新增轮次",
   'pages.settings.RecruitmentRound.s5': "轮次名称",
   'pages.settings.RecruitmentRound.s6': "如：初试/复试/终试",
@@ -2655,6 +2660,9 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.permission.RolesTab.s19': "删除",
 
   'pages.settings.RecruitmentStage.s23': "阶段是",
+  // ===== 2026-10-18 UI 模板中心试点：列表模板空态双态 =====
+  'pages.settings.RecruitmentStage.s24': "没有匹配当前搜索/筛选条件的阶段",
+  'pages.settings.RecruitmentStage.s25': "暂无阶段数据",
 
   'pages.announcement.AnnouncementDetail.s5': "附件（{n}）",
   'pages.candidate.CandidateList.s52': "批量发送通知 ({n})",
