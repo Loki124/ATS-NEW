@@ -21,7 +21,7 @@ tools:
 本文件为机器约束文件，不是设计教程。关键词遵循 RFC 2119（全大写才具约束力）。
 
 执行前提：任何 UI 代码生成任务开始前先读取本文件；交付前完成第 7 节自检并输出自检结果表。
-本文件是唯一权威源，品牌色令牌 MUST 由第 4 节的 CLI 生成，MUST NOT 手工编写。
+本文件是 UI 行为约束的唯一权威源；**令牌数值的唯一真源是 `web/app/src/styles/tokens.css`**（本文件只引用令牌名，不复制数值）。品牌色令牌 MUST 由第 4 节的 CLI 生成，MUST NOT 手工编写。
 
 ## 0. 分级体系
 
@@ -49,49 +49,88 @@ tools:
 
 R-001 [P1][S] 编写任何样式前 MUST 先具备完整令牌，MUST NOT 在组件内硬编码原始数值。
 
-品牌色令牌 MUST NOT 手工编写 —— MUST 由 R-214 的 CLI 生成。以下仅为结构示意：
+### 1.1 令牌真源与「不复制数值」铁律
 
-:root {
-  /* 间距：8px 基线 */
-  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
-  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
-  --space-12: 48px; --space-16: 64px;
+**令牌的唯一真源是 `web/app/src/styles/tokens.css`**（品牌派生色为 `brand-tokens.css`，由 R-214 的 CLI 生成）。
 
-  /* 字号刻度 */
-  --text-xs: 12px; --text-sm: 14px; --text-base: 16px; --text-lg: 18px;
-  --text-xl: 20px; --text-2xl: 24px; --text-3xl: 32px; --text-4xl: 48px;
+- MUST 先读 `tokens.css` 确认令牌**存在且名称正确**，再写样式。
+- MUST NOT 在本文件或任何文档中复制令牌数值 —— 数值只允许出现在 `tokens.css`。文档只写**令牌名 + 用途**。
+- 若本文件与 `tokens.css` 冲突，**一律以 `tokens.css` 为准**（代码 > 文档）。
+- MUST NOT 发明未定义的令牌名。令牌不存在时 CSS 声明会被静默丢弃（无报错、无警告），是最高频的「看起来对但没生效」根因。
 
-  /* 品牌色 —— 由 brand-tokens.mjs 生成，禁止手写 */
-  --brand-h: 39.23; --brand-c: 0.1926;
-  --brand-50: #ffddc0; /* … 至 --brand-900 */
-  --brand-button: var(--brand-600);   /* 自动选阶，禁止锁 -500 */
-  --on-brand: #ffffff;
-  --brand-text: #b62d00;
+### 1.2 令牌族索引（名称与用途，数值见 `tokens.css`）
 
-  /* 语义色：独立于品牌色，禁止由其推导（R-211） */
-  --color-success: #22c55e; --color-warning: #f59e0b;
-  --color-error: #ef4444;   --color-info: #3b82f6;
+> 校准于 2026-10-18，与 `tokens.css` 逐项核对。下表**只列名称**，不列数值。
 
-  /* 中性色 */
-  --color-text-primary: #111827;   --color-text-secondary: #6b7280;
-  --color-text-tertiary: #9ca3af;  --color-text-disabled: #d1d5db;
-  --color-bg: #ffffff; --color-bg-subtle: #f9fafb; --color-border: #e5e7eb;
+**间距**（8px 基线，`tokens.css` §8；注意 `--space-3`/`--space-5` 是兼容档位名，取值已向下取整到 8 的倍数，引用前 MUST 读文件确认）
 
-  /* 动效 */
-  --dur-fast: 120ms;   /* hover / 点击反馈 */
-  --dur-base: 220ms;   /* 出现 / 消失 */
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
-}
+| 令牌 | 用途 |
+|---|---|
+| `--space-1` | 图标与文字微调间隙、hairline 内衬（禁用作块间距） |
+| `--space-2` | 组件内元素间距、表单控件间隙、紧凑场景主力 |
+| `--space-3` / `--space-5` | ⚠️ **兼容档位名**，保留供既有引用，实际值已收紧 |
+| `--space-4` | 块间距主力、卡片内边距 |
+| `--space-6` | 分区留白、弹窗 header/footer 间距 |
+| `--space-8` / `--space-12` / `--space-16` | 大间距阶梯 |
 
-/* 深色模式中性色：MUST 单独定义，MUST NOT 反转浅色值。品牌色见 R-212 */
-:root[data-theme='dark'] {
-  --color-text-primary: #f9fafb;   --color-text-secondary: #9ca3af;
-  --color-text-tertiary: #6b7280;  --color-text-disabled: #4b5563;
-  --color-bg: #111827; --color-bg-subtle: #1f2937; --color-border: #374151;
-  --color-success: #4ade80; --color-warning: #fbbf24;
-  --color-error: #f87171;   --color-info: #60a5fa;
-}
+**字号**（`tokens.css` §7；MUST NOT 使用 Tailwind 式 `--text-xs`/`--text-lg` 等命名 —— 本项目不存在这些令牌）
+
+| 令牌 | 用途 |
+|---|---|
+| `--text-display` | Hero 标题 |
+| `--text-h1` | 页面标题 |
+| `--text-h2` / `--text-h3` / `--text-h4` | 区块 / 卡片 / 子标题 |
+| `--text-body` | 正文 |
+| `--text-small` | 次要文本 |
+| `--text-meta` | 辅助 / 标签 |
+
+**语义色**（`tokens.css` §4；命名是 `--c-*`，**不是** `--color-*`；MUST NOT 由品牌色推导，见 R-211）
+
+| 令牌 | 用途 |
+|---|---|
+| `--c-success` / `--c-warning` / `--c-error` / `--c-info` | 状态主色（装饰/图标/图形） |
+| `--c-*-soft` | 同色浅底（浅色/暗色两套值已内置） |
+| `--c-*-deep` | ⚠️ **文字专用**阶，浅暗各自重排；`--c-*` 主色 MUST NOT 当文字色 |
+| `--on-c-*-deep` | 压在 `-deep` 实底上的前景色 |
+
+> `--c-error` 为 `#C62828`（非 `#EF4444`）：后者作实底 + 白字仅 3.76:1，不达 WCAG AA，已于 2026-10-12 下调，并与 `App.vue` 的 `themeOverrides.errorColor` 同步。
+
+**中性 / 表面**
+
+| 令牌 | 用途 |
+|---|---|
+| `--ink` / `--ink-soft` / `--ink-faint` | 标题 / 次要 / 占位辅助文字 |
+| `--surface` / `--surface-elevated` | 不透明兜底表面 |
+| `--border-hairline` | 实体分隔线 |
+
+**布局契约**（`tokens.css` §8.5；细则见 `docs/04-ui/frontend-layout-standard.md`）
+
+| 令牌 | 用途 |
+|---|---|
+| `--page-pad-x` / `--page-pad-y` | 页面安全边距（桌面） |
+| `--page-pad-x-sm` / `--page-pad-y-sm` | 页面安全边距（移动端，≤767px） |
+| `--modal-pad-x` / `--modal-pad-y` | 弹窗内容区内边距 |
+| `--content-max-width` | 内容区最大宽度 |
+| `--col-min` | 自适应栅格最小列宽 |
+
+**动效**（`tokens.css` §10）
+
+| 令牌 | 用途 |
+|---|---|
+| `--duration-fast` / `--duration-base` / `--duration-slow` | 三档时长（`--dur-*` 仅为历史兼容别名，新代码 MUST 用 `--duration-*`） |
+| `--ease-out` | 缓出曲线 |
+
+### 1.3 暗色模式机制（易错点）
+
+暗色通过 **给 `<body>` 加 `.dark` 类**切换，组件 CSS 不写 dark 分支。
+
+- MUST NOT 使用 `[data-theme='dark']` / `[data-theme]` 选择器 —— **本项目不存在该机制**，写了不会生效。
+- 暗色值在 `tokens.css` 的 `body.dark` 段（§14）整体覆盖，MUST NOT 反转浅色值。
+
+### 1.4 品牌色
+
+- 唯一外部输入是 `--brand`（hex）。九阶 `--brand-50…--brand-900`、`--brand-button`、`--on-brand`、`--brand-fg` 等全部由 `brand-tokens.mjs` 经 OKLCH 生成，见第 4 节。
+- MUST NOT 手工编写任何 `--brand-*` 派生色，MUST NOT 在 `:root` 手写以覆盖生成产物。
 
 ## 2. P0 阻断级约束
 
@@ -458,6 +497,8 @@ export function buildScale(c, h, L, C) {
 
 输入约束：彩度 c < 0.05（接近灰）时 MUST 提示"该色无法承担品牌识别度"，CI MUST 拦截（R-214）。
 无彩色（白 / 灰 / 黑）在 OKLCH 中色相无定义，MUST 将 h 归零而非产生 NaN。
+
+**唯一输入是 `--brand` 的 hex**（`brand-tokens.mjs --brand "#6366F1"`，默认 `#6366F1` 靛紫）。CLI 解析 hex 得到 `--brand-h` / `--brand-c` / `--brand-l` / `--brand-rgb`，其余令牌全部由这三个推导。换品牌色 MUST 只改这一个 hex 并重新生成，MUST NOT 手改生成物中的 `-h` / `-c`（会与其余阶位失去一致性）。
 
 ### R-210 [P0][S] 对比度自动达标
 
@@ -828,6 +869,8 @@ if (hits.length) { console.error('X-02 违规：', hits); process.exit(1); }
 - 若用户需求与本文件冲突，MUST 显式指出冲突点并给出遵循规范的替代实现，不得静默违反。
 - 无法同时满足多条规则时按 P0 > P1 > P2 取舍，并在交付说明中标注原因。
 - 生成界面代码时 MUST NOT 输出未经自检的完整页面。
-- 本文件是唯一权威源（Single Source of Truth）。存在配套的人类可读设计文档时，二者冲突一律以本文件为准；MUST NOT 因外部文档表述不同而改变行为。
+- 本文件是 UI 约束的唯一权威源（Single Source of Truth）：**行为与取舍**以本文件的 R-xxx 规则为准。
+- **但令牌数值不在本文件的管辖范围内** —— 令牌的唯一真源是 `web/app/src/styles/tokens.css`（品牌派生为 `brand-tokens.css`）。本文件只写令牌名与用途，MUST NOT 复制数值。二者冲突一律以 `tokens.css` 为准（见 §1.1）。
+- 与人类可读设计文档（`docs/04-ui/UI_DESIGN_SPEC.md`）的关系：本文件管 MUST/MUST NOT，`UI_DESIGN_SPEC.md` 管设计理由与范式。二者表述不一致时 MUST NOT 凭文档差异改变行为；MUST 以 `tokens.css` 实际解析值为准，并按 §1.1 流程上报口径分叉。
 - 禁止验证剧场：[R] / [H] 类自检项无渲染器可依据时 MUST 输出"未验证"，MUST NOT 凭猜测打勾。诚实标注未验证的价值高于全绿表格。
 - 品牌色令牌 MUST NOT 手写。MUST 调用 brand-tokens.mjs 生成并以 --ci 退出码作为验收依据（R-214）。
