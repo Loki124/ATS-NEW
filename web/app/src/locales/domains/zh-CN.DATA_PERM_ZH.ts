@@ -2204,6 +2204,11 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.permission.ResourcesTab.s20': "按子模块筛选",
   'pages.settings.permission.ResourcesTab.s21': "子模块",
   'pages.settings.permission.ResourcesTab.s22': "按类型筛选",
+  // 2026-10-18 兵哥：新增资源状态筛选（停用=功能已下线但保留可追溯）
+  'pages.settings.permission.ResourcesTab.s24': "按状态筛选",
+  'pages.settings.permission.ResourcesTab.s25': "全部状态",
+  'pages.settings.permission.ResourcesTab.s26': "启用",
+  'pages.settings.permission.ResourcesTab.s27': "停用",
   'pages.settings.permission.RolesTab.s1': "搜索 身份编码/名称",
   'pages.settings.permission.RolesTab.s2': "全部状态",
   'pages.settings.permission.RolesTab.s3': "全部来源",

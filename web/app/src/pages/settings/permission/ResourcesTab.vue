@@ -35,6 +35,13 @@
         class="filter-select"
         @update:value="onFilterChange"
       />
+      <n-select
+        v-model:value="statusFilter"
+        :options="statusOptions"
+        :placeholder="t('pages.settings.permission.ResourcesTab.s24')"
+        class="filter-select"
+        @update:value="onStatusChange"
+      />
       <n-button type="primary" class="gradient-btn" :loading="loading" @click="load">
         <template #icon><n-icon :component="SearchOutline" /></template>
         {{ t('pages.settings.permission.ResourcesTab.s3') }}
@@ -80,7 +87,7 @@ import { useI18n } from 'vue-i18n'
  * 资源为代码注册目录（seed/bootstrap 写入），仅只读展示，不提供新增/编辑/删除。
  */
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NInput, NSelect, NDataTable, NAlert, NEmpty, useMessage } from 'naive-ui'
+import { NButton, NInput, NSelect, NDataTable, NAlert, NEmpty, NTag, useMessage } from 'naive-ui'
 import {
   fetchAllResources,
   type PermissionResource,
@@ -105,6 +112,13 @@ const search = ref('')
 const moduleFilter = ref<string | null>(null)
 const subModuleFilter = ref<string | null>(null)
 const resourceTypeFilter = ref<ResourceType | null>(null)
+/**
+ * 状态筛选：**默认 'all'**（启用 + 停用全见）。
+ * 资源管理台是审计入口 —— 停用 ≠ 删除，必须看得见「哪些功能已经下线」，
+ * 否则库里标了停用、页面上却查不到，状态字段形同虚设。
+ * （后端缺省仍只返启用，权限配置页不受影响。）
+ */
+const statusFilter = ref<'all' | '1' | '0'>('all')
 const data = ref<PermissionResource[]>([])
 const loadError = ref('')
 
@@ -227,17 +241,53 @@ const resourceTypeOptions: { label: string; value: ResourceType }[] = [
   { label: 'API', value: 'API' },
 ]
 
+/**
+ * 资源类型 → 标签色（MENU/BUTTON 是本系统仅有的两种存量类型；
+ * FIELD/API 为模型预定义但当前库中 0 条，配中性色以备后用）。
+ * 走 n-tag 是为了在密集表格里靠色块快速扫读，不必逐行读文字。
+ */
+const RESOURCE_TYPE_TAG: Record<ResourceType, 'default' | 'info' | 'success' | 'warning'> = {
+  MENU: 'info',
+  BUTTON: 'default',
+  FIELD: 'success',
+  API: 'warning',
+}
+
+/** 资源状态标签：启用=绿（正常在用），停用=灰（已下线但保留可追溯）。 */
+const RESOURCE_STATUS_TAG: Record<number, { type: 'success' | 'default' }> = {
+  1: { type: 'success' },
+  0: { type: 'default' },
+}
+
+/** status 值 → 显示文案（走 i18n，键同筛选下拉复用） */
+function statusLabel(v: number): string {
+  if (v === 1) return t('pages.settings.permission.ResourcesTab.s26')
+  if (v === 0) return t('pages.settings.permission.ResourcesTab.s27')
+  return String(v)
+}
+
+const statusOptions = computed(() => [
+  { label: t('pages.settings.permission.ResourcesTab.s25'), value: 'all' },
+  { label: t('pages.settings.permission.ResourcesTab.s26'), value: '1' },
+  { label: t('pages.settings.permission.ResourcesTab.s27'), value: '0' },
+])
+
 const columns = [
   // 资源编码形如 recruit:menu:xxx，超长时省略号 + tooltip 查看完整值（R-110）
-  // 编码/名称/类型/模块/子模块均为短值标识（A 档 short 居中）。
+  // 编码/名称/类型/模块/子模块/状态均为短值标识（A 档 short 居中）。
   column({ title: '资源编码', key: 'resourceCode', width: 240, ellipsis: { tooltip: true } }, 'short'),
   column({ title: '资源名称', key: 'resourceName', width: 160, ellipsis: { tooltip: true } }, 'short'),
+  // 类型标签：菜单/按钮用不同色，便于一眼区分「入口」与「操作点」
   column({
     title: '类型',
     key: 'resourceType',
     width: 80,
     render: (row: PermissionResource) =>
-      h('span', resourceTypeOptions.find((o) => o.value === row.resourceType)?.label ?? row.resourceType),
+      h(
+        NTag,
+        { size: 'small', bordered: false, type: RESOURCE_TYPE_TAG[row.resourceType] ?? 'default' },
+        { default: () => resourceTypeOptions.find((o) => o.value === row.resourceType)?.label ?? row.resourceType },
+      ),
   }, 'short'),
   // 模块列显示中文名，title 悬浮给出后端原始 code（便于排查 seed 数据问题）
   // 注: naive 的 ellipsis.tooltip 只接受零参 () => string，拿不到当前行，故用 title
@@ -262,17 +312,39 @@ const columns = [
       return h('span', { title: row.resourceCode.split(':')[2] }, label)
     },
   }, 'short'),
+  // 状态列（2026-10-18 兵哥）：停用 = 功能已下线但保留资源码可追溯。
+  // 只标状态不做整行灰化 —— 行内还有其它有效信息，整体压暗会误读成加载失败。
+  column({
+    title: '状态',
+    key: 'status',
+    width: 80,
+    render: (row: PermissionResource) =>
+      h(
+        NTag,
+        { size: 'small', bordered: false, type: RESOURCE_STATUS_TAG[row.status]?.type ?? 'default' },
+        { default: () => statusLabel(row.status) },
+      ),
+  }, 'short'),
 ]
+
+/** 切换状态筛选 → 重载（服务端按 status 过滤，前端切片随之重算） */
+function onStatusChange() {
+  pagination.page = 1
+  load()
+}
 
 /**
  * 拉取全量资源（fetchAllResources 自动跟随服务端分页翻页），
  * 前端再做筛选 + 分页切片。失败时保留上一次成功数据并给出就地重试入口。
+ *
+ * 🔴 必须带 status=statusFilter.value（默认 'all'）：资源管理台要连停用项一起审；
+ *    不传则后端按缺省只返启用，停用资源在这一页就永远看不见。
  */
 async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    data.value = await fetchAllResources()
+    data.value = await fetchAllResources({ status: statusFilter.value })
   } catch (e: any) {
     loadError.value = t('pages.settings.permission.ResourcesTab.s16')
     message.error(loadError.value)

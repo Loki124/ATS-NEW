@@ -16,6 +16,14 @@ import { api } from '../utils/request'
 
 export type ResourceType = 'MENU' | 'BUTTON' | 'FIELD' | 'API';
 
+/**
+ * 资源状态查询参数（后端 views_permission_v2.PermissionResourceViewSet.get_queryset 三态语义）：
+ * - 不传 / '1' → 仅启用（权限配置等消费方的默认行为，**不要**改成 all）
+ * - '0'        → 仅停用
+ * - 'all'      → 启用 + 停用（资源管理台审计用，停用 ≠ 物理删除，必须可查）
+ */
+export type ResourceStatusFilter = '0' | '1' | 'all';
+
 export interface PermissionResource {
   id: string;
   systemCode: string;
@@ -64,10 +72,11 @@ function extractItems(payload: ListResponse['data']): PermissionResource[] {
 // ===== API =====
 
 /**
- * 资源列表（**单页**）。后端默认 status=1，支持 module / resourceType / search 过滤。
+ * 资源列表（**单页**）。后端默认仅 status=1（启用），支持 module / resourceType /
+ * search 过滤；传 `status: 'all'` 可取回含停用项的全集（仅资源管理台用）。
  * 一般业务请改用 fetchAllResources —— 除非明确只要第一页。
  */
-export async function listResources(params?: { module?: string; resourceType?: string; search?: string; page?: number; pageSize?: number }) {
+export async function listResources(params?: { module?: string; resourceType?: string; search?: string; page?: number; pageSize?: number; status?: ResourceStatusFilter }) {
   const { data } = await api.get<ListResponse>(
     '/permissions/resources/',
     {
@@ -83,16 +92,19 @@ export async function listResources(params?: { module?: string; resourceType?: s
  * 拉取**全部**符合条件的资源（自动跟随服务端分页翻页直到取完）。
  *
  * 背景: 后端已恢复服务端分页（单页 20 条），资源管理列表的前端筛选/分页、
- * 角色编辑弹窗的权限勾选都需要完整集合 —— 只取第一页会把 185 条资源
+ * 角色编辑弹窗的权限勾选都需要完整集合 —— 只取第一页会把 285 条资源
  * 静默截断成 20 条（2026-10-10 线上反馈的回归）。
  *
- * 每页按 max_page_size(200) 取，185 条一次即完成；未来增长到多页也自动翻完。
+ * 每页按 max_page_size(200) 取，285 条一次即完成；未来增长到多页也自动翻完。
  *
- * @param params     可选服务端筛选（module / resourceType / search）
+ * 🔴 `status` 缺省即「仅启用」，权限配置场景**不要**传 'all' —— 停用资源
+ *    不该重新进入勾选候选。资源管理台审计才传 'all'。
+ *
+ * @param params     可选服务端筛选（module / resourceType / search / status）
  * @param maxPages   防失控上限，默认 50 页（≈ 10000 条），超出即止并返回已取部分
  */
 export async function fetchAllResources(
-  params?: { module?: string; resourceType?: string; search?: string },
+  params?: { module?: string; resourceType?: string; search?: string; status?: ResourceStatusFilter },
   maxPages = 50,
 ): Promise<PermissionResource[]> {
   const PAGE_SIZE = 200 // 对齐后端 StandardResultsSetPagination.max_page_size

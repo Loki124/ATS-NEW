@@ -2555,6 +2555,11 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.permission.ResourcesTab.s20': "Filter by sub-module",
   'pages.settings.permission.ResourcesTab.s21': "Sub-module",
   'pages.settings.permission.ResourcesTab.s22': "Filter by Type",
+  // 2026-10-18: resource status filter (disabled = feature retired, resource code kept for traceability)
+  'pages.settings.permission.ResourcesTab.s24': "Filter by Status",
+  'pages.settings.permission.ResourcesTab.s25': "All Statuses",
+  'pages.settings.permission.ResourcesTab.s26': "Enabled",
+  'pages.settings.permission.ResourcesTab.s27': "Disabled",
   'pages.settings.permission.ResourcesTab.s2': "Filter by Module",
   'pages.settings.permission.ResourcesTab.s3': "Refresh",
   'pages.settings.permission.RolesTab.s1': "Search identity code/name",

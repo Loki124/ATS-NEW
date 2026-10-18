@@ -33,14 +33,39 @@ from .scope_resolver import _pick_app_json, compile_data_range_q, resolve_scope
 
 
 class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
+    # 🔴 默认只出启用资源（status=1）：权限配置等消费方按「可用资源」理解，
+    #    停用资源不应再进入勾选候选，避免把已下线功能重新授权出去。
+    #    资源管理台（ResourcesTab）需要看到停用项做审计，走 ?include_disabled=1
+    #    显式放开 —— 停用 ≠ 物理删除，必须可查可追溯。
     queryset = PermissionResource.objects.filter(status=1)
     permission_classes = [V2Permission]
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     filterset_fields = ['module', 'resource_type']
     search_fields = ['resource_code', 'resource_name']
+    # 资源管理台要筛「启用/停用」，其余消费方不得依赖此参数（默认即启用）
+    status_query_param = 'status'
     # 服务端分页必须配稳定排序：无 order_by 时 Django Paginator 会告警
     # UnorderedObjectListWarning，且翻页间顺序不稳定 → 跨页可能重复/丢行
     ordering = ['module', 'resource_code']
+
+    def get_queryset(self):
+        """status 语义改为三态查询参数：
+        - 不传        → 仅启用（status=1），保持既有消费方的默认行为；
+        - status=0    → 仅停用；
+        - status=all  → 启用 + 停用（资源管理台审计用）。
+        旧写死 filter(status=1) 的 queryset 类属性保留为基线上面的对照。
+        """
+        qs = PermissionResource.objects.all()
+        raw = self.request.query_params.get('status')
+        if raw in (None, '', '1', 'enabled'):
+            qs = qs.filter(status=1)
+        elif raw == '0':
+            qs = qs.filter(status=0)
+        elif raw == 'all':
+            pass  # 不过滤
+        else:
+            qs = qs.filter(status=1)  # 非法值退回默认，避免意外泄露停用项
+        return qs.order_by('module', 'resource_code')
 
     def get_serializer_class(self):
         from .serializers_permission_v2 import PermissionResourceSerializer
