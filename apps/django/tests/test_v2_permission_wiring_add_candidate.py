@@ -194,7 +194,7 @@ class TestParserConfigIsScopedToSettingsResource:
     def test_standard_resume_menu_code_can_read_config(self, department):
         u = _user_with_codes(
             department, 'ac_cfg_read',
-            ('recruit:settings:standard-resume:menu:view',),
+            ('recruit:settings:standard_resume:menu:view',),
         )
         assert _client_for(u).get(PARSER_CONFIG).status_code == 200
 
@@ -202,7 +202,7 @@ class TestParserConfigIsScopedToSettingsResource:
         """只读菜单码不能改配置: POST/PUT 必须落到 :edit。"""
         u = _user_with_codes(
             department, 'ac_cfg_write_denied',
-            ('recruit:settings:standard-resume:menu:view',),
+            ('recruit:settings:standard_resume:menu:view',),
         )
         resp = _client_for(u).post(PARSER_CONFIG, {'backend': 'career_core'}, format='json')
         assert resp.status_code == 403

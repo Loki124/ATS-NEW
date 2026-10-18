@@ -34,14 +34,14 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/invitations', code: 'recruit:invitation:menu:view' },
   { prefix: '/offers', code: 'recruit:offer:menu:view' },
   { prefix: '/onboardings', code: 'recruit:onboarding:menu:view' },
-  { prefix: '/report', code: 'recruit:settings:data-dashboard:menu:view' },
-  { prefix: '/my-resumes', code: 'recruit:settings:scraped-resumes:menu:view' },
+  { prefix: '/report', code: 'recruit:settings:data_dashboard:menu:view' },
+  { prefix: '/my-resumes', code: 'recruit:settings:scraped_resumes:menu:view' },
 
   // ===== 公司信息 =====
-  { prefix: '/settings/company/address', code: 'recruit:settings:company-address:menu:view' },
-  { prefix: '/settings/company/meeting-rooms', code: 'recruit:settings:company-meeting-rooms:menu:view' },
-  { prefix: '/settings/company/resume-mailbox', code: 'recruit:settings:company-resume-mailbox:menu:view' },
-  { prefix: '/settings/company/brand', code: 'recruit:settings:company-brand:menu:view' },
+  { prefix: '/settings/company/address', code: 'recruit:settings:company_address:menu:view' },
+  { prefix: '/settings/company/meeting-rooms', code: 'recruit:settings:company_meeting_rooms:menu:view' },
+  { prefix: '/settings/company/resume-mailbox', code: 'recruit:settings:company_resume_mailbox:menu:view' },
+  { prefix: '/settings/company/brand', code: 'recruit:settings:company_brand:menu:view' },
   { prefix: '/settings/company', code: 'recruit:settings:company:menu:view' },
 
   // ===== 基本信息其余项 =====
@@ -52,35 +52,35 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/job-level', code: 'recruit:settings:job_level:menu:view' },
   { prefix: '/settings/users/all', code: 'recruit:settings:users:all:menu:view' },
   { prefix: '/settings/registrations', code: 'recruit:settings:registrations:menu:view' },
-  { prefix: '/settings/user-groups', code: 'recruit:settings:user-groups:menu:view' },
+  { prefix: '/settings/user-groups', code: 'recruit:settings:user_groups:menu:view' },
 
   // ===== 权限管理（本模块自身入口）=====
   { prefix: '/settings/permissions/resources', code: 'recruit:settings:permissions:resources:menu:view' },
   { prefix: '/settings/permissions', code: 'recruit:settings:permissions:menu:view' },
   { prefix: '/settings/mou', code: 'recruit:mou:menu:view' },
-  { prefix: '/settings/field-acl', code: 'recruit:settings:field-acl:menu:view' },
+  { prefix: '/settings/field-acl', code: 'recruit:settings:field_acl:menu:view' },
 
   // ===== 候选人信息 =====
-  { prefix: '/settings/candidate-dynamic-fields', code: 'recruit:settings:candidate-dynamic-fields:menu:view' },
-  { prefix: '/settings/standard-resume', code: 'recruit:settings:standard-resume:menu:view' },
-  { prefix: '/settings/application-form', code: 'recruit:settings:application-form:menu:view' },
-  { prefix: '/settings/candidate-info-table', code: 'recruit:settings:candidate-info-table:menu:view' },
-  { prefix: '/settings/duplicate-candidate', code: 'recruit:settings:duplicate-candidate:menu:view' },
-  { prefix: '/settings/resume-parser-engine', code: 'recruit:settings:rule-engine:menu:view' },
+  { prefix: '/settings/candidate-dynamic-fields', code: 'recruit:settings:candidate_dynamic_fields:menu:view' },
+  { prefix: '/settings/standard-resume', code: 'recruit:settings:standard_resume:menu:view' },
+  { prefix: '/settings/application-form', code: 'recruit:settings:application_form:menu:view' },
+  { prefix: '/settings/candidate-info-table', code: 'recruit:settings:candidate_info_table:menu:view' },
+  { prefix: '/settings/duplicate-candidate', code: 'recruit:settings:duplicate_candidate:menu:view' },
+  { prefix: '/settings/resume-parser-engine', code: 'recruit:settings:rule_engine:menu:view' },
 
   // ===== 需求管理 =====
-  { prefix: '/settings/demand-dynamic-fields', code: 'recruit:settings:demand-dynamic-fields:menu:view' },
-  { prefix: '/settings/demand-config', code: 'recruit:settings:demand-config:menu:view' },
+  { prefix: '/settings/demand-dynamic-fields', code: 'recruit:settings:demand_dynamic_fields:menu:view' },
+  { prefix: '/settings/demand-config', code: 'recruit:settings:demand_config:menu:view' },
   { prefix: '/settings/scoring', code: 'recruit:settings:scoring:menu:view' },
 
   // ===== 职位 / 面试 / Offer / 校招管控 =====
-  { prefix: '/settings/position-dynamic-fields', code: 'recruit:settings:position-dynamic-fields:menu:view' },
-  { prefix: '/settings/position-info', code: 'recruit:settings:position-info:menu:view' },
-  { prefix: '/settings/interview-management', code: 'recruit:settings:interview-management:menu:view' },
-  { prefix: '/settings/offer-management', code: 'recruit:settings:offer-management:menu:view' },
-  { prefix: '/settings/campus-control', code: 'recruit:settings:campus-control:menu:view' },
-  { prefix: '/settings/campus-ambassador', code: 'recruit:settings:campus-control:menu:view' },
-  { prefix: '/settings/campus-session', code: 'recruit:settings:campus-control:menu:view' },
+  { prefix: '/settings/position-dynamic-fields', code: 'recruit:settings:position_dynamic_fields:menu:view' },
+  { prefix: '/settings/position-info', code: 'recruit:settings:position_info:menu:view' },
+  { prefix: '/settings/interview-management', code: 'recruit:settings:interview_management:menu:view' },
+  { prefix: '/settings/offer-management', code: 'recruit:settings:offer_management:menu:view' },
+  { prefix: '/settings/campus-control', code: 'recruit:settings:campus_control:menu:view' },
+  { prefix: '/settings/campus-ambassador', code: 'recruit:settings:campus_control:menu:view' },
+  { prefix: '/settings/campus-session', code: 'recruit:settings:campus_control:menu:view' },
 
   // ===== 校园招聘（campus 模块）：轮岗安排 / 轮岗资源 / 班级管理 / 人员管理 =====
   // 最长前缀匹配（permissionForPath 取最长命中）；fail-open：未登记路径恒可见。
@@ -93,18 +93,18 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/dictionary', code: 'recruit:settings:dictionary:menu:view' },
 
   // ===== 提速配置 =====
-  { prefix: '/settings/recruitment-stage', code: 'recruit:settings:recruitment-stage:menu:view' },
-  { prefix: '/settings/recruitment-process', code: 'recruit:settings:recruitment-process:menu:view' },
-  { prefix: '/settings/recruitment-round', code: 'recruit:settings:recruitment-round:menu:view' },
+  { prefix: '/settings/recruitment-stage', code: 'recruit:settings:recruitment_stage:menu:view' },
+  { prefix: '/settings/recruitment-process', code: 'recruit:settings:recruitment_process:menu:view' },
+  { prefix: '/settings/recruitment-round', code: 'recruit:settings:recruitment_round:menu:view' },
 
   // ===== 内容管理 =====
   { prefix: '/settings/announcements', code: 'recruit:settings:announcements:menu:view' },
 
   // ===== 其他 =====
-  { prefix: '/settings/code-tables', code: 'recruit:settings:code-tables:menu:view' },
-  { prefix: '/settings/data-dashboard', code: 'recruit:settings:data-dashboard:menu:view' },
+  { prefix: '/settings/code-tables', code: 'recruit:settings:code_tables:menu:view' },
+  { prefix: '/settings/data-dashboard', code: 'recruit:settings:data_dashboard:menu:view' },
   { prefix: '/settings/external', code: 'recruit:settings:external:menu:view' },
-  { prefix: '/settings/rule-engine', code: 'recruit:settings:rule-engine:menu:view' },
+  { prefix: '/settings/rule-engine', code: 'recruit:settings:rule_engine:menu:view' },
   { prefix: '/settings/metrics', code: 'recruit:settings:metrics:list' },
 ]
 

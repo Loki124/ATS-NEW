@@ -35,7 +35,7 @@ DEFAULT_CANDIDATE_INFO_TABLE = {
 
 class BaseConfigView(APIView):
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:standard-resume:list'
+    permission_required = 'recruit:settings:standard_resume:list'
 
     KEY = None  # 子类必须指定配置键，对应 standard_resume_configs 表的 key 行
 
@@ -94,7 +94,7 @@ class FormConfigView(APIView):
     """
 
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:application-form:list'
+    permission_required = 'recruit:settings:application_form:list'
 
     RESOURCE_KEYS = {
         'Demand': 'form_demand',
@@ -141,7 +141,7 @@ class RegistrationFormListView(APIView):
     """登记 / 申请表集合：列出 / 新建"""
 
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:application-form:list'
+    permission_required = 'recruit:settings:application_form:list'
 
     def get(self, request):
         qs = RegistrationForm.objects.filter(deleted_at__isnull=True).order_by('order_index', 'id')
@@ -165,7 +165,7 @@ class RegistrationFormDetailView(APIView):
     """单个登记 / 申请表：更新 / 软删除"""
 
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:application-form:list'
+    permission_required = 'recruit:settings:application_form:list'
 
     def _get(self, pk):
         return RegistrationForm.objects.filter(pk=pk, deleted_at__isnull=True).first()

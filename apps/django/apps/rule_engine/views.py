@@ -17,7 +17,7 @@ from .serializers import UnifiedRuleSerializer
 
 class RuleListView(generics.ListAPIView):
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:rule-engine:list'
+    permission_required = 'recruit:settings:rule_engine:list'
     """聚合列出全部 legacy 规则（统一呈现）。
 
     GET /api/v1/rule-engine/rules/?category=&trigger_type=&enabled=&source_app=
@@ -42,7 +42,7 @@ class RuleListView(generics.ListAPIView):
 
 class TriggerCatalogView(APIView):
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:rule-engine:list'
+    permission_required = 'recruit:settings:rule_engine:list'
     """触发器目录：返回 UnifiedTriggerType 的 (value, label) 列表。
 
     统一包信封 {success, data}（FE rule-engine.ts listTriggers 已容错裸数组/envelope）。
@@ -55,7 +55,7 @@ class TriggerCatalogView(APIView):
 
 class OperatorCatalogView(APIView):
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:rule-engine:list'
+    permission_required = 'recruit:settings:rule_engine:list'
     """运算符目录：返回 UnifiedOperator 的 (value, label) 列表（11 种）。
 
     统一包信封 {success, data}（FE rule-engine.ts listOperators 已容错裸数组/envelope）。

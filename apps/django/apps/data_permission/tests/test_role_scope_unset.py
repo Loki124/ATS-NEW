@@ -14,9 +14,9 @@
 前端旧口径 `lower.includes('.' + k + '.')` 在 seed 全部 275 条资源码上
 **恒 false**（资源码全是冒号分隔，无一条含点号），且工单原文给的
 `process -> application` 映射与 process 的真实资源
-（`recruit:settings:recruitment-process:*`，module='settings'）不符，
+（`recruit:settings:recruitment_process:*`，module='settings'）不符，
 照做会让真实管流程的角色被误判为未授予、process 卡直接禁用（管理员锁死）。
-第 6 条用例专门锁「授 recruitment-process:edit 必须让 process 变 true」。
+第 6 条用例专门锁「授 recruitment_process:edit 必须让 process 变 true」。
 """
 from django.test import TestCase
 
@@ -210,7 +210,7 @@ class FeatureGrantedTestCase(TestCase):
         # 既不是 process 也不是 application —— 这正是不能用切段/别名口径的原因。
         PermissionResource.objects.create(
             system_code='recruit',
-            resource_code='recruit:settings:recruitment-process:edit',
+            resource_code='recruit:settings:recruitment_process:edit',
             resource_name='编辑招聘流程', resource_type='BUTTON', module='settings', status=1,
         )
         # 反例资源：application 实体与 process 无任何执行关联（全仓无 data_perm_entity 指向它）
@@ -236,9 +236,9 @@ class FeatureGrantedTestCase(TestCase):
         for mk in MODULE_KEYS:
             self.assertIs(self._module(mk)['featureGranted'], False, mk)
 
-    # ---- 用例 6：授 recruitment-process:edit -> process=true（防误禁用陷阱）----
+    # ---- 用例 6：授 recruitment_process:edit -> process=true（防误禁用陷阱）----
     def test_process_granted_via_settings_module(self):
-        """授 `recruit:settings:recruitment-process:edit` 时 process 必须 true。
+        """授 `recruit:settings:recruitment_process:edit` 时 process 必须 true。
 
         🔴 这条直接防工单原文方案（process -> application）造成的锁死事故：
         照原方案实现，真实管流程的角色 process 卡会被判为「未分配功能权限」
@@ -246,7 +246,7 @@ class FeatureGrantedTestCase(TestCase):
         """
         RolePermissionV2.objects.create(
             role_code=self.role.role_code, system_code='recruit',
-            resource_code='recruit:settings:recruitment-process:edit',
+            resource_code='recruit:settings:recruitment_process:edit',
         )
         self.assertIs(self._module('process')['featureGranted'], True)
         # 只影响 process，不波及其他模块

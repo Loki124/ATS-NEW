@@ -27,12 +27,12 @@ class AutomationRuleViewSet(EnvelopeAuditModelViewSet):
     queryset = AutomationRule.objects.all()
     serializer_class = AutomationRuleSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:rule-engine:list'
+    permission_required = 'recruit:settings:rule_engine:list'
     permission_required_map = {
-        'create': 'recruit:settings:rule-engine:edit',
-        'update': 'recruit:settings:rule-engine:edit',
-        'partial_update': 'recruit:settings:rule-engine:edit',
-        'destroy': 'recruit:settings:rule-engine:edit',
+        'create': 'recruit:settings:rule_engine:edit',
+        'update': 'recruit:settings:rule_engine:edit',
+        'partial_update': 'recruit:settings:rule_engine:edit',
+        'destroy': 'recruit:settings:rule_engine:edit',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -100,12 +100,12 @@ class AutomationRuleViewSet(EnvelopeAuditModelViewSet):
 class AutomationTriggerView(viewsets.ViewSet):
     """手动触发自动化引擎（用于测试 / 重放）"""
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:rule-engine:list'
+    permission_required = 'recruit:settings:rule_engine:list'
     permission_required_map = {
-        'post': 'recruit:settings:rule-engine:edit',
-        'put': 'recruit:settings:rule-engine:edit',
-        'patch': 'recruit:settings:rule-engine:edit',
-        'delete': 'recruit:settings:rule-engine:edit',
+        'post': 'recruit:settings:rule_engine:edit',
+        'put': 'recruit:settings:rule_engine:edit',
+        'patch': 'recruit:settings:rule_engine:edit',
+        'delete': 'recruit:settings:rule_engine:edit',
     }
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页 (本视图仅 create 触发, 无 list, 此处仅恢复属性)
 
@@ -152,7 +152,7 @@ class AutomationLogViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet)
     serializer_class = AutomationLogSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:rule-engine:list'
+    permission_required = 'recruit:settings:rule_engine:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['rule', 'candidate_id', 'evaluate_result']

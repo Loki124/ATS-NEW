@@ -19,7 +19,7 @@ const denyAll = () => false
 
 describe('permissionForPath', () => {
   it('按最长前缀命中，避免父路径抢子路径的码', () => {
-    expect(permissionForPath('/settings/company/brand')).toBe('recruit:settings:company-brand:menu:view')
+    expect(permissionForPath('/settings/company/brand')).toBe('recruit:settings:company_brand:menu:view')
     expect(permissionForPath('/settings/company')).toBe('recruit:settings:company:menu:view')
   })
 
@@ -70,7 +70,7 @@ describe('filterMenuByPermission', () => {
 
   it('分组子项全被裁掉时分组整体移除', () => {
     const canAccess = (code?: string) =>
-      code !== 'recruit:settings:company-brand:menu:view'
+      code !== 'recruit:settings:company_brand:menu:view'
         && code !== 'recruit:settings:dictionary:menu:view'
     const out = filterMenuByPermission(menu, canAccess)
     expect(out).toHaveLength(1)

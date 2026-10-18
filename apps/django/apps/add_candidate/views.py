@@ -483,11 +483,11 @@ class ResumeParserConfigView(APIView):
     GET 返回 ``data = {backend, available:{...}}``；``available`` 为运行时探测（是否注册 + 可执行就绪），不落库。
     """
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:standard-resume:menu:view'
+    permission_required = 'recruit:settings:standard_resume:menu:view'
     # 切换解析引擎属于「标准简历设置」写操作, 读配置用菜单可见码
     permission_required_map = {
-        'post': 'recruit:settings:standard-resume:edit',
-        'put': 'recruit:settings:standard-resume:edit',
+        'post': 'recruit:settings:standard_resume:edit',
+        'put': 'recruit:settings:standard_resume:edit',
     }
 
     # 允许的引擎白名单（冗余校验，正式真相源是后台注册表）

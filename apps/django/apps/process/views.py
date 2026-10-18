@@ -119,12 +119,12 @@ class RecruitmentStageViewSet(EnvelopeModelViewSet):
     """
     queryset = RecruitmentStage.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-stage:list'
+    permission_required = 'recruit:settings:recruitment_stage:list'
     permission_required_map = {
-        'create': 'recruit:settings:recruitment-stage:edit',
-        'update': 'recruit:settings:recruitment-stage:edit',
-        'partial_update': 'recruit:settings:recruitment-stage:edit',
-        'destroy': 'recruit:settings:recruitment-stage:edit',
+        'create': 'recruit:settings:recruitment_stage:edit',
+        'update': 'recruit:settings:recruitment_stage:edit',
+        'partial_update': 'recruit:settings:recruitment_stage:edit',
+        'destroy': 'recruit:settings:recruitment_stage:edit',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -267,18 +267,18 @@ class RecruitmentProcessViewSet(ScopeQuerysetMixin, EnvelopeModelViewSet):
     #   但类上从未声明任何权限码 → 此前这两个写端点对**任意登录用户**开放。
     #   读操作仍按设计放行 (流程列表属全员可见的基础配置)。
     permission_required_map = {
-        'create': 'recruit:settings:recruitment-process:create',
-        'update': 'recruit:settings:recruitment-process:edit',
-        'partial_update': 'recruit:settings:recruitment-process:edit',
-        'destroy': 'recruit:settings:recruitment-process:delete',
-        'archive': 'recruit:settings:recruitment-process:edit',
-        'clone_version': 'recruit:settings:recruitment-process:edit',
-        'batch_screen': 'recruit:settings:recruitment-process:edit',
-        'batch_recommend': 'recruit:settings:recruitment-process:edit',
+        'create': 'recruit:settings:recruitment_process:create',
+        'update': 'recruit:settings:recruitment_process:edit',
+        'partial_update': 'recruit:settings:recruitment_process:edit',
+        'destroy': 'recruit:settings:recruitment_process:delete',
+        'archive': 'recruit:settings:recruitment_process:edit',
+        'clone_version': 'recruit:settings:recruitment_process:edit',
+        'batch_screen': 'recruit:settings:recruitment_process:edit',
+        'batch_recommend': 'recruit:settings:recruitment_process:edit',
     }
     queryset = RecruitmentProcess.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required = 'recruit:settings:recruitment_process:list'
     # M02 (2026-10-12): 行级接入路径③收敛。原 get_queryset 内直调
     # role_entity_scope_q, 绕过统一入口; 现声明类属性走 ScopeQuerysetMixin。
     # 流程无部门字段可依 (field_map: process 仅 creator 维度), 历史上只叠加
@@ -614,12 +614,12 @@ class ProcessStageLinkViewSet(EnvelopeModelViewSet):
     queryset = ProcessStageLink.objects.all()
     serializer_class = ProcessStageLinkSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required = 'recruit:settings:recruitment_process:list'
     permission_required_map = {
-        'create': 'recruit:settings:recruitment-process:edit',
-        'update': 'recruit:settings:recruitment-process:edit',
-        'partial_update': 'recruit:settings:recruitment-process:edit',
-        'destroy': 'recruit:settings:recruitment-process:edit',
+        'create': 'recruit:settings:recruitment_process:edit',
+        'update': 'recruit:settings:recruitment_process:edit',
+        'partial_update': 'recruit:settings:recruitment_process:edit',
+        'destroy': 'recruit:settings:recruitment_process:edit',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -767,12 +767,12 @@ class StageRuleViewSet(viewsets.ModelViewSet):
     queryset = StageRule.objects.all()
     serializer_class = StageRuleSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required = 'recruit:settings:recruitment_process:list'
     permission_required_map = {
-        'create': 'recruit:settings:recruitment-process:edit',
-        'update': 'recruit:settings:recruitment-process:edit',
-        'partial_update': 'recruit:settings:recruitment-process:edit',
-        'destroy': 'recruit:settings:recruitment-process:edit',
+        'create': 'recruit:settings:recruitment_process:edit',
+        'update': 'recruit:settings:recruitment_process:edit',
+        'partial_update': 'recruit:settings:recruitment_process:edit',
+        'destroy': 'recruit:settings:recruitment_process:edit',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -800,12 +800,12 @@ class InterviewRoundViewSet(EnvelopeAuditModelViewSet):
     """
     queryset = InterviewRound.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-round:list'
+    permission_required = 'recruit:settings:recruitment_round:list'
     permission_required_map = {
-        'create': 'recruit:settings:recruitment-round:edit',
-        'update': 'recruit:settings:recruitment-round:edit',
-        'partial_update': 'recruit:settings:recruitment-round:edit',
-        'destroy': 'recruit:settings:recruitment-round:edit',
+        'create': 'recruit:settings:recruitment_round:edit',
+        'update': 'recruit:settings:recruitment_round:edit',
+        'partial_update': 'recruit:settings:recruitment_round:edit',
+        'destroy': 'recruit:settings:recruitment_round:edit',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -860,7 +860,7 @@ class ProcessTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProcessTemplateSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required = 'recruit:settings:recruitment_process:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'is_builtin', 'is_active']
@@ -877,7 +877,7 @@ class ExpressionValidationView(APIView):
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission.
     permission_classes = [V2Permission]
     # 2026-10-08: 该端点不写库, 但走 POST; 未声明权限码会被写操作守卫拒绝, 故显式声明。
-    permission_required = 'recruit:settings:recruitment-process:edit'
+    permission_required = 'recruit:settings:recruitment_process:edit'
 
     @extend_schema(
         summary='条件表达式校验',
@@ -917,7 +917,7 @@ class EntryConditionFieldCatalogView(APIView):
     `source` 键、field 字典带 `field` 键（同时保留 `key` 兼容）。
     """
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required = 'recruit:settings:recruitment_process:list'
 
     def get(self, request):
         from apps.entry_condition.models import ConditionOperator
@@ -1084,8 +1084,8 @@ class EntryConditionFieldCatalogView(APIView):
 class ProcessApplyTemplateView(APIView):
     """应用流程模板创建新流程"""
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-process:list'
-    permission_required_map = {'post': 'recruit:settings:recruitment-process:edit'}
+    permission_required = 'recruit:settings:recruitment_process:list'
+    permission_required_map = {'post': 'recruit:settings:recruitment_process:edit'}
 
     @extend_schema(
         summary='从模板创建流程',

@@ -416,7 +416,7 @@ function actionModuleView(key: string) {
  *
  * 🔴 历史口径曾在前端用 `lower.includes('.' + k + '.')` 自判 + MODULE_RESOURCE_ALIASES
  * （process→application）兜底，但 seed 全部资源码是冒号分隔、无一条含点号，自判恒 false；
- * 且 process→application 与真实资源（recruit:settings:recruitment-process:*，module='settings'）
+ * 且 process→application 与真实资源（recruit:settings:recruitment_process:*，module='settings'）
  * 不符，会让管流程的角色被误判未授予、卡片禁用（管理员锁死）。故改为纯取后端字段，
  * 前端不再自行判断（与 data-permission-ui-design.md §4 口径一致）。
  */

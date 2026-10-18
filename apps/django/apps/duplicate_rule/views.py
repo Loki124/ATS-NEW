@@ -57,7 +57,7 @@ class DuplicateCatalogView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
-    permission_required = 'recruit:settings:duplicate-candidate:list'
+    permission_required = 'recruit:settings:duplicate_candidate:list'
 
     def get(self, request):
         groups = [
@@ -76,7 +76,7 @@ class DuplicateConfigView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
-    permission_required = 'recruit:settings:duplicate-candidate:list'
+    permission_required = 'recruit:settings:duplicate_candidate:list'
 
     def get(self, request):
         return Response({
@@ -139,7 +139,7 @@ class DuplicateRuleListView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
-    permission_required = 'recruit:settings:duplicate-candidate:list'
+    permission_required = 'recruit:settings:duplicate_candidate:list'
 
     def get(self, request):
         # 首次访问时惰性补齐系统内置规则（幂等，不覆盖用户改动）
@@ -167,7 +167,7 @@ class DuplicateRuleDetailView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
-    permission_required = 'recruit:settings:duplicate-candidate:list'
+    permission_required = 'recruit:settings:duplicate_candidate:list'
 
     @staticmethod
     def _get(pk):
@@ -226,7 +226,7 @@ class DuplicateRuleToggleView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
-    permission_required = 'recruit:settings:duplicate-candidate:list'
+    permission_required = 'recruit:settings:duplicate_candidate:list'
 
     def post(self, request, pk):
         rule = DuplicateRule.objects.filter(pk=pk, deleted_at__isnull=True).first()
@@ -251,7 +251,7 @@ class DuplicateRuleResetView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; PUT/POST/PATCH 走派生 :edit (duplicate-candidate:edit)
-    permission_required = 'recruit:settings:duplicate-candidate:list'
+    permission_required = 'recruit:settings:duplicate_candidate:list'
 
     def post(self, request):
         rules = reset_rules()

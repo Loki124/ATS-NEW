@@ -115,14 +115,14 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
 
     serializer_class = DynamicFieldSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:dynamic-fields:list'
+    permission_required = 'recruit:settings:dynamic_fields:list'
     permission_required_map = {
-        'create': 'recruit:settings:dynamic-fields:create',
-        'update': 'recruit:settings:dynamic-fields:edit',
-        'partial_update': 'recruit:settings:dynamic-fields:edit',
-        'destroy': 'recruit:settings:dynamic-fields:delete',
+        'create': 'recruit:settings:dynamic_fields:create',
+        'update': 'recruit:settings:dynamic_fields:edit',
+        'partial_update': 'recruit:settings:dynamic_fields:edit',
+        'destroy': 'recruit:settings:dynamic_fields:delete',
         # 2026-10-12 批量修改字段类型/字段分组: 与单字段 update 同码
-        'batch_update': 'recruit:settings:dynamic-fields:edit',
+        'batch_update': 'recruit:settings:dynamic_fields:edit',
     }
 
     # 导入模板/导入解析用的中英文字段名映射: 模板用中文表头, 解析端统一归一到模型字段名
@@ -1359,12 +1359,12 @@ class FieldModuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
 
     serializer_class = FieldModuleSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:dynamic-fields:list'
+    permission_required = 'recruit:settings:dynamic_fields:list'
     permission_required_map = {
-        'create': 'recruit:settings:dynamic-fields:create',
-        'update': 'recruit:settings:dynamic-fields:edit',
-        'partial_update': 'recruit:settings:dynamic-fields:edit',
-        'destroy': 'recruit:settings:dynamic-fields:delete',
+        'create': 'recruit:settings:dynamic_fields:create',
+        'update': 'recruit:settings:dynamic_fields:edit',
+        'partial_update': 'recruit:settings:dynamic_fields:edit',
+        'destroy': 'recruit:settings:dynamic_fields:delete',
     }
 
     def get_resource(self) -> str:
@@ -1413,12 +1413,12 @@ class FieldGroupViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
 
     serializer_class = FieldGroupSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:dynamic-fields:list'
+    permission_required = 'recruit:settings:dynamic_fields:list'
     permission_required_map = {
-        'create': 'recruit:settings:dynamic-fields:create',
-        'update': 'recruit:settings:dynamic-fields:edit',
-        'partial_update': 'recruit:settings:dynamic-fields:edit',
-        'destroy': 'recruit:settings:dynamic-fields:delete',
+        'create': 'recruit:settings:dynamic_fields:create',
+        'update': 'recruit:settings:dynamic_fields:edit',
+        'partial_update': 'recruit:settings:dynamic_fields:edit',
+        'destroy': 'recruit:settings:dynamic_fields:delete',
     }
 
     def get_resource(self) -> str:
@@ -1441,12 +1441,12 @@ class FieldLinkageRuleViewSet(_DataEnvelopeMixin, viewsets.ModelViewSet):
 
     serializer_class = FieldLinkageRuleSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:dynamic-fields:list'
+    permission_required = 'recruit:settings:dynamic_fields:list'
     permission_required_map = {
-        'create': 'recruit:settings:dynamic-fields:create',
-        'update': 'recruit:settings:dynamic-fields:edit',
-        'partial_update': 'recruit:settings:dynamic-fields:edit',
-        'destroy': 'recruit:settings:dynamic-fields:delete',
+        'create': 'recruit:settings:dynamic_fields:create',
+        'update': 'recruit:settings:dynamic_fields:edit',
+        'partial_update': 'recruit:settings:dynamic_fields:edit',
+        'destroy': 'recruit:settings:dynamic_fields:delete',
     }
 
     def get_resource(self) -> str:

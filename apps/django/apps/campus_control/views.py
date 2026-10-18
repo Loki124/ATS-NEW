@@ -147,12 +147,12 @@ class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
     serializer_class = ControlDimensionSerializer
     permission_classes = [V2Permission]
     # G2: 校招管控配置此前对任意登录用户开放, 现改为资源码校验
-    permission_required = 'recruit:settings:campus-control:list'
+    permission_required = 'recruit:settings:campus_control:list'
     permission_required_map = {
-        'create': 'recruit:settings:campus-control:edit',
-        'update': 'recruit:settings:campus-control:edit',
-        'partial_update': 'recruit:settings:campus-control:edit',
-        'destroy': 'recruit:settings:campus-control:edit',
+        'create': 'recruit:settings:campus_control:edit',
+        'update': 'recruit:settings:campus_control:edit',
+        'partial_update': 'recruit:settings:campus_control:edit',
+        'destroy': 'recruit:settings:campus_control:edit',
     }
     pagination_class = StandardResultsSetPagination
 
@@ -203,12 +203,12 @@ class ControlIndicatorViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
     serializer_class = ControlIndicatorSerializer
     permission_classes = [V2Permission]
     # G2: 校招管控配置此前对任意登录用户开放, 现改为资源码校验
-    permission_required = 'recruit:settings:campus-control:list'
+    permission_required = 'recruit:settings:campus_control:list'
     permission_required_map = {
-        'create': 'recruit:settings:campus-control:edit',
-        'update': 'recruit:settings:campus-control:edit',
-        'partial_update': 'recruit:settings:campus-control:edit',
-        'destroy': 'recruit:settings:campus-control:edit',
+        'create': 'recruit:settings:campus_control:edit',
+        'update': 'recruit:settings:campus_control:edit',
+        'partial_update': 'recruit:settings:campus_control:edit',
+        'destroy': 'recruit:settings:campus_control:edit',
     }
     pagination_class = StandardResultsSetPagination
 
@@ -309,12 +309,12 @@ class ControlRuleViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelView
     serializer_class = ControlRuleSerializer
     permission_classes = [V2Permission]
     # G2: 校招管控配置此前对任意登录用户开放, 现改为资源码校验
-    permission_required = 'recruit:settings:campus-control:list'
+    permission_required = 'recruit:settings:campus_control:list'
     permission_required_map = {
-        'create': 'recruit:settings:campus-control:edit',
-        'update': 'recruit:settings:campus-control:edit',
-        'partial_update': 'recruit:settings:campus-control:edit',
-        'destroy': 'recruit:settings:campus-control:edit',
+        'create': 'recruit:settings:campus_control:edit',
+        'update': 'recruit:settings:campus_control:edit',
+        'partial_update': 'recruit:settings:campus_control:edit',
+        'destroy': 'recruit:settings:campus_control:edit',
     }
     pagination_class = StandardResultsSetPagination
 

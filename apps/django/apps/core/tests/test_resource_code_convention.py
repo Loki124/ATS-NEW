@@ -14,6 +14,12 @@
   R4  段数 >= 3 且第 1 段 == system_code
   R5  同前缀下 MENU 至多一条
   R6  模板 permission_codes 里的每个码都能在资源表找到（防悬空码 / 静默失权）
+  R7  分段命名统一 snake_case（小写 + 下划线），禁连字符/大写 —— 2026-10-18 债务清零
+
+🔴 R7 的来历：2026-10-18 之前存量有 29 个连字符段值（company-brand / field-acl …）与
+   下划线族并存，同一功能存在「同名不同写法」的分叉风险。core.0028 迁移已把存量
+   统一为下划线，本规则把该结论固化为不可回退的护栏 —— 分段名收敛为 snake_case 后，
+   新增资源不可能再写出第二种风格。
 """
 import re
 
@@ -28,13 +34,16 @@ ACTION_WHITELIST = {
 }
 
 # ===== 已知存量债务白名单（规范 §6）：命中即放行，但要求「债务量不增」 =====
-KNOWN_DEBT_R2_MODULE_MISMATCH = {
-    # core.0027_fix_module_field 已修；保留记录以防回退时能立刻发现
-}
+# 2026-10-18 治理后全部清零。保留空常量作为显式基线：
+# 后人若想让某类违规重新合法，必须先在此登记 —— 即「债务只减不增，且每次新增都要留下决策痕迹」。
+KNOWN_DEBT_R2_MODULE_MISMATCH = set()
 
-# 存量里动作段越界的码（规范 §6）。2026-10-18 实测为 0 —— 全部动作已收进词表，
-# 此处保留常量作为「债务只减不增」的显式基线：后人追加即护栏变红。
+# 存量里动作段越界的码（规范 §6）。2026-10-18 实测为 0 —— 全部动作已收进词表。
 KNOWN_ACTION_OUT_OF_WHITELIST = set()
+
+# 🔴 分段命名的合法形态：仅小写字母、数字、下划线。
+# 连字符（kebab-case）曾在存量大量存在，core.0028 已统一清除。
+SEGMENT_PATTERN = re.compile(r'^[a-z0-9_]+$')
 
 
 def _load_seed_resources():
@@ -111,6 +120,22 @@ class TestSeedResourceConvention:
             )
             seen[prefix] = code
 
+    def test_r7_segments_snake_case_only(self):
+        """R7：全部分段只能是 snake_case（小写字母/数字/下划线）。
+
+        2026-10-18 core.0028 已把存量 29 个连字符段值统一为下划线，本规则锁死该结论。
+        允许连字符会导致同一功能出现第二种写法 —— 「同名不同码」是最难排查的静默失权。
+        """
+        bad = []
+        for code, *_ in _load_seed_resources():
+            for idx, seg in enumerate(_parts(code), start=1):
+                if not SEGMENT_PATTERN.match(seg):
+                    bad.append(f'{code}（第 {idx} 段 `{seg}` 含非法字符）')
+        assert not bad, (
+            f'分段命名必须是 snake_case（规范 R7）：{bad}；'
+            f'请用下划线分隔单词，不要用连字符或大写'
+        )
+
 
 @pytest.mark.django_db
 class TestDbResourceConvention:
@@ -172,6 +197,38 @@ class TestDbResourceConvention:
                 dangling[tpl.template_code] = missing
         assert not dangling, (
             f'权限模板存在悬空资源码（会导致身份静默失权）：{dangling}'
+        )
+
+    def test_r7_db_segments_snake_case_only(self):
+        """R7（库内）：存量资源分段已由 core.0028 统一为 snake_case，且不出现分叉。
+
+        两重校验：
+        ① 分段字符集合法；
+        ② 同一「前缀 + kind:action」只存在一条资源 —— 追加这条是因为
+           `company-brand:edit` 与 `company_brand:edit` 各自都满足 R1~R6，
+           只有前缀比对才暴露「同名不同码」的分叉（最难排查的静默失权）。
+        """
+        from apps.core.models_permission_v2 import PermissionResource
+        bad_segments = []
+        variants = {}
+        for r in PermissionResource.objects.all():
+            parts = _parts(r.resource_code)
+            for idx, seg in enumerate(parts, start=1):
+                if not SEGMENT_PATTERN.match(seg):
+                    bad_segments.append(f'{r.resource_code}（第 {idx} 段 `{seg}`）')
+            if len(parts) >= 2:
+                key = ':'.join(parts[:-2])
+                variants.setdefault(key, []).append(r.resource_code)
+        assert not bad_segments, (
+            f'库内资源分段非 snake_case（规范 R7）：{sorted(set(bad_segments))}'
+        )
+        # 同一前缀下 kind:action 重复 = 同名不同码，必须报出来
+        forked = {
+            k: sorted(v) for k, v in variants.items()
+            if len(v) > len({':'.join(_parts(c)[-2:]) for c in v})
+        }
+        assert not forked, (
+            f'同一前缀下出现同名不同码的分叉（规范 R7）：{forked}'
         )
 
     def test_template_codes_cover_all_enabled_resources(self):

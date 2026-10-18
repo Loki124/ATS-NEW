@@ -33,8 +33,8 @@ class ScrapedResumeViewSet(viewsets.ViewSet):
     permission_classes = [V2Permission]
     # 2026-10-08: 写操作显式授权。scrape 目前恒返 501, import_to 会真实写入候选人。
     permission_required_map = {
-        'scrape': 'recruit:settings:scraped-resumes:create',
-        'import_to': 'recruit:settings:scraped-resumes:create',
+        'scrape': 'recruit:settings:scraped_resumes:create',
+        'import_to': 'recruit:settings:scraped_resumes:create',
     }
     pagination_class = None
 

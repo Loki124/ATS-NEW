@@ -52,8 +52,8 @@ ROLE_CODE = 'M07_BATCH_ENDPOINT_ROLE'
 RESOURCE_CODES = (
     'recruit:candidate:list',
     'recruit:candidate:edit',
-    'recruit:settings:recruitment-process:list',
-    'recruit:settings:recruitment-process:edit',
+    'recruit:settings:recruitment_process:list',
+    'recruit:settings:recruitment_process:edit',
 )
 
 

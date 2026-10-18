@@ -36,7 +36,7 @@ _UNIT_LIMIT = 500
 # ⚠️ 与 seed_v2_init.RESOURCES 的 module 字段严格对应；改这里必须同步 seed。
 #   - demand/position/candidate 与自身同名模块一一对应；
 #   - talent(人才库数据) 对应功能资源模块 'talent_pool'（人才库功能）；
-#   - process(招聘流程数据) 对应功能资源模块 'settings'（recruit:settings:recruitment-process:*），
+#   - process(招聘流程数据) 对应功能资源模块 'settings'（recruit:settings:recruitment_process:*），
 #     既不是 'process' 也不是 'application' —— 工单原文给的 process->application 会让真实
 #     管流程的角色被误判「未授予」而禁用卡片（管理员锁死）。
 DATA_PERM_MODULE_RESOURCE_MODULES: Dict[str, set] = {

@@ -49,13 +49,13 @@ class ApprovalFlowViewSet(EnvelopeReadOnlyMixin, viewsets.ModelViewSet):
     permission_classes = [V2Permission]
     # 2026-10-08: 写操作显式授权 (此前未声明 → 任意登录用户可新建/批准/驳回/转交审批流)。
     permission_required_map = {
-        'create': 'recruit:settings:approval-flow:create',
-        'update': 'recruit:settings:approval-flow:edit',
-        'partial_update': 'recruit:settings:approval-flow:edit',
-        'destroy': 'recruit:settings:approval-flow:edit',
-        'approve': 'recruit:settings:approval-flow:edit',
-        'reject': 'recruit:settings:approval-flow:edit',
-        'delegate': 'recruit:settings:approval-flow:edit',
+        'create': 'recruit:settings:approval_flow:create',
+        'update': 'recruit:settings:approval_flow:edit',
+        'partial_update': 'recruit:settings:approval_flow:edit',
+        'destroy': 'recruit:settings:approval_flow:edit',
+        'approve': 'recruit:settings:approval_flow:edit',
+        'reject': 'recruit:settings:approval_flow:edit',
+        'delegate': 'recruit:settings:approval_flow:edit',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]

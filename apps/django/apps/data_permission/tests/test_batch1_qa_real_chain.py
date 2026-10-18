@@ -307,7 +307,7 @@ def grant_seed(db):
     RolePermissionV2.objects.all().delete()
     PermissionResource.objects.create(
         system_code='recruit',
-        resource_code='recruit:settings:recruitment-process:edit',
+        resource_code='recruit:settings:recruitment_process:edit',
         resource_name='编辑招聘流程', resource_type='BUTTON', module='settings', status=1,
     )
     PermissionResource.objects.create(
@@ -326,7 +326,7 @@ def test_http_feature_granted_process_via_settings(admin_client, role, grant_see
     """
     RolePermissionV2.objects.create(
         role_code=role.role_code, system_code='recruit',
-        resource_code='recruit:settings:recruitment-process:edit',
+        resource_code='recruit:settings:recruitment_process:edit',
     )
     status, body = _http_get(admin_client, role)
     assert status == 200, body

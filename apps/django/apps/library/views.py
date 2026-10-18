@@ -26,10 +26,10 @@ class MajorViewSet(EnvelopeModelViewSet):
     permission_classes = [V2Permission]
     # 2026-10-08: 写操作显式授权 (此前未声明 → 任意登录用户可增删改专业库基础数据)。
     permission_required_map = {
-        'create': 'recruit:settings:school-library:create',
-        'update': 'recruit:settings:school-library:edit',
-        'partial_update': 'recruit:settings:school-library:edit',
-        'destroy': 'recruit:settings:school-library:delete',
+        'create': 'recruit:settings:school_library:create',
+        'update': 'recruit:settings:school_library:edit',
+        'partial_update': 'recruit:settings:school_library:edit',
+        'destroy': 'recruit:settings:school_library:delete',
     }
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
 
@@ -99,13 +99,13 @@ class SchoolViewSet(EnvelopeModelViewSet):
     serializer_class = SchoolSerializer
     # T01.2 (2026-08-04 寇豆码): 由裸 IsAuthenticated 改为 V2Permission, 显式声明避免 deny-by-default.
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:company-library:list'
+    permission_required = 'recruit:settings:company_library:list'
     # 2026-10-08: 写操作显式授权 (此前未声明 → 任意登录用户可增删改院校库基础数据)。
     permission_required_map = {
-        'create': 'recruit:settings:school-library:create',
-        'update': 'recruit:settings:school-library:edit',
-        'partial_update': 'recruit:settings:school-library:edit',
-        'destroy': 'recruit:settings:school-library:delete',
+        'create': 'recruit:settings:school_library:create',
+        'update': 'recruit:settings:school_library:edit',
+        'partial_update': 'recruit:settings:school_library:edit',
+        'destroy': 'recruit:settings:school_library:delete',
     }
     # per P1 audit 保留客户端分页豁免: FE 用 n-data-table 客户端分页 (小字典, 刻意不启用服务端分页,
     # 请求体信封契约 {success,data} 不变); 必须显式置 None, 否则会继承父类默认分页器破坏 FE 契约.

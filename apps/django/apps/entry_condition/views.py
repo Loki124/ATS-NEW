@@ -42,12 +42,12 @@ class EntryConditionRuleViewSet(viewsets.ModelViewSet):
     """进入条件规则 ViewSet"""
     queryset = EntryConditionRule.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:recruitment-process:list'
+    permission_required = 'recruit:settings:recruitment_process:list'
     permission_required_map = {
-        'create': 'recruit:settings:recruitment-process:edit',
-        'update': 'recruit:settings:recruitment-process:edit',
-        'partial_update': 'recruit:settings:recruitment-process:edit',
-        'destroy': 'recruit:settings:recruitment-process:edit',
+        'create': 'recruit:settings:recruitment_process:edit',
+        'update': 'recruit:settings:recruitment_process:edit',
+        'partial_update': 'recruit:settings:recruitment_process:edit',
+        'destroy': 'recruit:settings:recruitment_process:edit',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]

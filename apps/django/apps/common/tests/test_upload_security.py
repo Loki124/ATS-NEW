@@ -83,7 +83,7 @@ class BrandLogoUploadTest(TestCase):
         self.client = APIClient()
         from django.contrib.auth import get_user_model
         self.user = get_user_model().objects.create_user('u2', password='p')
-        # G2: 品牌 logo 端点改按资源码校验 (recruit:settings:company-brand:edit),
+        # G2: 品牌 logo 端点改按资源码校验 (recruit:settings:company_brand:edit),
         # 无角色用户会 403 —— 该用例测的是文件类型校验, 给全权限身份。
         from tests.fixtures_common import attach_super_admin
         self.client.force_authenticate(attach_super_admin(self.user))

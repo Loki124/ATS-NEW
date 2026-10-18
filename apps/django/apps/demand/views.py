@@ -289,7 +289,7 @@ class DemandConfigView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; PUT/POST 走派生 :edit (demand-config:edit)
-    permission_required = 'recruit:settings:demand-config:list'
+    permission_required = 'recruit:settings:demand_config:list'
 
     @staticmethod
     def _get_or_create():

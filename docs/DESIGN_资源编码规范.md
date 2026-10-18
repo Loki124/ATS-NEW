@@ -119,17 +119,37 @@ cd apps/django && .venv/bin/python -m pytest apps/core/tests/test_resource_code_
 
 ---
 
-## 6. 已知存量债务（不在护栏报警范围）
+## 6. 🟢 存量债务清零记录（2026-10-18）
 
-2026-10-18 实测，**刻意保留**、不在本轮治理：
+> 本节原是「已知存量债务（护栏放行白名单）」。兵哥明确要求「项目初期不要把债务留到未来」，
+> 故 2026-10-18 一次性清零，并把各项从「放行」升级为「护栏永久拦截」（见 §4 规则 R7
+> 及 `test_resource_code_convention.py`）。下方只做历史留痕，**不再存在任何放行权**。
 
-| 项 | 条数 | 处置 |
+| 原债务项 | 条数 | 处置（迁移 / 状态） | 现状 |
+|---|---|---|---|
+| `module` 与第 2 段不一致 | 3 | `core.0027_fix_module_field` 迁移修正 | ✅ 清零 |
+| 连字符段值（`company-brand` / `field-acl` 等 29 个段，98 条码）与下划线族并存 | ~98 | `core.0028_unify_resource_code_segments` 段级改名 + 护栏 R7 锁死 | ✅ 清零 |
+| 2 组资源名重复（「编辑角色」「删除角色」各 2 条） | 4 | 经查证：`recruit:role:{create,edit,delete}` 是**后端在役鉴权真源**，不得停用；`recruit:settings:permissions:{create,edit,delete,export}` 是 2026-09-18「角色管理→身份管理」更名遗留的**零消费僵尸码**，`core.0029` 已停用（保留 `settings:permissions:menu:view`，前端菜单守卫在用） | ✅ 清零 |
+| 10 条 DB 孤儿资源（`data-permission:*` / `user-management:*`，功能已下线但库里残留） | 10 | `core.0029` 停用（`status=0`，不物理删除以保留历史授权可追溯） | ✅ 清零 |
+| 动作段用 `_l1` / `_l2` 后缀（`approve_l1/approve_l2`） | 2 | 已随 Offer 两级审批下线停用（0026 之前处置） | ✅ 清零 |
+
+**段数差异不再视为债务**：3/4/5/6 段并存是模块层级深度不同的自然结果（业务域无子页面=3 段，
+settings 子页面=5 段，权限下资源管理页=6 段），符合本规范 §2「按层级定段」，**不是缺陷**。
+R1~R6 对全部 285 条资源恒成立，无需任何白名单。
+
+### 6.1 改名同步清单（P0：漏一处即静默失权）
+
+`core.0028` 改名必须同步三处存储，已在同一事务内完成：
+
+| 存储点 | 表 / 字段 | 同步方式 |
 |---|---|---|
-| `module` 与第 2 段不一致（`user_app_data_scope:*` 的 module 是 `user_role`） | 3 | ✅ 已修（0027 迁移） |
-| 3 段体系与 4 段体系并存 | 65 + 157 | ❌ 不拉平：改名会牵动模板 JSON + 前端 14 文件，失败即静默失权 |
-| 连字符子模块（`company-address`）与斜杠分层并存 | ~30 | ⚠️ 待评估，同上风险 |
-| 2 组资源名重复（「编辑角色」「删除角色」各 2 条） | 4 | ⚠️ 待人工判断是否合并 |
-| 动作段用 `_l1` / `_l2` 后缀（`approve_l1`） | 2 | 已随 Offer 两级审批下线停用 |
+| 资源定义本体 | `permission_resources.resource_code` | 逐条 `update`（unique 约束，批量 UPDATE 会撞 1062） |
+| 真实授权 | `role_permission.resource_code` | 逐条 `update`；冲突合并去重，不撞 `uk_role_resource` |
+| 模板 JSON | `permission_templates.permission_codes` | 逐条解析 JSON 数组改写 |
+
+离线（非库）同步点：前端 `web/app/src/utils/permissionMenu.ts`（57 条菜单映射）、
+各后端 `views.py` 的 `permission_required` / `has_perm` 声明（27 个文件 339 处），
+已由脚本按映射表全量改写并验证零残留。
 
 ---
 

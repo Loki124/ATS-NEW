@@ -40,7 +40,7 @@ class BrandInfoView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; POST/PUT 走派生 :edit (company-brand:edit)
-    permission_required = 'recruit:settings:company-brand:list'
+    permission_required = 'recruit:settings:company_brand:list'
 
     def _get_or_create(self) -> BrandInfo:
         """取唯一一行; 不存在则惰性创建(首次访问即给一份默认值)。"""
@@ -77,7 +77,7 @@ class BrandLogoUploadView(APIView):
 
     permission_classes = [V2Permission]
     # 读按列表码; POST/PUT 走派生 :edit (company-brand:edit)
-    permission_required = 'recruit:settings:company-brand:list'
+    permission_required = 'recruit:settings:company_brand:list'
     parser_classes = [MultiPartParser]
 
     def post(self, request, *args, **kwargs) -> Response:

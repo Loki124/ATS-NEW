@@ -569,7 +569,7 @@ const activeTab = ref('profile')
  * 中文标签映射：snake_case fieldKey → i18n key（s102–s157 现有译文）。
  * 权威来源为「标准简历设置」的动态字段（fieldKey 已由迁移 0023 归一为 snake_case，
  * 但组件曾用英文显示标签作键 → 查不到 → 页面直接裸显 about_me 等英文键）。
- * 此表不依赖 listFields 权限（HR 无 recruit:settings:dynamic-fields:list 也可用）。
+ * 此表不依赖 listFields 权限（HR 无 recruit:settings:dynamic_fields:list 也可用）。
  */
 const FIELD_LABEL_I18N: Record<string, string> = {
   name: 's154', gender: 's111', about_me: 's104', birth_date_age: 's105',
