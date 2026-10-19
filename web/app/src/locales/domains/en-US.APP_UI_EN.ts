@@ -214,7 +214,7 @@ export const APP_UI_EN: Record<string, string> = {
   'pages.settings.ApplicationFormSettings.s2': "Social Recruiting",
   'pages.settings.CampusAmbassador.s1': "Manage student ambassadors across universities for campus promo, info sessions, and candidate referral",
   'pages.settings.CampusAmbassador.s2': "Campus Ambassadors are exclusive to the campus recruiting system",
-  'pages.settings.CampusControl.s1': "Campus Recruiting Control",
+  'pages.settings.CampusControl.s1': "Headcount Control",
   'pages.settings.CampusControl.s2': "Headcount ratio control · each rule has independent scope (global / dept·position·level) · metric library + rule CRUD",
   'pages.settings.CampusControl.s3': "Counted Headcount",
   'pages.settings.CampusControl.s4': "Control Rule Count",

@@ -71,7 +71,7 @@ import {
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
   ShieldOutline, ShieldCheckmarkOutline, LockClosedOutline, PeopleCircleOutline, OptionsOutline,
   DocumentTextOutline, FileTrayFullOutline, GridOutline, CopyOutline,
-  BriefcaseOutline, CalendarOutline, GiftOutline, PricetagsOutline, CodeSlashOutline,
+  BriefcaseOutline, CalendarOutline, GiftOutline, PricetagsOutline, CodeSlashOutline, MegaphoneOutline,
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -231,6 +231,16 @@ const rawSubMenuOptions: MenuItem[] = [
     label: t('pages.settings.SettingsLayout.s48'),
     children: [
       { key: '/settings/announcements', label: t('pages.settings.SettingsLayout.s49'), icon: () => h(NIcon, null, { default: () => h(BookOutline) }) },
+    ],
+  },
+  {
+    // 2026-10-19 兵哥：雇主品牌分组（校园大使 / 宣讲会），从主菜单「校园招聘」分组迁出
+    key: 'g-employer-brand',
+    type: 'group',
+    label: t('pages.settings.SettingsLayout.s66'),
+    children: [
+      { key: '/settings/campus-ambassador', label: t('pages.settings.SettingsLayout.s67'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
+      { key: '/settings/campus-session', label: t('pages.settings.SettingsLayout.s68'), icon: () => h(NIcon, null, { default: () => h(MegaphoneOutline) }) },
     ],
   },
   {

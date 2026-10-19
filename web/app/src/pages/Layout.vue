@@ -230,6 +230,7 @@ import {
   MenuOutline,
   SwapVerticalOutline,
   LanguageOutline,
+  ClipboardOutline,
   // SettingsOutline, // 已迁移到 sider 底部 footer（不再用于 n-menu 菜单项）
 } from '@vicons/ionicons5'
 import { MenuOutline as Menu, CheckmarkOutline as Check } from '@vicons/ionicons5'
@@ -365,8 +366,9 @@ const menuLayout = computed<'side' | 'top'>(() =>
   userStore.uiSettings?.menuLayout === 'top' ? 'top' : 'side',
 )
 
-// G-2026-09-23: 菜单按系统差异（双系统）。社招/校招共享主功能菜单；校招额外追加
-// 「校园招聘」分组（校园大使/宣讲会/轮岗安排/轮岗资源/班级管理/人员管理）。切换系统时菜单实时刷新（computed 依赖 systemStore）。
+// G-2026-09-23（2026-10-19 兵哥调整）：菜单按系统差异（双系统）。社招/校招共享主功能菜单；校招模式额外追加
+// 两个一级入口：「校招生管理」分组（轮岗安排/轮岗资源/客服部门/班级管理/校招生档案）+「编制管控」叶子菜单。
+// 原「校园招聘」分组壳已拆散；「校园大使/宣讲会」迁移到系统设置「雇主品牌」分组。切换系统时菜单实时刷新（computed 依赖 systemStore）。
 const systemStore = useSystemStore()
 const { canAccess } = usePermission()
 const menuOptions = computed(() => {
@@ -408,19 +410,24 @@ const menuOptions = computed(() => {
     // 设置已迁到 sider footer 永久贴底（hover 展开时显示文字）
   ]
   if (systemStore.isCampus) {
+    // 校招生管理：轮岗 / 班级 / 档案等校招运营功能汇总分组（兵哥 2026-10-19 调整）
     base.push({
-      key: 'campus',
-      label: '校园招聘',
+      key: 'campus-recruit-mgmt',
+      label: '校招生管理',
       icon: renderIcon(PeopleOutline),
       children: [
-        { key: '/settings/campus-control', label: '校招管控' },
-        { key: '/settings/campus-ambassador', label: '校园大使' },
-        { key: '/settings/campus-session', label: '宣讲会' },
         { key: '/campus/rotation-arrangement', label: '轮岗安排' },
         { key: '/campus/live-room', label: '轮岗资源' },
+        { key: '/campus/service-dept', label: '客服部门' },
         { key: '/campus/class-room', label: '班级管理' },
         { key: '/campus/person', label: '校招生档案' },
       ],
+    })
+    // 编制管控（原「校招管控」，2026-10-19 更名）：campus 模式下的一级叶子菜单
+    base.push({
+      key: '/settings/campus-control',
+      label: '编制管控',
+      icon: renderIcon(ClipboardOutline),
     })
   }
   // G4: 按功能权限裁剪菜单（fail-open：未配置功能权限时全部可见）

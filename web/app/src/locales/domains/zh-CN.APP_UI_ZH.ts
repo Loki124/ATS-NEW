@@ -214,7 +214,7 @@ export const APP_UI_ZH: Record<string, string> = {
   'pages.settings.ApplicationFormSettings.s2': "社招",
   'pages.settings.CampusAmbassador.s1': "管理各高校的学生大使，承接校招宣传、宣讲会组织与候选人推荐",
   'pages.settings.CampusAmbassador.s2': "校园大使为校园招聘系统专属功能",
-  'pages.settings.CampusControl.s1': "校招管控",
+  'pages.settings.CampusControl.s1': "编制管控",
   'pages.settings.CampusControl.s2': "人员比例管控 · 每条规则独立适用范围（全局 / 部门·职务·职级）· 指标库 + 规则增删改",
   'pages.settings.CampusControl.s3': "计入核算人数",
   'pages.settings.CampusControl.s4': "管控规则数",
