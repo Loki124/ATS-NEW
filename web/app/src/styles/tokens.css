@@ -199,8 +199,8 @@
   --page-pad-y:      var(--space-4);   /* 16px 页面垂直安全边距 · 同上 */
   --page-pad-x-sm:   var(--space-2);   /* 8px 移动端水平安全边距（≤767px）· 由 16px 收紧 */
   --page-pad-y-sm:   var(--space-2);   /* 8px 移动端垂直安全边距 · 同上 */
-  --modal-pad-x:     var(--space-5);   /* 24px 弹窗内容区水平内边距（弹窗保留宽松留白，与页面区分） */
-  --modal-pad-y:     var(--space-5);   /* 24px 弹窗内容区垂直内边距 */
+  --modal-pad-x:     var(--space-5);   /* 16px 弹窗内容区水平内边距（= --space-5，等同 --space-4） */
+  --modal-pad-y:     var(--space-5);   /* 16px 弹窗内容区垂直内边距（= --space-5） */
   --content-max-width: 1280px;         /* 内容区最大宽度（超宽屏居中收束，防单列拉伸过宽） */
   --col-min:         280px;            /* 自适应栅格最小列宽（repeat(auto-fit, minmax)） */
   /* 响应式断点（与 JS 媒体查询 / UnoCSS 断点对齐） */

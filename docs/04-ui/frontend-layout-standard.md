@@ -16,7 +16,7 @@
 
 | 来源 | 提供的值 | 问题 |
 | --- | --- | --- |
-| 全局 `.page-container`（glass.css） | `padding: 24px` | scoped `.page-container{padding:0}` 可直接覆盖 |
+| 全局 `.page-container`（glass.css） | `padding: var(--page-pad-y) var(--page-pad-x)` | scoped `.page-container{padding:0}` 可直接覆盖（故已加 `!important` 兜底） |
 | `.settings-scroll`（SettingsLayout） | `padding: 20px` + 清零 `.page-container` | `.page-body` 仅垂直滚动、无水平 padding；离开该上下文即贴边 |
 | 弹窗 `.n-modal .n-card-content`（glass.css） | 隐式依赖 Naive 默认 card padding | header/footer 全局规则只设垂直 padding，水平方向无 token 约束 |
 
@@ -47,18 +47,20 @@
 - 玻璃卡片 `.glass-card` 已内置 `padding: var(--space-4)`（16px），直接复用，禁止再手写卡片内边距。
 - 表单/列表放进 `n-card` 时，由 `n-card` 内容区承载内边距，**不要再给内部第一层子元素加贴边负 margin**。
 - 自定义内容块如需内边距，使用 `--space-4`（16px）/ `--space-6`（24px），禁止裸像素（如 `padding:20px` 应写为 `padding: var(--space-5)`）。
+- **弹窗内边距一律 16px**（2026-10-19 兵哥定调），走 `--modal-pad-x/y`，禁页面自定义。
 
 ### 1.3 弹窗内边距（Modal / Drawer Inner Padding）⚠️ 重点
 
 弹窗内容区、头部、底部的内边距**已全局 token 化**，禁止任何页面 scoped 清零：
 
-| 区域 | 规则 | 值 |
-| --- | --- | --- |
-| `.n-modal .n-card-content` | `padding: var(--modal-pad-y) var(--modal-pad-x)` | 20px / 24px |
-| `.n-modal .n-card-header` | `padding: var(--modal-pad-y) var(--modal-pad-x) 14px` | 顶 20 / 左右 24 / 底 14（与分隔线留缝） |
-| `.n-modal .n-card__footer` | `padding: 14px var(--modal-pad-x) var(--modal-pad-y)` | 顶 14 / 左右 24 / 底 20（"不要贴底"） |
+| 区域 | 规则 |
+| --- | --- |
+| `.n-modal .n-card-content` | `padding: var(--modal-pad-y) var(--modal-pad-x)` |
+| `.n-modal .n-card-header` | `padding: var(--modal-pad-y) var(--modal-pad-x) var(--space-3)`（底边留分隔线缝） |
+| `.n-modal .n-card__footer` | `padding: var(--space-3) var(--modal-pad-x) var(--modal-pad-y)`（"不要贴底"） |
 
-> 令牌：`--modal-pad-x = var(--space-6)`（24px）、`--modal-pad-y = var(--space-5)`（20px）。
+> 令牌：`--modal-pad-x` / `--modal-pad-y` 均 = `var(--space-5)`，**即 16px（2026-10-19 兵哥定调：弹窗内边距统一 16px）**，数值真源见 `tokens.css §8.5`，此处不复制。
+> 🔴 历史上本节曾写「24px / 20px」而真源实为 16px，属文档漂移；现改为只引用令牌名，由 `npm run tokens:audit` 防回归。
 > 抽屉（n-drawer）底部操作栏统一用 `.drawer-footer`（已全局 `padding-bottom: var(--space-4)` + 右对齐）。
 
 ### 1.4 容器最大宽度（Content Max Width）
@@ -210,7 +212,7 @@
 - **stylelint**：禁止裸像素 color（已有）；布局改动后必须 `npm run lint:style` 通过。
 - **构建**：`npm run build:nocheck` 通过（vue-tsc 由 vite build 替代，避免 OOM）。
 - **磁盘核查**：改动后 `grep -rn "padding: 0" src/pages/**/*.vue` 确认无 `.page-container` 裸清零（设置页除外，但须确认在 `.settings-scroll` 上下文内）。
-- **真实浏览器复测**：弹窗/页面边距须用 `getComputedStyle` 硬证据确认（`.page-container` 解析 padding = 24px；`.n-modal .n-card-content` = 20px 24px），不靠目测。
+- **真实浏览器复测**：弹窗/页面边距须用 `getComputedStyle` 硬证据确认（`.page-container` 解析 padding 应等于 `--page-pad-x/y`；`.n-modal .n-card-content` 应等于 `--modal-pad-y` `--modal-pad-x`），不靠目测、不写死数值。
 
 ---
 

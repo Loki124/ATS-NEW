@@ -1016,17 +1016,17 @@ body.dark .kpi-card.kpi-card--accent {
 /* === 页面根容器内边距（v2 重构：原由 Layout.content-wrapper 的 p-6 统一提供，
    现下放给页面根容器自管，让内容区直接由页面根元素承接，减少嵌套层） === */
 /* 直接挂在 Layout 下的列表/详情页（DemandList / OfferList / Screening 等）：
-   此处 24px 等价原 content-wrapper 的 p-6，视觉无变化。
+   走 --page-pad-y/x（= --space-4，16px，2026-10-15 由 24px 收紧）。
    ★ 防御性 !important：页面 scoped 样式带 [data-v-x] 特异性高于本全局规则，
      可用 .page-container{padding:0} 覆盖导致内容贴边；此处 !important 兜底。
      设置页由 SettingsLayout 的 .settings-scroll :deep(.page-container){padding:0!important}
-     （更高特异性）仍可取零，不受影响。详见 docs/frontend-layout-standard.md。 */
+     （更高特异性）仍可取零，不受影响。详见 docs/04-ui/frontend-layout-standard.md。 */
 .page-container {
   padding: var(--page-pad-y) var(--page-pad-x) !important;
   min-height: 100%;
   box-sizing: border-box;
 }
-/* 移动端（≤767px）安全边距下探到 16px（规范 §1.1）。
+/* 移动端（≤767px）安全边距下探到 8px（规范 §1.1，走 --page-pad-*-sm = --space-2）。
    ★ CSS @media 的【条件】不能使用 var()，断点必须写字面量 767px（对齐 --breakpoint-sm=768 的“及以下”语义）；
      但规则【内部声明】可用 var()，故此处 padding 仍走 --page-pad-*-sm 令牌。
    !important 保留：页面 scoped 的移动端 .page-container{padding:...} 覆盖一并收归全局，杜绝散落重声明。 */
