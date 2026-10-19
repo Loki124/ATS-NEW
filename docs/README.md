@@ -16,7 +16,7 @@
 | 查某个后端模块职责 | [01-wiki/03-后端模块详解.md](./01-wiki/03-后端模块详解.md) |
 | 查 API 与权限体系 | [01-wiki/05-API与权限体系.md](./01-wiki/05-API与权限体系.md) |
 | 查数据模型与状态机 | [01-wiki/04-数据模型与状态机.md](./01-wiki/04-数据模型与状态机.md) |
-| 做 UI / 改样式 | [04-ui/UI_DESIGN_SPEC.md](./04-ui/UI_DESIGN_SPEC.md) · [04-ui/UI_DARK_MODE_TECHNICAL_PLAN.md](./04-ui/UI_DARK_MODE_TECHNICAL_PLAN.md) |
+| 做 UI / 改样式 | [04-ui/UI_STANDARD.md](./04-ui/UI_STANDARD.md) · [04-ui/README.md](./04-ui/README.md)（L0–L5 入口） |
 | 了解校招管控模块 | [05-campus-control/校招管控_需求文档_v2.9.md](./05-campus-control/校招管控_需求文档_v2.9.md) |
 | 排查线上问题 / 回滚 | [06-runbook/TROUBLESHOOTING.md](./06-runbook/TROUBLESHOOTING.md) · [06-runbook/v2-cutover/v2-rollback.md](./06-runbook/v2-cutover/v2-rollback.md) |
 | 看最近改了什么 | [06-runbook/CHANGELOG.md](./06-runbook/CHANGELOG.md) |
@@ -110,26 +110,16 @@
 ### 🎨 04-ui — UI/UX 设计与前端规范
 
 > 设计系统 token、暗色模式方案、组件规范、UI 合规自查、无障碍诊断、各页面整改方案。
+> ⚠️ 多数历史诊断 / 整改文档已于 2026-10-18 归档至 `docs/09-archive/ui-docs-2026-10-18/`，以下为当前活跃规范。
 
-| 文档 | 说明 | 行数 | 最新日期 |
-|---|---|---:|---|
-| [DATA_DICT_ADD_OBSCURED.md](./04-ui/DATA_DICT_ADD_OBSCURED.md) | 数据字典「新增内容被遮挡」诊断报告 | 116 | 2026-08-30 |
-| [DROPDOWN_POPOVER_SPEC.md](./04-ui/DROPDOWN_POPOVER_SPEC.md) | 下拉弹窗统一规范（Dropdowns / Selects / Popovers · v1.0） | 222 | 2026-08-28 |
-| [PROCESS_MODAL_DIAGNOSIS.md](./04-ui/PROCESS_MODAL_DIAGNOSIS.md) | 招聘流程 Modal 视觉/交互缺陷诊断报告 | 200 | 2026-08-30 |
-| [README.md](./04-ui/README.md) | ATS-NEW UI 规范与审查文档 | 30 | 2026-08-24 |
-| [SETTINGS_LAYOUT_DIAGNOSIS.md](./04-ui/SETTINGS_LAYOUT_DIAGNOSIS.md) | SettingsLayout 嵌套与间距 · 诊断报告 | 253 | 2026-08-30 |
-| [SETTINGS_PAGE_COMPLIANCE_CHECK.md](./04-ui/SETTINGS_PAGE_COMPLIANCE_CHECK.md) | 设置页统一结构规范 · 合规审查（2026-08-27） | 111 | 2026-08-27 |
-| [SETTINGS_PAGE_STRUCTURE.md](./04-ui/SETTINGS_PAGE_STRUCTURE.md) | 设置页统一页面结构规范（Settings Page Structure Standard） | 209 | 2026-08-27 |
-| [T5-design-token-convergence.md](./04-ui/T5-design-token-convergence.md) | T5 · UI v2 设计系统收敛 — 诊断与执行报告 | 128 | 2026-09-01 |
-| [UIUX-DIAGNOSIS-2026-09-03.md](./04-ui/UIUX-DIAGNOSIS-2026-09-03.md) | ATS-NEW 前端 UI/UX 全面诊断报告 | 261 | — |
-| [UIUX_REVIEW_CAMPUS_CONTROL_2026-08-27.md](./04-ui/UIUX_REVIEW_CAMPUS_CONTROL_2026-08-27.md) | 校招管控（规则配置）UI/UX 实现效果检查报告 | 63 | 2026-08-27 |
-| [UI_COMPLIANCE_SELFCHECK.md](./04-ui/UI_COMPLIANCE_SELFCHECK.md) | UI 合规：审查报告 + 交付前自检矩阵（S/R/H，已合并 REPORT） | 308 | 2026-09-10 |
-| [UI_DARK_MODE_TECHNICAL_PLAN.md](./04-ui/UI_DARK_MODE_TECHNICAL_PLAN.md) | ATS-NEW 暗色模式修复 · 技术实施文档 | 965 | 2026-08-23 |
-| [UI_DESIGN_SPEC.md](./04-ui/UI_DESIGN_SPEC.md) | ATS-NEW 统一设计规范（Unified Design Spec · v2.2） | 225 | 2026-08-28 |
-| [UI_RECONCILIATION.md](./04-ui/UI_RECONCILIATION.md) | ATS-NEW 前端 UI 改造总纲（液态玻璃 v2 + 暗色模式） | 150 | 2026-08-24 |
-| [UI_REMEDIATION_PLAN.md](./04-ui/UI_REMEDIATION_PLAN.md) | ATS-NEW UI 规范整改技术实施方案 | 202 | — |
-| [accessibility-and-gating-diagnosis.md](./04-ui/accessibility-and-gating-diagnosis.md) | ATS-NEW 前端 · 可访问性 & 工程门禁诊断 | 200 | 2026-09-03 |
-| [frontend-DESIGN.md](./04-ui/frontend-DESIGN.md) | ATS-NEW 统一 UI 设计系统（液态玻璃 / Liquid Glass）⚠️ 已废弃→UI_RECONCILIATION | 343 | 2026-08-21 |
+| 文档 | 说明 | 层级 |
+|---|---|---|
+| [README.md](./04-ui/README.md) | UI 规范唯一索引（L0–L5 权威层级 + 按场景决策 + 三步使用法） | L5 索引 |
+| [UI_STANDARD.md](./04-ui/UI_STANDARD.md) | 统一设计规范合并版 v1.0（色彩/排版/布局/组件/弹窗/表格分页/响应式/A11y + 功能页附录） | L2/L3 正文 |
+| [SETTINGS_PAGE_STRUCTURE.md](./04-ui/SETTINGS_PAGE_STRUCTURE.md) | 设置页统一页面结构规范 | L3 |
+| [FRONTEND_RULES_CONSOLIDATED.md](./04-ui/FRONTEND_RULES_CONSOLIDATED.md) | 前端规则索引（技术栈 / 命名 / R-xxx 规则） | 规则索引 |
+| [NAIVE_UI_PITFALLS.md](./04-ui/NAIVE_UI_PITFALLS.md) | naive-ui 组件坑与联动异常 | L4 专项 |
+| [DROPDOWN_POPOVER_SPEC.md](./04-ui/DROPDOWN_POPOVER_SPEC.md) | 下拉 / Select / Popover 统一规范 | L4 专项 |
 
 ### 🎓 05-campus-control — 校招管控专项
 
@@ -264,6 +254,6 @@
 
 1. **先读** [`01-wiki/01-项目概览.md`](./01-wiki/01-项目概览.md) 建立整体认知
 2. **动手前** 看 [`06-runbook/RUNBOOK.md`](./06-runbook/RUNBOOK.md) 把环境跑起来
-3. **改 UI 前** 必读 [`04-ui/UI_DESIGN_SPEC.md`](./04-ui/UI_DESIGN_SPEC.md)
+3. **改 UI 前** 必读 [`04-ui/UI_STANDARD.md`](./04-ui/UI_STANDARD.md) 与 [`04-ui/README.md`](./04-ui/README.md)（L0–L5 入口）
 4. **提交前** 遵守 [`../AGENTS.md`](../AGENTS.md) 开发规范
 5. **存疑时** 以代码为准，其次以 `01-wiki/` 为准（它由代码分析生成）

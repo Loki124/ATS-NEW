@@ -36,7 +36,7 @@
  * 正是「文字和 icon 太小、不像一个层级」的成因。
  * ⇒ 操作列统一走 `OP_ACTION_BUTTON_SIZE`（small），与正文同字号。
  *
- * 📖 依据规范：docs/04-ui/frontend-layout-standard.md §1.8.1
+ * 📖 依据规范：docs/04-ui/UI_STANDARD.md §5.9.1
  *   （同组按钮全有 icon 或全无；删除 type="error"；操作列 NSpace wrap:false）
  *   docs/04-ui/frontend-DESIGN.md §Data Table
  *   （操作列用 quaternary + type=primary/error 文字按钮，不堆实心）

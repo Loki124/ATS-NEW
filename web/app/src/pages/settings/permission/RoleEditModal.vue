@@ -960,7 +960,7 @@ async function onSubmit() {
 }
 /* 中和 naive 自带的 tab bar，改由上面的 border-bottom 统一画一条，
    避免与 header 的 border-bottom 叠成双线（同 glass.css 的
-   docs/04-ui/MODAL_DIVIDER_CONVENTION.md：弹窗分隔线单线原则）。 */
+   docs/04-ui/UI_STANDARD.md §6：弹窗分隔线单线原则）。 */
 .edit-tabs :deep(.n-tabs-nav::after) {
   display: none;
 }

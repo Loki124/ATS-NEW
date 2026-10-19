@@ -5,7 +5,7 @@
 > 事实基线：`web/app/src/pages/settings/MetricsWorkspace.vue`（弹窗模板 L354–559 / 逻辑 L1449–1872 / 样式 L2536–2701、L2775–2784）、
 > `web/app/src/locales/metrics.ts`、`web/app/src/styles/tokens.css`、`brand-tokens.css`、`glass.css`（弹窗类名铁律 L1215–1223）。
 >
-> 约束权威源：`AGENTS.md`（P0/P1/P2 + §7 自检）、`docs/04-ui/UI_DESIGN_SPEC.md` v2.3、`docs/04-ui/MODAL_DIVIDER_CONVENTION.md`。
+> 约束权威源：`AGENTS.md`（P0/P1/P2 + §7 自检）、`docs/04-ui/UI_STANDARD.md`（规范全文）、`docs/04-ui/UI_STANDARD.md` §6（弹窗分隔线约定）。
 >
 > 配套原型：`docs/ui/metric-template-modal-v4-prototype.html`（可交互，含状态/断点/主题切换）。
 

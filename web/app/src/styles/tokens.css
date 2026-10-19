@@ -203,7 +203,7 @@
   /* ===== §8.5 布局 / 页面安全边距契约（前端标准规范 · 单一事实来源）=====
    * 根治"新页面内容贴边"：页面安全边距 / 弹窗内边距 / 容器最大宽度 / 栅格 / 断点
    * 一律走 token，禁止页面 scoped 用 padding:0 覆盖（scoped[data-v] 特异性高于全局）。
-   * 完整约束见 docs/frontend-layout-standard.md */
+   * 完整约束见 docs/04-ui/UI_STANDARD.md §5 */
   --page-pad-x:      var(--space-4);   /* 16px 页面水平安全边距（桌面 ≥768px）· 2026-10-15 由 24px 收紧 */
   --page-pad-y:      var(--space-4);   /* 16px 页面垂直安全边距 · 同上 */
   --page-pad-x-sm:   var(--space-2);   /* 8px 移动端水平安全边距（≤767px）· 由 16px 收紧 */

@@ -154,7 +154,7 @@ CSV_TRUNCATION_MARK = '…[已截断'
 - 回滚**必须 snapshot 双份状态**：`beforeOrder`(DB 侧) + `beforeGroupOrder`(config 侧)。
 - 必须在 **mutation 之前** snapshot。
 - 只回滚 DB 侧会导致"提示已回滚但界面顺序仍是新的"（config 才是展示顺序的权威来源）。
-- 实证：标准简历设置三层拖拽（`docs/04-ui/STANDARD_RESUME_SETTINGS.md`）。
+- 实证：标准简历设置三层拖拽（`docs/04-ui/UI_STANDARD.md` 附录 B）。
 
 ## 11. 沙箱与并行会话陷阱
 
@@ -167,12 +167,12 @@ CSV_TRUNCATION_MARK = '…[已截断'
 
 - 设置页滚动契约 → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md`
 - 前端组件坑 → `docs/04-ui/NAIVE_UI_PITFALLS.md`
-- 标准简历三层结构 → `docs/04-ui/STANDARD_RESUME_SETTINGS.md`
+- 标准简历三层结构 → `docs/04-ui/UI_STANDARD.md` 附录 B
 - 阶段类型系统内置化 → `docs/05-campus-control/STAGE_TYPE_SYSTEM.md`
 - BOM CSV BugFix 完整审计 → `docs/07-audit/BOM_CSV_BUGFIX.md`
 - 数据字典重组 → `docs/03-product/DATA_DICTIONARY_RESTRUCTURING.md`
 - 迁移漂移假绿 → `docs/06-runbook/MIGRATION_DRIFT.md`
-- UI 设计文档收敛审计与 8 步计划 → `docs/04-ui/UI_DOC_AUDIT_2026-10-18.md`
+- UI 设计文档收敛审计与 8 步计划 → `docs/09-archive/ui-docs-2026-10-18/UI_DOC_AUDIT_2026-10-18.md`
 - UI 规范唯一索引（L0–L5 权威层级）→ `docs/04-ui/README.md`
 
 ## 13. 🔴 数据库：开发/测试统一 MySQL，禁用 SQLite（兵哥定调 2026-10-15）
@@ -202,7 +202,7 @@ CSV_TRUNCATION_MARK = '…[已截断'
 
 ## 14. UI 设计文档收敛裁决（2026-10-18，兵哥裁定）
 
-> 项目级 UI 文档治理结论。完整审计与 8 步迁移计划见 `docs/04-ui/UI_DOC_AUDIT_2026-10-18.md`；本节省略过程、只收结论与纪律。
+> 项目级 UI 文档治理结论。完整审计与 8 步迁移计划见 `docs/09-archive/ui-docs-2026-10-18/UI_DOC_AUDIT_2026-10-18.md`；本节省略过程、只收结论与纪律。
 
 ### 14.1 权威层级（L0 → L5，唯一裁决标准）
 
@@ -212,9 +212,9 @@ UI 规范的权威来源**只允许一套层级**，定义在 `docs/04-ui/README
 |---|---|---|
 | L0 | `web/app/src/styles/tokens.css` + `brand-tokens.mjs` | **唯一真源**：颜色/间距/圆角/阴影/动效数值只此一处定义 |
 | L1 | `AGENTS.md`（仓库根） | 行为/取舍约束（R-xxx / P0–P2），**不写数值** |
-| L2 | `docs/04-ui/UI_DESIGN_SPEC.md` | 人类可读设计规范，引用 L0 |
-| L3 | `frontend-layout-standard.md` + `SETTINGS_PAGE_STRUCTURE.md` | 布局 / 设置页契约 |
-| L4 | 专项规范（NAIVE_UI_PITFALLS / MODAL_DIVIDER_CONVENTION / USE_TABLE_PAGINATION / DROPDOWN_POPOVER_SPEC 等） | 独立主题，保留 |
+| L2 | `docs/04-ui/UI_STANDARD.md` | 人类可读设计规范（合并版 v1.0：色彩/排版/布局/组件/弹窗/表格分页/响应式/A11y），引用 L0 |
+| L3 | `docs/04-ui/UI_STANDARD.md`（布局契约 §5）+ `SETTINGS_PAGE_STRUCTURE.md` | 布局 / 设置页契约 |
+| L4 | 专项规范（`NAIVE_UI_PITFALLS` / `DROPDOWN_POPOVER_SPEC` 等） | 独立主题，保留 |
 | L5 | `docs/04-ui/README.md` | **唯一索引**，不含规范正文 |
 
 🔴 **令牌铁律**：数值只允许出现在 L0。任何文档 MUST 只引用令牌名 + 用途，MUST NOT 复制数值；冲突一律以 `tokens.css` 为准。（`FRONTEND_RULES_CONSOLIDATED.md` §19.1 已收敛到本层级，不再另立分歧优先级表。）
@@ -224,16 +224,16 @@ UI 规范的权威来源**只允许一套层级**，定义在 `docs/04-ui/README
 - 脚本 `scripts/token-doc-audit.mjs`（纯 Node 无依赖）：正则提取文档 `` `--令牌:值` `` / `` `--令牌` `` 引用 vs `tokens.css` + `brand-tokens.css` 定义比对，查「悬空」（未定义名）与「漂移」（复制数值与真源不符）。
 - 运行：`cd web/app && npm run tokens:audit`（即 `node ../../scripts/token-doc-audit.mjs`）。
 - **已知盲区**：审计只捕获「反引号包裹令牌名 + 同行 `--name: value` 声明」，不捕获 `var(--x)=Npx` 等式写法，也**不捕获**「文档写 24px 但 token 实为 16px」的语义错位——后者须人工比对。
-- CI：`token-docs` job 目前 `continue-on-error`（存量 7 项未清零）。**待 7 项清零后摘除 `continue-on-error`，转强制阻断**（改动见 `.github/workflows/ci.yml`）。
+- CI：`token-docs` job 已于 2026-10-19 摘除 `continue-on-error` 转**强制阻断**（存量 7 项已清零，0 悬空 / 0 漂移，exit 0）。
 
 ### 14.3 存量 7 项审计问题（清零前置，非本步骤引入）
 
-全部位于 `docs/04-ui/UI_DESIGN_SPEC.md`，属该文件既有问题，须在转阻断前修：
+全部位于 `docs/04-ui/UI_STANDARD.md`（合并版），属该文件既有问题，已于 2026-10-19 随合并一并清零：
 - L86 悬空令牌 `--g`（占位符残留）→ 删或改真实令牌名。
 - L150 五个 `--z-*`（`--z-sidebar`/`--z-header`/`--z-dropdown`/`--z-drawer`/`--z-modal`）写了字面量 10/20/1000/1100/1200 → 改为只引用令牌名 + 用途。
 - L156 `--font-sans` 复制了字体栈字面量 → 改为只引用令牌名。
 
 ### 14.4 待拍板残留（需兵哥定调，勿擅自改）
 
-1. **弹窗内边距 24px vs 16px**：`tokens.css` 中 `--modal-pad-x/y: var(--space-5)` 实际 =16px，但注释写「24px」且 `frontend-layout-standard.md` §1.3 写「`var(--space-6)`=24px」。需先定弹窗内边距该保留 24px（→ token 改 `--space-6`）还是 16px（→ 文档/注释改 16px），再统一，避免真源内部漂移。
+1. **弹窗内边距（已定调，2026-10-19）：统一 16px。** `tokens.css` 中 `--modal-pad-x/y: var(--space-5)` 实际 =16px，注释已改为「16px（= --space-5）」，`UI_STANDARD.md` §5.4 只引用令牌名（原 §1.3 的 24px/20px 漂移已清除），不再有真源内部漂移。
 2. **`FRONTEND_RULES_CONSOLIDATED.md` §19.1** 已在本步骤收敛到 README 的 L0–L5（移除已归档的 frontend-DESIGN / UI_INDEX / UI_RECONCILIATION 引用，修正 AGENTS.md「唯一权威源」表述为 L1 行为约束），不再另立分歧优先级表。

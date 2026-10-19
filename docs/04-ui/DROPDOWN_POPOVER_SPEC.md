@@ -213,7 +213,7 @@ Naive 的 popover/dropdown 全用 CSS 变量 `--glass-bg-elevated` / `--glass-bo
 |---------|---------|
 | §2 视觉五件套 / §3 高亮层 / §4 暗色 | `web/app/src/styles/glass.css` §下拉弹窗规范 |
 | §3 inset 实现细节（Naive BEM 内层类名） | `glass.css` 注释备案 |
-| §6 已知陷阱 | `docs/ui/UI_DESIGN_SPEC.md` §5.8（指针 + 摘要） |
+| §6 已知陷阱 | `docs/04-ui/UI_STANDARD.md` §7.8（指针 + 摘要） |
 
 ---
 

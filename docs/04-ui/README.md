@@ -1,5 +1,5 @@
 # ATS-NEW UI 规范与审查文档
-> 最后更新：2026-10-19（令牌门禁转强制阻断、弹窗内边距统一 16px）
+> 最后更新：2026-10-19（规范合并压缩：UI_DESIGN_SPEC + frontend-layout-standard + 4 份专项 → 单一 `UI_STANDARD.md`）
 
 本目录是 ATS-NEW 前端 UI 规范的**唯一权威索引**。所有 UI 规范、设计令牌、布局契约的权威来源按下列层级组织；新增 / 修改 UI 前须先读对应层级文档，并按设计令牌（`tokens.css`）执行。
 
@@ -21,12 +21,12 @@ cd web/app && npm run tokens:audit   # CI 同款门禁，本地改样式前必�
 |---|---|---|---|
 | L0 | `web/app/src/styles/tokens.css` + `brand-tokens.mjs` | **唯一真源**：颜色/间距/圆角/阴影/动效数值只此一处定义 | 一切以 L0 为准 |
 | L1 | `AGENTS.md`（仓库根） | Agent 可读约束：行为取舍、P0/P1/P2 规则，**不写数值** | 数值冲突 → 退回 L0 |
-| L2 | `UI_DESIGN_SPEC.md` | 人类可读设计规范（色彩/排版/间距/组件/响应式/A11y/Do-Don't） | 引用 L0，不复制数值 |
-| L3 | `frontend-layout-standard.md` + `SETTINGS_PAGE_STRUCTURE.md` | 布局契约 / 设置页结构规范 | 数值引用 L0 |
-| L4 | 专项规范：`NAIVE_UI_PITFALLS.md` / `MODAL_DIVIDER_CONVENTION.md` / `USE_TABLE_PAGINATION.md` / `DROPDOWN_POPOVER_SPEC.md` 等 | 独立主题，保留 | 不偏离 L0/L2 |
+| L2 | `UI_STANDARD.md` | 人类可读设计规范合并版（色彩/排版/布局/组件/弹窗/表格分页/响应式/A11y/Do-Don't + 功能页附录） | 引用 L0，不复制数值 |
+| L3 | `UI_STANDARD.md` §5（布局契约）+ `SETTINGS_PAGE_STRUCTURE.md` | 布局契约 / 设置页结构规范 | 数值引用 L0 |
+| L4 | 专项规范：`NAIVE_UI_PITFALLS.md` / `DROPDOWN_POPOVER_SPEC.md` | 独立主题，保留 | 不偏离 L0/L2 |
 | L5 | 本文件（`docs/04-ui/README.md`） | **唯一索引**，不含规范正文 | — |
 
-> 🔴 **令牌铁律**：数值只允许出现在 L0（`tokens.css`）。任何文档 MUST 只引用令牌名 + 用途，**MUST NOT 复制数值**；与 L0 冲突一律以 `tokens.css` 为准。复制数值会随代码演进漂移 → AI 照文档写的 CSS 变量不存在 → 静默失效（已发生，见 `UI_DOC_AUDIT_2026-10-18.md`）。门禁 `npm run tokens:audit` 防回归。
+> 🔴 **令牌铁律**：数值只允许出现在 L0（`tokens.css`）。任何文档 MUST 只引用令牌名 + 用途，**MUST NOT 复制数值**；与 L0 冲突一律以 `tokens.css` 为准。复制数值会随代码演进漂移 → AI 照文档写的 CSS 变量不存在 → 静默失效。门禁 `npm run tokens:audit` 防回归。
 
 ## 按场景决策（做什么 → 读哪份 → 怎么验证）
 
@@ -35,26 +35,26 @@ cd web/app && npm run tokens:audit   # CI 同款门禁，本地改样式前必�
 | 我要做的事 | 必读 | 验证方式 |
 |---|---|---|
 | 写任何样式 / 用设计令牌 | L0 `tokens.css` → L1 `AGENTS.md §1` | `npm run tokens:audit`；令牌名先读文件确认存在 |
-| 定颜色 / 品牌色 / 暗色 | L2 `UI_DESIGN_SPEC.md §2` | 派生色由 `brand-tokens.mjs` 生成，禁手写 |
-| 排版 / 字号 / 行高 / 字体 | L2 `UI_DESIGN_SPEC.md §3` | 字号走 `--text-*`，禁写死 px |
-| 新建或改页面布局、栅格、断点 | L3 `frontend-layout-standard.md` | 页面安全边距走 `--page-pad-*`，禁 scoped 覆盖 |
+| 定颜色 / 品牌色 / 暗色 | L2 `UI_STANDARD.md` §2 | 派生色由 `brand-tokens.mjs` 生成，禁手写 |
+| 排版 / 字号 / 行高 / 字体 | L2 `UI_STANDARD.md` §3 | 字号走 `--text-*`，禁写死 px |
+| 新建或改页面布局、栅格、断点 | L3 `UI_STANDARD.md` §5 | 页面安全边距走 `--page-pad-*`，禁 scoped 覆盖 |
 | 改设置页 | L3 `SETTINGS_PAGE_STRUCTURE.md` | 含 Shell/工具条/表格/弹窗统一结构 |
-| 做弹窗 / 抽屉 / 遮罩 | L3 layout §弹窗 + L4 `MODAL_DIVIDER_CONVENTION.md` | 内边距走 `--modal-pad-*`；禁清零全局内边距 |
-| 做表格 / 分页 | L4 `USE_TABLE_PAGINATION.md` + L2 `§5.5` | 列对齐走 `useTableColumns.ts` |
-| 做下拉 / Select / Popover | L2 `§5.8` + L4 `DROPDOWN_POPOVER_SPEC.md` | — |
+| 做弹窗 / 抽屉 / 遮罩 | L3 `UI_STANDARD.md` §5.4 + §6（分隔线） | 内边距走 `--modal-pad-*`；禁清零全局内边距 |
+| 做表格 / 分页 | L4 `UI_STANDARD.md` §8.2 + L2 `§7.5` | 列对齐走 `useTableColumns.ts` |
+| 做下拉 / Select / Popover | L2 `UI_STANDARD.md` §7.8 + L4 `DROPDOWN_POPOVER_SPEC.md` | — |
 | 写交互行为 / 状态 / 无障碍 | L1 `AGENTS.md §2–§3` | 交互组件须覆盖 default/hover/active/focus/loading/disabled |
 | 踩 naive-ui 坑 / 组件联动异常 | L4 `NAIVE_UI_PITFALLS.md` | — |
-| 改依赖 / 构建 / 目录命名 | `README.md` 下方「技术栈与依赖管理」 | `npm run build` 查 `vendor-misc` 体积 |
+| 改依赖 / 构建 / 目录命名 | 本文件下方「技术栈与依赖管理」 | `npm run build` 查 `vendor-misc` 体积 |
 
 ## 文档清单
 
 | 文档 | 层级 | 用途 | 阅读顺序 |
 |---|---|---|---|
-| `UI_DESIGN_SPEC.md` | L2 | 统一设计规范 v2.3：颜色/排版/间距/圆角/阴影/组件/响应式/可访问性/Do-Don't/令牌索引 | ① 必读 |
-| `frontend-layout-standard.md` | L3 | 布局契约：页面安全边距、弹窗内边距、栅格与断点、禁止项、校验门禁 | ① 改布局前必读 |
+| `UI_STANDARD.md` | L2/L3 | 统一设计规范合并版 v1.0：色彩/排版/布局/组件/弹窗/表格分页/响应式/A11y/Do-Don't/功能页附录 | ① 必读 |
 | `SETTINGS_PAGE_STRUCTURE.md` | L3 | 设置页统一页面结构规范 v1.0（Shell/标题/KPI/工具条/表格/弹窗/多 tab/自检） | ① 设置页改前必读 |
-| `NAIVE_UI_PITFALLS.md` 等专项 | L4 | 独立主题规范（见上表 L4） | 按需 |
 | `FRONTEND_RULES_CONSOLIDATED.md` | — | 规则索引（技术栈/命名已迁入本索引下方；其余章节为归纳参考，其 §19.1 权威表以本索引 L0–L5 为准） | ② 参考 |
+| `NAIVE_UI_PITFALLS.md` | L4 | naive-ui 组件坑与联动异常专项 | 按需 |
+| `DROPDOWN_POPOVER_SPEC.md` | L4 | 下拉 / Select / Popover 统一规范 | 按需 |
 
 ## 强制约束（强制项，请大声读出来）
 
@@ -68,7 +68,7 @@ cd web/app && npm run tokens:audit   # CI 同款门禁，本地改样式前必�
 
 @兵哥（产品 / 前端设计）。改动规范前先在群里过一遍，避免破坏下游 20+ 设置页一致性。
 
-—— 最近一次修订：2026-10-18
+—— 最近一次修订：2026-10-19
 
 ---
 
@@ -104,7 +104,7 @@ src/
 ├── composables/(14)    # use* 前缀的组合式函数
 ├── stores/      (8)     # Pinia store
 ├── services/    (2)     # 非 store 的服务层（app-version）
-├── utils/      (17)     # 纯函数工具
+├── utils/      (17)    # 纯函数工具
 ├── router/      (2)     # 路由表 + 守卫
 ├── styles/      (6)     # tokens.css / glass.css / glass-modal.css / brand-tokens.css
 ├── locales/           # i18n 语言包

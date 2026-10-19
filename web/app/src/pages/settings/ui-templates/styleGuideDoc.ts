@@ -3,7 +3,7 @@
  *
  * 2026-10-18 兵哥要求「加个页签输出前端组件规范样式文档说明」。本文件是该文档的**唯一数据源**，
  * 由模板中心「样式文档」页签渲染；与以下权威文件保持同源（改规则必须同步）：
- *   - docs/04-ui/frontend-layout-standard.md（布局规范全文）
+ *   - docs/04-ui/UI_STANDARD.md（规范全文）
  *   - AGENTS.md（机器约束，RFC 2119）
  *   - styles/glass.css + styles/tokens.css（令牌与全局类真源）
  *
@@ -177,4 +177,4 @@ export const STYLE_GUIDE_DOC: DocSection[] = [
 
 /** 页脚说明：文档权威来源 */
 export const DOC_SOURCE_NOTE =
-  '本页内容与 docs/04-ui/frontend-layout-standard.md、AGENTS.md 机器约束、styles/glass.css 全局类定义同源；三处任一更新，本文件必须同步（2026-10-18 起作为唯一结构化出口）。'
+  '本页内容与 docs/04-ui/UI_STANDARD.md、AGENTS.md 机器约束、styles/glass.css 全局类定义同源；三处任一更新，本文件必须同步（2026-10-18 起作为唯一结构化出口）。'

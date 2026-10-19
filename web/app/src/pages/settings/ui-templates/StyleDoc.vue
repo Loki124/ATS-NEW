@@ -4,7 +4,7 @@
       <h2 class="doc-title">前端组件规范样式文档</h2>
       <p class="doc-subtitle">
         系统级前端 UI 规范的结构化全文：页面骨架 / 间距 / 颜色 / 表格 / 弹窗 / 表单 / 状态机 /
-        无障碍 / 命名约束 / 新增页面检查清单。与 docs/04-ui/frontend-layout-standard.md、
+        无障碍 / 命名约束 / 新增页面检查清单。与 docs/04-ui/UI_STANDARD.md（规范全文）、
         AGENTS.md 机器约束同源；每条的渲染效果可在「规则」分类中实时演示。
       </p>
       <div class="doc-meta">
@@ -38,7 +38,7 @@
  * StyleDoc.vue — 「样式文档」页签（2026-10-18 兵哥要求「加个页签输出前端组件规范样式文档说明」）
  *
  * 数据来自 styleGuideDoc.ts（唯一数据源）；本组件只负责渲染。
- * 与 docs/04-ui/frontend-layout-standard.md、AGENTS.md、styles/glass.css 同源同步。
+ * 与 docs/04-ui/UI_STANDARD.md、AGENTS.md、styles/glass.css 同源同步。
  */
 import { InformationCircleOutline } from '@vicons/ionicons5'
 import { STYLE_GUIDE_DOC as doc, DOC_SOURCE_NOTE, type DocLevel } from './styleGuideDoc'

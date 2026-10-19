@@ -5,7 +5,7 @@
  * 模板中心页面（index.vue）按此渲染分类导航、代码结构、渲染预览与用法说明。
  * 新增模板 / 修改模板规格 → 只改本文件，不改页面渲染逻辑。
  *
- * 设计约束（与 docs/04-ui/frontend-layout-standard.md 同步）：
+ * 设计约束（与 docs/04-ui/UI_STANDARD.md 同步）：
  *   1. 间距只用 8 的整数倍（--space-2=8px / --space-4=16px / --space-6=24px）。
  *   2. 颜色一律走语义令牌（--brand / --ink / --ink-soft / --border-hairline），禁硬编码 hex。
  *   3. 结构类优先复用 glass.css 全局类，不在页面 scoped 重复定义。
@@ -575,7 +575,7 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
     references: [
       'ui-templates/templates/button-skin.css（4 类 6 态皮肤唯一载体 + 强制态类）',
       'ui-templates/demos/ButtonDemo.vue（六态矩阵实拍 + 五个场景化 mock）',
-      'docs/04-ui/frontend-layout-standard.md §1.8.1/§1.10（同组 icon 一致性 · 皮肤规范）',
+      'docs/04-ui/UI_STANDARD.md §5.9.1/§5.11（同组 icon 一致性 · 皮肤规范）',
       'composables/useTableColumns.ts（OP_ACTION_BUTTON_SIZE 唯一真源）',
     ],
     caveats: [
@@ -613,7 +613,7 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
     ],
     references: [
       'styles/glass.css（全局类与令牌定义）',
-      'docs/04-ui/frontend-layout-standard.md（规范全文）',
+      'docs/04-ui/UI_STANDARD.md（规范全文）',
       'AGENTS.md（机器约束，RFC 2119）',
       'composables/useTableColumns.ts（列对齐唯一真源）',
     ],

@@ -208,6 +208,6 @@ body > .v-binder-follower-container
 
 - 设置页滚动契约（`.page-body` 滚动链） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md`
 - 表单弹窗遮罩关闭守卫（useCloseGuard 接法） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md` §6.1
-- 标准简历三层结构 + 拖拽 → `docs/04-ui/STANDARD_RESUME_SETTINGS.md`
-- 分页统一组件 → `docs/04-ui/USE_TABLE_PAGINATION.md`
+- 标准简历三层结构 + 拖拽 → `docs/04-ui/UI_STANDARD.md` 附录 B
+- 分页统一组件 → `docs/04-ui/UI_STANDARD.md` §8.2
 - 工程铁律（CSV BOM/PATCH 500/序列化器） → `docs/06-runbook/ENGINEERING_RULES.md`

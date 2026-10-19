@@ -114,5 +114,5 @@
 
 - 系统内置化（项目级标准 + 边界） → `docs/06-runbook/ENGINEERING_RULES.md` §7
 - 阶段类型系统内置化实战 → `docs/05-campus-control/STAGE_TYPE_SYSTEM.md`
-- 字段定义子系统（三层结构 + 拖拽） → `docs/04-ui/STANDARD_RESUME_SETTINGS.md`
+- 字段定义子系统（三层结构 + 拖拽） → `docs/04-ui/UI_STANDARD.md`（附录 B：标准简历设置）
 - 部署兜底（字典种子双保险） → `docs/05-campus-control/STAGE_TYPE_SYSTEM.md` §9

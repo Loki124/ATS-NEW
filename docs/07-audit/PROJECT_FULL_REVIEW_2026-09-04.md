@@ -134,7 +134,7 @@
 
 **A. 前端正进入「Liquid Glass v2 + UI 审计闸门」双轨闭环**
 - v-html → SafeHtml 单点；硬编码 hex -83%；tokens.css/glass.css 体量翻倍；R-204 微文案入规
-- 下一阶段大概率是「间距/字号 token 二期」（UI_DESIGN_SPEC.md §3、§4 是空白）+ Naive `themeOverrides` 与 var() 不兼容的工程化妥协方案
+- 下一阶段大概率是「间距/字号 token 二期」（docs/04-ui/UI_STANDARD.md §3、§4 是空白）+ Naive `themeOverrides` 与 var() 不兼容的工程化妥协方案
 
 **B. 后端「测试资产 vs fail-open」剪刀差在扩大**
 - pytest 9 天 +214 个（-27.7% 增量），但 `except Exception` 同期 +32（恶化 26%）

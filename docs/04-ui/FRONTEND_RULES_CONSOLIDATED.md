@@ -7,7 +7,7 @@
 
 > ⚠️ **阅读前必读：本仓存在「规范文档 ↔ 代码」已确认漂移。**
 > 规范文档多为早期快照，`tokens.css` 已在其后被收紧（2026-10-15）。**冲突时以 `src/styles/tokens.css` 与实际代码为准**，并用 `getComputedStyle` 取真实解析值。
-> 已定位的漂移（间距刻度、页面安全边距、弹窗内边距）见 `frontend-layout-standard.md`（§1.7 间距阶梯 / §1.1 页面安全边距 / §1.3 弹窗内边距），其数值以 `src/styles/tokens.css` §8 / §8.5 为准。
+> 已定位的漂移（间距刻度、页面安全边距、弹窗内边距）见 `UI_STANDARD.md`（§5.8 间距阶梯 / §5.2 页面安全边距 / §5.4 弹窗内边距），其数值以 `src/styles/tokens.css` §8 / §8.5 为准。
 
 ---
 
@@ -28,7 +28,7 @@
 | 12 | [导入与依赖使用](#12-导入与依赖使用) | 7 | 全局 |
 | 13 | [国际化（i18n）](#13-国际化i18n) | 6 | `locales/`、`locale-audit.mjs` |
 | 14 | [测试与质量验证](#14-测试与质量验证) | 9 | `vitest.config.ts`、`playwright.config.ts` |
-| 15 | [可访问性（A11y）](#15-可访问性a11y) | 8 | `UI_DESIGN_SPEC.md` §7 |
+| 15 | [可访问性（A11y）](#15-可访问性a11y) | 8 | `UI_STANDARD.md` §10 |
 | 16 | [提交前检查与 Git 纪律](#16-提交前检查与-git-纪律) | 8 | `ENGINEERING_RULES.md` §8/§11 |
 | 17 | [环境变量与配置](#17-环境变量与配置) | 7 | `config/index.ts` |
 | 18 | [未配置项清单](#18-未配置项清单) | 9 | 全仓验证 |
@@ -173,9 +173,9 @@ if (hasSensitiveField(values)) return
 |------|------|------|
 | 6.2.1 | 触控目标 ≥44×44px；图标按钮视觉 28–32px，用 padding 或伪元素 `::after { inset: -6px }` 扩到 44px。 | R-102 |
 | 6.2.2 | 320px 视口 MUST 无横向溢出，**禁止**固定像素宽度容器（用 `width:100% + max-width`）。 | R-103、X-12 |
-| 6.2.3 | 按钮尺寸三档：小 28–32px（表格内/工具栏）/ 中 36–40px（默认推荐）/ 大 44–48px（表单提交、移动端主按钮）；左右内边距 12–24px。 | R-220、`UI_DESIGN_SPEC.md` §5.1 |
-| 6.2.4 | 输入框高度三档：28–32 / 36–40（推荐）/ 48px；标签与输入框间距 4–8px，左右内边距 12–16px。 | `UI_DESIGN_SPEC.md` §5.10 |
-| 6.2.5 | 多选 `<n-select multiple>` MUST 设 `max-tag-count="responsive"`，禁止手写 nowrap+省略号冒充折叠。**Code Review 把 `multiple` 缺 `max-tag-count` 视为阻塞项。** | `frontend-layout-standard.md` §1.8.5 |
+| 6.2.3 | 按钮尺寸三档：小 28–32px（表格内/工具栏）/ 中 36–40px（默认推荐）/ 大 44–48px（表单提交、移动端主按钮）；左右内边距 12–24px。 | R-220、`UI_STANDARD.md` §7.1 |
+| 6.2.4 | 输入框高度三档：28–32 / 36–40（推荐）/ 48px；标签与输入框间距 4–8px，左右内边距 12–16px。 | `UI_STANDARD.md` §7.10 |
+| 6.2.5 | 多选 `<n-select multiple>` MUST 设 `max-tag-count="responsive"`，禁止手写 nowrap+省略号冒充折叠。**Code Review 把 `multiple` 缺 `max-tag-count` 视为阻塞项。** | `UI_STANDARD.md` §5.9.5 |
 
 **正例（多选折叠）**：
 ```vue
@@ -187,10 +187,10 @@ if (hasSensitiveField(values)) return
 
 | 编号 | 要求 | 来源 |
 |------|------|------|
-| 6.3.1 | 弹窗内容区/头部/底部内边距**已全局 token 化**，MUST NOT 被页面 scoped 清零。 | `frontend-layout-standard.md` §1.3 |
+| 6.3.1 | 弹窗内容区/头部/底部内边距**已全局 token 化**，MUST NOT 被页面 scoped 清零。 | `UI_STANDARD.md` §5.4 |
 | 6.3.2 | 抽屉底部操作栏统一用全局类 `.drawer-footer`。 | 同上 |
 | 6.3.3 | 含页签/步骤切换的弹窗 MUST 用**固定 `height`**（非 `max-height`），上限 `min(680px, calc(88vh - 头部高度))`，避免切换时高度跳动。 | R-223 |
-| 6.3.4 | 确认类弹窗统一用 `useDialog().warning(...)`，**禁用原生 `confirm()`/`alert()`**。 | `UI_DESIGN_SPEC.md` §5.6 |
+| 6.3.4 | 确认类弹窗统一用 `useDialog().warning(...)`，**禁用原生 `confirm()`/`alert()`**。 | `UI_STANDARD.md` §7.6 |
 | 6.3.5 | `<n-modal>` 的 `mask-closable` 默认 `true`，含可编辑表单的弹窗 MUST 显式处理关闭守卫（用 `composables/useCloseGuard.ts`），防点遮罩静默丢草稿。 | `NAIVE_UI_PITFALLS.md` §6.1 |
 | 6.3.6 | `preset="dialog"` 的 `@positive-click`/`@negative-click` 是**钩子**，返回真值（含 async 的 Promise）会触发自动关闭 → 竞态。正确接法：保留 `v-model:show`，且 `requestClose()` **所有分支 `return false`**，把关闭权完全交给守卫。 | `NAIVE_UI_PITFALLS.md` §6.2 |
 
@@ -228,12 +228,12 @@ if (hasSensitiveField(values)) return
 
 | 编号 | 要求 | 来源 |
 |------|------|------|
-| 6.5.1 | **同组按钮必须全有 icon 或全无**，禁止「管理权限/编辑/停用/删除」中 2 带 2 不带。 | `frontend-layout-standard.md` §1.8.1 |
+| 6.5.1 | **同组按钮必须全有 icon 或全无**，禁止「管理权限/编辑/停用/删除」中 2 带 2 不带。 | `UI_STANDARD.md` §5.9.1 |
 | 6.5.2 | 语义化图标映射：管理权限→`ShieldCheckmarkOutline`/`KeyOutline`；编辑→`CreateOutline`；停用→`BanOutline`；删除→`TrashOutline`（+ `type="error"`）。 | 同上 |
 | 6.5.3 | 同视图图标 MUST 来自同一图标库、同一视觉风格（线性/面性）、同一笔触粗细，MUST NOT 混用。 | R-216、X-17 |
 | 6.5.4 | 无文字图标 MUST 有 `aria-label`/`title`/tooltip 说明含义；纯装饰图标 MUST `aria-hidden="true"`。 | R-217、X-18 |
 | 6.5.5 | 图标尺寸 MUST 控制在 ≤4 个固定等级（14–16 / 18–20 / 24 / 32+），禁止无级缩放。 | R-219、X-19 |
-| 6.5.6 | 图标与文字间距 4–8px；同组图标视觉重量需平衡。 | `UI_DESIGN_SPEC.md` §5.9 |
+| 6.5.6 | 图标与文字间距 4–8px；同组图标视觉重量需平衡。 | `UI_STANDARD.md` §7.9 |
 | 6.5.7 | **禁止 emoji 当功能图标**（X-02）。 | X-02、`frontend-README.md:128` |
 | 6.5.8 | 每屏恰好 1 个 primary action（实心按钮），其余降级为 ghost/text；危险操作与主操作保持 ≥32px 距离。 | R-202 |
 
@@ -377,7 +377,7 @@ if (id.includes('naive-ui') || id.includes('@css-render') || id.includes('seemly
 | 编号 | 要求 | 来源 |
 |------|------|------|
 | 14.3.1 | UI 交互改动 MUST 用 headless Chromium 实测真实 DOM/拖拽/console，**不得以「沙箱无浏览器」为借口**。 | `ENGINEERING_RULES.md` §11 |
-| 14.3.2 | 布局/边距改动 MUST 用 `getComputedStyle` 硬证据确认（如 `.page-container` 解析 padding = 24px），**不靠目测**。 | `frontend-layout-standard.md` §4 |
+| 14.3.2 | 布局/边距改动 MUST 用 `getComputedStyle` 硬证据确认（如 `.page-container` 解析 padding），**不靠目测**。 | `UI_STANDARD.md` §5.14 |
 | 14.3.3 | 端到端通过 ≠ 某一行代码生效：多层兜底修复 MUST 按层设计用例隔离证明。 | `ENGINEERING_RULES.md` §6 |
 | 14.3.4 | 中文多模式 grep **禁用 Bash grep**（本机反复假空），一律用 Grep 工具。 | `ENGINEERING_RULES.md` §11 |
 | 14.3.5 | `AGENTS.md` §0.2 定义三级可验证性：`[S]` static（lint/AST 可判定，MUST 自证）、`[R]` runtime（需浏览器，MUST 输出「未验证」）、`[H]` human（MUST 输出「需人工确认」）。**禁止对 [R]/[H] 打 ✅（验证剧场）。** | `AGENTS.md` §0.2/§7.3/§7.4 |
@@ -388,14 +388,14 @@ if (id.includes('naive-ui') || id.includes('@css-render') || id.includes('seemly
 
 | 编号 | 要求 | 来源 |
 |------|------|------|
-| 15.1 | 基线 **WCAG 2.1 AA**：普通文字对比度 ≥4.5:1；大文字（≥24px，或 ≥18.66px 且 `font-weight≥700`）可放宽至 3:1。**19px 常规字重不属大文本，仍按 4.5:1。** | `AGENTS.md` R-109、`UI_DESIGN_SPEC.md` §7 |
-| 15.2 | 焦点可见：全局 `:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px }`。 | `UI_DESIGN_SPEC.md` §7.2 |
+| 15.1 | 基线 **WCAG 2.1 AA**：普通文字对比度 ≥4.5:1；大文字（≥24px，或 ≥18.66px 且 `font-weight≥700`）可放宽至 3:1。**19px 常规字重不属大文本，仍按 4.5:1。** | `AGENTS.md` R-109、`UI_STANDARD.md` §10 |
+| 15.2 | 焦点可见：全局 `:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px }`。 | `UI_STANDARD.md` §10.2 |
 | 15.3 | 所有交互元素 MUST 可 Tab 访问；焦点顺序 MUST 跟随 DOM 顺序；**MUST NOT** 用 `tabindex > 0`，**MUST NOT** 响应式下用 `order`/`grid-template-areas` 重排可聚焦元素。 | R-109 |
 | 15.4 | 错误信息 MUST NOT 仅依赖颜色表达（颜色 + 图标 + 文字，至少两种通道）。 | R-109、R-221 |
 | 15.5 | 交互元素 MUST 用语义化标签（`<button>`/`<a>`/`<h1>`–`<h6>`）；图片 MUST 有 `alt`；装饰图标 `aria-hidden="true"`。 | R-109、R-217 |
-| 15.6 | 语义地标：内容区包 `<main id="main">` + skip-link；极光背景等装饰设 `aria-hidden`。 | `UI_DESIGN_SPEC.md` §5.7/§2.6 |
+| 15.6 | 语义地标：内容区包 `<main id="main">` + skip-link；极光背景等装饰设 `aria-hidden`。 | `UI_STANDARD.md` §7.7/§2.6 |
 | 15.7 | 每个输入框 MUST 有可见 `<label>`（非仅 placeholder）；必填项统一 `*`；辅助说明用 `aria-describedby` 关联。 | R-218、X-11 |
-| 15.8 | 动效降级：`@media (prefers-reduced-motion: reduce)` 内将 animation/transition-duration 降至近 0。 | `UI_DESIGN_SPEC.md` §7.5 |
+| 15.8 | 动效降级：`@media (prefers-reduced-motion: reduce)` 内将 animation/transition-duration 降至近 0。 | `UI_STANDARD.md` §10.5 |
 | 15.9 | 运行时验证：`npm run audit:a11y`（axe-core，三档视口 320/768/1200）。 | `package.json:24`、`AGENTS.md` §6.4 |
 
 ---
@@ -451,7 +451,7 @@ npx playwright test   # e2e（需后端已启动）
 | 17.1 | 统一配置真源 `src/config/index.ts`，导出 `config` 对象与 default export。**禁止**在业务代码里散写端口/URL。 | `config/index.ts` |
 | 17.2 | 前端端口 **5212**（`config.frontend.port`），后端 **8000**（`config.backend.port`）。 | 同上 |
 | 17.3 | API baseUrl = `/api/v1`，timeout 15000ms。 | 同上 |
-| 17.4 | 分页默认值：`defaultPageSize: 10`，`pageSizeOptions: ['10','20','50','100']`（注：`useTablePagination` 默认 `TABLE_PAGE_SIZE=20`，两处并存）。 | `config/index.ts`、`USE_TABLE_PAGINATION.md` |
+| 17.4 | 分页默认值：`defaultPageSize: 10`，`pageSizeOptions: ['10','20','50','100']`（注：`useTablePagination` 默认 `TABLE_PAGE_SIZE=20`，两处并存）。 | `config/index.ts`、`UI_STANDARD.md` §8.2 |
 | 17.5 | 环境变量：**前端仅 `VITE_BACKEND_URL`** 一个（多 worktree 预览用，`scripts/devstack.sh` 依赖）；兼容 Node `process.env` 与浏览器 `import.meta.env`。 | `config/index.ts:21-27` |
 | 17.6 | dev-only 调试钩子：`import.meta.env.DEV` 时挂 `window.__ats.theme.{setBrand,setMode,reset,get}`，供浏览器 console / 自动化测试用。**MUST NOT** 在生产暴露。 | `main.ts:68-78` |
 | 17.7 | `import.meta.env.DEV` 亦用于 i18n key 冲突守卫（仅 dev 告警）。 | `locales/index.ts:38,48` |
@@ -489,14 +489,14 @@ npx playwright test   # e2e（需后端已启动）
 |------|------|------|
 | L0 | `web/app/src/styles/tokens.css` + `brand-tokens.mjs` | 设计令牌唯一真源（数值只此一处） |
 | L1 | `AGENTS.md`（仓库根） | UI 交互约束（R-101~R-223 + X-01~X-19 + P0/P1/P2），**行为/取舍权威，不写数值** |
-| L2 | `docs/04-ui/UI_DESIGN_SPEC.md` | 统一设计规范 v2.3：色彩/排版/间距/组件/响应式/A11y/Do-Don't |
-| L3 | `docs/04-ui/frontend-layout-standard.md` + `SETTINGS_PAGE_STRUCTURE.md` | 布局契约 / 设置页结构规范 |
-| L4 | `NAIVE_UI_PITFALLS.md` / `MODAL_DIVIDER_CONVENTION.md` / `USE_TABLE_PAGINATION.md` / `DROPDOWN_POPOVER_SPEC.md` / `STANDARD_RESUME_SETTINGS.md` / `DATA_DICT_ADD_OBSCURED.md` | 专项规范（独立主题，保留） |
+| L2 | `docs/04-ui/UI_STANDARD.md` | 统一设计规范（合并版 v1.0）：色彩/排版/间距/布局契约/组件/弹窗/表格分页/响应式/A11y/Do-Don't/附录 |
+| L3 | `docs/04-ui/UI_STANDARD.md`（布局契约 §5）+ `SETTINGS_PAGE_STRUCTURE.md` | 布局契约 / 设置页结构规范 |
+| L4 | `NAIVE_UI_PITFALLS.md` / `DROPDOWN_POPOVER_SPEC.md` | 专项规范（独立主题，保留） |
 | L5 | `docs/04-ui/README.md` | 04-ui 目录**唯一索引** |
 | — | `docs/06-runbook/ENGINEERING_RULES.md` | 工程铁律与代码假绿坑（跨前后端工程规则，非 UI 规范层级内） |
 | — | `docs/06-runbook/frontend-README.md` | 前端 README（历史文档，Naive UI 拆分规则仍有效） |
 
-> 📦 以下文档已于 2026-10-18 归档至 `docs/09-archive/ui-docs-2026-10-18/`，**不再作为规范依据**：`frontend-DESIGN.md`、`UI_INDEX.md`、`UI_RECONCILIATION.md`、`UI_REMEDIATION_PLAN.md`、`UI_COMPLIANCE_SELFCHECK.md` 等共 16 份（见 `UI_DOC_AUDIT_2026-10-18.md`）。
+> 📦 以下文档已于 2026-10-18 归档至 `docs/09-archive/ui-docs-2026-10-18/`，**不再作为规范依据**：`frontend-DESIGN.md`、`UI_INDEX.md`、`UI_RECONCILIATION.md`、`UI_REMEDIATION_PLAN.md`、`UI_COMPLIANCE_SELFCHECK.md` 等共 16 份（见 `docs/09-archive/ui-docs-2026-10-18/UI_DOC_AUDIT_2026-10-18.md`）。
 
 ### 19.2 配置文件
 

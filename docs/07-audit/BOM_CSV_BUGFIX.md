@@ -195,5 +195,5 @@ POST /api/v1/dynamic-fields/.../import/ { file: <exported.csv> }
 ## 8. 关联文档
 
 - 工程铁律（CSV BOM 必须 4 处协同 + 多层防御验证设计） → `docs/06-runbook/ENGINEERING_RULES.md` §5-§6
-- 字段管理页面 → `docs/04-ui/STANDARD_RESUME_SETTINGS.md`（同类分页/导出场景）
+- 字段管理页面 → `docs/04-ui/UI_STANDARD.md`（附录 B：标准简历设置，同类分页/导出场景）
 - 系统内置化（commit `02a79c2` 解决字典种子 drift） → `docs/05-campus-control/STAGE_TYPE_SYSTEM.md` §9

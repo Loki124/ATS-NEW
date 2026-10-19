@@ -62,7 +62,7 @@ R-001 [P1][S] 编写任何样式前 MUST 先具备完整令牌，MUST NOT 在组
 
 > 校准于 2026-10-19，与 `tokens.css` 逐项核对。下表**只列名称**，不列数值。
 > 📖 **本表用途 = 速查「哪个令牌管什么」**，是 Agent 写样式时的查表入口，**不是规范正文**；
-> 人类可读的完整色彩/排版/间距规范见 `docs/04-ui/UI_DESIGN_SPEC.md §2–§4`（L2）。
+> 人类可读的完整色彩/排版/间距规范见 `docs/04-ui/UI_STANDARD.md §2–§4`（L2）。
 > 🔴 两表若出现矛盾，**一律以 `tokens.css` 为准**；发现本表与真源不符，MUST 顺手修正本表。
 
 **间距**（8px 基线，`tokens.css` §8；注意 `--space-3`/`--space-5` 是兼容档位名，取值已向下取整到 8 的倍数，引用前 MUST 读文件确认）
@@ -106,7 +106,7 @@ R-001 [P1][S] 编写任何样式前 MUST 先具备完整令牌，MUST NOT 在组
 | `--surface` / `--surface-elevated` | 不透明兜底表面 |
 | `--border-hairline` | 实体分隔线 |
 
-**布局契约**（`tokens.css` §8.5；细则见 `docs/04-ui/frontend-layout-standard.md`）
+**布局契约**（`tokens.css` §8.5；细则见 `docs/04-ui/UI_STANDARD.md §5`）
 
 | 令牌 | 用途 |
 |---|---|
@@ -874,6 +874,6 @@ if (hits.length) { console.error('X-02 违规：', hits); process.exit(1); }
 - 生成界面代码时 MUST NOT 输出未经自检的完整页面。
 - 本文件是 UI 约束的唯一权威源（Single Source of Truth）：**行为与取舍**以本文件的 R-xxx 规则为准。
 - **但令牌数值不在本文件的管辖范围内** —— 令牌的唯一真源是 `web/app/src/styles/tokens.css`（品牌派生为 `brand-tokens.css`）。本文件只写令牌名与用途，MUST NOT 复制数值。二者冲突一律以 `tokens.css` 为准（见 §1.1）。
-- 与人类可读设计文档（`docs/04-ui/UI_DESIGN_SPEC.md`）的关系：本文件管 MUST/MUST NOT，`UI_DESIGN_SPEC.md` 管设计理由与范式。二者表述不一致时 MUST NOT 凭文档差异改变行为；MUST 以 `tokens.css` 实际解析值为准，并按 §1.1 流程上报口径分叉。
+- 与人类可读设计文档（`docs/04-ui/UI_STANDARD.md`）的关系：本文件管 MUST/MUST NOT，`UI_STANDARD.md` 管设计理由与范式。二者表述不一致时 MUST NOT 凭文档差异改变行为；MUST 以 `tokens.css` 实际解析值为准，并按 §1.1 流程上报口径分叉。
 - 禁止验证剧场：[R] / [H] 类自检项无渲染器可依据时 MUST 输出"未验证"，MUST NOT 凭猜测打勾。诚实标注未验证的价值高于全绿表格。
 - 品牌色令牌 MUST NOT 手写。MUST 调用 brand-tokens.mjs 生成并以 --ci 退出码作为验收依据（R-214）。
