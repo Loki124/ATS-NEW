@@ -15,8 +15,11 @@
  * 通过 ApiEnvelope<...> 收口响应，导出函数式 API。
  */
 import { api } from '../utils/request'
-import type { ApiEnvelope } from '../utils/envelope'
-import type { ActionDictItem, ActionPreset, WriteMode, PermConditionGroup } from '@/api/data-permission'
+import type { ApiEnvelope, ApiEnvelopePaged } from '../utils/envelope'
+import type {
+  ActionDictItem, ActionPreset, WriteMode, PermConditionGroup,
+  DimensionMeta, AttributeField,
+} from '@/api/data-permission'
 
 // ===== 类型定义 =====
 
@@ -32,37 +35,58 @@ export interface StrategyModuleConfig {
   actions: string[]
 }
 
-/** 动态策略实体（创建/列表/详情共用） */
+/**
+ * 动态策略实体（创建/列表/详情共用）。
+ * ⚠️ 字段名与 API 响应一致走 camelCase（本项目 REST 框架 CamelCaseJSONRenderer 出参；
+ *   前端直接消费 camelCase，不再手桥；与 DepartmentManagement 等列表页同约定）。
+ */
 export interface DynamicStrategy {
   id?: number | string
-  strategy_code: string
-  strategy_name: string
+  strategyCode: string
+  strategyName: string
   /** 1=启用 / 0=停用 */
   status: number
   description?: string | null
   /** 受限制的业务模块（module key 列表）：demand/process/position/candidate/talent */
-  governed_functions: string[]
+  governedFunctions: string[]
   /** 本策略授予的功能资源码 */
-  granted_resource_codes: string[]
+  grantedResourceCodes: string[]
   /** module_key -> 操作权限配置（mode/actions/groups/expr） */
-  module_config: Record<string, StrategyModuleConfig>
-  created_at?: string
-  updated_at?: string
+  moduleConfig: Record<string, StrategyModuleConfig>
+  createdAt?: string
+  updatedAt?: string
 }
 
-/** options 接口：模块清单 + 可配置动作字典 + 动作预设包 */
+/** options 接口：模块 × 维度 × 属性字段矩阵 + 可配置动作字典 + 动作预设包 */
 export interface StrategyOptions {
-  modules: Array<{ key: string; label: string }>
+  /** 每模块含维度/属性字段（供「配置写范围」弹窗 RuleConfigModal 取下拉） */
+  modules: StrategyModuleOption[]
   actions: ActionDictItem[]
   presets: ActionPreset[]
 }
 
+/** options.modules 单项：与 data-permission 的 ModuleOption 同构（角色无关矩阵） */
+export interface StrategyModuleOption {
+  /** 后端 matrix 以 moduleKey 为键（兼容旧 key 字段） */
+  moduleKey?: string
+  key?: string
+  label: string
+  dimensions: DimensionMeta[]
+  attributeFields: AttributeField[]
+}
+
+/** 列表响应：信封内的数据数组 + 分页总条数 */
+export interface StrategyListResult {
+  items: DynamicStrategy[]
+  total: number
+}
+
 // ===== API =====
 
-/** 策略列表 */
-export async function listStrategies(params?: Record<string, unknown>): Promise<DynamicStrategy[]> {
-  const { data } = await api.get<ApiEnvelope<DynamicStrategy[]>>('/dynamic-strategies/', { params })
-  return data.data ?? []
+/** 策略列表（服务端分页；返回 {items,total} 供 remotePagination） */
+export async function listStrategies(params?: Record<string, unknown>): Promise<StrategyListResult> {
+  const { data } = await api.get<ApiEnvelopePaged<DynamicStrategy>>('/dynamic-strategies/', { params })
+  return { items: data.data ?? [], total: data.pagination?.total ?? 0 }
 }
 
 /** 策略详情 */

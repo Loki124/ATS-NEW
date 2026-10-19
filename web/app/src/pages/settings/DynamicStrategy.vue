@@ -3,37 +3,59 @@
     <div class="page-header">
       <div class="ph-left">
         <h1 class="page-title">{{ mode === 'edit' ? t('pages.settings.DynamicStrategy.s3') : t('pages.settings.DynamicStrategy.s1') }}</h1>
+        <p v-if="mode === 'list'" class="page-subtitle">{{ t('pages.settings.DynamicStrategy.s21') }}</p>
       </div>
-      <div class="ph-right">
-        <n-button v-if="mode === 'list'" type="primary" @click="openCreate">
-          {{ t('pages.settings.DynamicStrategy.s2') }}
+      <div v-if="mode === 'edit'" class="ph-right">
+        <n-button @click="goList">{{ t('pages.settings.DynamicStrategy.s11') }}</n-button>
+        <n-button type="primary" :loading="saving" @click="onSave">{{ t('pages.settings.DynamicStrategy.s10') }}</n-button>
+        <n-button v-if="editingCode" type="error" quaternary @click="onDeleteCurrent">
+          {{ t('pages.settings.DynamicStrategy.s12') }}
         </n-button>
-        <template v-else>
-          <n-button @click="goList">{{ t('pages.settings.DynamicStrategy.s11') }}</n-button>
-          <n-button type="primary" :loading="saving" @click="onSave">{{ t('pages.settings.DynamicStrategy.s10') }}</n-button>
-          <n-button v-if="editingCode" type="error" quaternary @click="onDeleteCurrent">
-            {{ t('pages.settings.DynamicStrategy.s12') }}
-          </n-button>
-        </template>
       </div>
     </div>
 
     <div class="page-body">
-      <!-- ===== 列表视图 ===== -->
+      <!-- ===== 列表视图（乙系数据列表标准：panel-shell + toolbar + table-wrap + flex-height）===== -->
       <template v-if="mode === 'list'">
-        <n-data-table
-          :columns="columns"
-          :data="list"
-          :loading="loading"
-          :row-key="(row: DynamicStrategy) => row.strategy_code"
-          :bordered="false"
-          class="ds-table"
-        />
-        <n-empty
-          v-if="!loading && list.length === 0"
-          :description="t('pages.settings.DynamicStrategy.s14')"
-          class="ds-empty"
-        />
+        <div class="glass-panel panel-shell">
+          <div class="toolbar">
+            <n-input
+              v-model:value="searchKeyword"
+              :placeholder="t('pages.settings.DynamicStrategy.s22')"
+              clearable
+              class="ds-search"
+              @change="onSearchChange"
+              @clear="onSearchChange"
+            >
+              <template #prefix>
+                <n-icon :component="SearchOutline" />
+              </template>
+            </n-input>
+            <div class="spacer"></div>
+            <n-button type="primary" class="gradient-btn" @click="openCreate">
+              <template #icon><n-icon :component="AddOutline" /></template>
+              {{ t('pages.settings.DynamicStrategy.s2') }}
+            </n-button>
+          </div>
+
+          <div class="table-wrap">
+            <n-data-table
+              :columns="columns"
+              :data="list"
+              :loading="loading"
+              :row-key="(row: DynamicStrategy) => row.strategyCode"
+              :bordered="false"
+              :pagination="pagination"
+              flex-height
+              @update:page="onPageChange"
+            >
+              <!-- 单一空态（乙系规范：禁止 n-data-table 自带空态 + 自定义 n-empty 并存） -->
+              <template #empty>
+                <n-empty :description="t('pages.settings.DynamicStrategy.s14')" />
+              </template>
+            </n-data-table>
+          </div>
+        </div>
       </template>
 
       <!-- ===== 详情（新建 / 编辑）视图 ===== -->
@@ -72,7 +94,11 @@
           <!-- 受策略限制的功能 -->
           <section class="ds-section">
             <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s7') }}</h2>
+            <div v-if="!form.governed_functions.length" class="ds-hint">
+              {{ t('pages.settings.DynamicStrategy.s7') }}
+            </div>
             <n-checkbox-group
+              v-else
               :value="form.governed_functions"
               @update:value="(v) => onGovernedChange(v as string[])"
             >
@@ -108,29 +134,52 @@
                 :preset-packages="options.presets"
                 @update:write-mode="(wm: WriteMode) => onWriteMode(item.key, wm)"
                 @update:write-actions="(acts: string[]) => onWriteActions(item.key, acts)"
+                @open-write-rule="() => openRule(item.key)"
               />
             </div>
           </section>
         </div>
       </template>
     </div>
+
+    <!-- 写范围自定义条件弹窗（配置写范围按钮触发；维度/属性字段由 options 按模块下发） -->
+    <RuleConfigModal
+      :show="ruleModalShow"
+      :module-name="ruleModuleView.label"
+      :module-key="ruleModuleKey"
+      :dimensions="ruleModuleView.dimensions"
+      :attribute-fields="ruleModuleView.attributeFields"
+      :groups="ruleModalGroups"
+      :inter-expr="ruleModalInterExpr"
+      @update:show="(v: boolean) => (ruleModalShow = v)"
+      @update:groups="onRuleGroups"
+      @update:inter-expr="onRuleInterExpr"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { h, ref, reactive, computed, onMounted } from 'vue'
+import { h, ref, reactive, computed, onMounted, watch } from 'vue'
 import {
   NButton, NDataTable, NInput, NSwitch, NCheckboxGroup, NCheckbox,
-  NTag, NSpace, NForm, NFormItem, NEmpty, useMessage, useDialog,
+  NTag, NSpace, NForm, NFormItem, NEmpty, NPopconfirm, NIcon,
+  useMessage, useDialog,
   type DataTableColumns,
 } from 'naive-ui'
+import { SearchOutline, AddOutline } from '@vicons/ionicons5'
 import ModuleActionCard from '@/components/role/ModuleActionCard.vue'
+import RuleConfigModal from '@/components/role/RuleConfigModal.vue'
 import {
   listStrategies, getStrategyOptions, createStrategy, updateStrategy, deleteStrategy,
   type DynamicStrategy, type StrategyModuleConfig, type StrategyOptions,
+  type StrategyModuleOption,
 } from '@/api/dynamicStrategy'
-import type { ModulePerm, WriteMode, ActionDictItem, ActionPreset } from '@/api/data-permission'
+import type {
+  ModulePerm, WriteMode, PermConditionGroup, DimensionMeta, AttributeField,
+} from '@/api/data-permission'
+import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
+import { remotePagination } from '@/composables/useTablePagination'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -165,13 +214,30 @@ const mode = ref<Mode>('list')
 const editingCode = ref<string | null>(null)
 const saving = ref(false)
 
-// ===== 列表 =====
+// ===== 列表（乙系：panel-shell + toolbar + table-wrap + flex-height + remotePagination）=====
 const list = ref<DynamicStrategy[]>([])
 const loading = ref(false)
+const searchKeyword = ref('')
+const page = ref(1)
+const pageSize = ref(20)
+const itemCount = ref(0)
+
+const pagination = remotePagination({
+  page,
+  itemCount,
+  pageSize,
+  onPageSizeChange: () => { loadList() },
+})
+
 async function loadList() {
   loading.value = true
   try {
-    list.value = await listStrategies()
+    const params: Record<string, unknown> = { page: page.value, page_size: pageSize.value }
+    const kw = searchKeyword.value.trim()
+    if (kw) params.search = kw
+    const res = await listStrategies(params)
+    list.value = res.items
+    itemCount.value = res.total
   } catch (e: any) {
     list.value = []
     message.error(e?.response?.data?.message || e?.message || t('pages.settings.DynamicStrategy.s1'))
@@ -180,13 +246,22 @@ async function loadList() {
   }
 }
 
+function onPageChange(p: number) {
+  page.value = p
+  loadList()
+}
+function onSearchChange() {
+  page.value = 1
+  loadList()
+}
+
 const columns = computed<DataTableColumns<DynamicStrategy>>(() => [
-  {
+  column({
     title: () => t('pages.settings.DynamicStrategy.s4'),
-    key: 'strategy_name',
-    render: (row: DynamicStrategy) => row.strategy_name,
-  },
-  {
+    key: 'strategyName',
+    render: (row: DynamicStrategy) => row.strategyName,
+  }, 'short'),
+  column({
     title: () => t('pages.settings.DynamicStrategy.s5'),
     key: 'status',
     render: (row: DynamicStrategy) =>
@@ -195,24 +270,33 @@ const columns = computed<DataTableColumns<DynamicStrategy>>(() => [
         { type: row.status === 1 ? 'success' : 'default', size: 'small', bordered: false },
         { default: () => (row.status === 1 ? t('pages.settings.DynamicStrategy.s17') : t('pages.settings.DynamicStrategy.s18')) },
       ),
-  },
-  {
+  }, 'control'),
+  column({
     title: () => t('pages.settings.DynamicStrategy.s16'),
-    key: 'governs',
-    render: (row: DynamicStrategy) => `${row.governed_functions?.length ?? 0}`,
-  },
-  {
+    key: 'governedCount',
+    render: (row: DynamicStrategy) => `${row.governedFunctions?.length ?? 0}`,
+  }, 'numeric'),
+  column({
     title: '操作',
     key: 'actions',
     render: (row: DynamicStrategy) =>
-      h('div', { class: 'row-actions' }, [
-        h(NButton, { size: 'small', quaternary: true, onClick: () => openEdit(row) }, { default: () => t('pages.settings.DynamicStrategy.s3') }),
-        h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => onDelete(row) }, { default: () => t('pages.settings.DynamicStrategy.s12') }),
-      ]),
-  },
+      h(NSpace, { size: 8, wrap: false }, {
+        default: () => [
+          h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, onClick: () => openEdit(row) }, { default: () => t('pages.settings.DynamicStrategy.s3') }),
+          h(NPopconfirm, {
+            onPositiveClick: () => onDelete(row),
+            positiveText: t('pages.settings.DynamicStrategy.s12'),
+            negativeText: t('pages.settings.DynamicStrategy.s11'),
+          }, {
+            default: () => t('pages.settings.DynamicStrategy.s13'),
+            trigger: () => h(NButton, { size: OP_ACTION_BUTTON_SIZE, quaternary: true, type: 'error' }, { default: () => t('pages.settings.DynamicStrategy.s12') }),
+          }),
+        ],
+      }),
+  }, 'control'),
 ])
 
-// ===== 表单状态 =====
+// ===== 表单状态（本地 snake_case，buildPayload 时转为 camelCase 出参）=====
 function defaultModuleConfig(): StrategyModuleConfig {
   return { mode: 'none', expr: '', groups: [], actions: [] }
 }
@@ -285,14 +369,52 @@ function onWriteActions(key: string, actions: string[]) {
   form.module_config[key].actions = [...actions]
 }
 
-// ===== 选项（动作字典 / 预设包）=====
-const options = ref<StrategyOptions>({ modules: [], actions: [] as ActionDictItem[], presets: [] as ActionPreset[] })
+// ===== 选项（动作字典 / 预设包 / 模块×维度×属性字段）=====
+const options = ref<StrategyOptions>({ modules: [], actions: [], presets: [] })
 async function loadOptions() {
   try {
     options.value = await getStrategyOptions()
   } catch {
     options.value = { modules: [], actions: [], presets: [] }
   }
+}
+
+// ===== 写范围自定义条件弹窗（配置写范围按钮触发）=====
+const ruleModalShow = ref(false)
+const ruleModuleKey = ref('')
+function moduleView(key: string): { label: string; dimensions: DimensionMeta[]; attributeFields: AttributeField[] } {
+  const opt: StrategyModuleOption | undefined = options.value.modules.find((o) => (o.moduleKey ?? o.key) === key)
+  const meta = MODULE_LABELS[key] || key
+  return {
+    label: opt?.label || meta,
+    dimensions: opt?.dimensions || [],
+    attributeFields: opt?.attributeFields || [],
+  }
+}
+const ruleModuleView = computed(() => moduleView(ruleModuleKey.value))
+const ruleModalGroups = computed<PermConditionGroup[]>(() => {
+  const cfg = form.module_config[ruleModuleKey.value] ?? defaultModuleConfig()
+  return cfg.groups || []
+})
+const ruleModalInterExpr = computed(() => {
+  const cfg = form.module_config[ruleModuleKey.value] ?? defaultModuleConfig()
+  return cfg.expr || ''
+})
+function openRule(key: string) {
+  ruleModuleKey.value = key
+  ruleModalShow.value = true
+}
+function onRuleGroups(groups: PermConditionGroup[]) {
+  const key = ruleModuleKey.value
+  if (!form.module_config[key]) form.module_config[key] = defaultModuleConfig()
+  form.module_config[key].groups = [...groups]
+  if (modulePerms[key]) modulePerms[key].write!.groups = [...groups]
+}
+function onRuleInterExpr(expr: string) {
+  const key = ruleModuleKey.value
+  if (!form.module_config[key]) form.module_config[key] = defaultModuleConfig()
+  form.module_config[key].expr = expr
+  if (modulePerms[key]) modulePerms[key].write!.expr = expr
 }
 
 // ===== 进入新建 / 编辑 =====
@@ -311,16 +433,16 @@ async function openCreate() {
 }
 
 async function openEdit(row: DynamicStrategy) {
-  editingCode.value = row.strategy_code
-  form.strategy_code = row.strategy_code
-  form.strategy_name = row.strategy_name
+  editingCode.value = row.strategyCode
+  form.strategy_code = row.strategyCode
+  form.strategy_name = row.strategyName
   form.status = row.status
   form.description = row.description ?? ''
-  form.governed_functions = [...(row.governed_functions || [])]
-  form.granted_resource_codes = [...(row.granted_resource_codes || [])]
+  form.governed_functions = [...(row.governedFunctions || [])]
+  form.granted_resource_codes = [...(row.grantedResourceCodes || [])]
   form.module_config = {}
   for (const k of form.governed_functions) {
-    const cfg = row.module_config?.[k]
+    const cfg = row.moduleConfig?.[k]
     form.module_config[k] = cfg
       ? { mode: cfg.mode, expr: cfg.expr, groups: cfg.groups ? cfg.groups.map((g) => ({ ...g })) : [], actions: [...cfg.actions] }
       : defaultModuleConfig()
@@ -342,19 +464,19 @@ async function openEdit(row: DynamicStrategy) {
   await loadOptions()
 }
 
-function buildPayload(): Partial<DynamicStrategy> {
+function buildPayload(): Record<string, unknown> {
   const module_config: Record<string, StrategyModuleConfig> = {}
   for (const k of form.governed_functions) {
     module_config[k] = form.module_config[k] ?? defaultModuleConfig()
   }
   return {
-    strategy_code: form.strategy_code,
-    strategy_name: form.strategy_name,
+    strategyCode: form.strategy_code,
+    strategyName: form.strategy_name,
     status: form.status,
     description: form.description,
-    governed_functions: [...form.governed_functions],
-    granted_resource_codes: [...form.granted_resource_codes],
-    module_config,
+    governedFunctions: [...form.governed_functions],
+    grantedResourceCodes: [...form.granted_resource_codes],
+    moduleConfig,
   }
 }
 
@@ -371,13 +493,14 @@ async function onSave() {
       message.success(t('pages.settings.DynamicStrategy.s20'))
     } else {
       const payload = buildPayload()
-      if (!payload.strategy_code) payload.strategy_code = `STRAT_${Date.now()}`
+      if (!payload.strategyCode) payload.strategyCode = `STRAT_${Date.now()}`
       await createStrategy(payload)
       message.success(t('pages.settings.DynamicStrategy.s19'))
     }
     mode.value = 'list'
     editingCode.value = null
     clearModulePerms()
+    page.value = 1
     await loadList()
   } catch (e: any) {
     message.error(e?.response?.data?.message || e?.message || t('pages.settings.DynamicStrategy.s10'))
@@ -394,22 +517,15 @@ function goList() {
 }
 
 // ===== 删除 =====
-function onDelete(row: DynamicStrategy) {
-  dialog.warning({
-    title: t('pages.settings.DynamicStrategy.s12'),
-    content: t('pages.settings.DynamicStrategy.s13'),
-    positiveText: t('pages.settings.DynamicStrategy.s12'),
-    negativeText: t('pages.settings.DynamicStrategy.s11'),
-    onPositiveClick: async () => {
-      try {
-        await deleteStrategy(row.strategy_code)
-        message.success('删除成功')
-        await loadList()
-      } catch (e: any) {
-        message.error(e?.response?.data?.message || e?.message || t('pages.settings.DynamicStrategy.s12'))
-      }
-    },
-  })
+// 列表行删除：NPopconfirm 已是唯一确认层，此处直接执行删除（不再二次 dialog）。
+async function onDelete(row: DynamicStrategy) {
+  try {
+    await deleteStrategy(row.strategyCode)
+    message.success(t('pages.settings.DynamicStrategy.s23'))
+    await loadList()
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || t('pages.settings.DynamicStrategy.s12'))
+  }
 }
 
 function onDeleteCurrent() {
@@ -423,7 +539,7 @@ function onDeleteCurrent() {
     onPositiveClick: async () => {
       try {
         await deleteStrategy(code)
-        message.success('删除成功')
+        message.success(t('pages.settings.DynamicStrategy.s23'))
         mode.value = 'list'
         editingCode.value = null
         clearModulePerms()
@@ -439,7 +555,7 @@ onMounted(loadList)
 </script>
 
 <style scoped>
-/* 页面布局三件套（与 PermissionManagement 同款）：页头固定 + 内容区自滚 */
+/* 页面布局三件套（与 DepartmentManagement 同款）：页头固定 + 内容区自滚 */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -460,6 +576,11 @@ onMounted(loadList)
   font-weight: 600;
   color: var(--ink);
 }
+.page-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
 .page-body {
   flex: 1;
   min-height: 0;
@@ -467,7 +588,7 @@ onMounted(loadList)
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 .ph-right {
   display: flex;
@@ -475,8 +596,18 @@ onMounted(loadList)
   gap: var(--space-2);
 }
 
-.ds-table { background: transparent; }
-.ds-empty { padding: 48px 0; }
+/* 列表：乙系 panel-shell + toolbar + table-wrap（结构同 DepartmentManagement） */
+.glass-panel.panel-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.table-wrap {
+  flex: 1;
+  min-height: 0;
+}
+.ds-search { width: 240px; }
 
 /* 表单面板 */
 .ds-form {

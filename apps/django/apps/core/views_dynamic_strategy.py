@@ -24,6 +24,10 @@ from apps.data_permission.models import (
     DataPermissionAction,
     DataPermissionActionPreset,
 )
+# 动态策略的「配置写范围」弹窗（RuleConfigModal）按模块取维度/属性字段下拉，
+# 与角色数据权限同源、角色无关 —— 直接复用 role_scope_api.options_payload 的
+# 「模块 × 维度 × 属性字段」矩阵，避免两处各算一份（维度隐藏/文案/属性场景易漂移）。
+from apps.data_permission.role_scope_api import options_payload as _dp_options_payload
 
 from .models_permission_v2 import DynamicStrategy
 from .permissions_v2 import V2Permission
@@ -90,9 +94,10 @@ class DynamicStrategyViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='options')
     def options(self, request):
-        """GET /api/v1/dynamic-strategies/options/ — 模块×动作字典 + 预设包.
+        """GET /api/v1/dynamic-strategies/options/ — 模块×维度×属性字段矩阵 + 动作字典 + 预设包.
 
-        驱动器(策略编辑弹窗)下拉: 可选模块、动作字典、动作预设包.
+        驱动器(策略编辑弹窗)下拉: 可选模块、每模块的维度/属性字段(供「配置写范围」弹窗)、
+        动作字典、动作预设包. 维度/属性字段与角色数据权限同源(角色无关).
         """
         actions = list(DataPermissionAction.objects.values(
             'key', 'label', 'category', 'destructive', 'enabled',
@@ -100,8 +105,11 @@ class DynamicStrategyViewSet(viewsets.ModelViewSet):
         presets = list(DataPermissionActionPreset.objects.values(
             'key', 'label', 'action_keys', 'module',
         ))
+        # 模块 × 维度 × 属性字段矩阵(角色无关)；dimensions/attributeFields 下发给
+        # RuleConfigModal 作为条件组编辑器的值域与选项来源。
+        dp = _dp_options_payload()
         return success_response({
-            'modules': STRATEGY_MODULES,
+            'modules': dp['modules'],
             'actions': actions,
             'presets': presets,
         })
