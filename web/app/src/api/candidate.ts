@@ -149,4 +149,114 @@ export async function updateCandidateStatusDetail(id: string, key: string, value
   return data
 }
 
+// ============================================================
+// 候选人详情页操作：淘汰 / 放入人才库 / 推荐其他职位 / 关注 / 转发
+//
+// 端点契约见 apps/candidate/views.py：
+//   POST /candidates/<id>/transition/          状态机（淘汰 mark_process_failed、
+//                                              入库 move_to_talent_pool）
+//   POST /candidates/batch/recommend/           推荐到其他职位
+//   GET|POST|DELETE /candidates/<id>/follow/    个人级关注
+//   GET|POST /candidates/<id>/forward/         转发给内部同事
+// ============================================================
+
+/** FSM 动作名 → i18n 文案由页面负责，这里只透传后端枚举 */
+export type CandidateTransitionAction =
+  | 'enter_process'
+  | 'send_offer'
+  | 'mark_onboarded'
+  | 'withdraw'
+  | 'move_to_talent_pool'
+  | 'mark_process_failed'
+  | 'pause_process'
+  | 'resume_process'
+
+/**
+ * 候选人状态机流转（淘汰 / 放入人才库 均走此端点）。
+ * 后端按 FSM action 分派动作粒度权限：
+ *   mark_process_failed → 'eliminate'、move_to_talent_pool → 'talent_pool_add'
+ * 并强制「仅锁定人可操作」（ensure_operable），非锁定人会收到 FORBIDDEN_SCOPE。
+ */
+export async function transitionCandidate(
+  id: string,
+  action: CandidateTransitionAction,
+  extra: Record<string, any> = {},
+) {
+  const { data } = await api.post(`/candidates/${id}/transition/`, { action, ...extra })
+  return data?.data ?? data
+}
+
+/** 推荐到其他职位（单人在详情页复用批量端点，传单元素数组） */
+export async function recommendCandidateToPosition(
+  candidateId: string,
+  positionId: string,
+  comment?: string,
+) {
+  const { data } = await api.post('/candidates/batch/recommend/', {
+    candidateIds: [candidateId],
+    positionId,
+    comment,
+  })
+  // 批量端点逐条返回成败，前端据 results[0] 判定，不靠 HTTP 200 假成功
+  const results = data?.data?.results ?? []
+  const first = results[0]
+  if (!first || first.success !== true) {
+    const err: any = new Error(first?.error || 'RECOMMEND_FAILED')
+    err.code = first?.error || 'RECOMMEND_FAILED'
+    throw err
+  }
+  return first
+}
+
+// ---------- 关注（个人级） ----------
+
+/** 查询当前登录用户是否关注该候选人（详情页按钮态回显） */
+export async function getCandidateFollowState(id: string): Promise<boolean> {
+  const { data } = await api.get(`/candidates/${id}/follow/`)
+  return data?.data?.isFollowed ?? false
+}
+
+/** 关注候选人（幂等，复合唯一约束保证重复调用安全） */
+export async function followCandidate(id: string) {
+  const { data } = await api.post(`/candidates/${id}/follow/`)
+  return data?.data ?? data
+}
+
+/** 取消关注 */
+export async function unfollowCandidate(id: string) {
+  const { data } = await api.delete(`/candidates/${id}/follow/`)
+  return data?.data ?? data
+}
+
+// ---------- 转发给内部同事 ----------
+
+export interface ForwardRow {
+  id: string
+  fromUserId: string
+  fromUserName: string
+  toUserId: string
+  toUserName: string
+  note: string
+  createdAt?: string
+}
+
+/** 该候选人的转发记录（谁转给了谁） */
+export async function listCandidateForwards(id: string): Promise<ForwardRow[]> {
+  const { data } = await api.get(`/candidates/${id}/forward/`)
+  return data?.data?.results ?? []
+}
+
+/**
+ * 转发候选人给一位或多位内部同事。
+ * 逐条返回成败（USER_NOT_FOUND / FORBIDDEN_SCOPE / FORBIDDEN_SELF），
+ * 部分失败不静默吞掉，交由前端提示。
+ */
+export async function forwardCandidate(id: string, toUserIds: string[], note?: string) {
+  const { data } = await api.post(`/candidates/${id}/forward/`, {
+    toUserIds,
+    note,
+  })
+  return data?.data ?? data
+}
+
 export default api

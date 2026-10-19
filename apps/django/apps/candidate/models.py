@@ -605,3 +605,83 @@ class CandidatePositionRecommendation(SoftDeleteModel):
 
     objects = SoftDeleteManager()
     all_objects = models.Manager()
+
+
+# ============================================================
+# 候选人详情页五项操作中「关注 / 转发」的持久化模型
+#
+# 设计取舍（2026-10-19）：
+# - 关注为**个人级**语义（兵哥拍板），故主键是 (candidate, user) 复合唯一，
+#   关注状态仅本人可见，不复用候选人标签（标签是团队共享的，语义不同）。
+# - 转发为**发送给内部同事**，落 CandidateForward（候选人 × 接收人 × 转发人），
+#   与「推荐到职位」（CandidatePositionRecommendation，写职位）语义区分开。
+# - 二者均落地为可查询业务表（而非只写审计），因为前端需要回显关注状态、
+#   展示「谁转给了谁」；同时各自另写一条 CandidateHistory 进哈希链，保证可溯源。
+# ============================================================
+class CandidateFollow(TimestampedModel):
+    """个人级关注候选人（收藏）— 关注状态仅本人可见。
+
+    2026-10-19：详情页「关注候选人」入口。复合唯一 (candidate, user) 保证
+    重复关注幂等（前端可无脑重复调用）。
+    """
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    candidate = models.ForeignKey(
+        Candidate, on_delete=models.CASCADE,
+        related_name='follows', verbose_name='候选人',
+    )
+    user = models.ForeignKey(
+        'core.User', on_delete=models.CASCADE,
+        related_name='candidate_follows', verbose_name='关注人',
+    )
+
+    class Meta:
+        db_table = 'candidate_follows'
+        unique_together = [('candidate', 'user')]
+        verbose_name = '候选人关注'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'candidate']),
+        ]
+
+    def __str__(self):
+        return f'CandidateFollow[{self.user_id}→{self.candidate_id}]'
+
+
+class CandidateForward(SoftDeleteModel):
+    """候选人转发给内部同事的记录 — 审计 + 查询。
+
+    2026-10-19：详情页「转发候选人」入口。区别于「推荐其他职位」
+    （CandidatePositionRecommendation 写职位），此处接收方是**用户**。
+    """
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    candidate = models.ForeignKey(
+        Candidate, on_delete=models.CASCADE,
+        related_name='forwards', verbose_name='候选人',
+    )
+    from_user = models.ForeignKey(
+        'core.User', on_delete=models.CASCADE,
+        related_name='forwarded_candidates', verbose_name='转发人',
+    )
+    to_user = models.ForeignKey(
+        'core.User', on_delete=models.CASCADE,
+        related_name='received_forwards', verbose_name='接收人',
+    )
+    note = models.TextField(blank=True, verbose_name='附言')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='转发时间')
+
+    class Meta:
+        db_table = 'candidate_forwards'
+        verbose_name = '候选人转发记录'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['candidate', '-created_at']),
+            models.Index(fields=['to_user', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'CandidateForward[{self.from_user_id}→{self.to_user_id}:{self.candidate_id}]'
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()

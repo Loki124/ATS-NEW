@@ -69,6 +69,8 @@ from apps.data_permission.enforcement import ensure_writable, filter_writable  #
 from .models import (
     Candidate,
     CandidateFieldValue,
+    CandidateFollow,
+    CandidateForward,
     CandidatePositionRecommendation,
     CandidateScreening,
     CandidateTag,
@@ -94,6 +96,8 @@ from .audit import (
     diff_fields,
     jsonable,
     norm_empty,
+    record_follow_change,
+    record_forward,
     record_info_update,
     record_resume_fields_update,
     record_resume_uploaded,
@@ -489,6 +493,120 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         )
 
     # ----------------------------------------------------------
+    # 关注 / 取消关注（个人级）
+    # ----------------------------------------------------------
+    @action(detail=True, methods=['get', 'post', 'delete'], url_path='follow')
+    def follow(self, request, id=None):
+        """关注候选人（个人级，仅本人可见）。
+
+        - ``GET``    → {is_followed: bool}，详情页回显按钮状态
+        - ``POST``   → 建立关注（复合唯一 (candidate,user) 保证幂等）
+        - ``DELETE`` → 取消关注
+        关注是**个人偏好**而非简历操作，故不经过 ensure_operable 动态操作权守卫
+        （守卫管「谁动这份简历」，关注不改动候选人业务状态）；读范围仍由
+        ``self.get_object()`` 的 ScopeQuerysetMixin + assert 语义兜底。
+        """
+        candidate = self.get_object()
+        # 确保调用者确实能看到这条记录（越权时显式报错，不泄露存在性差异）
+        assert_candidates_visible(request, [candidate.id])
+        user = request.user
+
+        if request.method == 'GET':
+            return Response({'success': True, 'data': {
+                'is_followed': CandidateFollow.objects.filter(
+                    candidate=candidate, user=user,
+                ).exists(),
+            }})
+
+        if request.method == 'DELETE':
+            deleted, _ = CandidateFollow.objects.filter(candidate=candidate, user=user).delete()
+            record_follow_change(candidate, to=False, actor=user)
+            return Response({'success': True, 'data': {'is_followed': False, 'deleted': deleted}})
+
+        # POST：幂等关注
+        _, created = CandidateFollow.objects.get_or_create(candidate=candidate, user=user)
+        if created:
+            record_follow_change(candidate, to=True, actor=user)
+        return Response({'success': True, 'data': {'is_followed': True, 'created': created}})
+
+    # ----------------------------------------------------------
+    # 转发给内部同事
+    # ----------------------------------------------------------
+    @action(detail=True, methods=['get', 'post'], url_path='forward')
+    def forward(self, request, id=None):
+        """转发候选人给内部同事。
+
+        - ``GET``  → 该候选人的转发记录列表（谁转给了谁 + 附言）
+        - ``POST`` → {to_user_ids: [id], note?}，可为一位或多位同事各建一条记录
+
+        与「推荐其他职位」语义区分：本端点接收方是**用户**，
+        推荐职位走 ``batch/recommend`` 写 CandidatePositionRecommendation。
+        """
+        candidate = self.get_object()
+        assert_candidates_visible(request, [candidate.id])
+
+        if request.method == 'GET':
+            rows = (
+                CandidateForward.objects
+                .filter(candidate=candidate)
+                .select_related('from_user', 'to_user')
+            )
+            return Response({'success': True, 'data': {
+                'results': [_forward_row(r) for r in rows],
+            }})
+
+        to_user_ids = request.data.get('to_user_ids') or []
+        if isinstance(to_user_ids, (str, int)):
+            to_user_ids = [to_user_ids]
+        to_user_ids = [x for x in to_user_ids if x not in (None, '')]
+
+        User = get_user_model()
+        # ⚠️ 必须按 User 主键的实际类型归一化：JSON 传来的 id 恒为字符串，
+        #    而 User.pk 是整型 —— pk__in=['2'] 在整型列上匹配不到任何行，
+        #    会让「转发给同事」对**所有**接收人静默返回 USER_NOT_FOUND。
+        #    （本项目踩过一次同类坑：Candidate 主键是 CharField，若照抄此处会反向失效，
+        #      故一律以 pk 字段的真实类型为准，而非写死 int。）
+        pk_field = User._meta.pk
+        coerced = [_coerce_pk(pk_field, x) for x in to_user_ids]
+        to_user_ids = [x for x in coerced if x is not None]
+
+        note = request.data.get('note', '')
+        if not to_user_ids:
+            # 传入的 id 全部无法解析（如主键是整型却收到 'abc'）——
+            # 这是**请求错误**，须显式 400，而不是伪装成「转发给了一个不存在的人」。
+            raise ValidationError('to_user_ids 无有效用户 id')
+
+        # 只能转发给真实存在的用户，避免写入悬空引用
+        targets = {u.pk: u for u in User.objects.filter(pk__in=to_user_ids)}
+        missing = [str(u) for u in to_user_ids if u not in targets]
+
+        # 转发属简历操作动作：写范围 + 动态操作权双守卫，与 recommend 同口径
+        ensure_writable(request.user, 'candidate', candidate, action='recommend')
+        ensure_operable(request.user, candidate, 'recommend')
+
+        results = []
+        with transaction.atomic():
+            for uid in to_user_ids:
+                target = targets.get(uid)
+                if target is None:
+                    results.append({'to_user_id': str(uid), 'success': False, 'error': 'USER_NOT_FOUND'})
+                    continue
+                if target.pk == request.user.pk:
+                    results.append({'to_user_id': str(uid), 'success': False, 'error': 'FORBIDDEN_SELF'})
+                    continue
+                fwd = CandidateForward.objects.create(
+                    candidate=candidate,
+                    from_user=request.user,
+                    to_user=target,
+                    note=note,
+                )
+                record_forward(candidate, from_user=request.user, to_user=target, note=note, forward_id=fwd.id)
+                # ⚠️ to_user_id 三个分支必须同为 str：前端要按 id 回显每位接收人的成败，
+                #    混用 int/str 会导致部分条目在前端匹配不上（表现为「部分人没转发成功」）。
+                results.append({'to_user_id': str(uid), 'success': True, 'forward_id': fwd.id, 'error': None})
+        return Response({'success': True, 'data': {'results': results, 'missing': missing}})
+
+    # ----------------------------------------------------------
     # 合并
     # ----------------------------------------------------------
     @action(detail=False, methods=['post'], url_path='merge')
@@ -749,6 +867,46 @@ class CandidateResumeFieldsView(APIView):
             if candidate is not None:
                 record_resume_fields_update(candidate, changes, actor=request.user)
         return Response({'success': True, 'data': saved})
+
+
+def _coerce_pk(pk_field, value):
+    """把请求体里的 id 归一到主键字段的真实 Python 类型；无法转换时返回 None。
+
+    JSON 里的 id 恒为字符串；若目标主键是整型（``core.User.pk`` 即如此），
+    直接拿字符串去 ``pk__in`` 查不会报错、只会**静默查不到行** ——
+    这是本项目「转发给同事」一度全员 USER_NOT_FOUND 的根因。
+    反向同理（主键是 CharField 时不能强转 int），故以字段实际类型为准。
+
+    ⚠️ ``to_python`` 对非法值（如整型主键收到 'no-such-user'）会抛
+    ``django.core.exceptions.ValidationError``，必须就地捕获 ——
+    否则整个端点 500（把用户输错 id 变成服务故障，而非其应有的 USER_NOT_FOUND）。
+    """
+    if value is None or value == '':
+        return None
+    try:
+        return pk_field.to_python(value)
+    except Exception:  # noqa: BLE001 — 任何转换失败一律按「无效 id」处理，交由上层报 USER_NOT_FOUND
+        return None
+
+
+def _forward_row(row) -> dict:
+    """CandidateForward → 前端可渲染的转发行（读响应经 CamelCaseJSONRenderer 转 camelCase）。"""
+    def user_name(u):
+        return (
+            getattr(u, 'full_name', None)
+            or getattr(u, 'username', None)
+            or getattr(u, 'name', None)
+            or ''
+        )
+    return {
+        'id': row.id,
+        'from_user_id': str(row.from_user_id or ''),
+        'from_user_name': user_name(row.from_user),
+        'to_user_id': str(row.to_user_id or ''),
+        'to_user_name': user_name(row.to_user),
+        'note': row.note or '',
+        'created_at': row.created_at,
+    }
 
 
 # ============================================================

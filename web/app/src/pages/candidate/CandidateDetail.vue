@@ -248,6 +248,62 @@
           </n-space>
         </div>
 
+        <!-- 简历操作（2026-10-19）：淘汰 / 放入人才库 / 推荐其他职位 / 关注 / 转发
+             状态驱动：已淘汰 / 已入库后相应按钮转为已激活态并禁用，避免重复提交 -->
+        <div class="rail-card">
+          <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s311') }}</div>
+          <n-space vertical :size="8">
+            <n-button
+              block
+              :type="isFollowed ? 'primary' : 'default'"
+              :loading="followLoading"
+              :aria-pressed="isFollowed"
+              @click="toggleFollow"
+            >
+              <template #icon>
+                <n-icon :component="isFollowed ? StarOutline : StarOutline" />
+              </template>
+              {{ isFollowed
+                ? t('pages.candidate.CandidateDetail.s293')
+                : t('pages.candidate.CandidateDetail.s291') }}
+            </n-button>
+
+            <n-button block :disabled="forwardLoading" @click="openForwardModal">
+              <template #icon><n-icon :component="ShareSocialOutline" /></template>
+              {{ t('pages.candidate.CandidateDetail.s294') }}
+            </n-button>
+
+            <n-button
+              block
+              :disabled="loadingPositions"
+              @click="openRecommendModal"
+            >
+              <template #icon><n-icon :component="SwapHorizontalOutline" /></template>
+              {{ t('pages.candidate.CandidateDetail.s285') }}
+            </n-button>
+
+            <n-button
+              block
+              :disabled="poolLoading || isInPool"
+              @click="openPoolModal"
+            >
+              <template #icon><n-icon :component="AlbumsOutline" /></template>
+              {{ t('pages.candidate.CandidateDetail.s282') }}
+            </n-button>
+
+            <n-button
+              type="error"
+              secondary
+              block
+              :disabled="eliminateLoading || isEliminated"
+              @click="openEliminateModal"
+            >
+              <template #icon><n-icon :component="CloseCircleOutline" /></template>
+              {{ t('pages.candidate.CandidateDetail.s276') }}
+            </n-button>
+          </n-space>
+        </div>
+
         <!-- 简历标签 -->
         <div class="rail-card">
           <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s193') }}</div>
@@ -521,6 +577,191 @@
                     position: appliedPosition, expectedOnboardingDate: '' }"
       :parent-order-id="bgParentOrderId"
     />
+
+    <!-- 淘汰确认（R-106 不可逆操作：确认框 + 影响预览） -->
+    <n-modal
+      v-model:show="eliminateModalVisible"
+      preset="card"
+      :title="t('pages.candidate.CandidateDetail.s276')"
+      :width="480"
+      style="max-width: 92vw"
+    >
+      <n-alert type="warning" :bordered="false" style="margin-bottom: 16px">
+        {{ t('pages.candidate.CandidateDetail.s279') }}
+      </n-alert>
+      <n-form label-placement="top">
+        <n-form-item
+          :label="t('pages.candidate.CandidateDetail.s277')"
+          :validation-status="eliminateReason ? undefined : 'error'"
+          :feedback="eliminateReason ? undefined : t('pages.candidate.CandidateDetail.s278')"
+          required
+        >
+          <n-input
+            v-model:value="eliminateReason"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('pages.candidate.CandidateDetail.s277')"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button :disabled="eliminateLoading" @click="eliminateModalVisible = false">
+            {{ t('pages.candidate.CandidateDetail.s90') }}
+          </n-button>
+          <n-button
+            type="error"
+            :loading="eliminateLoading"
+            :disabled="!eliminateReason.trim()"
+            @click="handleEliminate"
+          >
+            {{ t('pages.candidate.CandidateDetail.s276') }}
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <!-- 放入人才库 -->
+    <n-modal
+      v-model:show="poolModalVisible"
+      preset="card"
+      :title="t('pages.candidate.CandidateDetail.s282')"
+      :width="480"
+      style="max-width: 92vw"
+    >
+      <n-form label-placement="top">
+        <n-form-item :label="t('pages.candidate.CandidateDetail.s283')">
+          <n-input
+            v-model:value="poolReason"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('pages.candidate.CandidateDetail.s283')"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button :disabled="poolLoading" @click="poolModalVisible = false">
+            {{ t('pages.candidate.CandidateDetail.s90') }}
+          </n-button>
+          <n-button type="primary" :loading="poolLoading" @click="handleMoveToPool">
+            {{ t('pages.candidate.CandidateDetail.s282') }}
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <!-- 推荐其他职位 -->
+    <n-modal
+      v-model:show="recommendModalVisible"
+      preset="card"
+      :title="t('pages.candidate.CandidateDetail.s285')"
+      :width="520"
+      style="max-width: 92vw"
+    >
+      <n-form label-placement="top">
+        <n-form-item
+          :label="t('pages.candidate.CandidateDetail.s286')"
+          :validation-status="recommendPositionId ? undefined : 'error'"
+          :feedback="recommendPositionId ? undefined : t('pages.candidate.CandidateDetail.s288')"
+          required
+        >
+          <n-select
+            v-model:value="recommendPositionId"
+            :options="positionOptions"
+            :loading="loadingPositions"
+            filterable
+            clearable
+            :placeholder="t('pages.candidate.CandidateDetail.s286')"
+          />
+        </n-form-item>
+        <n-form-item :label="t('pages.candidate.CandidateDetail.s287')">
+          <n-input
+            v-model:value="recommendComment"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('pages.candidate.CandidateDetail.s287')"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button :disabled="recommendLoading" @click="recommendModalVisible = false">
+            {{ t('pages.candidate.CandidateDetail.s90') }}
+          </n-button>
+          <n-button
+            type="primary"
+            :loading="recommendLoading"
+            :disabled="!recommendPositionId"
+            @click="handleRecommend"
+          >
+            {{ t('pages.candidate.CandidateDetail.s285') }}
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <!-- 转发给内部同事 -->
+    <n-modal
+      v-model:show="forwardModalVisible"
+      preset="card"
+      :title="t('pages.candidate.CandidateDetail.s294')"
+      :width="520"
+      style="max-width: 92vw"
+    >
+      <n-form label-placement="top">
+        <n-form-item
+          :label="t('pages.candidate.CandidateDetail.s295')"
+          :validation-status="forwardTargets.length ? undefined : 'error'"
+          :feedback="forwardTargets.length ? undefined : t('pages.candidate.CandidateDetail.s296')"
+          required
+        >
+          <n-select
+            v-model:value="forwardTargets"
+            multiple
+            :options="colleagueOptions"
+            :loading="loadingColleagues"
+            filterable
+            :placeholder="t('pages.candidate.CandidateDetail.s295')"
+          />
+        </n-form-item>
+        <n-form-item :label="t('pages.candidate.CandidateDetail.s297')">
+          <n-input
+            v-model:value="forwardNote"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('pages.candidate.CandidateDetail.s298')"
+          />
+        </n-form-item>
+      </n-form>
+
+      <!-- 已有转发记录：谁转给了谁（R-104 空态） -->
+      <div v-if="forwardRecords.length > 0" class="forward-records">
+        <div class="forward-records-title">{{ t('pages.candidate.CandidateDetail.s304') }}</div>
+        <div v-for="r in forwardRecords" :key="r.id" class="forward-record">
+          <span class="forward-record-text">
+            {{ t('pages.candidate.CandidateDetail.s310', { name: r.fromUserName || r.fromUserId }) }}
+          </span>
+          <span v-if="r.note" class="forward-record-note">{{ r.note }}</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button :disabled="forwardLoading" @click="forwardModalVisible = false">
+            {{ t('pages.candidate.CandidateDetail.s90') }}
+          </n-button>
+          <n-button
+            type="primary"
+            :loading="forwardLoading"
+            :disabled="forwardTargets.length === 0"
+            @click="handleForward"
+          >
+            {{ t('pages.candidate.CandidateDetail.s294') }}
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -549,8 +790,27 @@ import {
   ExpandOutline,
   ContractOutline,
   GiftOutline,
+  StarOutline,
+  ShareSocialOutline,
+  SwapHorizontalOutline,
+  AlbumsOutline,
+  CloseCircleOutline,
 } from '@vicons/ionicons5'
-import { getCandidate, listCandidates, verifyCandidateHistories } from '../../api/candidate'
+import {
+  getCandidate,
+  listCandidates,
+  verifyCandidateHistories,
+  transitionCandidate,
+  recommendCandidateToPosition,
+  getCandidateFollowState,
+  followCandidate,
+  unfollowCandidate,
+  forwardCandidate,
+  listCandidateForwards,
+  type ForwardRow,
+} from '../../api/candidate'
+import { listPositions } from '../../api/position'
+import { listUsers, type User } from '../../api/users'
 import { fetchConfig, defaultConfig, type StandardResumeConfig } from '../../api/standard-resume'
 import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fields'
 import { listFields, type FieldDefinition } from '../../api/dynamic-field'
@@ -802,6 +1062,8 @@ const ACTION_LABEL_KEY: Record<string, string> = {
   RESUME_UPLOADED: 's238', RESUME_PARSED: 's239', STAGE_CHANGED: 's240',
   STATE_CHANGED: 's241', BLACKLIST_CHANGED: 's242', BLACKLISTED: 's243',
   UNBLACKLISTED: 's244',
+  // 2026-10-19 新增：关注 / 转发。未登记会裸显英文枚举，操作记录不可读。
+  FOLLOWED: 's292', UNFOLLOWED: 's293', FORWARDED: 's299',
 }
 const STATE_ENUM_LABEL_KEY: Record<string, string> = {
   APPLIED: 's245', IN_PROCESS: 's246', OFFER_SENT: 's247', ONBOARDED: 's248',
@@ -812,7 +1074,8 @@ const ACTION_TAG_TYPE: Record<string, 'success' | 'info' | 'warning' | 'error' |
   CREATED: 'success', INFO_UPDATED: 'info', RESUME_FIELDS_UPDATED: 'info',
   RESUME_UPLOADED: 'info', RESUME_PARSED: 'warning', STAGE_CHANGED: 'warning',
   STATE_CHANGED: 'success', BLACKLIST_CHANGED: 'error', BLACKLISTED: 'error',
-  UNBLACKLISTED: 'default',
+  UNBLACKLISTED: 'default', FOLLOWED: 'success', UNFOLLOWED: 'default',
+  FORWARDED: 'info',
 }
 function actionLabel(h: any): string {
   const key = ACTION_LABEL_KEY[h?.action]
@@ -908,6 +1171,14 @@ function historyLines(h: any): string[] {
     if (p.educations != null) lines.push(t('pages.candidate.CandidateDetail.s233', { n: p.educations }))
     if (p.experiences != null) lines.push(t('pages.candidate.CandidateDetail.s234', { n: p.experiences }))
     if (p.channel) lines.push(`${t('pages.candidate.CandidateDetail.s253')}：${p.channel}`)
+  } else if (action === 'FOLLOWED' || action === 'UNFOLLOWED') {
+    // 关注是个人级行为，记录里带关注人，便于回看是谁关注的
+    const who = d.user?.name || fmtVal(d.user?.id)
+    lines.push(`${fmtVal(who)}`)
+  } else if (action === 'FORWARDED') {
+    const to = d.to?.name || fmtVal(d.to?.id)
+    if (to) lines.push(t('pages.candidate.CandidateDetail.s310', { name: to }))
+    if (d.note) lines.push(fmtVal(d.note, 120))
   } else if (action === 'CREATED') {
     lines.push(`${t('pages.candidate.CandidateDetail.s253')}：${d.source || '—'}`)
   } else {
@@ -1107,6 +1378,7 @@ async function loadCandidateData(id: string) {
 onMounted(async () => {
   const id = route.params.id ? String(route.params.id) : ''
   await Promise.all([loadCandidateData(id), loadNavContext()])
+  if (id) await loadFollowState(id)
 })
 
 // 上一位/下一位切换（同组件仅路由参数变化，onMounted 不重跑，须 watch 重载）
@@ -1116,6 +1388,7 @@ watch(() => route.params.id, async (newId, oldId) => {
   const idx = navIds.value.indexOf(String(newId))
   if (idx >= 0) navIndex.value = idx
   else await loadNavContext()
+  await loadFollowState(String(newId))
   window.scrollTo({ top: 0 })
 })
 
@@ -1268,6 +1541,267 @@ const handleSendNotification = () => {
   message.success(t('pages.candidate.CandidateDetail.s182'))
   notificationModalVisible.value = false
 }
+
+// ============================================================
+// 简历操作：淘汰 / 放入人才库 / 推荐其他职位 / 关注 / 转发
+// （2026-10-19 新增）
+//
+// 状态口径：state_display 由后端 current_state 推导，已淘汰(PROCESS_FAILED)/
+// 已入库(TALENT_POOL) 时对应按钮转为禁用态，避免对同一状态重复操作。
+// ============================================================
+const candidateState = computed(() => (pickDetail('current_state') || '').trim())
+const isEliminated = computed(() => candidateState.value === 'PROCESS_FAILED')
+const isInPool = computed(() => candidateState.value === 'TALENT_POOL')
+
+/** 后端错误码 → 用户可读文案（当前主要是权限类） */
+function translateApiError(e: any, fallbackKey: string): string {
+  const code = String(e?.code || e?.response?.data?.error || '')
+  if (code === 'FORBIDDEN_SCOPE') {
+    return t('pages.candidate.CandidateDetail.s306')
+  }
+  return e?.response?.data?.message || e?.message || t(`pages.candidate.CandidateDetail.${fallbackKey}`)
+}
+
+// ---------- 关注（个人级，幂等） ----------
+const isFollowed = ref(false)
+const followLoading = ref(false)
+
+async function loadFollowState(id: string) {
+  try {
+    isFollowed.value = await getCandidateFollowState(id)
+  } catch {
+    // 关注态拉取失败不阻塞详情页（无权限/网络问题），按钮按未关注渲染
+    isFollowed.value = false
+  }
+}
+
+async function toggleFollow() {
+  const id = route.params.id
+  if (!id || followLoading.value) return
+  followLoading.value = true
+  const was = isFollowed.value
+  // 乐观更新：关注属可逆操作（对应 R-106「可逆 → 直接执行」），失败再回滚
+  isFollowed.value = !was
+  try {
+    if (was) {
+      await unfollowCandidate(String(id))
+      message.success(t('pages.candidate.CandidateDetail.s293'))
+    } else {
+      await followCandidate(String(id))
+      message.success(t('pages.candidate.CandidateDetail.s292'))
+    }
+  } catch (e: any) {
+    isFollowed.value = was
+    message.error(translateApiError(e, 's281'))
+  } finally {
+    followLoading.value = false
+  }
+}
+
+// ---------- 淘汰（不可逆 → 确认框 + 原因必填） ----------
+const eliminateModalVisible = ref(false)
+const eliminateReason = ref('')
+const eliminateLoading = ref(false)
+
+function openEliminateModal() {
+  eliminateReason.value = ''
+  eliminateModalVisible.value = true
+}
+
+async function handleEliminate() {
+  const id = route.params.id
+  if (!id || eliminateLoading.value) return
+  if (!eliminateReason.value.trim()) {
+    message.warning(t('pages.candidate.CandidateDetail.s278'))
+    return
+  }
+  eliminateLoading.value = true
+  try {
+    await transitionCandidate(String(id), 'mark_process_failed', {
+      reason: eliminateReason.value.trim(),
+    })
+    message.success(t('pages.candidate.CandidateDetail.s280'))
+    eliminateModalVisible.value = false
+    await loadCandidateData(String(id))
+  } catch (e: any) {
+    message.error(translateApiError(e, 's281'))
+  } finally {
+    eliminateLoading.value = false
+  }
+}
+
+// ---------- 放入人才库 ----------
+const poolModalVisible = ref(false)
+const poolReason = ref('')
+const poolLoading = ref(false)
+
+function openPoolModal() {
+  poolReason.value = ''
+  poolModalVisible.value = true
+}
+
+async function handleMoveToPool() {
+  const id = route.params.id
+  if (!id || poolLoading.value) return
+  poolLoading.value = true
+  try {
+    await transitionCandidate(String(id), 'move_to_talent_pool', {
+      reason: poolReason.value.trim(),
+      entry_source: 'MANUAL',
+    })
+    message.success(t('pages.candidate.CandidateDetail.s284'))
+    poolModalVisible.value = false
+    await loadCandidateData(String(id))
+  } catch (e: any) {
+    message.error(translateApiError(e, 's281'))
+  } finally {
+    poolLoading.value = false
+  }
+}
+
+// ---------- 推荐其他职位 ----------
+const recommendModalVisible = ref(false)
+const recommendPositionId = ref<string | null>(null)
+const recommendComment = ref('')
+const recommendLoading = ref(false)
+const positionOptions = ref<Array<{ label: string; value: string }>>([])
+const loadingPositions = ref(false)
+
+async function loadPositionOptions() {
+  loadingPositions.value = true
+  try {
+    const rows = await listPositions()
+    positionOptions.value = rows.map((p) => ({ label: p.title, value: p.id }))
+  } catch {
+    positionOptions.value = []
+  } finally {
+    loadingPositions.value = false
+  }
+}
+
+function openRecommendModal() {
+  recommendPositionId.value = null
+  recommendComment.value = ''
+  recommendModalVisible.value = true
+  // 首次打开才拉职位列表，避免拖慢详情页首屏
+  if (positionOptions.value.length === 0) loadPositionOptions()
+}
+
+async function handleRecommend() {
+  const id = route.params.id
+  if (!id || recommendLoading.value) return
+  if (!recommendPositionId.value) {
+    message.warning(t('pages.candidate.CandidateDetail.s288'))
+    return
+  }
+  recommendLoading.value = true
+  try {
+    await recommendCandidateToPosition(String(id), recommendPositionId.value, recommendComment.value.trim())
+    const name = positionOptions.value.find((o) => o.value === recommendPositionId.value)?.label
+    message.success(t('pages.candidate.CandidateDetail.s309', { name: name || '—' }))
+    recommendModalVisible.value = false
+  } catch (e: any) {
+    message.error(translateApiError(e, 's290'))
+  } finally {
+    recommendLoading.value = false
+  }
+}
+
+// ---------- 转发给内部同事 ----------
+const forwardModalVisible = ref(false)
+const forwardTargets = ref<string[]>([])
+const forwardNote = ref('')
+const forwardLoading = ref(false)
+const forwardRecords = ref<ForwardRow[]>([])
+const colleagueOptions = ref<Array<{ label: string; value: string }>>([])
+const loadingColleagues = ref(false)
+
+/** 当前用户（用于从「可选同事」中排除自己，呼应后端 FORBIDDEN_SELF 规则） */
+const currentUserId = computed(() => {
+  const raw = localStorage.getItem('user') || localStorage.getItem('userInfo')
+  if (!raw) return ''
+  try {
+    const u = JSON.parse(raw)
+    return String(u?.id ?? '')
+  } catch {
+    return ''
+  }
+})
+
+async function loadColleagueOptions() {
+  loadingColleagues.value = true
+  try {
+    const users = await listUsers()
+    const me = currentUserId.value
+    colleagueOptions.value = users
+      .map((u: User) => {
+        const label = u.realName || u.username || u.email || u.id
+        return { label: String(label), value: String(u.id) }
+      })
+      .filter((o) => o.value !== me)
+  } catch {
+    colleagueOptions.value = []
+  } finally {
+    loadingColleagues.value = false
+  }
+}
+
+async function loadForwardRecords(id: string) {
+  try {
+    forwardRecords.value = await listCandidateForwards(id)
+  } catch {
+    forwardRecords.value = []
+  }
+}
+
+async function openForwardModal() {
+  const id = route.params.id
+  forwardTargets.value = []
+  forwardNote.value = ''
+  forwardModalVisible.value = true
+  await Promise.all([
+    colleagueOptions.value.length ? Promise.resolve() : loadColleagueOptions(),
+    id ? loadForwardRecords(String(id)) : Promise.resolve(),
+  ])
+}
+
+async function handleForward() {
+  const id = route.params.id
+  if (!id || forwardLoading.value) return
+  if (forwardTargets.value.length === 0) {
+    message.warning(t('pages.candidate.CandidateDetail.s296'))
+    return
+  }
+  forwardLoading.value = true
+  try {
+    const res: any = await forwardCandidate(String(id), forwardTargets.value, forwardNote.value.trim())
+    const results: any[] = res?.results ?? []
+    const ok = results.filter((r) => r.success).length
+    const failed = results.length - ok
+    if (ok > 0 && failed === 0) {
+      message.success(t('pages.candidate.CandidateDetail.s299'))
+      forwardModalVisible.value = false
+    } else if (ok > 0) {
+      // 部分成功：如实告知，不静默吞掉失败的人
+      message.warning(t('pages.candidate.CandidateDetail.s308'))
+      forwardTargets.value = forwardTargets.value.filter(
+        (v) => results.find((r) => String(r.toUserId) === String(v) && r.success !== true),
+      )
+    } else {
+      const code = results[0]?.error
+      message.error(
+        code === 'FORBIDDEN_SELF'
+          ? t('pages.candidate.CandidateDetail.s307')
+          : translateApiError({ code }, 's300'),
+      )
+    }
+    if (ok > 0) await loadForwardRecords(String(id))
+  } catch (e: any) {
+    message.error(translateApiError(e, 's300'))
+  } finally {
+    forwardLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -1399,11 +1933,17 @@ const handleSendNotification = () => {
   border-top: 2px dashed color-mix(in srgb, var(--c-warning) 32%, transparent);
 }
 .stage-link.done { border-top-style: solid; border-top-color: var(--c-warning); }
-.application-list { display: flex; flex-direction: column; gap: var(--space-2); }
-.application-item { padding: var(--space-2) var(--space-3); background: var(--brand-soft); border-radius: 8px; }
+.application-list { display: flex; flex-direction: column; gap: var(--space-2); }.application-item { padding: var(--space-2) var(--space-3); background: var(--brand-soft); border-radius: 8px; }
 .application-position { font-size: var(--fs-14); font-weight: 600; color: var(--brand-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .application-meta { display: flex; gap: var(--space-3); font-size: var(--fs-12); color: var(--ink-soft); margin-top: 2px; }
 .upload-tip { margin-top: var(--space-4); color: var(--ink-faint); font-size: var(--fs-12); }
+
+/* ===== 转发记录（转发弹窗内） ===== */
+.forward-records { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border-hairline); }
+.forward-records-title { font-size: var(--fs-12); font-weight: 600; color: var(--ink-soft); margin-bottom: var(--space-2); }
+.forward-record { display: flex; gap: var(--space-2); align-items: baseline; padding: 3px 0; font-size: var(--fs-12); flex-wrap: wrap; }
+.forward-record-text { color: var(--ink); }
+.forward-record-note { color: var(--ink-soft); overflow-wrap: anywhere; }
 
 /* ===== 发送通知弹窗（保持既有交互） ===== */
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--overlay-glass-mid); }

@@ -209,3 +209,40 @@ def record_lock_change(candidate, *, from_user, to_user, reason: str, actor=None
         'source': 'lock_engine',
     }
     return _create(candidate, 'LOCK_CHANGED', detail, actor)
+
+
+# ============================================================
+# 详情页「关注 / 转发」审计（2026-10-19）
+#
+# 与 record_lock_change 同理：关注/转发虽不改候选人主状态，但属「谁在什么时候
+# 对哪份简历做了什么」的可追溯事实，进哈希链后与其它操作一并不可篡改。
+# 前端操作记录 Tab 通过 ACTION_LABEL_KEY 映射展示。
+# ============================================================
+def record_follow_change(candidate, *, to: bool, actor=None):
+    """关注 / 取消关注。``to=True`` 表示关注，``False`` 表示取关。
+
+    关注是个人级行为（仅本人可见），故 detail 里带 actor 引用便于回看是谁关注的。
+    """
+    return _create(
+        candidate,
+        'FOLLOWED' if to else 'UNFOLLOWED',
+        {'to': to, 'user': _user_ref(actor), 'source': 'detail_page'},
+        actor,
+    )
+
+
+def record_forward(candidate, *, from_user, to_user, note: str = '', forward_id=None, actor=None):
+    """转发候选人给内部同事。
+
+    detail 记录转发人与接收人（均可读引用 + id），附言截断到 500 字以免
+    操作记录被大段文本撑爆。
+    """
+    detail = {
+        'forward_id': str(forward_id) if forward_id else None,
+        'from': _user_ref(from_user),
+        'to': _user_ref(to_user),
+        'note': (note or '')[:500],
+        'source': 'detail_page',
+    }
+    # 操作人即转发人（正常路径一致）；保留 actor 入参以便未来区分代操作场景
+    return _create(candidate, 'FORWARDED', detail, actor or from_user)
