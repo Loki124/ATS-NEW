@@ -342,7 +342,7 @@ def permissions_roles_list(request):
     return Response({'success': True, 'data': data})
 
 
-@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:user_role:edit')
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:settings:users:role_grant:edit')
 def permissions_user_roles(request, user_id):
     _log_stub_hit('permissions_user_roles', request)
     """GET /permissions/users/{id}/roles — 用户的角色
@@ -445,7 +445,7 @@ def permissions_mous_list(request):
     return Response({'success': True, 'data': data})
 
 
-@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:user_role:edit')
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:settings:users:role_grant:edit')
 def permissions_user_mous(request, user_id):
     """GET /permissions/user-mous/{user_id} — 用户已分配的 MOU 列表 (mouId 列表).
 

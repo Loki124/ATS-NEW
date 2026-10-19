@@ -86,11 +86,13 @@ RESOURCES = [
     ('recruit:role:delete', '删除角色', 'BUTTON', 'role'),
     ('recruit:role:assign', '分配角色', 'BUTTON', 'role'),
     # --- module: user_role ---
-    ('recruit:user_role:menu:view', '用户授权菜单', 'MENU', 'user_role'),
-    ('recruit:user_role:list', '用户授权列表', 'BUTTON', 'user_role'),
-    ('recruit:user_role:create', '新增授权', 'BUTTON', 'user_role'),
-    ('recruit:user_role:edit', '编辑授权', 'BUTTON', 'user_role'),
-    ('recruit:user_role:delete', '撤销授权', 'BUTTON', 'user_role'),
+    # --- module: settings 子模块 users：用户身份配置（2026-10-19 自 user_role 迁移，0038）---
+    # 独立「用户授权」页已移除，真实入口=用户管理页(/settings/users/all)的身份配置弹窗；
+    # 菜单码 recruit:user_role:menu:view 已随 0038 停用（无任何前端入口），不再 seed。
+    ('recruit:settings:users:role_grant:list', '用户身份配置列表', 'BUTTON', 'settings'),
+    ('recruit:settings:users:role_grant:create', '新增身份配置', 'BUTTON', 'settings'),
+    ('recruit:settings:users:role_grant:edit', '编辑身份配置', 'BUTTON', 'settings'),
+    ('recruit:settings:users:role_grant:delete', '撤销身份配置', 'BUTTON', 'settings'),
     # --- module: mgmt_unit ---
     ('recruit:mgmt_unit:menu:view', '管理单元菜单', 'MENU', 'mgmt_unit'),
     ('recruit:mgmt_unit:list', '管理单元列表', 'BUTTON', 'mgmt_unit'),
@@ -465,9 +467,9 @@ CONFIG_CODES = [
     'recruit:notification:menu:view', 'recruit:notification:list',
     'recruit:notification:create', 'recruit:notification:edit',
     'recruit:notification:delete',
-    # 管理单元 / 身份 / 用户授权 (HR 需要维护组织与授权)
+    # 管理单元 / 身份 / 用户身份配置 (HR 需要维护组织与授权)
     'recruit:role:create', 'recruit:role:edit',
-    'recruit:user_role:create', 'recruit:user_role:edit',
+    'recruit:settings:users:role_grant:create', 'recruit:settings:users:role_grant:edit',
     'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
     'recruit:mgmt_unit:create', 'recruit:mgmt_unit:edit',
     # 组织管理扩展：职务 / 职级（2026-10-14）
@@ -521,7 +523,7 @@ TEMPLATES = [
             'recruit:referral:menu:view', 'recruit:referral:list',
             'recruit:talent_pool:menu:view', 'recruit:talent_pool:list',
             'recruit:role:menu:view', 'recruit:role:list',
-            'recruit:user_role:menu:view', 'recruit:user_role:list',
+            'recruit:settings:users:role_grant:list',
         ],
     },
     {
@@ -544,7 +546,7 @@ TEMPLATES = [
             'recruit:talent_pool:create', 'recruit:talent_pool:edit',
             'recruit:talent_pool:delete',
             'recruit:role:menu:view', 'recruit:role:list',
-            'recruit:user_role:menu:view', 'recruit:user_role:list',
+            'recruit:settings:users:role_grant:list',
             'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
         ],
     },

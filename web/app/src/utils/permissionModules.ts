@@ -31,7 +31,7 @@ export const RESOURCE_MODULE_LABELS: Record<string, string> = {
   mou: 'MOU',
   mgmt_unit: '管理单元',
   role: '身份管理',
-  user_role: '用户授权',
+  // user_role 模块已随 0038 迁移为 settings:users:role_grant（用户身份配置），标签移除
   settings: '系统设置',
   // ↓ 2026-10-19 补齐：下列 4 个模块此前漏收进前端映射表，导致对应资源在
   //   ResourcesTab 模块列显示「—」（误判为无模块）。真值均来自 seed 资源名。

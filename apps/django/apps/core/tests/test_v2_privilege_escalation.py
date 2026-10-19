@@ -1,7 +1,7 @@
 """权限提升链路回归测试.
 
 被防住的攻击链 (2026-10-08 审查发现):
-    1. 攻击者持有 recruit:user_role:list (招聘总经理模板自带)
+    1. 攻击者持有 recruit:settings:users:role_grant:list (招聘总经理模板自带)
     2. POST /api/v1/user-roles/  {"user_id": <自己>, "role_code": "SUPER_ADMIN"}
     3. role_v2_query.is_super_admin() 对 SUPER_ADMIN 角色持有者返回 True
     4. → 在所有 V2Permission / ScopeQuerysetMixin 处 bypass, 接管全量 RBAC 与业务数据
@@ -92,25 +92,25 @@ def test_normal_role_unaffected(db):
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_user_role_create_requires_create_code_not_list(db, monkeypatch):
-    """只持 user_role:list 时, POST /user-roles/ 必须被拒。"""
+    """只持 role_grant:list 时, POST /user-roles/ 必须被拒。"""
     from django.contrib.auth import get_user_model
     User = get_user_model()
     user = User.objects.create(username='esc_actor', is_active=True)
 
     monkeypatch.setattr(
         pv2, 'known_resource_codes',
-        lambda: {'recruit:user_role:list', 'recruit:user_role:create'},
+        lambda: {'recruit:settings:users:role_grant:list', 'recruit:settings:users:role_grant:create'},
     )
     asked = []
     monkeypatch.setattr(
         pv2, 'has_perm',
-        lambda u, code: (asked.append(code), code == 'recruit:user_role:list')[1],
+        lambda u, code: (asked.append(code), code == 'recruit:settings:users:role_grant:list')[1],
     )
 
     class _View:
         permission_classes = []
         action = 'create'
-        permission_required = 'recruit:user_role:list'
+        permission_required = 'recruit:settings:users:role_grant:list'
         permission_required_map = None
         v2_self_service_actions = ()
 
@@ -118,7 +118,7 @@ def test_user_role_create_requires_create_code_not_list(db, monkeypatch):
     req.user = user
 
     assert pv2.V2Permission().has_permission(req, _View()) is False
-    assert asked == ['recruit:user_role:create']
+    assert asked == ['recruit:settings:users:role_grant:create']
 
 
 # ---------------------------------------------------------------- 端到端

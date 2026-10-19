@@ -513,7 +513,7 @@ class ManagementUnitViewSet(EnvelopeModelViewSet):
 class UserRoleViewSet(EnvelopeModelViewSet):
     queryset = UserRoleV2.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:user_role:list'
+    permission_required = 'recruit:settings:users:role_grant:list'
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     filterset_fields = ['user_id', 'role_code', 'system_code']
 

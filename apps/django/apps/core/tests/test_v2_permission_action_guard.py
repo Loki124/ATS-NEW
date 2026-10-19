@@ -4,7 +4,7 @@
     V2Permission 此前只校验视图级**静态**权限码, 不区分 HTTP 方法 / action,
     且视图未声明 permission_required 时对写操作也默认放行。后果:
 
-    1. 只持 `recruit:user_role:list` 的账号可对 UserRoleViewSet 发 POST,
+    1. 只持 `recruit:settings:users:role_grant:list` 的账号可对 UserRoleViewSet 发 POST,
        写入 role_code='SUPER_ADMIN' → 完整权限提升。
     2. DepartmentViewSet 未声明任何权限码 → 任意登录用户可增删改部门。
 
@@ -53,8 +53,8 @@ def _known_codes(monkeypatch):
         lambda: {
             'recruit:candidate:list', 'recruit:candidate:create',
             'recruit:candidate:edit', 'recruit:candidate:delete',
-            'recruit:user_role:list', 'recruit:user_role:create',
-            'recruit:user_role:edit', 'recruit:user_role:delete',
+            'recruit:settings:users:role_grant:list', 'recruit:settings:users:role_grant:create',
+            'recruit:settings:users:role_grant:edit', 'recruit:settings:users:role_grant:delete',
             'recruit:invitation:list', 'recruit:invitation:create',
         },
     )
@@ -85,18 +85,18 @@ def _check(method, view, user):
 @pytest.mark.v2_permission
 def test_create_requires_create_code_not_list(factory, user, granted):
     """核心回归: 只持 :list 的账号不得 create (原实现用 :list 放行了写操作)。"""
-    granted['codes'] = {'recruit:user_role:list'}
-    view = _View(action='create', permission_required='recruit:user_role:list')
+    granted['codes'] = {'recruit:settings:users:role_grant:list'}
+    view = _View(action='create', permission_required='recruit:settings:users:role_grant:list')
 
     assert _check('post', view, user) is False
-    assert granted['asked'] == ['recruit:user_role:create']
+    assert granted['asked'] == ['recruit:settings:users:role_grant:create']
 
 
 @pytest.mark.django_db
 @pytest.mark.v2_permission
 def test_create_allowed_when_holding_create_code(user, granted):
-    granted['codes'] = {'recruit:user_role:create'}
-    view = _View(action='create', permission_required='recruit:user_role:list')
+    granted['codes'] = {'recruit:settings:users:role_grant:create'}
+    view = _View(action='create', permission_required='recruit:settings:users:role_grant:list')
 
     assert _check('post', view, user) is True
 
@@ -232,7 +232,7 @@ def test_superuser_bypasses_declared_codes(db, granted):
     su = get_user_model().objects.create(
         username='su_action_guard', is_active=True, is_superuser=True,
     )
-    view = _View(action='create', permission_required='recruit:user_role:list')
+    view = _View(action='create', permission_required='recruit:settings:users:role_grant:list')
 
     assert _check('post', view, su) is True
     assert granted['asked'] == []
