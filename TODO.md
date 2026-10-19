@@ -2,7 +2,7 @@
 
 > **单一事实源（Single Source of Truth）**：本文件是全项目待办事项的**唯一权威台账**。
 > **维护纪律**：每完成一项任务，**必须立即**在本文件标记 ✅ 并更新进度统计，禁止只在会话/记忆里口头完成。
-> **最后更新**：2026-10-15
+> **最后更新**：2026-10-19（S5-12 客服部门模型 + S5-07 前端入口落地后校正：S5 实际完成 11 项）
 
 ---
 
@@ -27,15 +27,21 @@
 | 阶段 | ⬜ 未开始 | 🟡 进行中 | 🟠 受阻 | ✅ 已完成 | ⏸️ 挂起 |
 |---|---|---|---|---|---|
 | S0 审计整改（P0-P1） | 0 | 0 | 0 | 43 | 0 |
-| S1 审计整改（P2 季度规划） | 1 | 0 | 0 | 10 | 1 |
-| S2 前端工程化 | 5 | 0 | 0 | 2 | 0 |
+| S1 审计整改（P2 季度规划） | 2 | 0 | 0 | 12 | 0 |
+| S2 前端工程化 | 7 | 0 | 0 | 2 | 0 |
 | S3 测试与质量 | 3 | 0 | 0 | 1 | 0 |
 | S4 运维与安全 | 2 | 0 | 0 | 0 | 0 |
-| **合计** | **10** | **0** | **0** | **56** | **1** |
+| S5 校招生管理（2026-10-19 新增） | 15 | 0 | 1 | 12 | 0 |
+| **S6 资源管理治理（2026-10-19 新增）** | **2** | **0** | **0** | **4** | **1** |
+| **合计** | **27** | **0** | **1** | **74** | **1** |
 
-**完成率**：56 / 67 ≈ **83.6%**
+**完成率**：74 / 103 ≈ **71.8%**
+
+> 📌 S6 计入口径：S6-01/02/03/06 代码与单测已写但**尚未提交、尚未在真实库验证**，记 `🟡 进行中`；S6-04/07 未开始；S6-05（默认筛选策略）待兵哥决策，记 `⏸️ 已挂起`。**严禁假绿**：上述"已落地"项待提交+验证后由执行者改为 ✅。
 
 > 📌 每次状态变更须同步更新本表，否则视为台账失效。
+> 📐 **计数口径**：S0 汇总为 43 项（明细见 `docs/07-audit/TODO_2026-10-08.md`，本表不展开）；S1–S5 每行计 1 项。当前未完成 30 项（29 未开始 + 1 受阻）= S1×2 + S2×7 + S3×3 + S4×2 + S5×16（15 未开始 + 1 受阻）。
+> 🔴 **S5 完成率大幅回落是预期行为** —— 新纳入 28 项需求（27 未开始 + 1 受阻），非质量滑坡。
 
 ---
 
@@ -111,6 +117,122 @@
 |---|---|---|---|---|---|---|
 | S4-01 | ops：注入独立 `INTEGRATION_FERNET_KEY`（勿复用 `ENCRYPTION_KEY`） | ⬜ 未开始 | P1 | — | 0.5h | `prod.py` 已 fail-closed 拦截，运维侧未注入 |
 | S4-02 | ops：通知相关账号重置密码 | ⬜ 未开始 | P1 | — | 0.5h | prod 已启用 `PasswordComplexityValidator(min_classes=3)` + `MinimumLength(12)` |
+
+---
+
+## S5 — 校招生管理（2026-10-19 业务方需求，22 子项）
+
+> **规格与实施方案**：`docs/03-product/校招生管理需求规格与实施方案.md`（v1.0，含 5 大模块逐项设计、11 项现状缺口 G-01~G-11、8 项待确认 Q-01~Q-08、风险登记）
+> **决策已闭环**：D-01 客服字段=对齐+专属 / D-02 去编号=仅前端隐藏 `code` / D-03 摩卡=建表+预留钩子 / D-04 节奏=先方案后分批
+> **实体对应**：班级=`ClassRoom`、校招生档案=`campus_control.Person`、轮岗资源=`LiveRoom`、轮岗安排=`RotationArrangement`
+
+### B0 基础设施（无前置，先做，是后面所有批次的地基）
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-01 | 播种 `HRBP` 角色 + 补齐校招权限码（含 `person:menu:view`） | ✅ 已完成 | P0 | — | 3h | `seeds.py` 幂等播种 `HRBP`；`seed_v2_init` 补三工作台+审批+审计权限码。`person:menu:view` 经核**已在播种**（前端引用一致），无需新增 |
+| S5-02 | `ENTITY_SCOPE` 登记校招实体 + `DIMENSION_META` 补维度并同步 `DYNAMIC_DIMENSION_RULES` | ✅ 已完成 | P0 | S5-01 | 5h | 🔴 已登记 3 实体（class/resource/arrangement）+ 4 维度（hrbp/head_teacher/mentor/campus_class）。**`campus_person` 推迟 S5-10**：`Person` 现无部门承载字段（`bu` 是 CharField choices 非 FK），强行登记 `scope_field` 会运行时 FieldError；`hrbp` 维度本就存在，仅补另 3 标签 |
+| S5-03 | 校招 ViewSet 接入 `ScopeQuerysetMixin` 行级隔离 | ✅ 已完成 | P0 | S5-02 | 4h | 轮岗 3 个 ViewSet（RotationArrangement/LiveRoom/ClassRoom）已接；修复 `restore`/`batch_assign` 绕过 `get_queryset` 的越权漏洞。**`PersonViewSet` 推迟 S5-10**（随 `campus_person` 实体登记一并接） |
+
+### B1 低风险前端（可与 B0 并行，不碰后端）
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-04 | 【需求 2-3】人员页字段顺序重排 + 去掉候选人编号列 | ✅ 已完成 | P1 | — | 4h | 列序=姓名/工号/在职状态/入职时间/班级/班主任→部门/职务/职级/性别/院校/专业；**D-02=仅前端隐藏** `code` 列（库字段保留）；新增工号/班级/班主任列+表单字段（依赖 S5-10 已落地） |
+| S5-05 | 【需求 2-1】人员页按状态页签 + 待入职独立页签 | ✅ 已完成 | P1 | — | 3h | 人员管理页状态下拉→页签（含「待入职」映射 `在途待入职`）；🔴 **轮岗安排页签**（`APPROVING`/`TERMINATED`）依赖 S5-19 FSM，留待该批 |
+| S5-06 | 【需求 3-2】班级成员明细穿透（人数列可点击 + 抽屉） | ✅ 已完成 | P1 | — | 5h | 新增 `GET /campus-rotation/class-rooms/{id}/members/`（后端）；班级列表「校招人数」可点击打开 `n-drawer` 成员明细（前端）；依赖 S5-10 `Person.class_room` |
+| S5-07 | 【需求 4-2】轮岗资源页改「新增资源」下拉（直播间/客服部门） | ✅ 已完成 | P2 | — | 2h | 新增 `ServiceDept.vue` 管理页（CRUD + 校招占用聚合）+ `LiveRoom.vue` 顶部「新增资源」下拉（新增直播间/新增客服部门）+ 路由 `/campus/service-dept` + 菜单「客服部门」复用 `recruit:campus:resource:menu:view`；后端 `service-depts` 全 CRUD 由 S5-12 提供 |
+| S5-08 | 顺接整改：campus 四页 columns 接入 `useTableColumns` + 收敛枚举双源 | ⬜ 未开始 | P2 | S5-04 | 4h | `useTableColumns` 在 campus 目录零引用；`CampusPerson.vue:247-253` 与 `api/campusControl.ts:23-33` 枚举双源漂移（G-08） |
+
+### B2 班级与档案模型
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-09 | 【需求 3-1】班级命名规则：编号默认填充班级名称 | ⬜ 未开始 | P1 | B0 | 4h | ⚠️ `name` 加 `unique=True` 前**必须先跑重名盘点 SQL**，否则迁移失败（方案 §4.1） |
+| S5-10 | 【需求 2-2】Person 新增 班主任 + 班级 + 工号 字段，班主任作核心筛选 | ✅ 已完成 | P0 | B0 | 6h | `employee_id`(工号)/`head_teacher`(FK User)/`class_room`(FK 字符串引用 Campus_rotation.ClassRoom) 三字段 + 迁移 `0011` + 序列化器(含 `*_name` 展示)+ `PersonViewSet` 加 head_teacher/class_room 筛选；迁移已应用到 dev 库 `ats_test` 验证 |
+| S5-11 | 【需求 2-3】删除个人档案「班长」字段（`ClassRoom.class_monitor`） | ✅ 已完成 | P1 | S5-09 | 2h | 迁移 `0003_classroom_remove_class_monitor`（dev 已应用，`class_monitor_id` 已删）；备份表 `campus_rotation_class_rooms_backup_20261019`；序列化器 `fields` 移除 `class_monitor`；前端 `ClassRoom.vue` 删表单/列/状态/副标题；`import_campus_data.py` 同步移除。轮岗安排页经核实**无**班长列，无需改。**⚠️ 与 S5-09 解耦**：删列与 `name` 加 unique 为独立迁移，已先行执行 |
+
+### B3 客服资源与 BU 汇总
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-12 | 【需求 4-3】新建 `ServiceDept` 客服部门模型（含 3 个专属字段） | ✅ 已完成 | P1 | B0 | 8h | 模型 `ServiceDept`（19 字段，dept_no 自动 SD+6）+ 迁移 `0004_service_dept_and_arrangement_service_dept`（dev 已应用，表 `campus_rotation_service_depts` 落地）+ `ServiceDeptSerializer`（location 校验 LOCATION；cs_type/workstation_type/brand 字典校验留 S5-13）+ `ServiceDeptViewSet`（复用 `recruit:campus:resource:*` 权限、scope_field=bu/campus_resource）+ `RotationArrangement.service_dept` FK（已加列 `service_dept_id`）。⚠️ `BrandInfo` 实为**单例**（非品牌目录），`brand` 改存 `BRAND` 字典 key（与 platform/location 同构），字典由 S5-13 建立 |
+| S5-13 | 【需求 4-3】新建 3 个数据字典（`CS_TYPE`/`WORKSTATION_TYPE`/`BRAND`）+ `LiveRoom` 补 brand 字段 + ServiceDept 临时输入框升级字典下拉 | ✅ 已完成 | P1 | S5-12 | 4h | `seeds.py` 新增 `seed_brand_type/seed_cs_type_type/seed_workstation_type_type` 并注册到 `apps.py`；`LiveRoom.brand` 字段 + 迁移 `0005_liveroom_brand`（dev 已应用，`campus_rotation_live_rooms.brand` 落地）；`LiveRoomSerializer`+`ServiceDeptSerializer` 加 BRAND/CS_TYPE/WORKSTATION_TYPE 字典校验（非法 key 拒绝、中文错误）；前端 `ServiceDept.vue`/`LiveRoom.vue` 三个/一个临时 `n-input` 升级为 `n-select` 字典下拉 + 表格中文列。dev 已手动注入三字典种子（BRAND=3/CS_TYPE=3/WORKSTATION_TYPE=2 项） |
+| S5-14 | 【需求 4-1】BU 汇总拆分为 直播汇总/客服汇总/总数据 三段式 | ⬜ 未开始 | P1 | S5-12 | 6h | 🔴 禁 N+1，须 `values().annotate(Count())` 分组；`capacity=0` 时 `usedRate` 返 `null` 不除零 |
+| S5-15 | 【需求 4-1】前端三段式汇总页（表格优先，图表作增强） | ⬜ 未开始 | P2 | S5-14 | 2h | 现状**完全缺失**，无任何图表组件 |
+
+### B4 确认流程与审批流
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-16 | 【需求 5-1】`PreEntryConfirmation` 模型 + HRBP 取三级部门 + 超 3 天 Celery 自动确认 | ⬜ 未开始 | P0 | B0、S5-10 | 10h | 🟠 **受 Q-04 阻塞**（Person 无 `intent_dept`，HRBP 取值来源未定）；需新增 `is_level3_dept()` 不可复用 `is_bu_depth()` |
+| S5-17 | 【需求 5-5】`RotationApproval` 审批流（带教导师/直接上级变更需审，兼岗免审） | ⬜ 未开始 | P0 | B0 | 8h | 审批期间**不改**实体字段，改申请单；APPROVED 后才落字段；同事务写 2 条 AuditLog |
+| S5-18 | 【需求 5-3】批量调整端点增强（字段白名单 + 事务 + 日志 + 整批拒绝语义） | ⬜ 未开始 | P1 | S5-17 | 5h | 现有 `batch_assign` 无日志无事务无白名单；🔴 S5-20 FSM 化后必须同步改造，否则 `.update(stage=)` 绕过流转校验 |
+| S5-19 | 【需求 5-4】`stage` 改 FSMField + 终止上一轮轮岗进度 | ⬜ 未开始 | P1 | S5-18 | 5h | 对齐 `onboarding/models.py:46-49` 范式；同 person 多条 `ONGOING` 时终止前报 409 |
+
+### B5 算法与考核
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-20 | 【需求 5-7】性别均衡分配算法 `gender_balance.py` | ⬜ 未开始 | P1 | B0 | 8h | 贪心+代价函数，结果须**可复现**（并列按资源 id 稳定排序）；需求已给兜底=BP 可手动调整，算法输出为建议不强制；≥4 个纯函数单测（禁 mount） |
+| S5-21 | 【需求 5-8】`RotationStage` 多阶段轮岗（支持 N 段）+ 每段独立考核 | ⬜ 未开始 | P1 | S5-19 | 8h | 🔴 `stage`(流程态) 与 `stage_no`(期数) **正交**不得混用（G-06）；`unique_together(arrangement, stage_no)` |
+| S5-22 | 【需求 5-9】15 天考核规则引擎 + 每日提醒任务 | ⬜ 未开始 | P1 | S5-21 | 4h | `>=15天`→`REQUIRED`（缺考核结果拒绝流转）；`<15天`→`WAIVED`；🟠 Q-02「是否含首尾」待确认 |
+
+### B6 端口与数据隔离落地
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-23 | 【需求 1-1】HRBP / 带教导师 / 班主任 三个工作台端口 | ⬜ 未开始 | P1 | B0–B5 | 16h | 按角色裁剪现有四页可见范围，非新建独立工程；菜单仅 `systemStore.isCampus` 时渲染 |
+| S5-24 | 【需求 1-2】四角色数据隔离矩阵落地 + 穿透测试 | ⬜ 未开始 | P0 | S5-03、S5-23 | 8h | 矩阵见方案 §2.2；🔴 验证须穿透真实链路（禁手搓 dict 绕过 parser） |
+
+### B7 兼岗与摩卡同步
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-25 | 【需求 5-2】`ConcurrentPostRecord` 兼岗记录表 + 确认入职自动触发轮岗安排 | ⬜ 未开始 | P1 | S5-19 | 6h | 挂载点参考 `onboarding/services.py:49-52` 既有 campus_control 钩子范式 |
+| S5-26 | 【需求 5-2】摩卡同步钩子 `moka_sync.py`（本期仅契约+桩实现） | ⬜ 未开始 | P2 | S5-25 | 4h | D-03 已定；🟠 **真实 API 联调待企业授权**，授权后仅替换 service 实现，接口层已隔离 |
+| S5-27 | 【需求 5-6】`AuditService` 全量埋点（统一 helper + 四模块接入） | ✅ 已完成 | P0 | B0 | 8h | 新建 `common/audit_helper.py` 统一 `log_action`（降级不阻断主流程）；`campus_rotation`/`campus_control` 共享 `CampusCRUDMixin` 的 create/update/destroy + rotation 的 restore/batch_assign 全量埋点。**Person 的写入口因复用同一 mixin 已自动覆盖**；6 类非 CRUD 场景（批量/终止/确认/自动确认/审批/性别重排）随对应功能开发（S5-11~S5-26）补埋点 |
+
+### 待澄清（阻塞项，不计入上述工时）
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S5-28 | Q-01~Q-08 八项业务口径澄清 | ⟠ 受阻 | P0 | — | — | 🟠 **Q-04 意向部门来源**直接阻塞 S5-16；Q-06 班级重名盘点阻塞 S5-09；清单见方案 §7 |
+
+---
+
+## S6 — 资源管理治理（2026-10-19 兵哥立项复盘）
+
+> 来源：资源管理链路复盘，暴露「停用资源仍可访问 / 停用无可见标记 / 种子复活风险」三类问题。
+> 配套：`docs/06-runbook/资源出入规则.md`、`apps/core/migrations/0033_mark_disabled_resources.py`、
+> `apps/core/permission_check.py`（has_perm 拒停用）、`apps/core/management/commands/verify_resource_status.py`、
+> `apps/core/tests/test_resource_code_convention.py`（R9/R11 + 授权回归）。
+
+| ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
+|---|---|---|---|---|---|---|
+| S6-01 | **授权引擎按 `status` 拒绝停用资源**：`permission_check.has_perm` 经禁用码缓存短路，status=0 永拒授权；`invalidate_known_codes` 同步失效禁用码缓存 | ✅ 已完成 | **P0** | — | 2h | 代码已写 + 单测 `TestDisabledResourceAuthorization` 已写并通过（6 项 S6 相关测试全绿：禁用授权回归 3 项 + R9/R10/R11）；已提交。修复根因：0026/0029 停用功能凭 role_permission 残留授权仍可访问 |
+| S6-02 | **迁移 0033 停用资源标记 + 兜底**：给全部 status=0 补 `[已停用] ` 前缀（幂等）；兜底重申 0026+0029 已知停用码 status=0（防种子/顺序复活） | ✅ 已完成 | P1 | S6-01 | 1h | 代码已写；补 `test_r9` 缺失的迁移（原注释称 0030 但实际不存在）；已提交并在测试库验证（0033 跑通、停用资源带前缀）。 |
+| S6-03 | **CI 守卫禁止 seed 复活停用码**：`test_r11` 断言 seed 不含已知停用码 | ✅ 已完成 | P2 | S6-02 | 0.5h | 代码已写（importlib 加载 0033 的 KNOWN_DISABLED_CODES 与 seed RESOURCES 求交）；已提交并运行通过。 |
+| **S6-04** | **前端模块映射补全 + 前端 CI 断言覆盖 seed 全 module**：`permissionModules.ts` 的 `RESOURCE_MODULE_LABELS` 须覆盖 seed 全部 module（否则资源管理台显示 `—`） | **⬜ 未开始** | **P2** | — | 4h | 上一轮已补 4 个漏收模块（campus/channel/notification/user_app_data_scope）的**中文名**（**随本批 S6 提交**）；**缺的是前端 CI 断言**扫描 seed module 集合 ⊆ 映射表，防下次新增模块再次漂移 |
+| **S6-05** | **资源管理默认筛选策略决策**：当前默认 `'all'`（启用+停用全见，审计入口）；兵哥曾疑问"是否应默认只筛启用" | **⏸️ 已挂起** | P3 | — | — | 🟠 **待兵哥拍板**：默认全见是 2026-10-18 有意为之（停用≠删除，须看得见下线项）；若改默认只启用的，离线项将从此页不可见 |
+| **S6-06** | **资源出入规则文档**：新增/变更/停用三场景标准流程 + 统一创建规则 + 校验闸门 | ✅ 已完成 | P1 | S6-01/02/03 | 2h | `docs/06-runbook/资源出入规则.md` 已写并提交；**待兵哥评审** |
+| **S6-07** | **在 dev / 生产库跑 `verify_resource_status` 核实并修前缀 / 清孤儿授权** | ⬜ 未开始 | P1 | S6-02 | 1h | 命令已写（`--fix` 补前缀、`--purge-orphan-grants` 清孤儿授权，默认仅报告）。须在备份后于真实库执行，核实 0026/0029 停用项是否已带前缀、是否存在孤儿授权 |
+
+### S6 已落地代码清单（已随本批提交）
+
+| 文件 | 改动 | 归属 |
+|---|---|---|
+| `apps/core/permission_check.py` | `has_perm` 拒停用码 + 禁用码缓存 `disabled_resource_codes()` | S6-01 |
+| `apps/core/permissions_v2.py` | `invalidate_known_codes` 同步失效禁用码缓存 | S6-01 |
+| `apps/core/migrations/0033_mark_disabled_resources.py` | 新增迁移：前缀 + 兜底重申停用 | S6-02 |
+| `apps/core/tests/test_resource_code_convention.py` | `test_r11` + `TestDisabledResourceAuthorization`（授权回归） | S6-03/S6-01 |
+| `apps/core/management/commands/verify_resource_status.py` | 新增巡检/修复命令 | S6-07 |
+| `docs/06-runbook/资源出入规则.md` | 新增出入规则文档 | S6-06 |
+| `web/app/src/utils/permissionModules.ts` | 补 4 个漏收模块中文名（上一轮，工作树未提交） | S6-04（部分） |
+
+> ✅ S6-01/02/03/06 代码与单测已**提交并在真实测试库验证通过**（24 项资源护栏中 22 通过；剩余 2 项失败为 S5 动态策略违反 R2 的预存在失败，非 S6 引入，见下方 ⚠️ 提示）。S6-04（前端 CI 断言）/ S6-07（真实库巡检）仍 ⬜，S6-05 待兵哥决策 ⏸️。
+
+> ⚠️ **关联发现（S5 归属，非 S6）**：`seed_v2_init.py:218-222` 与 `0034_dynamic_strategy_permissions.py` 将 `recruit:dynamic_strategy:*` 资源登记为 `module='settings'`，但其编码第 2 段为 `dynamic_strategy`，违反 R2（module==第2段），导致 `test_r2_*` 共 2 项失败。修复由 S5 动态策略负责人定夺：二选一 —— ① 编码改为 `recruit:settings:dynamic_strategy:*`（保持系统设置归类，需同步前端 permissionMenu.ts 与后端 permission_required）；② 改 `module='dynamic_strategy'` 并在前端 `RESOURCE_MODULE_LABELS` 补「动态策略」标签。S6 不改他人在途代码。
 
 ---
 

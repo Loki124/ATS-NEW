@@ -163,13 +163,32 @@ class TestSeedResourceConvention:
     def test_r10_seed_has_no_disabled_names(self):
         """R10：seed 真源不应预置任何带 [已停用] 前缀的资源名。
 
-        seed 全部 status=1；停用码的前缀由 0030 迁移按库内 status=0 动态打，
+        seed 全部 status=1；停用码的前缀由 0033 迁移按库内 status=0 动态打，
         不来自 seed。若 seed 里出现 [已停用] 前缀，说明有人把迁移逻辑写进了 seed，
         会导致重跑 seed 时前缀叠加或状态错乱。
         """
         DISABLED_PREFIX = '[已停用] '
         bad = [c for c, n, *_ in _load_seed_resources() if n.startswith(DISABLED_PREFIX)]
         assert not bad, f'seed 资源名含停用前缀（规范 R10）：{bad}'
+
+    def test_r11_seed_has_no_disabled_codes(self):
+        """R11：seed 真源不得预置任何已知停用码（防种子复活）。
+
+        seed_v2_init 对 RESOURCES 内每条码无条件 `update_or_create(status=1)`。
+        一旦某停用码被误写回 seed，下次跑种子即被强制启用 —— 0026/0029 的停用被无声推翻。
+        本测试在源头拦截（seed 是新增资源的唯一真源）。
+        """
+        import importlib
+        m = importlib.import_module(
+            'apps.core.migrations.0033_mark_disabled_resources'
+        )
+        disabled = set(m.KNOWN_DISABLED_CODES)
+        seed_codes = {c for c, *_ in _load_seed_resources()}
+        resurrected = disabled & seed_codes
+        assert not resurrected, (
+            f'seed 含已停用码（重跑 seed 会被强制启用，推翻 0026/0029 停用）：'
+            f'{sorted(resurrected)}'
+        )
 
     def test_r8_frontend_one_code_one_entry(self):
         """R8：前端菜单映射「一资源码 = 一独立入口」，禁止多路径共享同一码。
@@ -353,7 +372,7 @@ class TestDbResourceConvention:
         """R9：所有停用（status=0）资源必须带 [已停用] 前缀。
 
         背景：资源表无「是否停用」的独立展示标记，前端/管理员只能从名称辨识。
-        0030 迁移按库内 status=0 动态给资源名加 [已停用] 前缀（幂等）。
+        0033 迁移按库内 status=0 动态给资源名加 [已停用] 前缀（幂等）。
         若某停用资源漏加前缀，管理员在权限配置界面无法区分「在用 / 停用」，
         可能误授已停用的功能。本测试锁死该结论。
         """
@@ -373,3 +392,69 @@ def test_convention_doc_exists():
     doc = Path(settings.BASE_DIR).parent.parent / 'docs' / 'DESIGN_资源编码规范.md'
     assert doc.exists(), f'规范文档缺失：{doc}'
     assert '受控词表' in doc.read_text(encoding='utf-8')
+
+
+@pytest.mark.django_db
+class TestDisabledResourceAuthorization:
+    """停用资源必须拒绝授权（即使 role_permission 残留授权行）。
+
+    回归点：0026/0029 停用了若干功能（旧内外部用户列表 / Offer 两级审批 / 字段权限收敛后的
+    孤儿码等），但 role_permission 里仍残存这些码的授权行。修复前 has_perm 不查 status →
+    停用功能凭残留授权仍可访问（既违反「下线即失效」，也构成「误导性遗留状态」）。
+    本测试锁死「status=0 永拒授权」，且不影响未注册码（action 派生回退码）的既有判定。
+    """
+
+    def _make_user(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        return User.objects.create(
+            username='perm_disable_test', is_superuser=False, is_staff=False,
+        )
+
+    def _grant(self, user, code, status, role_code='TEST_ROLE_X'):
+        from apps.core.models_permission_v2 import (
+            PermissionResource, RolePermissionV2, UserRoleV2,
+        )
+        PermissionResource.objects.create(
+            system_code='recruit', resource_code=code,
+            resource_name='测试资源', resource_type='BUTTON',
+            module='settings', status=status,
+        )
+        RolePermissionV2.objects.create(
+            role_code=role_code, resource_code=code, system_code='recruit',
+        )
+        UserRoleV2.objects.create(
+            user=user, role_code=role_code, system_code='recruit',
+        )
+
+    def test_disabled_resource_rejected_even_with_grant(self):
+        from apps.core.permission_check import (
+            has_perm, invalidate_disabled_codes,
+        )
+        user = self._make_user()
+        self._grant(user, 'recruit:settings:perm_disable_test:disabled', status=0)
+        invalidate_disabled_codes()  # 确保禁用码缓存含新建的停用资源
+        assert has_perm(
+            user, 'recruit:settings:perm_disable_test:disabled'
+        ) is False
+
+    def test_enabled_resource_granted_ok(self):
+        from apps.core.permission_check import (
+            has_perm, invalidate_disabled_codes,
+        )
+        user = self._make_user()
+        self._grant(user, 'recruit:settings:perm_disable_test:enabled', status=1)
+        invalidate_disabled_codes()
+        assert has_perm(
+            user, 'recruit:settings:perm_disable_test:enabled'
+        ) is True
+
+    def test_unknown_code_not_blocked_by_disabled_check(self):
+        """未注册码（如 action 派生回退码）不受禁用检查拦截，交由既有逻辑判定。"""
+        from apps.core.permission_check import (
+            has_perm, invalidate_disabled_codes,
+        )
+        user = self._make_user()
+        invalidate_disabled_codes()
+        # 该码不在资源表，也不在禁用集；无授权行 → 返回 False（因无角色授权，非因禁用）
+        assert has_perm(user, 'recruit:settings:not_a_real_code:view') is False

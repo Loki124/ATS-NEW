@@ -56,6 +56,9 @@ def known_resource_codes() -> set:
 def invalidate_known_codes():
     """seed / PermissionResource 变更后调用, 让缓存立即失效."""
     cache.delete(_KNOWN_CODES_CACHE_KEY)
+    # 禁用码缓存一并失效：停用/启用资源后, 授权引擎需立即感知新状态
+    from .permission_check import invalidate_disabled_codes
+    invalidate_disabled_codes()
 
 
 class V2Permission(BasePermission):

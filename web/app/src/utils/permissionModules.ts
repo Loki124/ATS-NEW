@@ -7,8 +7,9 @@
  *   故抽到此处共享，角色编辑弹窗与资源管理列表共用同一份定义。
  *
  * 取值与后端 seed 一一对应：apps/core/management/commands/seed_v2_init.py
- *   的资源四元组 (code, 中文名, type, module)，module 列共 15 个取值。
- *   新增模块时需同步 seed 与本表。
+ *   的资源四元组 (code, 中文名, type, module)。seed 当前共 18 个 module 取值，
+ *   本表须与之**全量对齐**；新增模块时必须同步 seed 与本表，否则该模块下资源
+ *   在「资源管理」页会被渲染成「—」（误判为「没有模块」）。
  *
  * 注：暂为中文硬编码（沿用 RoleEditModal 既有做法）。若后续要支持多语言展示，
  *   应迁至 locales 语言包按模块 code 做 key，此处退化为默认值兜底。
@@ -33,6 +34,12 @@ export const RESOURCE_MODULE_LABELS: Record<string, string> = {
   role: '身份管理',
   user_role: '用户授权',
   settings: '系统设置',
+  // ↓ 2026-10-19 补齐：下列 4 个模块此前漏收进前端映射表，导致对应资源在
+  //   ResourcesTab 模块列显示「—」（误判为无模块）。真值均来自 seed 资源名。
+  channel: '渠道管理',
+  notification: '通知中心',
+  user_app_data_scope: '应用数据范围',
+  campus: '校园招聘',
 }
 
 /** 未归类资源的占位 module 值（沿用 RoleEditModal 的约定） */
