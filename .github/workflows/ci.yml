@@ -184,11 +184,12 @@ jobs:
     # 见 docs/04-ui/UI_DOC_AUDIT_2026-10-18.md
     #
     # 纯 Node 脚本无外部依赖, 故无需 npm ci, 直接跑。
-    # ⚠️ 存量文档尚有真实问题待清 (迁移步骤 ②~⑥), 故先 allow-failure 观察,
-    #    待存量清零后再把 continue-on-error 摘掉转为强制阻断。
+    # ✅ 2026-10-19 存量已清零并转为**强制阻断**（此前 continue-on-error 观察期结束）。
+    #    清零过程: 修 scripts/token-doc-audit.mjs 两处解析盲区（通配 `--g*` 被截成
+    #    `--g` 误报悬空、行内连列 `/` 分隔符残留导致虚假漂移），并把 UI_DESIGN_SPEC
+    #    §2.7 / §3 的「复制数值」改为只引用令牌名。
     name: Token Doc Consistency Gate
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 

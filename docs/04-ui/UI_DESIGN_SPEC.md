@@ -147,14 +147,14 @@ onboarding 流程曾引用 `--g1…--g7` 但全仓未定义，导致边框/底�
 `--aurora-base` + `--aurora-1/2/3`（靛/紫/青径向光斑），暗色转深空。由 `.app-aurora` / `.settings-aurora` / `.cc-aurora` 承载，`aria-hidden`。
 
 ### 2.7 z-index 比例尺
-`--z-sidebar:10 / --z-header:20 / --z-dropdown:1000 / --z-drawer:1100 / --z-modal:1200 / --z-toast:1300`
+层级令牌：`--z-sidebar` / `--z-header` / `--z-dropdown` / `--z-drawer` / `--z-modal` / `--z-toast`（数值与顺序见 `tokens.css §7`，此处不复制）。新增浮层时 MUST 取现有档位，禁自造层级数值。
 
 ---
 
 ## 3. 排版（Typography）
 
-- 字体：`--font-sans: "PingFang SC","Microsoft YaHei",-apple-system,…`；等宽 `--font-mono`。
-- 字号刻度（已定义）：`--text-display 40 / h1 32 / h2 24 / h3 20 / h4 18 / body 15 / small 13 / meta 12`。
+- 字体：正文与 UI 用 `--font-sans`，等宽（代码 / 数字列）用 `--font-mono`。字体族栈与回退顺序见 `tokens.css §9`，此处不复制。
+- 字号刻度：七档 `--text-display` / `--text-h1` / `--text-h2` / `--text-h3` / `--text-h4` / `--text-body` / `--text-small` / `--text-meta`（数值见 `tokens.css §7`）。引用前 MUST 读文件确认，禁凭记忆写 px。
 - 行高：标题 1.2–1.4，正文 1.6。
 - **数字对齐**：统计值用 `font-variant-numeric: tabular-nums`（参考 `StatCard.vue:124`）。
 - 页面主标题统一类 `.page-title`（26px / 700 / 渐变），**全站唯一规格**（修订审查 2.6，删除 `ThemeSettings` 32px 覆盖）。

@@ -74,7 +74,7 @@ function parseDefinitions(files) {
  * 表示一族令牌或留空后缀, 不是具体引用。同理 `--c-*-deep` / `--g1…--g7` 通配。
  * 非 --strict 模式放行, 让审计聚焦真问题。
  */
-const PREFIX_PLACEHOLDER = /^--[a-zA-Z0-9-]*-$|^---+$|^--$/
+const PREFIX_PLACEHOLDER = /^--[a-zA-Z0-9-]*-$|^---+$|^--$|^--[a-zA-Z][a-zA-Z0-9-]*\*$/
 
 /**
  * 命令行 flag / 构建参数等非令牌场景。
@@ -128,7 +128,10 @@ function auditDoc(file, defs) {
 
   lines.forEach((line, i) => {
     const lineno = i + 1
-    const re = /`?(--[a-zA-Z][a-zA-Z0-9-]*)`?/g
+    // 捕获令牌名。末尾 `*` 一并纳入, 使 `--g*` 这类**通配写法**进入
+    // PREFIX_PLACEHOLDER 白名单而非被截成 `--g` 误报悬空。
+    // ⚠️ 只放宽 `*`(CSS 唯一合法通配符), 勿纳入 `?`/`+` 等正则元字符。
+    const re = /`?(--[a-zA-Z][a-zA-Z0-9-]*\*?)`?/g
     let m
     while ((m = re.exec(line))) {
       const name = m[1]
@@ -163,8 +166,25 @@ function auditDoc(file, defs) {
       const kv = line.match(kvRe)
       if (kv) {
         // 值只取首段: 截到 markdown/正文分隔符 (反引号 / 粗体 / 全角分号 / 句号)
-        const claimed = kv[1]
-          .split(/[`*_]|[；。，、]/)[0]
+        // 另截「行内连列分隔符」`/` `|`: 文档常写 `--z-sidebar:10 / --z-header:20`,
+        // kvRe 在下个 `--令牌` 前已截断, 故残留尾斜杠, claimed 变 "10 /" 与真源 "10"
+        // 比对失败 → 虚假漂移。
+        const trimClaim = (s) => {
+          const raw = s.split(/[`*_]|[；。，、]/)[0]
+          // 括号内不截 `|`, 逐字符扫描到首个深度归零的顶层分隔符为止。
+          let depth = 0
+          for (let i = 0; i < raw.length; i++) {
+            const c = raw[i]
+            if (c === '(' || c === '[') depth++
+            else if (c === ')' || c === ']') depth--
+            else if (depth === 0 && (c === '/' || c === '|') &&
+                     (raw[i + 1] === undefined || /\s/.test(raw[i + 1]) || raw[i - 1] === ' ')) {
+              return raw.slice(0, i)
+            }
+          }
+          return raw
+        }
+        const claimed = trimClaim(kv[1])
           .trim()
           .replace(/\s+/g, ' ')
           .trim()

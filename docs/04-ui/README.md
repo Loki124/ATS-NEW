@@ -16,6 +16,24 @@
 
 > 🔴 **令牌铁律**：数值只允许出现在 L0（`tokens.css`）。任何文档 MUST 只引用令牌名 + 用途，**MUST NOT 复制数值**；与 L0 冲突一律以 `tokens.css` 为准。复制数值会随代码演进漂移 → AI 照文档写的 CSS 变量不存在 → 静默失效（已发生，见 `UI_DOC_AUDIT_2026-10-18.md`）。门禁 `npm run tokens:audit` 防回归。
 
+## 按场景决策（做什么 → 读哪份 → 怎么验证）
+
+> 不知道该读哪份时，**先查这张表**，不要通读全目录。
+
+| 我要做的事 | 必读 | 验证方式 |
+|---|---|---|
+| 写任何样式 / 用设计令牌 | L0 `tokens.css` → L1 `AGENTS.md §1` | `npm run tokens:audit`；令牌名先读文件确认存在 |
+| 定颜色 / 品牌色 / 暗色 | L2 `UI_DESIGN_SPEC.md §2` | 派生色由 `brand-tokens.mjs` 生成，禁手写 |
+| 排版 / 字号 / 行高 / 字体 | L2 `UI_DESIGN_SPEC.md §3` | 字号走 `--text-*`，禁写死 px |
+| 新建或改页面布局、栅格、断点 | L3 `frontend-layout-standard.md` | 页面安全边距走 `--page-pad-*`，禁 scoped 覆盖 |
+| 改设置页 | L3 `SETTINGS_PAGE_STRUCTURE.md` | 含 Shell/工具条/表格/弹窗统一结构 |
+| 做弹窗 / 抽屉 / 遮罩 | L3 layout §弹窗 + L4 `MODAL_DIVIDER_CONVENTION.md` | 内边距走 `--modal-pad-*`；禁清零全局内边距 |
+| 做表格 / 分页 | L4 `USE_TABLE_PAGINATION.md` + L2 `§5.5` | 列对齐走 `useTableColumns.ts` |
+| 做下拉 / Select / Popover | L2 `§5.8` + L4 `DROPDOWN_POPOVER_SPEC.md` | — |
+| 写交互行为 / 状态 / 无障碍 | L1 `AGENTS.md §2–§3` | 交互组件须覆盖 default/hover/active/focus/loading/disabled |
+| 踩 naive-ui 坑 / 组件联动异常 | L4 `NAIVE_UI_PITFALLS.md` | — |
+| 改依赖 / 构建 / 目录命名 | `README.md` 下方「技术栈与依赖管理」 | `npm run build` 查 `vendor-misc` 体积 |
+
 ## 文档清单
 
 | 文档 | 层级 | 用途 | 阅读顺序 |
