@@ -32,8 +32,8 @@
 | S3 测试与质量 | 3 | 0 | 0 | 1 | 0 |
 | S4 运维与安全 | 2 | 0 | 0 | 0 | 0 |
 | S5 校招生管理（2026-10-19 新增） | 15 | 0 | 1 | 12 | 0 |
-| **S6 资源管理治理（2026-10-19 新增）** | **2** | **0** | **0** | **4** | **1** |
-| **合计** | **27** | **0** | **1** | **74** | **1** |
+| **S6 资源管理治理（2026-10-19 新增）** | **2** | **0** | **0** | **5** | **0** |
+| **合计** | **27** | **0** | **1** | **75** | **0** |
 
 **完成率**：74 / 103 ≈ **71.8%**
 
@@ -214,7 +214,7 @@
 | S6-02 | **迁移 0033 停用资源标记 + 兜底**：给全部 status=0 补 `[已停用] ` 前缀（幂等）；兜底重申 0026+0029 已知停用码 status=0（防种子/顺序复活） | ✅ 已完成 | P1 | S6-01 | 1h | 代码已写；补 `test_r9` 缺失的迁移（原注释称 0030 但实际不存在）；已提交并在测试库验证（0033 跑通、停用资源带前缀）。 |
 | S6-03 | **CI 守卫禁止 seed 复活停用码**：`test_r11` 断言 seed 不含已知停用码 | ✅ 已完成 | P2 | S6-02 | 0.5h | 代码已写（importlib 加载 0033 的 KNOWN_DISABLED_CODES 与 seed RESOURCES 求交）；已提交并运行通过。 |
 | **S6-04** | **前端模块映射补全 + 前端 CI 断言覆盖 seed 全 module**：`permissionModules.ts` 的 `RESOURCE_MODULE_LABELS` 须覆盖 seed 全部 module（否则资源管理台显示 `—`） | **⬜ 未开始** | **P2** | — | 4h | 上一轮已补 4 个漏收模块（campus/channel/notification/user_app_data_scope）的**中文名**（**随本批 S6 提交**）；**缺的是前端 CI 断言**扫描 seed module 集合 ⊆ 映射表，防下次新增模块再次漂移 |
-| **S6-05** | **资源管理默认筛选策略决策**：当前默认 `'all'`（启用+停用全见，审计入口）；兵哥曾疑问"是否应默认只筛启用" | **⏸️ 已挂起** | P3 | — | — | 🟠 **待兵哥拍板**：默认全见是 2026-10-18 有意为之（停用≠删除，须看得见下线项）；若改默认只启用的，离线项将从此页不可见 |
+| **S6-05** | **资源管理默认筛选策略**：前端 `ResourcesTab.vue` 状态筛选默认改为「启用」(status=1)；保留「全部」手动选项供审计已下线功能 | ✅ 已完成 | P3 | — | 0.5h | 兵哥 2026-10-19 拍板：默认只筛启用，与权限配置等消费方口径一致；离线项不再默认铺满页面，但仍可在下拉手动选「全部」拉回含停用项的全集。后端 `PermissionResourceViewSet` 缺省本就只返启用，前后端现已对齐。已改 `web/app/src/pages/settings/permission/ResourcesTab.vue`（默认值 'all'→'1' + 下拉项重排 + 注释更新），待提交 |
 | **S6-06** | **资源出入规则文档**：新增/变更/停用三场景标准流程 + 统一创建规则 + 校验闸门 | ✅ 已完成 | P1 | S6-01/02/03 | 2h | `docs/06-runbook/资源出入规则.md` 已写并提交；**待兵哥评审** |
 | **S6-07** | **在 dev / 生产库跑 `verify_resource_status` 核实并修前缀 / 清孤儿授权** | ⬜ 未开始 | P1 | S6-02 | 1h | 命令已写（`--fix` 补前缀、`--purge-orphan-grants` 清孤儿授权，默认仅报告）。须在备份后于真实库执行，核实 0026/0029 停用项是否已带前缀、是否存在孤儿授权 |
 
@@ -229,10 +229,11 @@
 | `apps/core/management/commands/verify_resource_status.py` | 新增巡检/修复命令 | S6-07 |
 | `docs/06-runbook/资源出入规则.md` | 新增出入规则文档 | S6-06 |
 | `web/app/src/utils/permissionModules.ts` | 补 4 个漏收模块中文名（上一轮，工作树未提交） | S6-04（部分） |
+| `web/app/src/pages/settings/permission/ResourcesTab.vue` | 状态筛选默认值 'all'→'1'（默认只筛启用）+ 下拉项重排 + 注释更新 | S6-05 |
 
-> ✅ S6-01/02/03/06 代码与单测已**提交并在真实测试库验证通过**（24 项资源护栏中 22 通过；剩余 2 项失败为 S5 动态策略违反 R2 的预存在失败，非 S6 引入，见下方 ⚠️ 提示）。S6-04（前端 CI 断言）/ S6-07（真实库巡检）仍 ⬜，S6-05 待兵哥决策 ⏸️。
+> ✅ S6-01/02/03/05/06 代码与单测已**提交并在真实测试库验证通过**或已落地（S6-05 默认筛选启用已改前端并待提交）。S6-04（前端 CI 断言）/ S6-07（真实库巡检）仍 ⬜。说明：此前 24 项护栏中 2 项 R2 失败（动态策略资源码）已由兵哥提交 `841838eb` 重编码为 `recruit:settings:dynamic_strategy:*` 修复，复跑 `test_r2` 已 2 通过，全部资源护栏绿灯。
 
-> ⚠️ **关联发现（S5 归属，非 S6）**：`seed_v2_init.py:218-222` 与 `0034_dynamic_strategy_permissions.py` 将 `recruit:dynamic_strategy:*` 资源登记为 `module='settings'`，但其编码第 2 段为 `dynamic_strategy`，违反 R2（module==第2段），导致 `test_r2_*` 共 2 项失败。修复由 S5 动态策略负责人定夺：二选一 —— ① 编码改为 `recruit:settings:dynamic_strategy:*`（保持系统设置归类，需同步前端 permissionMenu.ts 与后端 permission_required）；② 改 `module='dynamic_strategy'` 并在前端 `RESOURCE_MODULE_LABELS` 补「动态策略」标签。S6 不改他人在途代码。
+> ✅ **关联发现已闭环（S5 归属，非 S6）**：原 `recruit:dynamic_strategy:*` 资源码第 2 段与 `module='settings'` 不符、违反 R2，导致 `test_r2_*` 2 项失败。兵哥已于 `841838eb` 将其重编码为 `recruit:settings:dynamic_strategy:*`（同步 seed / 0034 迁移 / `views_dynamic_strategy.py` 守卫 / scope 测试），复跑 `test_r2` 全绿。后端 `views_permission_v2.PermissionResourceViewSet` 缺省仅返启用（status=1），与 S6-05 前端默认启用口径一致。
 
 ---
 

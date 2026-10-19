@@ -113,18 +113,19 @@ const moduleFilter = ref<string | null>(null)
 const subModuleFilter = ref<string | null>(null)
 const resourceTypeFilter = ref<ResourceType | null>(null)
 /**
- * 状态筛选：**默认 'all'**（启用 + 停用全见）。
- * 资源管理台是审计入口 —— 停用 ≠ 删除，必须看得见「哪些功能已经下线」，
- * 否则库里标了停用、页面上却查不到，状态字段形同虚设。
- * （后端缺省仍只返启用，权限配置页不受影响。）
+ * 状态筛选：**默认 '1'（启用）**。
+ * 2026-10-19 兵哥调整：资源管理台默认只展示启用资源，与权限配置等消费方口径一致，
+ * 避免一进页面满屏已下线（停用）功能造成干扰；如需审计已下线功能，
+ * 仍可在下拉手动选「全部」拉出停用项（停用 ≠ 物理删除，必须可查可追溯）。
+ * （后端缺省亦只返启用，本默认值与之对齐。）
  */
-const statusFilter = ref<'all' | '1' | '0'>('all')
+const statusFilter = ref<'all' | '1' | '0'>('1')
 const data = ref<PermissionResource[]>([])
 const loadError = ref('')
 
 /**
  * 子模块索引（模块 → 子模块 → 中文名），由全量资源推导。
- * settings 下有 32 个二级/三级分栏（如 account / announcements / campus-control），
+ * settings 下有 32 个二级/三级分栏（如 account / announcements / metrics），
  * 它们的 module 值都是 settings，只看「模块」列无法区分归属。
  */
 const subModuleIndex = computed<SubModuleIndex>(() => buildSubModuleIndex(data.value))
@@ -267,9 +268,9 @@ function statusLabel(v: number): string {
 }
 
 const statusOptions = computed(() => [
-  { label: t('pages.settings.permission.ResourcesTab.s25'), value: 'all' },
-  { label: t('pages.settings.permission.ResourcesTab.s26'), value: '1' },
-  { label: t('pages.settings.permission.ResourcesTab.s27'), value: '0' },
+  { label: t('pages.settings.permission.ResourcesTab.s26'), value: '1' },   // 启用（默认）
+  { label: t('pages.settings.permission.ResourcesTab.s27'), value: '0' },   // 停用
+  { label: t('pages.settings.permission.ResourcesTab.s25'), value: 'all' }, // 全部（审计用）
 ])
 
 const columns = [
@@ -337,8 +338,8 @@ function onStatusChange() {
  * 拉取全量资源（fetchAllResources 自动跟随服务端分页翻页），
  * 前端再做筛选 + 分页切片。失败时保留上一次成功数据并给出就地重试入口。
  *
- * 🔴 必须带 status=statusFilter.value（默认 'all'）：资源管理台要连停用项一起审；
- *    不传则后端按缺省只返启用，停用资源在这一页就永远看不见。
+ * 🔴 带 status=statusFilter.value（默认 '1' 启用）：与后端缺省口径一致；
+ *    需要审计停用项时手动切到「全部」即可拉回含停用的全集。
  */
 async function load() {
   loading.value = true
