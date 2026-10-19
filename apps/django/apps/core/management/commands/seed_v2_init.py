@@ -214,6 +214,12 @@ RESOURCES = [
     ('recruit:settings:campus_session:list', '宣讲会列表', 'BUTTON', 'settings'),
     ('recruit:settings:campus_session:edit', '编辑宣讲会', 'BUTTON', 'settings'),
     ('recruit:settings:campus_session:delete', '删除宣讲会', 'BUTTON', 'settings'),
+    # 动态策略（权限管理 → 身份管理后，从角色「操作权限」抽离出的可复用策略实体, 2026-10-20）
+    ('recruit:dynamic_strategy:menu:view', '动态策略菜单', 'MENU', 'settings'),
+    ('recruit:dynamic_strategy:list', '动态策略列表', 'BUTTON', 'settings'),
+    ('recruit:dynamic_strategy:create', '创建动态策略', 'BUTTON', 'settings'),
+    ('recruit:dynamic_strategy:edit', '编辑动态策略', 'BUTTON', 'settings'),
+    ('recruit:dynamic_strategy:delete', '删除动态策略', 'BUTTON', 'settings'),
     # 数据字典 (management)
     ('recruit:settings:dictionary:menu:view', '数据字典菜单', 'MENU', 'settings'),
     ('recruit:settings:dictionary:create', '新增字典项', 'BUTTON', 'settings'),

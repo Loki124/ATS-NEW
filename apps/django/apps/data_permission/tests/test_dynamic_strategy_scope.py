@@ -130,3 +130,31 @@ class DynamicStrategyScopeTest(TestCase):
             {'candidate': {'mode': 'all', 'actions': [], 'groups': [], 'expr': ''}})
         # 不指派给当前用户
         self.assertIsNone(strategy_write_scope(self.user, 'candidate'))
+
+    # ------------------------------------------------------------------
+    # 4. 迁移 0034 授予 ADMIN 角色的动态策略资源码
+    # ------------------------------------------------------------------
+    def test_migration_0034_grants_admin_dynamic_strategy_codes(self):
+        """迁移 0034 给 ADMIN 角色写入 5 条 recruit:dynamic_strategy:* 授权行,
+        ADMIN 用户经 /me 应能在 permissions 中看到这些码 (验证资源码缺失修复端到端生效)."""
+        # 测试库由迁移构建, 不一定含 RoleV2 行; 角色码为纯字符串, 建一条以贴近真实.
+        RoleV2.objects.get_or_create(
+            system_code='recruit', role_code='ADMIN',
+            defaults={'role_name': '管理员', 'status': 1})
+        admin_user = User.objects.create(username='ds_admin_user', department=self.dept)
+        UserRoleV2.objects.create(
+            user_id=admin_user.pk, role_code='ADMIN', system_code='recruit')
+
+        client = APIClient()
+        client.force_authenticate(user=admin_user)
+        resp = client.get('/api/v1/auth/me/')
+        self.assertEqual(resp.status_code, 200)
+        perms = resp.data['data']['permissions']
+        for code in (
+            'recruit:dynamic_strategy:menu:view',
+            'recruit:dynamic_strategy:list',
+            'recruit:dynamic_strategy:create',
+            'recruit:dynamic_strategy:edit',
+            'recruit:dynamic_strategy:delete',
+        ):
+            self.assertIn(code, perms)
