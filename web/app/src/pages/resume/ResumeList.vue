@@ -272,7 +272,7 @@ const subStatus = ref('')
 const loading = ref(false)
 const resumeList = ref<any[]>([])
 const currentPage = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(50)
 const total = ref(0)
 
 // 详情抽屉

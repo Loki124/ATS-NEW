@@ -219,7 +219,7 @@ const list = ref<DynamicStrategy[]>([])
 const loading = ref(false)
 const searchKeyword = ref('')
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(50)
 const itemCount = ref(0)
 
 const pagination = remotePagination({

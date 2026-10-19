@@ -186,14 +186,14 @@ const rulesLoading = ref(false)
 
 const recordsPagination = computed(() => ({
   page: recordsPage.value,
-  pageSize: 20,
+  pageSize: 50,
   itemCount: recordsTotal.value,
   showTotal: (t: number) => `共 ${t} 条`,
 }))
 
 const rewardsPagination = computed(() => ({
   page: rewardsPage.value,
-  pageSize: 20,
+  pageSize: 50,
   itemCount: rewardsTotal.value,
   showTotal: (t: number) => `共 ${t} 条`,
 }))

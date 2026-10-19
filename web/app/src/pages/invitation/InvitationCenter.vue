@@ -128,7 +128,7 @@ const loading = ref(false)
 const dataSource = ref<Invitation[]>([])
 const claimPool = ref<Invitation[]>([])
 const filterStatus = ref<string | null>(null)
-const pagination = ref({ page: 1, pageSize: 20, itemCount: 0, pageCount: 0 })
+const pagination = ref({ page: 1, pageSize: 50, itemCount: 0, pageCount: 0 })
 
 const statusOptions = Object.entries(INVITATION_STATUS_LABEL).map(([value, label]) => ({ value, label }))
 

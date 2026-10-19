@@ -167,7 +167,7 @@ const searchText = ref('')
 const typeFilter = ref<'system' | 'custom' | null>(null)
 const statusFilter = ref<'on' | 'off' | null>(null)
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(50)
 const total = ref(0)
 
 // ============= 数据 =============

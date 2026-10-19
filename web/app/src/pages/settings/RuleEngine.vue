@@ -192,7 +192,7 @@ const detail = ref<UnifiedRule | null>(null)
 
 const pagination = ref<PaginationProps>({
   page: 1,
-  pageSize: 20,
+  pageSize: 50,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
   onChange: (p: number) => { pagination.value.page = p },

@@ -491,7 +491,7 @@ const request = async (url: string, options: RequestInit = {}) => {
   }
 };
 
-// 加载用户列表：后端为服务端分页（默认 page_size=20、上限 200、响应带 pagination.total）。
+// 加载用户列表：后端为服务端分页（默认 page_size=50、上限 200、响应带 pagination.total）。
 // 本页需要「展示全部用户」+ 客户端搜索/筛选，故循环翻页把所有用户一次性拉全，存入 users。
 // 需求5：直属上级（direct_manager）/ 身份（role，多值并集）走服务端过滤，挂到查询串上。
 const loadUsers = async () => {

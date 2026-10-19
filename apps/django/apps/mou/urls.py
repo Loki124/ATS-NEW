@@ -45,7 +45,7 @@ def audit_logs_stub(request):
     return Response({
         'success': True,
         'data': [],
-        'pagination': {'page': 1, 'pageSize': 20, 'total': 0, 'totalPages': 1, 'hasNext': False, 'hasPrevious': False}
+        'pagination': {'page': 1, 'pageSize': 50, 'total': 0, 'totalPages': 1, 'hasNext': False, 'hasPrevious': False}
     })
 
 

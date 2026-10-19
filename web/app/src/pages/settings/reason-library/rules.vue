@@ -140,7 +140,7 @@ const message = useMessage()
 const searchText = ref('')
 const statusFilter = ref<'on' | 'off' | null>(null)
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(50)
 const totalCount = ref(0)
 
 const rows = ref<SceneRuleListItem[]>([])

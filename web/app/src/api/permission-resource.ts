@@ -3,7 +3,7 @@
  *
  * 后端端点: GET /api/v1/permissions/resources/  （ReadOnlyModelViewSet，仅只读）
  * 响应格式: { success, data, pagination? } —— ⚠️ 后端 per P1 audit (a0de2af3) 已恢复
- * 服务端分页 (StandardResultsSetPagination: page_size=20, page_size_query_param=
+ * 服务端分页 (StandardResultsSetPagination: page_size=50, page_size_query_param=
  * 'page_size', max_page_size=200, page_query_param='page')，list 单次请求只返回一页，
  * 分页信息在响应体的 pagination 字段（total / hasNext 等，出参为 camelCase）。
  *

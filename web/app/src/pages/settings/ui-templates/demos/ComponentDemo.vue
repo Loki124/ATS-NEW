@@ -155,7 +155,7 @@ function onRemotePage(p: number) {
 const paginationRules = [
   { name: 'localPagination(pageSize?)', desc: '客户端分页：一口气取全量，n-data-table / n-pagination 自行切片。必须用非受控的 defaultPage / defaultPageSize' },
   { name: 'remotePagination({ page, itemCount, ... })', desc: '服务端分页：page 与 itemCount 由调用方以 Ref 维护；⚠️ naive 远程分页用 itemCount（非 total）表达总数' },
-  { name: 'TABLE_PAGE_SIZE = 20', desc: '统一默认每页条数，全站唯一；禁页面自定义' },
+  { name: 'TABLE_PAGE_SIZE = 50', desc: '统一默认每页条数，全站唯一；禁页面自定义' },
   { name: 'TABLE_PAGE_SIZE_OPTIONS', desc: '统一每页条数可选项 [10, 20, 50, 100]；禁页面私加档位' },
   { name: '禁手写约定', desc: '页面内不得出现 { pageSize: N } 字面量、自造 prefix、或直接给 n-data-table 传 pagination 对象' },
 ]

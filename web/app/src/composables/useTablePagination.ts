@@ -4,13 +4,13 @@
  * 设计意图（2026-09-16 兵哥指令「表格分页统一组件」）：
  * 此前各页散落 inline `{ pageSize: 30 }` / `{ pageSize: 15 }` / 远程 computed
  * 写法不一、每页自定页面大小，违反 UI 一致性。本 composable 提供唯一来源：
- *   - TABLE_PAGE_SIZE        统一默认每页条数（20）
+ *   - TABLE_PAGE_SIZE        统一默认每页条数（50）
  *   - TABLE_PAGE_SIZE_OPTIONS 统一 pageSize 可选项 [10, 20, 50, 100]
  *   - localPagination()      客户端分页（一次性取全量，n-data-table 自行切片）
  *   - remotePagination()     服务端分页（page / itemCount 由调用方响应式维护）
  *
  * 统一外观（与 docs/04-ui/SETTINGS_PAGE_STRUCTURE.md §4.x 截图规范一致）：
- *   共 N 条  |  < 1 2 >  |  [20 / 页 ▾]  |  跳至 [__]
+ *   共 N 条  |  < 1 2 >  |  [50 / 页 ▾]  |  跳至 [__]
  *   - showSizePicker: true  + pageSizes（切换每页条数）
  *   - showQuickJumper: true（跳至第 N 页）
  *   - prefix 渲染「共 N 条」
@@ -21,7 +21,7 @@
 import { computed, ref, type Ref } from 'vue';
 
 /** 统一默认每页条数 */
-export const TABLE_PAGE_SIZE = 20;
+export const TABLE_PAGE_SIZE = 50;
 
 /** 统一 pageSize 可选项 */
 export const TABLE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];

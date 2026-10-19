@@ -165,7 +165,7 @@ export function useMetricsWorkspace() {
   const definitions = ref<MetricDefinition[]>([])
   const templateList = ref<MetricTemplate[]>([])
   const tplPage = ref(1)
-  const tplPageSize = ref(20)
+  const tplPageSize = ref(50)
   const atomicList = ref<AtomicMetric[]>([])
   const derivedList = ref<DerivedMetric[]>([])
   const operatorCatalog = ref<OptionItem[]>([])
@@ -244,7 +244,7 @@ export function useMetricsWorkspace() {
   }
 
   const defPage = ref(1)
-  const defPageSize = ref(20)
+  const defPageSize = ref(50)
 
   const pagedDefinitions = computed<MetricDefinition[]>(() =>
     LF.pageSlice(filteredDefinitions.value, defPage.value, defPageSize.value),

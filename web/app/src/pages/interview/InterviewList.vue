@@ -24,7 +24,7 @@ const userStore = useUserStore()
 const loading = ref(false)
 const dataSource = ref<Interview[]>([])
 const filterFeedback = ref<string | null>(null)
-const pagination = ref({ page: 1, pageSize: 20, itemCount: 0, pageCount: 0 })
+const pagination = ref({ page: 1, pageSize: 50, itemCount: 0, pageCount: 0 })
 
 // 评价弹窗状态
 const evalModalShow = ref(false)

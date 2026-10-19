@@ -20,7 +20,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const dataSource = ref<Onboarding[]>([])
 const filterStatus = ref<string | null>(null)
-const pagination = ref({ page: 1, pageSize: 20, itemCount: 0, pageCount: 0 })
+const pagination = ref({ page: 1, pageSize: 50, itemCount: 0, pageCount: 0 })
 
 // G31 智能分配
 const drawerVisible = ref(false)

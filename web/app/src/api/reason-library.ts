@@ -107,7 +107,7 @@ function unwrapList<T>(resp: { data: ApiResponse<any> }): PaginatedData<T> {
   const body = resp.data
   if (body?.code === 0 || body?.code === BIZ_CODE.SUCCESS) {
     const data = body.data
-    if (!data) return { items: [], total: 0, page: 1, pageSize: 20 }
+    if (!data) return { items: [], total: 0, page: 1, pageSize: 50 }
     if (Array.isArray(data)) {
       return { items: data as T[], total: data.length, page: 1, pageSize: data.length }
     }
@@ -130,7 +130,7 @@ function unwrapList<T>(resp: { data: ApiResponse<any> }): PaginatedData<T> {
       }
     }
   }
-  return { items: [], total: 0, page: 1, pageSize: 20 }
+  return { items: [], total: 0, page: 1, pageSize: 50 }
 }
 
 // ==================== 错误码常量再导出 ====================

@@ -54,7 +54,7 @@
           :columns="columns"
           :row-key="(row: any) => row.id"
           :loading="loading"
-          :pagination="{ pageSize: 20 }"
+          :pagination="{ pageSize: 50 }"
           :bordered="false"
           flex-height
         >

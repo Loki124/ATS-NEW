@@ -520,7 +520,7 @@ const columns = [
   },
 ]
 
-const pagination = () => ({ pageSize: 20, showSizePicker: false })
+const pagination = () => ({ pageSize: 50, showSizePicker: false })
 
 onMounted(() => {
   deptStore.loadDepartments()

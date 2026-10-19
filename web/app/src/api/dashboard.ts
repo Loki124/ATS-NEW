@@ -96,7 +96,7 @@ export async function fetchPositions(): Promise<PositionLite[]> {
 
 async function fetchDemands(): Promise<Array<{ id: string; name?: string; code?: string }>> {
   try {
-    const { data } = await api.get('/demands/', { params: { page: 1, pageSize: 20 } })
+    const { data } = await api.get('/demands/', { params: { page: 1, pageSize: 50 } })
     return extractList<{ id: string; name?: string; code?: string }>(data)
   } catch {
     return []

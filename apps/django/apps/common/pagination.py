@@ -11,7 +11,7 @@ class StandardResultsSetPagination(PageNumberPagination):
     与全局响应约定（apps.common.response）对齐；list 端点无需各 ViewSet 再手包。
     """
 
-    page_size = 20
+    page_size = 50
     page_size_query_param = 'page_size'
     max_page_size = 200
     page_query_param = 'page'
@@ -37,7 +37,7 @@ class LargeResultsSetPagination(PageNumberPagination):
 
 class StandardLimitOffsetPagination(LimitOffsetPagination):
     """Limit/Offset 风格分页"""
-    default_limit = 20
+    default_limit = 50
     max_limit = 200
     limit_query_param = 'limit'
     offset_query_param = 'offset'

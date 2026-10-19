@@ -20,7 +20,7 @@ const error = ref<string | null>(null)
 const candidates = ref<Candidate[]>([])
 const selectedIds = ref<string[]>([])
 const filterStatus = ref<string | null>(null)
-const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
+const pagination = ref({ page: 1, pageSize: 50, itemCount: 0 })
 
 const STATUS_LABEL: Record<string, string> = {
   ACTIVE: '活跃', ARCHIVED: '已归档', BLACKLIST: '黑名单', PENDING: '待审',

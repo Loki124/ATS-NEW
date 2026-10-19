@@ -91,7 +91,7 @@ export async function listCandidatesForTable(params: {
   state?: string
   keyword?: string
 } = {}): Promise<{ data: CandidateRow[]; total: number }> {
-  const { page = 1, pageSize = 20, state, keyword } = params
+  const { page = 1, pageSize = 50, state, keyword } = params
   const query: Record<string, unknown> = { page, page_size: pageSize }
   if (state) query.state = state
   if (keyword) query.keyword = keyword

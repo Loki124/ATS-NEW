@@ -88,7 +88,7 @@ export interface PaginatedResult<T> {
 export const getMyCode = () =>
   api.get<ApiEnvelope<ReferralCode>>('/referral/codes/me').then((r) => r.data.data);
 
-export const getMyRecords = (page = 1, pageSize = 20) =>
+export const getMyRecords = (page = 1, pageSize = 50) =>
   api
     .get<ApiEnvelope<PaginatedResult<ReferralRecord>>>('/referral/records/me', {
       params: { page, pageSize },
@@ -100,7 +100,7 @@ export const getMyRecordSummary = () =>
     .get<ApiEnvelope<ReferralRecordSummary>>('/referral/records/me/summary')
     .then((r) => r.data.data);
 
-export const getMyRewards = (page = 1, pageSize = 20) =>
+export const getMyRewards = (page = 1, pageSize = 50) =>
   api
     .get<ApiEnvelope<PaginatedResult<ReferralReward>>>('/referral/rewards/me', {
       params: { page, pageSize },

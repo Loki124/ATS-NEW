@@ -168,7 +168,7 @@ async function searchCandidates(query: string) {
   }
   addSearching.value = true
   try {
-    const res = await api.get('/candidates/', { params: { keyword: query.trim(), pageSize: 20 } })
+    const res = await api.get('/candidates/', { params: { keyword: query.trim(), pageSize: 50 } })
     const list = res.data?.data || []
     addCandidateOptions.value = list.map((c: any) => ({
       label: c.phone ? `${c.name} (${c.phone})` : c.name,
@@ -252,7 +252,7 @@ function onTabChange(key: string) {
             :data="candidates"
             :loading="listLoading"
             :row-key="(row: any) => row.id"
-            :pagination="{ pageSize: 20 }"
+            :pagination="{ pageSize: 50 }"
           />
         </n-card>
       </n-tab-pane>

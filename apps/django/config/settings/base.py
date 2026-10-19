@@ -362,7 +362,7 @@ REST_FRAMEWORK = {
         'apps.core.permissions.IsAuthenticatedDenyByDefault',
     ),
     'DEFAULT_PAGINATION_CLASS': 'apps.common.pagination.StandardResultsSetPagination',
-    'PAGE_SIZE': 20,
+    'PAGE_SIZE': 50,
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
