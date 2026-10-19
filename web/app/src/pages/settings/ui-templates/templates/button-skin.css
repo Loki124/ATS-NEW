@@ -73,6 +73,48 @@
   outline-offset: 2px;
 }
 
+/* ── 按钮尺寸四档（兵哥 2026-10-19 批准引入，对齐 TDesign size 体系）──
+ * 用法：在 .stpl-btn 基础上叠加 .stpl-btn--xs|sm|md|lg（与 .stpl-btn--primary 等类型类正交）。
+ * 双保险：既钉死 naive 内部变量（--n-height / --n-font-size / --n-padding / --n-icon-size），
+ * 又直接覆盖 height/font-size/padding —— 即使 naive 变量名有变，尺寸仍生效（!important 压制 naive 默认）。
+ * 命名约定：xs=行内紧凑 / sm=工具条默认 / md=主 CTA / lg=页眉主操作。 */
+.stpl-btn--xs {
+  --n-height: 24px !important;
+  --n-font-size: 12px !important;
+  --n-padding: 8px !important;
+  --n-icon-size: 14px !important;
+  height: 24px !important;
+  font-size: 12px !important;
+  padding: 0 8px !important;
+}
+.stpl-btn--sm {
+  --n-height: 28px !important;
+  --n-font-size: 13px !important;
+  --n-padding: 10px !important;
+  --n-icon-size: 16px !important;
+  height: 28px !important;
+  font-size: 13px !important;
+  padding: 0 10px !important;
+}
+.stpl-btn--md {
+  --n-height: 32px !important;
+  --n-font-size: 14px !important;
+  --n-padding: 14px !important;
+  --n-icon-size: 18px !important;
+  height: 32px !important;
+  font-size: 14px !important;
+  padding: 0 14px !important;
+}
+.stpl-btn--lg {
+  --n-height: 38px !important;
+  --n-font-size: 15px !important;
+  --n-padding: 18px !important;
+  --n-icon-size: 20px !important;
+  height: 38px !important;
+  font-size: 15px !important;
+  padding: 0 18px !important;
+}
+
 /* ───────────────────────── 主按钮 primary ─────────────────────────
  * 实色底 + 反色字；每个视觉区有且仅有一个（新建 / 保存 / 提交） */
 .stpl-btn--primary {

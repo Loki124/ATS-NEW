@@ -1,5 +1,5 @@
 # Naive UI 2.44.1 实战坑与 Vue 库联动反模式
-> 最后更新：2026-10-08（依据 git 最后提交）
+> 最后更新：2026-10-19（依据 git 最后提交 + TDesign 组件库研究同步）
 
 > 适用：ATS-NEW 前端 Vue 3 + Naive UI 2.44.1 + @vicons/ionicons5 + vue-draggable-plus 0.6.x。
 > 收录范围：实战中翻车过的组件/API 错用、文档未明示但实际行为不符直觉的坑。
@@ -179,7 +179,32 @@ body > .v-binder-follower-container
 
 ---
 
-## 7. 关联文档
+## 7. n-modal / Dialog 浮层穿透与嵌套（2026-10-19 新增，源自 TDesign 组件库研究对照）
+
+### 7.1 `:deep()` 对 Teleport 渲染的 Dialog 内容**无效**
+
+- naive `n-modal`（preset="card" / "dialog"）自 1.0.8 起用 Vue3 `Teleport` 重构 `attach`（默认挂到 `body`）。
+- `Teleport` 把弹窗 DOM 移到组件 DOM 树**之外**，scoped 的 `:deep()` 作用域选择器无法跨 Teleport 命中弹窗内部节点。
+- ❌ 错：在 scoped `<style>` 里用 `.abc :deep(.n-radio-button__label) { color: red }` 想改弹窗内样式 —— 不生效。
+- ✅ 对：① 单独建一个**非 scoped** 的 `<style>` 块写全局规则；② 或在本组件用 `:global(.abc .n-radio-button__label)` 伪类。
+- 本项目现有做法：`styles/glass-modal.css` 是**独立非 scoped** 文件，已正确绕过此坑，无需改。
+
+### 7.2 多层 Dialog 嵌套：除最内层外，外层必须 `lazy: true`
+
+- 多层 `n-modal` 嵌套，且最外层开了 `destroy-on-close` 时，会抛运行时错误：
+  `Uncaught (in promise) NotFoundError: Failed to execute 'insertBefore' on 'Node': The node before which the new node is to be inserted is not a child of this node.`
+- 修法：除最内层 Dialog 外，外层所有 Dialog 设 `lazy: true`。
+- 详见 TDesign issue 同源问题（naive 行为一致）：嵌套弹窗必须惰性渲染外层。
+
+### 7.3 `attach` 挂载目标节点必须在 Teleport 挂载**之前**已存在于 DOM
+
+- `attach` 用 Teleport 实现，Teleport 的 `to` 目标在挂载时必须已存在于 DOM（理想是 Vue 应用 DOM 树外部的元素）。
+- 若目标元素也由 Vue 渲染，必须确保**先**挂载该元素，**再**挂载 Teleport。
+- 踩坑表现：attach 到某个动态生成节点时第一次打开正常、后续报目标不存在 / 样式错位。
+
+---
+
+## 8. 关联文档
 
 - 设置页滚动契约（`.page-body` 滚动链） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md`
 - 表单弹窗遮罩关闭守卫（useCloseGuard 接法） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md` §6.1

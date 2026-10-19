@@ -150,6 +150,7 @@ export const STYLE_GUIDE_DOC: DocSection[] = [
       { level: 'must', text: '主按钮用 --brand-button（R-210 禁锁 --brand），hover/pressed 用既有 --brand-hover / --brand-pressed；危险按钮用 --c-error / --c-error-deep' },
       { level: 'must', text: '焦点态必须可见：统一 outline: 2px solid var(--brand) + outline-offset: 2px（naive 默认 focus 只换文字色，看不出焦点位置）' },
       { level: 'must', text: '按钮图标与文字间距固定 4px（--n-icon-margin: var(--space-1)）' },
+      { level: 'must', text: '按钮尺寸四档：xs=表格行内紧凑 / sm=工具条默认 / md=主 CTA / lg=页眉主操作；用 .stpl-btn--xs|sm|md|lg 修饰（与类型类正交）' },
       { level: 'never', text: 'naive 按钮自定义皮肤时只写 class 里的 background 而不钉死 --n-color / --n-text-color —— naive 以 inline style 注入同名变量，优先级更高会静默盖掉' },
       { level: 'must', text: '按钮 6 态必须能在同一屏并排对比：hover/active/focus 是交互伪类，同一时刻只有一个按钮能进入该态。模板中心用 .stpl-btn--force-{hover|active|focus|loading|disabled} 把伪类固化成类做实拍矩阵（⚠️ 该类仅供演示与设计走查，业务页面禁挂）' },
       { level: 'note', text: '按钮 4 类 6 态已独立为「按钮」页签（四类速览 + 六态实拍矩阵 + 工具条/弹窗 footer/表格行内/破坏性确认/加载流转五个场景的模拟数据演示）' },

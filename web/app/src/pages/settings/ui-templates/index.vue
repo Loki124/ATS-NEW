@@ -173,6 +173,7 @@ import {
   MODAL_WIDTHS,
   PAGINATION_SPEC,
   BUTTON_STATES,
+  BUTTON_SIZES,
   templatesByCategory,
   type TemplateCategory,
   type TemplateMeta,
@@ -267,6 +268,7 @@ const relatedTables = computed<{ title: string; rows: SpecRow[] }[]>(() => {
     case 'button':
       return [
         { title: '按钮 6 态判定标准（4 类通用，差别只在取色）', rows: BUTTON_STATES },
+        { title: '按钮尺寸四档（对齐 TDesign size 体系）', rows: BUTTON_SIZES },
       ]
     case 'rules':
       return [

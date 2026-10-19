@@ -57,6 +57,12 @@
           </n-button>
         </div>
 
+        <!-- 长列表吸顶：flex-height + 定高父链（.stpl-root 560px）使 naive 默认固定表头生效，
+             滚动时标题行常驻可见。请勿移除定高父链，否则表头不吸顶、滚动丢失列上下文 -->
+        <p class="stpl-listnote">
+          长列表（超出一屏）表头自动吸顶：滚动时「编码 / 权限码数 / 说明 / 操作」四列标题常驻可见。
+        </p>
+
         <!-- 表格：flex 撑满面板，仅表体内部滚动
              · striped 斑马纹替代竖向边线（标题行底色常驻，见 <style>） -->
         <div class="table-wrap">
@@ -282,6 +288,18 @@ function create() { message.info('新建角色（演示）') }
   margin-bottom: var(--stpl-gap-tight);
 }
 .stpl-toolbar .spacer { flex: 1; }
+
+/* 长列表吸顶说明条：低调提示，不抢视觉 */
+.stpl-listnote {
+  flex: none;
+  margin: 0 0 var(--stpl-gap-tight);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--stpl-inset-bg);
+  font-size: var(--text-meta);
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
 
 /* ── 表格皮肤 ──
  * 兵哥 15:43：标题行背景色常驻（--n-th-color），数据行用斑马纹区分，

@@ -128,6 +128,19 @@ export const BUTTON_STATES: SpecRow[] = [
   { key: '失效 disabled', desc: '底色降 30% 不透明 + 文字降 --ink-faint + cursor:not-allowed', mono: true },
 ];
 
+/**
+ * 按钮尺寸四档（兵哥 2026-10-19 批准引入，对齐 TDesign size 体系）
+ * 此前系统只有 OP_ACTION_BUTTON_SIZE（小号）一档，563 个 n-button 无尺寸语义。
+ * 用 .stpl-btn--xs|sm|md|lg 修饰，与类型类（--primary 等）正交叠加。
+ */
+export const BUTTON_SIZES: SpecRow[] = [
+  { key: 'xs', desc: '行内紧凑：表格行内编辑/删除、标签旁微型操作，高 24px', mono: true },
+  { key: 'sm', desc: '工具条默认：列表页/弹窗 footer 常规按钮，高 28px（= OP_ACTION_BUTTON_SIZE）', mono: true },
+  { key: 'md', desc: '主 CTA：新建/保存/提交等每区唯一主操作，高 32px', mono: true },
+  { key: 'lg', desc: '页眉/落地页主操作：视觉权重最高的一级入口，高 38px', mono: true },
+  { key: 'OP_ACTION_BUTTON_SIZE', desc: '当前唯一落地的基准（= sm 小号），操作列统一引用，禁写字面量', mono: true },
+];
+
 /** 全部模板 */
 export const TEMPLATES: TemplateMeta[] = [
   // ══════════════════════ 1. 数据列表模板 ══════════════════════
@@ -200,6 +213,7 @@ export const TEMPLATES: TemplateMeta[] = [
       '枚举筛选统一 n-select（穷举可见时才用 radio-group）',
       '操作列走 column(col, "control")：size 用 OP_ACTION_BUTTON_SIZE、quaternary、删除 type="error"',
       '必须提供 #empty 空态，并区分「无数据」与「筛选无结果」两态',
+      '长列表（超过一屏）必须表头吸顶：依赖 flex-height + 定高父链，naive 默认固定表头，不得关掉；否则滚动丢失列上下文',
       '分页用 localPagination()，禁内联 { pageSize: N } 对象',
       '【皮肤 v2 · 2026-10-18】背景一律纯色（页底<内嵌<面板三级），禁渐变、禁 backdrop 模糊',
       '【皮肤 v2】组件 box-shadow 一律清除；不用边框线分区，只用背景色差异',
@@ -552,6 +566,7 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
       '焦点态必须可见：naive 默认 focus 只换文字色、看不出焦点位置，统一补 outline: 2px solid var(--brand) + outline-offset: 2px',
       '表格行内操作用幽灵 + danger-text（危险类的紧凑变体，无底红字），不用实色块，保持行内扫读',
       '异步提交必须 loading + disabled 同时出现，只转圈不禁用会被重复点击',
+      '尺寸四档：行内操作 xs / 工具条 sm / 主 CTA md / 页眉 lg；用 .stpl-btn--xs|sm|md|lg 修饰，不依赖 naive size prop，保证与皮肤类共存',
       '图标与文字间距固定 4px（--n-icon-margin: var(--space-1)），不随按钮尺寸变化',
       '同组按钮要么全有 icon 要么全无；操作列 size 一律引用 OP_ACTION_BUTTON_SIZE',
       '按钮基于 quaternary 基底（不渲染 __border），避开 .settings-scroll 全局渐变注入规则',

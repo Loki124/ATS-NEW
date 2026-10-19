@@ -44,6 +44,30 @@
       </div>
     </section>
 
+    <!-- 1.5 尺寸四档 -->
+    <section class="demo-block">
+      <div class="demo-block-head">
+        <span class="demo-block-title">尺寸四档（对齐 TDesign size 体系）</span>
+        <n-tag type="info" size="small" :bordered="false">xs / sm / md / lg</n-tag>
+      </div>
+      <p class="demo-block-desc">
+        本系统此前只有 <code>OP_ACTION_BUTTON_SIZE</code>（小号）一档，563 个 <code>n-button</code> 全无尺寸语义。
+        统一约定：<b>xs</b> = 行内紧凑操作（表格行内 / 标签旁）；<b>sm</b> = 工具条默认；
+        <b>md</b> = 主 CTA（新建 / 保存 / 提交）；<b>lg</b> = 页眉 / 落地页主操作。
+        用 <code>.stpl-btn--xs|sm|md|lg</code> 修饰，与类型类（--primary 等）正交叠加。
+      </p>
+      <div class="size-demo-row">
+        <div v-for="sz in sizeList" :key="sz.cls" class="size-demo-cell">
+          <n-button class="stpl-btn stpl-btn--primary" :class="sz.cls" quaternary type="primary">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            新建角色
+          </n-button>
+          <span class="size-demo-label">{{ sz.label }}</span>
+          <span class="size-demo-hint">{{ sz.hint }}</span>
+        </div>
+      </div>
+    </section>
+
     <!-- 2. 六态矩阵（强制状态类：6 态并排同屏可见） -->
     <section class="demo-block">
       <div class="demo-block-head">
@@ -314,6 +338,14 @@ function onConfirmDelete() {
   confirmShow.value = false
   message.warning('已删除（演示）')
 }
+
+/** 尺寸四档演示：同一主按钮在四档下的外观 */
+const sizeList = [
+  { cls: 'stpl-btn--xs', label: 'xs', hint: '行内紧凑 · 24px' },
+  { cls: 'stpl-btn--sm', label: 'sm', hint: '工具条默认 · 28px' },
+  { cls: 'stpl-btn--md', label: 'md', hint: '主 CTA · 32px' },
+  { cls: 'stpl-btn--lg', label: 'lg', hint: '页眉主操作 · 38px' },
+]
 
 /** 四类速览卡片：类 → 名称 / 默认态外观 / 使用规则 / 应用场景 */
 const specs = [
@@ -621,6 +653,31 @@ const rowActionColumns = [
   border-radius: var(--radius-md);
   border: 1px dashed var(--border-hairline);
   background: var(--stpl-page-bg, var(--surface));
+}
+
+/* 尺寸四档演示 */
+.size-demo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-5, 24px);
+  padding: var(--space-2) 0;
+}
+.size-demo-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.size-demo-label {
+  font-size: var(--text-meta);
+  font-weight: 500;
+  color: var(--ink);
+}
+.size-demo-hint {
+  font-size: 11px;
+  color: var(--ink-faint);
+  white-space: nowrap;
 }
 .scene-stage--row {
   display: flex;
