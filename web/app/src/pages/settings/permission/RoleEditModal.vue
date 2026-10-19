@@ -93,84 +93,12 @@
         <div v-if="!allResources.length && resourcesFailedMsg" class="res-error">
           <n-alert type="error" :bordered="false">{{ resourcesFailedMsg }}</n-alert>
         </div>
-        <div v-for="group in groupedResources" :key="group.module" class="perm-group">
-          <div class="perm-group-head">
-            <span class="pg-name">{{ moduleLabel(group.module) }}</span>
-            <span class="pg-count">{{ group.items.length }}</span>
-            <span class="pg-selected">{{ t('pages.settings.permission.RoleEditModal.s38', { n: groupSelectedCount(group.items) }) }}</span>
-            <n-button
-              v-if="subGroupsByModule[group.module]"
-              text
-              size="tiny"
-              class="pg-expand"
-              @click="toggleAllSubs(group.module, !allSubsExpanded(group.module))"
-            >
-              {{
-                allSubsExpanded(group.module)
-                  ? t('pages.settings.permission.RoleEditModal.s42')
-                  : t('pages.settings.permission.RoleEditModal.s41')
-              }}
-            </n-button>
-            <n-checkbox
-              class="pg-all"
-              :checked="groupAllChecked(group.items)"
-              :indeterminate="groupIndeterminate(group.items)"
-              @update:checked="(v: boolean) => toggleGroup(group.items, v)"
-            >
-              {{ t('pages.settings.permission.RoleEditModal.s37') }}
-            </n-checkbox>
-          </div>
-          <!--
-            n-checkbox-group 必须只包住真正参与 selectedCodes 的 .perm-item，
-            不能包住整个 collapse。原因：naive-ui 的 NCheckbox 在 group 内且**没有 value prop**时，
-            renderedChecked 被硬编码为 false（Checkbox.mjs 中 `return false`），
-            :checked 会被丢弃、update:checked 恒为 true —— 子模块「全选」会永远勾不上。
-            折叠头部的全选框在 group 之外，故 :checked / @update:checked 正常工作。
-          -->
-          <!-- 有子模块（如「系统设置」下 40 个二级/三级分栏）：按分栏折叠，避免 115 项平铺 -->
-          <n-collapse
-            v-if="subGroupsByModule[group.module]"
-            :expanded-names="expandedSubs[group.module] ?? []"
-            class="sub-collapse"
-            @update:expanded-names="(v: string[]) => setExpandedSubs(group.module, v)"
-          >
-            <n-collapse-item
-              v-for="sub in subGroupsByModule[group.module]"
-              :key="sub.code"
-              :name="sub.code"
-            >
-              <template #header>
-                <div class="sub-head">
-                  <span class="sub-name">{{ sub.label }}</span>
-                  <span class="sub-count">{{ sub.items.length }}</span>
-                  <span class="sub-selected">
-                    {{ t('pages.settings.permission.RoleEditModal.s38', { n: groupSelectedCount(sub.items) }) }}
-                  </span>
-                  <n-checkbox
-                    class="sub-all"
-                    :checked="groupAllChecked(sub.items)"
-                    :indeterminate="groupIndeterminate(sub.items)"
-                    @click.stop
-                    @update:checked="(v: boolean) => toggleGroup(sub.items, v)"
-                  >
-                    {{ t('pages.settings.permission.RoleEditModal.s37') }}
-                  </n-checkbox>
-                </div>
-              </template>
-              <n-checkbox-group v-model:value="selectedCodes" class="perm-grid">
-                <n-checkbox v-for="r in sub.items" :key="r.resourceCode" :value="r.resourceCode" class="perm-item">
-                  <span class="perm-label">{{ r.resourceName }}</span>
-                </n-checkbox>
-              </n-checkbox-group>
-            </n-collapse-item>
-            </n-collapse>
-          <!-- 无子模块（候选人管理等）：保持原有平铺网格 -->
-          <n-checkbox-group v-else v-model:value="selectedCodes" class="perm-grid">
-            <n-checkbox v-for="r in group.items" :key="r.resourceCode" :value="r.resourceCode" class="perm-item">
-              <span class="perm-label">{{ r.resourceName }}</span>
-            </n-checkbox>
-          </n-checkbox-group>
-        </div>
+        <PermTreeNode
+          v-for="node in permTree"
+          :key="node.key"
+          :node="node"
+          :depth="0"
+        />
       </n-tab-pane>
     </n-tabs>
 
@@ -237,17 +165,17 @@
  * 无需先保存再回来配置。（该字段现仅驱动操作权限卡与 none 二次确认，不再禁用数据卡。）
  */
 import { useI18n } from 'vue-i18n'
-import { computed, h, nextTick, reactive, ref, watch } from 'vue'
+import { computed, h, nextTick, provide, reactive, ref, watch } from 'vue'
 import {
   NModal, NForm, NFormItem, NInput, NSwitch, NButton, NSpace, NIcon,
-  NCheckbox, NCheckboxGroup, NTabs, NTabPane, NAlert, NEmpty, NSpin,
-  NCollapse, NCollapseItem,
+  NTabs, NTabPane, NAlert, NEmpty, NSpin,
   useMessage, useDialog,
 } from 'naive-ui'
 import { createRole, updateRole, syncRolePermissions, type RoleV2 } from '@/api/role-v2'
 import { fetchAllResources, type PermissionResource } from '@/api/permission-resource'
 import { useCloseGuard } from '@/composables/useCloseGuard'
-import { resourceModuleLabel, buildSubModuleIndex } from '@/utils/permissionModules'
+import { buildPermissionTree } from '@/utils/permissionModules'
+import PermTreeNode from '@/pages/settings/permission/PermTreeNode.vue'
 import {
   useRoleDataPerm, uid,
   type ModulePerm, type PermConditionGroup,
@@ -473,115 +401,47 @@ const statusSwitch = computed({
   set: (v: boolean) => { form.status = v ? 1 : 0 },
 })
 
-// 按 module 分组 (null/空归到未分类)
-const groupedResources = computed(() => {
-  const map = new Map<string, PermissionResource[]>()
-  for (const r of allResources.value) {
-    const key = r.module || '__ungrouped__'
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(r)
-  }
-  return Array.from(map.entries()).map(([module, items]) => ({ module, items }))
-})
+// ===== 功能权限：按编码结构构建「模块 → 中间段逐层 → 末级权限项」树 =====
+// 数据源为该身份可配置的权限资源全集；任意深度的中间段都会自动成层，零遗漏、零硬编码。
+const permTree = computed(() => buildPermissionTree(allResources.value))
 
-// 模块中文名已抽到共享单一数据源（与资源管理列表共用）
-// mou 与 mgmt_unit 语义不同（seed: MOU菜单 vs 管理单元菜单），共享表已按 seed 校正
-function moduleLabel(module: string): string {
-  return resourceModuleLabel(module, t('pages.settings.permission.RoleEditModal.s23'))
+/** 折叠状态（节点 key 集合）。默认全部收起，避免系统设置下数十项平铺发散 */
+const expandedKeys = ref<Set<string>>(new Set())
+
+interface ExpandedApi {
+  has: (key: string) => boolean
+  toggle: (key: string) => void
+  setAll: (keys: string[], on: boolean) => void
 }
-
-// ===== 功能权限：子模块（模块内部的二级/三级分栏）折叠分组 =====
-
-/**
- * 子模块索引（模块 → 子模块 code → 中文名）。
- * 与资源管理列表共用同一份推导逻辑（buildSubModuleIndex），
- * 数据源是该子模块的 MENU 资源名，故新增子模块无需改前端。
- */
-const permSubIndex = computed(() => buildSubModuleIndex(allResources.value))
-
-interface SubGroup {
-  code: string
-  label: string
-  items: PermissionResource[]
-}
-
-/** module → SubGroup[]；不含子模块的模块不出现在此表中（保持原平铺展示） */
-const subGroupsByModule = computed<Record<string, SubGroup[]>>(() => {
-  const out: Record<string, SubGroup[]> = {}
-  for (const g of groupedResources.value) {
-    const index = permSubIndex.value[g.module]
-    if (!index) continue
-    const buckets = new Map<string, PermissionResource[]>()
-    const loose: PermissionResource[] = []
-    for (const r of g.items) {
-      const parts = r.resourceCode.split(':')
-      const sub = parts.length >= 4 ? parts[2] : ''
-      // 索引里没有该 code ⇒ 不是子模块（如 recruit:candidate:list）
-      if (!sub || !index[sub]) {
-        loose.push(r)
-        continue
-      }
-      if (!buckets.has(sub)) buckets.set(sub, [])
-      buckets.get(sub)!.push(r)
+const expandedApi: ExpandedApi = {
+  has: (key) => expandedKeys.value.has(key),
+  toggle: (key) => {
+    const next = new Set(expandedKeys.value)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    expandedKeys.value = next
+  },
+  setAll: (keys, on) => {
+    const next = new Set(expandedKeys.value)
+    for (const k of keys) {
+      if (on) next.add(k)
+      else next.delete(k)
     }
-    if (!buckets.size) continue
-    const groups: SubGroup[] = Array.from(buckets.entries()).map(([code, items]) => ({
-      code,
-      label: index[code] ?? code,
-      // 组内按编码排序：菜单(menu)排在前，动作在后，符合「先开菜单再配按钮」的直觉
-      items: items.slice().sort((a, b) => a.resourceCode.localeCompare(b.resourceCode)),
-    }))
-    groups.sort((a, b) => a.label.localeCompare(b.label, 'zh'))
-    if (loose.length) {
-      groups.push({
-        code: '__loose__',
-        label: t('pages.settings.permission.RoleEditModal.s43'),
-        items: loose,
-      })
-    }
-    out[g.module] = groups
-  }
-  return out
-})
-
-/** 展开状态：module → 已展开的子模块 code 列表。默认全部收起（115 项平铺过长发散） */
-const expandedSubs = ref<Record<string, string[]>>({})
-
-function setExpandedSubs(module: string, names: string[]): void {
-  expandedSubs.value = { ...expandedSubs.value, [module]: names }
+    expandedKeys.value = next
+  },
 }
 
-function allSubsExpanded(module: string): boolean {
-  const groups = subGroupsByModule.value[module]
-  if (!groups?.length) return false
-  const open = new Set(expandedSubs.value[module] ?? [])
-  return groups.every((g) => open.has(g.code))
-}
-
-function toggleAllSubs(module: string, open: boolean): void {
-  const groups = subGroupsByModule.value[module] ?? []
-  setExpandedSubs(module, open ? groups.map((g) => g.code) : [])
-}
-
-// ===== 功能权限：组级全选 / 半选 / 已选计数 =====
-function groupAllChecked(items: PermissionResource[]): boolean {
-  return items.length > 0 && items.every((r) => selectedCodes.value.includes(r.resourceCode))
-}
-function groupIndeterminate(items: PermissionResource[]): boolean {
-  const some = items.some((r) => selectedCodes.value.includes(r.resourceCode))
-  return some && !groupAllChecked(items)
-}
-function groupSelectedCount(items: PermissionResource[]): number {
-  return items.filter((r) => selectedCodes.value.includes(r.resourceCode)).length
-}
-function toggleGroup(items: PermissionResource[], checked: boolean) {
+// 选中态与折叠态下发给递归子组件（PermTreeNode 负责逐节点渲染与交互）
+provide('permSelected', selectedCodes)
+provide('permToggle', (codes: string[], on: boolean) => {
   const set = new Set(selectedCodes.value)
-  for (const r of items) {
-    if (checked) set.add(r.resourceCode)
-    else set.delete(r.resourceCode)
+  for (const c of codes) {
+    if (on) set.add(c)
+    else set.delete(c)
   }
   selectedCodes.value = Array.from(set)
-}
+})
+provide('permExpanded', expandedApi)
 
 // ===== 页签标签（含未保存圆点提示）=====
 // 读/写拆分后两个权限页签**各自只反映自己那一半**的脏状态：
