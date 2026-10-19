@@ -294,7 +294,7 @@ def scoring_start(request):
 # ============================================================
 # Offer templates
 # ============================================================
-@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:offer:list')
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:settings:offer_management:menu:view')
 def offer_templates(request):
     if request.method == 'GET':
         return _empty_list()
@@ -302,7 +302,7 @@ def offer_templates(request):
     return _not_implemented('offer_templates', request, 'Offer 模板写入尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
-@_scoped_view(methods=['POST'], resource_code='recruit:offer:edit')
+@_scoped_view(methods=['POST'], resource_code='recruit:settings:offer_management:menu:view')
 def offer_template_render(request):
     return _not_implemented('offer_template_render', request, 'Offer 模板渲染尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 

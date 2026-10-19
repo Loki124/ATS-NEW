@@ -18,12 +18,14 @@ RESOURCES = [
     ('recruit:candidate:edit', '编辑候选人', 'BUTTON', 'candidate'),
     ('recruit:candidate:export', '导出候选人', 'BUTTON', 'candidate'),
     ('recruit:candidate:delete', '删除候选人', 'BUTTON', 'candidate'),
-    # --- module: offer ---
-    ('recruit:offer:menu:view', 'Offer菜单', 'MENU', 'offer'),
-    ('recruit:offer:list', 'Offer列表', 'BUTTON', 'offer'),
-    ('recruit:offer:create', '发起Offer', 'BUTTON', 'offer'),
-    ('recruit:offer:edit', '编辑Offer', 'BUTTON', 'offer'),
-    ('recruit:offer:approve', '审批Offer', 'BUTTON', 'offer'),
+    # --- module: candidate / submodule: offer（2026-10-19 重构：Offer 功能并入候选人管理，子模块 offer）---
+    # 命名遵循 V2 资源码规范：第 1 段恒为 system_code=recruit（R4），第 2 段==module=candidate（R2），
+    # 子模块 offer 落第 3 段。独立 Offer 菜单(recruit:offer:menu:view)与独立 Offer 列表页已移除（见迁移 0036 停用）；
+    # 候选人详情页 Offer 页签的「读取」由 recruit:candidate:offer:list 统一授权（可配置权限，非硬编码）。
+    ('recruit:candidate:offer:list', '查看Offer', 'BUTTON', 'candidate'),
+    ('recruit:candidate:offer:create', '创建Offer', 'BUTTON', 'candidate'),
+    ('recruit:candidate:offer:edit', '编辑Offer', 'BUTTON', 'candidate'),
+    ('recruit:candidate:offer:approve', '发起Offer审批', 'BUTTON', 'candidate'),
     # --- module: interview ---
     ('recruit:interview:menu:view', '面试菜单', 'MENU', 'interview'),
     ('recruit:interview:list', '面试列表', 'BUTTON', 'interview'),
@@ -506,8 +508,8 @@ TEMPLATES = [
         'codes': CONFIG_CODES + [
             'recruit:candidate:menu:view', 'recruit:candidate:list',
             'recruit:candidate:export',
-            'recruit:offer:menu:view', 'recruit:offer:list',
-            'recruit:offer:approve',
+            'recruit:candidate:offer:list',
+            'recruit:candidate:offer:approve',
             'recruit:interview:menu:view', 'recruit:interview:list',
             'recruit:demand:menu:view', 'recruit:demand:list',
             'recruit:demand:create', 'recruit:demand:approve',
@@ -528,8 +530,8 @@ TEMPLATES = [
             'recruit:candidate:menu:view', 'recruit:candidate:list',
             'recruit:candidate:create', 'recruit:candidate:edit',
             'recruit:candidate:export',
-            'recruit:offer:menu:view', 'recruit:offer:list',
-            'recruit:offer:create',
+            'recruit:candidate:offer:list',
+            'recruit:candidate:offer:create',
             'recruit:interview:menu:view', 'recruit:interview:list',
             'recruit:interview:schedule',
             'recruit:demand:menu:view', 'recruit:demand:list',

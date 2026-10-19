@@ -79,7 +79,7 @@ def test_has_perm_super_admin_role_bypass():
     UserRoleV2.objects.create(user_id=u.pk, role_code='SUPER_ADMIN', system_code='recruit')
     assert is_super_admin(u) is True
     assert has_perm(u, 'recruit:candidate:list') is True
-    assert has_perm(u, 'recruit:offer:export') is True
+    assert has_perm(u, 'recruit:candidate:offer:export') is True
 
 
 # ===== P0-3 fail-open 回归锁定 (CODE_QUALITY_AUDIT P0-3) =====

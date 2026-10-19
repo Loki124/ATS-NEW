@@ -25,17 +25,23 @@ class OfferViewSet(BaseModelViewSet):
     """Offer ViewSet - 含 8 个状态流转；按职位部门 scope 过滤"""
     queryset = Offer.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:offer:list'
-    # G1: seed 定义的审批码在此真实消费。此前 transition 作为自定义 action 一律按
-    # 派生码 recruit:offer:edit 校验，导致身份管理里单独勾「审批Offer」不生效。
-    # 类级 map 放行持有 approve/edit 任一码的请求进入 action，再按 FSM 动作细查。
+    # 读（list/retrieve）由 recruit:candidate:offer:list 统一授权 —— 候选人详情页 Offer 页签的
+    # 「查看」权限（兵哥 2026-10-19：查看权限基于权限管理配置，做成可配置资源，非硬编码）。
+    permission_required = 'recruit:candidate:offer:list'
+    # 写动作逐一显式声明，杜绝 V2Permission 按 action 派生到不存在的 recruit:candidate:offer:delete
+    # 后回退到 recruit:candidate:offer:list（那样任何能查看的人都能删，属越权）。
+    # transition 放行持有 approve/edit 任一码的请求进入 action，再按 FSM 动作细查（G1）。
     permission_required_map = {
-        'transition': ['recruit:offer:approve', 'recruit:offer:edit'],
+        'create': 'recruit:candidate:offer:create',
+        'update': 'recruit:candidate:offer:edit',
+        'partial_update': 'recruit:candidate:offer:edit',
+        'destroy': 'recruit:candidate:offer:edit',
+        'transition': ['recruit:candidate:offer:approve', 'recruit:candidate:offer:edit'],
     }
     # 审批人决策动作（PENDING_APPROVAL 阶段）→ 审批码；未收录动作按 :edit 校验
     TRANSITION_ACTION_PERM = {
-        'approve': 'recruit:offer:approve',
-        'reject': 'recruit:offer:approve',
+        'approve': 'recruit:candidate:offer:approve',
+        'reject': 'recruit:candidate:offer:approve',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
@@ -76,7 +82,7 @@ class OfferViewSet(BaseModelViewSet):
         serializer.is_valid(raise_exception=True)
         action_name = serializer.validated_data['action']
         # 细粒度校验：审批动作要求审批码，其余流转动作要求 :edit（G1）
-        required = self.TRANSITION_ACTION_PERM.get(action_name, 'recruit:offer:edit')
+        required = self.TRANSITION_ACTION_PERM.get(action_name, 'recruit:candidate:offer:edit')
         if not has_perm(request.user, required):
             raise PermissionDenied(f'无权执行该操作，缺少权限码 {required}')
         kwargs = {}

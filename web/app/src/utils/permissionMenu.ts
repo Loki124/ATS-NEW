@@ -32,7 +32,6 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/talent-pool', code: 'recruit:talent_pool:menu:view' },
   { prefix: '/interviews', code: 'recruit:interview:menu:view' },
   { prefix: '/invitations', code: 'recruit:invitation:menu:view' },
-  { prefix: '/offers', code: 'recruit:offer:menu:view' },
   { prefix: '/onboardings', code: 'recruit:onboarding:menu:view' },
   { prefix: '/report', code: 'recruit:settings:data_dashboard:menu:view' },
   { prefix: '/my-resumes', code: 'recruit:settings:scraped_resumes:menu:view' },
@@ -82,7 +81,7 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/position-info', code: 'recruit:settings:position_info:menu:view' },
   { prefix: '/settings/interview-management', code: 'recruit:settings:interview_management:menu:view' },
   { prefix: '/settings/offer-management', code: 'recruit:settings:offer_management:menu:view' },
-  { prefix: '/settings/campus-control', code: 'recruit:settings:campus_control:menu:view' },
+  { prefix: '/campus/control', code: 'recruit:settings:campus_control:menu:view' },
   { prefix: '/settings/campus-ambassador', code: 'recruit:settings:campus_ambassador:menu:view' },
   { prefix: '/settings/campus-session', code: 'recruit:settings:campus_session:menu:view' },
 
@@ -90,6 +89,7 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   // 最长前缀匹配（permissionForPath 取最长命中）；fail-open：未登记路径恒可见。
   { prefix: '/campus/rotation-arrangement', code: 'recruit:campus:rotation:menu:view' },
   { prefix: '/campus/live-room', code: 'recruit:campus:resource:menu:view' },
+  { prefix: '/campus/service-dept', code: 'recruit:campus:resource:menu:view' },
   { prefix: '/campus/class-room', code: 'recruit:campus:class:menu:view' },
   { prefix: '/campus/person', code: 'recruit:campus:person:menu:view' },
 

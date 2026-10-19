@@ -63,10 +63,10 @@ def _client_for(user) -> APIClient:
 class TestApproveWiring:
     def test_offer_transition_map_declares_approve(self):
         assert set(OfferViewSet.permission_required_map['transition']) == {
-            'recruit:offer:approve', 'recruit:offer:edit',
+            'recruit:candidate:offer:approve', 'recruit:candidate:offer:edit',
         }
-        assert OfferViewSet.TRANSITION_ACTION_PERM['approve'] == 'recruit:offer:approve'
-        assert OfferViewSet.TRANSITION_ACTION_PERM['reject'] == 'recruit:offer:approve'
+        assert OfferViewSet.TRANSITION_ACTION_PERM['approve'] == 'recruit:candidate:offer:approve'
+        assert OfferViewSet.TRANSITION_ACTION_PERM['reject'] == 'recruit:candidate:offer:approve'
 
     def test_demand_transition_map_declares_approve(self):
         assert set(DemandViewSet.permission_required_map['transition']) == {
@@ -83,14 +83,14 @@ class TestApproveWiring:
 @pytest.mark.django_db
 class TestApprovePermMatrix:
     def test_approve_holder(self, department):
-        u = _make_scoped_user(department, 'g1_approve_only', ('recruit:offer:approve',))
-        assert has_perm(u, 'recruit:offer:approve') is True
-        assert has_perm(u, 'recruit:offer:edit') is False
+        u = _make_scoped_user(department, 'g1_approve_only', ('recruit:candidate:offer:approve',))
+        assert has_perm(u, 'recruit:candidate:offer:approve') is True
+        assert has_perm(u, 'recruit:candidate:offer:edit') is False
 
     def test_edit_holder(self, department):
-        u = _make_scoped_user(department, 'g1_edit_only', ('recruit:offer:edit',))
-        assert has_perm(u, 'recruit:offer:edit') is True
-        assert has_perm(u, 'recruit:offer:approve') is False
+        u = _make_scoped_user(department, 'g1_edit_only', ('recruit:candidate:offer:edit',))
+        assert has_perm(u, 'recruit:candidate:offer:edit') is True
+        assert has_perm(u, 'recruit:candidate:offer:approve') is False
 
 
 # ---------------------------------------------------------------------------
