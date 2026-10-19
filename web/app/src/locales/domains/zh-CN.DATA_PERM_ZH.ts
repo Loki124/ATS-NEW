@@ -1589,7 +1589,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.SettingsLayout.s62': "组织管理",
   'pages.settings.SettingsLayout.s63': "职务",
   'pages.settings.SettingsLayout.s64': "职级",
-  'pages.settings.SettingsLayout.s65': "前端UI模板",
+  'pages.settings.SettingsLayout.s65': "前端组件规范",
   'pages.settings.RecruitmentRound.s4': "新增轮次",
   'pages.settings.RecruitmentRound.s5': "轮次名称",
   'pages.settings.RecruitmentRound.s6': "如：初试/复试/终试",

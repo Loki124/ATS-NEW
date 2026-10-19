@@ -242,7 +242,7 @@ const rawSubMenuOptions: MenuItem[] = [
       {
         // 2026-10-18 兵哥：/settings/theme 由普通子项提升为可展开父项（去掉 type:'group'，
         //   与 g-company / g-org / g-user / g-permission 同款形态），
-        //   「前端UI模板」作为其二级子项。父项自身仍有路由，点击即进入主题外观页。
+        //   「前端组件规范」作为其二级子项。父项自身仍有路由，点击即进入主题外观页。
         key: 'g-theme',
         label: t('pages.settings.SettingsLayout.s61'),
         icon: () => h(NIcon, null, { default: () => h(ColorPaletteOutline) }),

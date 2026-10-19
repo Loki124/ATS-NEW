@@ -1,7 +1,7 @@
 <template>
   <div class="doc-stage">
     <header class="doc-head">
-      <h2 class="doc-title">前端UI样式文档</h2>
+      <h2 class="doc-title">前端组件规范样式文档</h2>
       <p class="doc-subtitle">
         系统级前端 UI 规范的结构化全文：页面骨架 / 间距 / 颜色 / 表格 / 弹窗 / 表单 / 状态机 /
         无障碍 / 命名约束 / 新增页面检查清单。与 docs/04-ui/frontend-layout-standard.md、
@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 /**
- * StyleDoc.vue — 「样式文档」页签（2026-10-18 兵哥要求「加个页签输出前端UI样式文档说明」）
+ * StyleDoc.vue — 「样式文档」页签（2026-10-18 兵哥要求「加个页签输出前端组件规范样式文档说明」）
  *
  * 数据来自 styleGuideDoc.ts（唯一数据源）；本组件只负责渲染。
  * 与 docs/04-ui/frontend-layout-standard.md、AGENTS.md、styles/glass.css 同源同步。

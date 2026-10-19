@@ -1020,7 +1020,7 @@ body.dark .kpi-card.kpi-card--accent {
    ★ 防御性 !important：页面 scoped 样式带 [data-v-x] 特异性高于本全局规则，
      可用 .page-container{padding:0} 覆盖导致内容贴边；此处 !important 兜底。
      设置页由 SettingsLayout 的 .settings-scroll :deep(.page-container){padding:0!important}
-     （更高特异性）仍可取零，不受影响。详见 docs/04-ui/frontend-layout-standard.md。 */
+     （更高特异性）仍可取零，不受影响。详见 docs/04-ui/UI_STANDARD.md §5。 */
 .page-container {
   padding: var(--page-pad-y) var(--page-pad-x) !important;
   min-height: 100%;
@@ -1059,7 +1059,7 @@ body.dark .kpi-card.kpi-card--accent {
   gap: var(--space-4);
 }
 
-/* === .panel-shell：数据列表页内容面板（2026-10-18 兵哥「前端UI模板」体系 · 提升为全局）
+/* === .panel-shell：数据列表页内容面板（2026-10-18 兵哥「前端组件规范」体系 · 提升为全局）
  * 用途：设置中心独立页的列表区容器 = glass-panel + 撑满高度 + 8px 内衬。
  *   结构：.page-container > .page-header + .page-body > .glass-panel.panel-shell
  *           > .toolbar + .table-wrap > n-data-table[flex-height]
@@ -1076,7 +1076,7 @@ body.dark .kpi-card.kpi-card--accent {
   padding: var(--space-2);
 }
 
-/* === .field-hint：表单/配置项的统一说明文字（2026-10-18 兵哥「前端UI模板」体系）
+/* === .field-hint：表单/配置项的统一说明文字（2026-10-18 兵哥「前端组件规范」体系）
  * 背景：此前全站有 19 种私有命名（switch-tip / input-tip / section-desc / field-hint /
  *   dc-row-desc / block-desc …）各带各的色值，其中 6 个文件甚至硬编码 var(--n-400)。
  *   收敛为唯一真源：字号 --text-meta(12px)、色值 --ink-soft（暗色自动联动）。
@@ -1372,7 +1372,7 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info-deep);    background:
   padding: 14px var(--modal-pad-x) var(--modal-pad-y);
 }
 
-/* === 弹窗统一分隔线（规范：见 docs/04-ui/MODAL_DIVIDER_CONVENTION.md）===
+/* === 弹窗统一分隔线（规范：见 docs/04-ui/UI_STANDARD.md §6）===
  * 根因：全局 .n-modal .n-card-header 已画一条 border-bottom（顶部分隔线）；
  * 而 Naive UI 的 :segmented="{ content:'soft', ... }" 会在 .n-card-content(:not(:first-child))
  * 上再补一条 border-top。于是 header.bottom 与 content.top 在**顶部**两个相邻元素上各画一条，

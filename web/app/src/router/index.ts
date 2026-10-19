@@ -198,7 +198,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'announcements', name: 'AnnouncementManagement', component: () => import(/* webpackChunkName: "settings-announcements" */ '../pages/settings/AnnouncementSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_HRBP_HR] } },
           // ===== G44 V2 主题外观 (液态玻璃 v2) — 全员可见 =====
           { path: 'theme', name: 'ThemeSettings', component: () => import(/* webpackChunkName: "settings-theme" */ '../pages/settings/ThemeSettings.vue') },
-          // ===== 前端UI模板（2026-10-18 兵哥立项）：集中管理/预览系统级前端UI模板 =====
+          // ===== 前端组件规范（2026-10-18 兵哥立项，2026-10-19 更名）：集中管理/预览系统级前端组件规范 =====
           // 菜单挂在「主题外观」父项下（见 SettingsLayout.vue 的 g-theme），全员可见。
           { path: 'ui-templates', name: 'UiTemplates', component: () => import(/* webpackChunkName: "settings-ui-templates" */ '../pages/settings/ui-templates/index.vue') },
           // ===== 规则引擎 (重构)：规则配置与执行 + 规则管理 + 规则总览（聚合只读） =====

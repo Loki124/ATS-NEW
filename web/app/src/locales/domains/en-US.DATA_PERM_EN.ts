@@ -1590,7 +1590,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.SettingsLayout.s62': "Organization",
   'pages.settings.SettingsLayout.s63': "Job Title",
   'pages.settings.SettingsLayout.s64': "Job Level",
-  'pages.settings.SettingsLayout.s65': "Frontend UI Templates",
+  'pages.settings.SettingsLayout.s65': "Frontend Component Specs",
   'pages.settings.RecruitmentRound.s4': "Add Round",
   'pages.settings.RecruitmentRound.s5': "Round Name",
   'pages.settings.RecruitmentRound.s6': "e.g. Initial / Interview / Final",

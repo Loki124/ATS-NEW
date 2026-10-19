@@ -1,7 +1,7 @@
 /**
- * templateRegistry.ts — 前端 UI 模板元数据注册表（单一真源）
+ * templateRegistry.ts — 前端组件规范元数据注册表（单一真源）
  *
- * 2026-10-18 兵哥「前端UI模板」体系立项。本文件是模板清单的**唯一权威数据源**：
+ * 2026-10-18 兵哥「前端组件规范」体系立项。本文件是模板清单的**唯一权威数据源**：
  * 模板中心页面（index.vue）按此渲染分类导航、代码结构、渲染预览与用法说明。
  * 新增模板 / 修改模板规格 → 只改本文件，不改页面渲染逻辑。
  *
@@ -12,8 +12,8 @@
  *   4. 列对齐走 useTableColumns.column(col, tier) 四档工厂，禁手写 align。
  */
 
-/** 模板分类标识 */
-export type TemplateCategory = 'list' | 'form' | 'modal' | 'config' | 'component' | 'button' | 'rules' | 'doc';
+/** 模板分类标识（2026-10-19 起按 TDesign 开源设计系统分类：基础/导航/输入/数据展示/反馈/规范/样式文档） */
+export type TemplateCategory = 'base' | 'nav' | 'entry' | 'data' | 'feedback' | 'spec' | 'doc';
 
 /** 单个模板的元数据 */
 export interface TemplateMeta {
@@ -55,17 +55,16 @@ export interface CategoryMeta {
 /**
  * 分类定义（顺序即左侧导航顺序）
  * 注：枚举筛选统一用 n-select；单选语义强、需一眼可见全貌的（如主题模式三态图示）才用 radio。
- * doc 为特殊页签：不挂模板，直接输出《前端UI样式文档》（结构化规则全文）。
+ * doc 为特殊页签：不挂模板，直接输出《前端组件规范样式文档》（结构化规则全文）。
  */
 export const CATEGORIES: CategoryMeta[] = [
-  { key: 'list', label: 'uiTemplates.cat.list', desc: '以身份管理为范本：工具条 + flex-height 表格' },
-  { key: 'form', label: 'uiTemplates.cat.form', desc: 'label 排布、栅格、分组与校验的统一写法' },
-  { key: 'modal', label: 'uiTemplates.cat.modal', desc: '卡片式编辑弹窗与确认对话框的两类标准形态' },
-  { key: 'config', label: 'uiTemplates.cat.config', desc: '分组卡片 + 脏检查 + 统一保存栏' },
-  { key: 'component', label: 'uiTemplates.cat.component', desc: '可复用组件与 composable 的引用约定' },
-  { key: 'button', label: 'uiTemplates.cat.button', desc: '主/次/幽灵/危险四态与交互六状态，图标间距固定 4px' },
-  { key: 'rules', label: 'uiTemplates.cat.rules', desc: '全站硬规则的活演示：列对齐 / 弹窗宽度 / 间距 / 按钮状态 / 令牌' },
-  { key: 'doc', label: 'uiTemplates.cat.doc', desc: '《前端UI样式文档》结构化全文输出' },
+  { key: 'base', label: 'uiTemplates.cat.base', desc: '主/次/幽灵/危险四态与交互六状态，图标间距固定 4px' },
+  { key: 'nav', label: 'uiTemplates.cat.nav', desc: '可复用组件与 composable 的引用约定，分页为统一模板' },
+  { key: 'entry', label: 'uiTemplates.cat.entry', desc: '表单与配置项的统一写法：label 排布、栅格、分组与校验' },
+  { key: 'data', label: 'uiTemplates.cat.data', desc: '以身份管理为范本：工具条 + flex-height 表格' },
+  { key: 'feedback', label: 'uiTemplates.cat.feedback', desc: '卡片式编辑弹窗与确认对话框的两类标准形态' },
+  { key: 'spec', label: 'uiTemplates.cat.spec', desc: '全站硬规则的活演示：列对齐 / 弹窗宽度 / 间距 / 按钮状态 / 令牌' },
+  { key: 'doc', label: 'uiTemplates.cat.doc', desc: '《前端组件规范样式文档》结构化全文输出' },
 ];
 
 /** 全局类清单（模板依赖的基础设施，渲染为速查表） */
@@ -143,10 +142,10 @@ export const BUTTON_SIZES: SpecRow[] = [
 
 /** 全部模板 */
 export const TEMPLATES: TemplateMeta[] = [
-  // ══════════════════════ 1. 数据列表模板 ══════════════════════
+  // ══════════════════════ 1. 数据展示（列表）模板 ══════════════════════
   {
     key: 'list-standalone',
-    category: 'list',
+    category: 'data',
     name: '独立设置页列表（乙系 · 全站唯一标准）',
     summary: '设置中心标准列表页结构：页头 + 玻璃面板 + 工具条 + flex-height 表格，表格撑满面板、表体内部滚动。',
     code: `<div class="page-container">
@@ -234,7 +233,7 @@ export const TEMPLATES: TemplateMeta[] = [
   },
   {
     key: 'list-embedded',
-    category: 'list',
+    category: 'data',
     name: 'Tab 内嵌列表（甲系 · 存量形态）',
     summary: '历史存量形态：被父页以 tab 嵌入的列表组件，不加玻璃面板，滚动与内衬交给父页。仅供存量页对照，新页面禁用。',
     code: `<div class="xxx-tab">   <!-- scoped: flex:1; min-height:0; gap:var(--space-2) -->
@@ -268,7 +267,7 @@ export const TEMPLATES: TemplateMeta[] = [
   },
   {
     key: 'list-columns',
-    category: 'list',
+    category: 'data',
     name: '列定义四档对齐工厂',
     summary: '所有表格列必须走 column(col, tier) 工厂声明对齐档位，禁止手写 align 属性。',
     code: `import { h, NSpace, NButton, NIcon } from 'naive-ui'
@@ -319,10 +318,10 @@ const columns = [
     ],
   },
 
-  // ══════════════════════ 2. 弹窗模板 ══════════════════════
+  // ══════════════════════ 2. 反馈（弹窗）模板 ══════════════════════
   {
     key: 'modal-card',
-    category: 'modal',
+    category: 'feedback',
     name: '卡片式编辑弹窗',
     summary: '承载表单的编辑弹窗标准形态：preset="card" + 宽度分档 + 遮罩守卫 + 右对齐 footer。',
     code: `<n-modal
@@ -368,7 +367,7 @@ const columns = [
   },
   {
     key: 'modal-confirm',
-    category: 'modal',
+    category: 'feedback',
     name: '确认对话框',
     summary: '二次确认与结果告知的标准形态：preset="dialog" + 内置按钮联动，不要改写成 card。',
     code: `<n-modal
@@ -398,10 +397,10 @@ const columns = [
     ],
   },
 
-  // ══════════════════════ 3. 表单模板 ══════════════════════
+  // ══════════════════════ 3. 输入（表单）模板 ══════════════════════
   {
     key: 'form-standard',
-    category: 'form',
+    category: 'entry',
     name: '标准表单区块',
     summary: '字段的标准排布：label 在上、控件在下、说明文字用统一类，支持 1–2 列自适应栅格。',
     code: `<n-form ref="formRef" :model="form" :rules="rules"
@@ -438,10 +437,10 @@ const columns = [
     ],
   },
 
-  // ══════════════════════ 4. 配置项模板 ══════════════════════
+  // ══════════════════════ 4. 输入（配置项）模板 ══════════════════════
   {
     key: 'config-page',
-    category: 'config',
+    category: 'entry',
     name: '配置项页面',
     summary: '以分组卡片承载配置项，配脏检查与统一保存栏，保存前给出明确反馈。',
     code: `<div class="page-container">
@@ -492,10 +491,10 @@ const columns = [
     caveats: ['自动保存型页面须在页内显示「保存中/已自动保存/未保存」三态提示，不发 message 弹窗打断'],
   },
 
-  // ══════════════════════ 5. 组件模板 ══════════════════════
+  // ══════════════════════ 5. 导航（组件契约）模板 ══════════════════════
   {
     key: 'component-contracts',
-    category: 'component',
+    category: 'nav',
     name: '可复用组件与 composable 契约',
     summary: '组件层必须接入 glass.css 全局类体系；通用逻辑下沉到 composable，禁止在页面内重复实现。分页组件（useTablePagination）为全站唯一分页模板。',
     code: `// composables/useTableColumns.ts —— 列对齐与操作列规格的唯一真源
@@ -529,10 +528,10 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
     caveats: ['StateView 目前硬编码中文且不接受 t() 注入，接入前需先改造'],
   },
 
-  // ══════════════════════ 6. 按钮模板 ══════════════════════
+  // ══════════════════════ 6. 基础（按钮）模板 ══════════════════════
   {
     key: 'button-states',
-    category: 'button',
+    category: 'base',
     name: '按钮 4 类 6 态',
     summary: '主/次/幽灵/危险 4 类 × 默认/悬浮/激活/聚焦/加载/失效 6 态。仅幽灵按钮默认态无背景，其余三类均为实色底；纯色、无阴影、无边框，图标与文字间距固定 4px。',
     code: `<!-- 4 类按钮：统一基于 quaternary 基底 + .stpl-btn--* 皮肤类 -->
@@ -586,10 +585,10 @@ import { useCloseGuard } from '@/composables/useCloseGuard'`,
     ],
   },
 
-  // ══════════════════════ 7. 规则标准（活演示） ══════════════════════
+  // ══════════════════════ 7. 规范（活演示） ══════════════════════
   {
     key: 'rules-playground',
-    category: 'rules',
+    category: 'spec',
     name: '规则标准活演示',
     summary: '把全站硬规则做成可操作的实物：列对齐四档、弹窗宽度 4 档、8px 间距体系、按钮六态、语义令牌——改 Demo 里的值就等于违反规则，可用来对照排查。',
     code: `// 规则引用速查：写页面时这些就是「规则的入口」

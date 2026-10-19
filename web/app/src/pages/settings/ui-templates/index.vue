@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container ui-templates">
+  <div class="page-container frontend-specs">
     <div class="page-header">
       <div>
         <h1 class="page-title">{{ t('pages.settings.UiTemplates.s1') }}</h1>
@@ -143,11 +143,11 @@
 
 <script setup lang="ts">
 /**
- * UiTemplates.vue — 前端 UI 模板中心（2026-10-18 兵哥立项）
+ * UiTemplates.vue — 前端组件规范中心（2026-10-18 兵哥立项，2026-10-19 更名）
  *
- * 职责：集中管理与预览系统级前端 UI 模板，按「数据列表 / 表单 / 弹窗 / 配置项 / 组件 /
- * 规则」六类组织，另有「样式文档」页签输出规范全文。支持查看每个模板的**代码结构**
- * 与**实际渲染效果**（活代码 Demo，非静态截图）。
+ * 职责：集中管理与预览系统级前端组件规范，按 TDesign 开源设计系统分类组织为
+ * 「基础 / 导航 / 输入 / 数据展示 / 反馈 / 规范」六类，另有「样式文档」页签输出规范全文。
+ * 支持查看每个模板的**代码结构**与**实际渲染效果**（活代码 Demo，非静态截图）。
  *
  * 数据来源：templateRegistry.ts（模板唯一真源）+ styleGuideDoc.ts（文档唯一数据源）。
  * 本文件只负责渲染与交互，新增/修改模板规格一律改数据文件，不改此处。
@@ -219,7 +219,7 @@ const router = useRouter()
 /** query 值是否命中注册表（防手改 URL 落到空详情） */
 function resolveCat(v: unknown): TemplateCategory {
   const s = typeof v === 'string' ? v : ''
-  return CATEGORIES.some(c => c.key === s) ? (s as TemplateCategory) : 'list'
+  return CATEGORIES.some(c => c.key === s) ? (s as TemplateCategory) : 'base'
 }
 
 const activeCat = ref<TemplateCategory>(resolveCat(route.query.cat))
@@ -255,36 +255,40 @@ watch(activeKey, (k) => {
 
 /** 分类相关速查表：仅在对应分类展示，避免信息过载 */
 const relatedTables = computed<{ title: string; rows: SpecRow[] }[]>(() => {
-  switch (activeCat.value) {
-    case 'list':
-      return [
-        { title: '列对齐四档（useTableColumns 单一真源）', rows: COLUMN_TIERS },
-        { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
-      ]
-    case 'modal':
-      return [
-        { title: '弹窗宽度档位（由站内存量 20+ 种收敛）', rows: MODAL_WIDTHS },
-      ]
-    case 'button':
-      return [
-        { title: '按钮 6 态判定标准（4 类通用，差别只在取色）', rows: BUTTON_STATES },
-        { title: '按钮尺寸四档（对齐 TDesign size 体系）', rows: BUTTON_SIZES },
-      ]
-    case 'rules':
-      return [
-        { title: '列对齐四档（useTableColumns 单一真源）', rows: COLUMN_TIERS },
-        { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
-        { title: '弹窗宽度档位（由站内存量 20+ 种收敛）', rows: MODAL_WIDTHS },
-        { title: '全局基础类（glass.css 提供，页面禁止重复定义）', rows: GLOBAL_CLASSES },
-      ]
-    case 'component':
-      return [
-        { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
-        { title: '全局基础类（glass.css 提供，页面禁止重复定义）', rows: GLOBAL_CLASSES },
-      ]
-    default:
-      return []
-  }
+    switch (activeCat.value) {
+      case 'data':
+        return [
+          { title: '列对齐四档（useTableColumns 单一真源）', rows: COLUMN_TIERS },
+          { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
+        ]
+      case 'feedback':
+        return [
+          { title: '弹窗宽度档位（由站内存量 20+ 种收敛）', rows: MODAL_WIDTHS },
+        ]
+      case 'base':
+        return [
+          { title: '按钮 6 态判定标准（4 类通用，差别只在取色）', rows: BUTTON_STATES },
+          { title: '按钮尺寸四档（对齐 TDesign size 体系）', rows: BUTTON_SIZES },
+        ]
+      case 'spec':
+        return [
+          { title: '列对齐四档（useTableColumns 单一真源）', rows: COLUMN_TIERS },
+          { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
+          { title: '弹窗宽度档位（由站内存量 20+ 种收敛）', rows: MODAL_WIDTHS },
+          { title: '全局基础类（glass.css 提供，页面禁止重复定义）', rows: GLOBAL_CLASSES },
+        ]
+      case 'nav':
+        return [
+          { title: '分页统一模板（useTablePagination 单一真源）', rows: PAGINATION_SPEC },
+          { title: '全局基础类（glass.css 提供，页面禁止重复定义）', rows: GLOBAL_CLASSES },
+        ]
+      case 'entry':
+        return [
+          { title: '全局基础类（glass.css 提供，页面禁止重复定义）', rows: GLOBAL_CLASSES },
+        ]
+      default:
+        return []
+    }
 })
 
 async function copyCode() {
