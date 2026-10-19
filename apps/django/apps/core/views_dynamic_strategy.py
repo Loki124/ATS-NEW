@@ -49,7 +49,7 @@ class DynamicStrategyViewSet(viewsets.ModelViewSet):
     queryset = DynamicStrategy.objects.all()
     serializer_class = DynamicStrategySerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:dynamic_strategy:list'
+    permission_required = 'recruit:settings:dynamic_strategy:list'
     pagination_class = StandardResultsSetPagination  # 服务端分页, 对齐其它 V2 端点
     lookup_field = 'strategy_code'
     search_fields = ['strategy_code', 'strategy_name']

@@ -135,7 +135,7 @@ class DynamicStrategyScopeTest(TestCase):
     # 4. 迁移 0034 授予 ADMIN 角色的动态策略资源码
     # ------------------------------------------------------------------
     def test_migration_0034_grants_admin_dynamic_strategy_codes(self):
-        """迁移 0034 给 ADMIN 角色写入 5 条 recruit:dynamic_strategy:* 授权行,
+        """迁移 0034 给 ADMIN 角色写入 5 条 recruit:settings:dynamic_strategy:* 授权行,
         ADMIN 用户经 /me 应能在 permissions 中看到这些码 (验证资源码缺失修复端到端生效)."""
         # 测试库由迁移构建, 不一定含 RoleV2 行; 角色码为纯字符串, 建一条以贴近真实.
         RoleV2.objects.get_or_create(
@@ -151,10 +151,10 @@ class DynamicStrategyScopeTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         perms = resp.data['data']['permissions']
         for code in (
-            'recruit:dynamic_strategy:menu:view',
-            'recruit:dynamic_strategy:list',
-            'recruit:dynamic_strategy:create',
-            'recruit:dynamic_strategy:edit',
-            'recruit:dynamic_strategy:delete',
+            'recruit:settings:dynamic_strategy:menu:view',
+            'recruit:settings:dynamic_strategy:list',
+            'recruit:settings:dynamic_strategy:create',
+            'recruit:settings:dynamic_strategy:edit',
+            'recruit:settings:dynamic_strategy:delete',
         ):
             self.assertIn(code, perms)

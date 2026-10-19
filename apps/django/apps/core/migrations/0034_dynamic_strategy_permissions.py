@@ -1,7 +1,7 @@
 """动态策略 资源码注册 + 授予 SUPER_ADMIN / ADMIN 角色（2026-10-20）。
 
 数据迁移（无 schema 变更）：
-- 把 recruit:dynamic_strategy:{menu:view,list,create,edit,delete} 五条资源注册进
+- 把 recruit:settings:dynamic_strategy:{menu:view,list,create,edit,delete} 五条资源注册进
   permission_resources（与 seed_v2_init.RESOURCES 真源对齐，使后续 seed/backfill 一致）；
 - 给 SUPER_ADMIN 与 ADMIN 角色写入 role_permission 授权行（ADMIN 是动态策略页
   meta.roles = SUPER_ADMIN_ADMIN 的目标角色之一；SUPER_ADMIN 虽由 is_super_admin bypass，
@@ -15,11 +15,11 @@ from django.db import migrations
 SYSTEM = 'recruit'
 
 CODES = [
-    ('recruit:dynamic_strategy:menu:view', '动态策略菜单', 'MENU'),
-    ('recruit:dynamic_strategy:list', '动态策略列表', 'BUTTON'),
-    ('recruit:dynamic_strategy:create', '创建动态策略', 'BUTTON'),
-    ('recruit:dynamic_strategy:edit', '编辑动态策略', 'BUTTON'),
-    ('recruit:dynamic_strategy:delete', '删除动态策略', 'BUTTON'),
+    ('recruit:settings:dynamic_strategy:menu:view', '动态策略菜单', 'MENU'),
+    ('recruit:settings:dynamic_strategy:list', '动态策略列表', 'BUTTON'),
+    ('recruit:settings:dynamic_strategy:create', '创建动态策略', 'BUTTON'),
+    ('recruit:settings:dynamic_strategy:edit', '编辑动态策略', 'BUTTON'),
+    ('recruit:settings:dynamic_strategy:delete', '删除动态策略', 'BUTTON'),
 ]
 
 ROLE_CODES = ('SUPER_ADMIN', 'ADMIN')
