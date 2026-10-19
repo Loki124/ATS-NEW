@@ -267,6 +267,29 @@ def me_view(request):
                     permissions = list(RolePermissionV2.objects.filter(
                         role_code__in=role_codes, system_code='recruit',
                     ).values_list('resource_code', flat=True).distinct())
+                    # 动态策略并集: 用户被指派且启用的策略所授予的资源码并入功能权限.
+                    # 任一策略授予的码 -> 并集; 未管辖的功能退回基础 role_permission (策略只授予自身码).
+                    try:
+                        from apps.core.models_permission_v2 import (
+                            DynamicStrategy,
+                            DynamicStrategyAssignment,
+                        )
+                        strategy_codes = list(DynamicStrategyAssignment.objects.filter(
+                            role_code__in=role_codes,
+                        ).values_list('strategy_code', flat=True))
+                        if strategy_codes:
+                            granted = DynamicStrategy.objects.filter(
+                                strategy_code__in=strategy_codes, status=1,
+                            ).values_list('granted_resource_codes', flat=True)
+                            extra = set()
+                            for codes in granted:
+                                if codes:
+                                    extra.update(codes)
+                            if extra:
+                                permissions = list(set(permissions) | extra)
+                    except (OperationalError, ProgrammingError):
+                        # 动态策略表尚不存在时静默跳过, 不阻断 /me
+                        pass
             except (OperationalError, ProgrammingError):
                 permissions = []
 

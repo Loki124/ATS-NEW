@@ -3,6 +3,8 @@ from django.db.utils import OperationalError, ProgrammingError
 from rest_framework import serializers
 
 from .models_permission_v2 import (
+    DynamicStrategy,
+    DynamicStrategyAssignment,
     ManagementUnit,
     ManagementUnitMember,
     PermissionResource,
@@ -198,6 +200,60 @@ class UserRoleSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['granted_by_id'] = self.context['request'].user.id
         return super().create(validated_data)
+
+
+class DynamicStrategySerializer(serializers.ModelSerializer):
+    """动态策略序列化器.
+
+    role_codes 为 write_only: 仅用于写操作时把策略绑定到角色
+    (经 DynamicStrategyAssignment 桥表, 与 RoleV2 校验存在性).
+    """
+
+    role_codes = serializers.ListField(
+        child=serializers.CharField(),
+        required=False, write_only=True, default=list,
+    )
+
+    class Meta:
+        model = DynamicStrategy
+        fields = [
+            'id', 'system_code', 'strategy_code', 'strategy_name', 'status',
+            'description', 'governed_functions', 'granted_resource_codes',
+            'module_config', 'role_codes', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate_role_codes(self, value):
+        if value:
+            existing = set(RoleV2.objects.filter(
+                role_code__in=value, system_code='recruit',
+            ).values_list('role_code', flat=True))
+            invalid = [c for c in value if c not in existing]
+            if invalid:
+                raise serializers.ValidationError(
+                    f'角色不存在: {invalid[:5]}'
+                )
+        return value
+
+    def validate(self, attrs):
+        gf = attrs.get('governed_functions') or []
+        invalid_modules = [m for m in gf if m not in DynamicStrategy.VALID_MODULE_KEYS]
+        if invalid_modules:
+            raise serializers.ValidationError({
+                'governed_functions': f'非法模块: {invalid_modules}',
+            })
+        mc = attrs.get('module_config') or {}
+        for module_key, cfg in mc.items():
+            if module_key not in DynamicStrategy.VALID_MODULE_KEYS:
+                raise serializers.ValidationError({
+                    'module_config': f'非法模块键: {module_key}',
+                })
+            mode = (cfg or {}).get('mode')
+            if mode is not None and mode not in DynamicStrategy.VALID_MODES:
+                raise serializers.ValidationError({
+                    'module_config': f'模块 {module_key} 非法 mode: {mode}',
+                })
+        return attrs
 
 
 class UserAppDataScopeSerializer(serializers.Serializer):

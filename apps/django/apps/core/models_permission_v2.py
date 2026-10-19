@@ -276,3 +276,59 @@ class TenantConfig(models.Model):
 
     def __str__(self):
         return f'{self.system_code}.{self.config_key}'
+
+
+class DynamicStrategy(models.Model):
+    """动态策略 — 从「操作权限」(原按 ROLE 配置) 抽离出的可复用策略实体.
+
+    绑定到 ROLE(经 DynamicStrategyAssignment), 并作用于「受限制的功能」(业务模块).
+    - governed_functions: 该策略管辖的业务模块 key 列表
+      (demand/process/position/candidate/talent)
+    - granted_resource_codes: 该策略授予的功能资源码列表(在管辖模块内选择)
+    - module_config: {module_key: {mode, actions, groups, expr}} 各模块写范围配置
+
+    注: 资源码不单独建表(v1 够用), 全部以 JSON 存于本模型.
+    """
+
+    VALID_MODULE_KEYS = ['demand', 'process', 'position', 'candidate', 'talent']
+    VALID_MODES = ['none', 'all', 'owner', 'scope']
+
+    system_code = models.CharField(max_length=32, default='recruit', verbose_name='系统编码')
+    strategy_code = models.CharField(max_length=64, unique=True, verbose_name='策略编码')
+    strategy_name = models.CharField(max_length=64, verbose_name='策略名称')
+    status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
+    description = models.CharField(max_length=255, null=True, blank=True, verbose_name='描述')
+    governed_functions = models.JSONField(default=list, verbose_name='管辖功能(JSON 数组)')
+    granted_resource_codes = models.JSONField(default=list, verbose_name='授予资源码(JSON 数组)')
+    module_config = models.JSONField(default=dict, verbose_name='模块配置(JSON)')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'dynamic_strategies'
+        verbose_name = '动态策略'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return f'{self.strategy_code}({self.strategy_name})'
+
+
+class DynamicStrategyAssignment(models.Model):
+    """动态策略-角色绑定 — strategy_code ↔ role_code (多对多桥表)."""
+
+    system_code = models.CharField(max_length=32, default='recruit', verbose_name='系统编码')
+    strategy_code = models.CharField(max_length=64, verbose_name='策略编码')
+    role_code = models.CharField(max_length=64, verbose_name='角色编码')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        db_table = 'dynamic_strategy_assignments'
+        verbose_name = '动态策略角色绑定'
+        verbose_name_plural = verbose_name
+        constraints = [
+            models.UniqueConstraint(
+                fields=['strategy_code', 'role_code'], name='uk_strategy_role'),
+        ]
+
+    def __str__(self):
+        return f'{self.strategy_code} -> {self.role_code}'

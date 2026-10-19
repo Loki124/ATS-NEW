@@ -214,6 +214,93 @@ def _owner_field_for(entity: str) -> str:
     return OWNER_FIELD_BY_ENTITY.get(entity, 'created_by')
 
 
+def _strategy_write_scope_full(user, module_key):
+    """返回 (mode, sorted_actions, scope_configs) 或 None (该模块未被指派策略管辖).
+
+    动态策略写范围合并 (v1):
+    - 解析用户 role_codes -> 经 DynamicStrategyAssignment 指派且启用的策略
+      (DynamicStrategy.status=1) -> 过滤出管辖 module_key 的策略
+      (governed_functions 含该 module_key)
+    - mode 优先级 scope>owner>all>none (任一策略设 scope -> scope; 否则 owner; 否则 all; 否则 none)
+    - actions = 各策略该模块 actions 并集
+    - scope_configs = 各 mode=='scope' 策略的 {expr, groups}, 供调用方编译自定义范围
+
+    该模块未被任何策略管辖 -> None (调用方回退既有 role 级写范围逻辑). 超管 / 无角色 -> None.
+    """
+    try:
+        from apps.core.role_v2_query import is_super_admin, user_role_codes
+    except ImportError:
+        return None
+    if not (user and getattr(user, 'is_authenticated', False)):
+        return None
+    if is_super_admin(user):
+        return None
+    try:
+        role_codes = list(user_role_codes(user))
+    except Exception:  # noqa: BLE001
+        return None
+    if not role_codes:
+        return None
+    try:
+        from apps.core.models_permission_v2 import (
+            DynamicStrategy,
+            DynamicStrategyAssignment,
+        )
+    except ImportError:
+        return None
+    try:
+        strategy_codes = list(DynamicStrategyAssignment.objects.filter(
+            role_code__in=role_codes,
+        ).values_list('strategy_code', flat=True))
+        if not strategy_codes:
+            return None
+        strategies = DynamicStrategy.objects.filter(
+            strategy_code__in=strategy_codes, status=1,
+            governed_functions__contains=[module_key],
+        )
+    except (OperationalError, ProgrammingError):
+        return None
+    if not strategies.exists():
+        return None
+
+    MODE_RANK = {'scope': 3, 'owner': 2, 'all': 1, 'none': 0}
+    best_mode = None
+    best_rank = -1
+    actions = set()
+    scope_configs = []
+    for s in strategies:
+        cfg = (s.module_config or {}).get(module_key) or {}
+        mode = cfg.get('mode')
+        if mode in MODE_RANK and MODE_RANK[mode] > best_rank:
+            best_rank = MODE_RANK[mode]
+            best_mode = mode
+        for a in (cfg.get('actions') or []):
+            actions.add(a)
+        if mode == 'scope' and (cfg.get('expr') or cfg.get('groups')):
+            scope_configs.append({
+                'expr': cfg.get('expr') or '',
+                'groups': cfg.get('groups') or [],
+            })
+    if best_mode is None:
+        return None
+    return (best_mode, sorted(actions), scope_configs)
+
+
+def strategy_write_scope(user, module_key):
+    """返回 (mode, actions) 或 None.
+
+    解析用户 role_codes -> 指派且启用的、管辖 module_key 的策略 -> 合并 module_config[module_key]:
+    - mode 优先级 scope>owner>all>none
+    - actions = 各策略 actions 并集
+    该模块未被任何策略管辖 -> None (调用方回退既有 role 级写范围逻辑). 超管 / 无角色 -> None.
+    """
+    full = _strategy_write_scope_full(user, module_key)
+    if full is None:
+        return None
+    mode, actions, _ = full
+    return (mode, actions)
+
+
 def write_scope_q(user, entity: str, action: str | None = None):
     """返回当前用户在某业务模块（entity）的「写范围」Q；无 WRITE 规则返回 None。
 
@@ -244,6 +331,48 @@ def write_scope_q(user, entity: str, action: str | None = None):
 
     if not (user and getattr(user, 'is_authenticated', False)):
         return None
+
+    # ---- 动态策略优先: 模块被指派策略管辖时, 以其写范围并集为准 ----
+    # 未管辖该模块 -> None, 下方既有的 role 级写范围逻辑完全不变.
+    strat = _strategy_write_scope_full(user, entity)
+    if strat is not None:
+        mode, actions, scope_configs = strat
+        # 动作级 fail-closed: 停用动作一律拒绝; 未授权动作一律拒绝.
+        if action is not None:
+            if not action_registry.is_action_enabled(action):
+                logger.info('写范围拒绝(动态策略: 动作已停用): entity=%s action=%s', entity, action)
+                return Q(pk__in=[])
+            if actions and action not in actions:
+                logger.info('写范围拒绝(动态策略: 动作未授权): entity=%s action=%s', entity, action)
+                return Q(pk__in=[])
+        if mode == 'all':
+            return Q()
+        if mode == 'none':
+            return Q(pk__in=[])
+        if mode == 'owner':
+            return Q(**{_owner_field_for(entity): user.pk})
+        if mode == 'scope':
+            qs = []
+            for sc in scope_configs:
+                try:
+                    compiled = compile_scope_q(
+                        {'expr': sc.get('expr') or '', 'groups': sc.get('groups') or []},
+                        entity, user=user,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning('动态策略 scope 编译失败, 该配置 no-op: %s', e)
+                    compiled = None
+                if compiled is not None and compiled.children:
+                    qs.append(compiled)
+                else:
+                    qs.append(Q(pk__in=[]))
+            if not qs:
+                return Q(pk__in=[])
+            combined = qs[0]
+            for nxt in qs[1:]:
+                combined = combined | nxt
+            return combined
+        return Q(pk__in=[])
 
     try:
         from apps.core.role_v2_query import is_super_admin, user_role_codes
