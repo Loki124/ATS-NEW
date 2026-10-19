@@ -4,7 +4,6 @@ from rest_framework import serializers
 
 from .models_permission_v2 import (
     DynamicStrategy,
-    DynamicStrategyAssignment,
     ManagementUnit,
     ManagementUnitMember,
     PermissionResource,
@@ -203,37 +202,16 @@ class UserRoleSerializer(serializers.ModelSerializer):
 
 
 class DynamicStrategySerializer(serializers.ModelSerializer):
-    """动态策略序列化器.
-
-    role_codes 为 write_only: 仅用于写操作时把策略绑定到角色
-    (经 DynamicStrategyAssignment 桥表, 与 RoleV2 校验存在性).
-    """
-
-    role_codes = serializers.ListField(
-        child=serializers.CharField(),
-        required=False, write_only=True, default=list,
-    )
+    """动态策略序列化器 (2026-10-19 起不绑定角色, 策略全局生效)."""
 
     class Meta:
         model = DynamicStrategy
         fields = [
             'id', 'system_code', 'strategy_code', 'strategy_name', 'status',
             'description', 'governed_functions', 'granted_resource_codes',
-            'module_config', 'role_codes', 'created_at', 'updated_at',
+            'module_config', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-
-    def validate_role_codes(self, value):
-        if value:
-            existing = set(RoleV2.objects.filter(
-                role_code__in=value, system_code='recruit',
-            ).values_list('role_code', flat=True))
-            invalid = [c for c in value if c not in existing]
-            if invalid:
-                raise serializers.ValidationError(
-                    f'角色不存在: {invalid[:5]}'
-                )
-        return value
 
     def validate(self, attrs):
         gf = attrs.get('governed_functions') or []

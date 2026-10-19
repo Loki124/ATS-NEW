@@ -1603,7 +1603,6 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.DynamicStrategy.s6': "Description",
   'pages.settings.DynamicStrategy.s7': "Restricted Functions",
   'pages.settings.DynamicStrategy.s8': "Operation Permission Config",
-  'pages.settings.DynamicStrategy.s9': "Bound Roles",
   'pages.settings.DynamicStrategy.s10': "Save",
   'pages.settings.DynamicStrategy.s11': "Cancel",
   'pages.settings.DynamicStrategy.s12': "Delete",

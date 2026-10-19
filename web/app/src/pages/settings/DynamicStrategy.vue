@@ -111,20 +111,6 @@
               />
             </div>
           </section>
-
-          <!-- 绑定角色 -->
-          <section class="ds-section">
-            <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s9') }}</h2>
-            <n-select
-              v-model:value="form.role_codes"
-              :options="roleOptions"
-              multiple
-              clearable
-              filterable
-              :placeholder="t('pages.settings.DynamicStrategy.s9')"
-              class="ds-role-select"
-            />
-          </section>
         </div>
       </template>
     </div>
@@ -135,7 +121,7 @@
 import { useI18n } from 'vue-i18n'
 import { h, ref, reactive, computed, onMounted } from 'vue'
 import {
-  NButton, NDataTable, NInput, NSwitch, NSelect, NCheckboxGroup, NCheckbox,
+  NButton, NDataTable, NInput, NSwitch, NCheckboxGroup, NCheckbox,
   NTag, NSpace, NForm, NFormItem, NEmpty, useMessage, useDialog,
   type DataTableColumns,
 } from 'naive-ui'
@@ -144,7 +130,6 @@ import {
   listStrategies, getStrategyOptions, createStrategy, updateStrategy, deleteStrategy,
   type DynamicStrategy, type StrategyModuleConfig, type StrategyOptions,
 } from '@/api/dynamicStrategy'
-import { listRoles } from '@/api/role-v2'
 import type { ModulePerm, WriteMode, ActionDictItem, ActionPreset } from '@/api/data-permission'
 
 const { t } = useI18n()
@@ -217,11 +202,6 @@ const columns = computed<DataTableColumns<DynamicStrategy>>(() => [
     render: (row: DynamicStrategy) => `${row.governed_functions?.length ?? 0}`,
   },
   {
-    title: () => t('pages.settings.DynamicStrategy.s9'),
-    key: 'roles',
-    render: (row: DynamicStrategy) => `${row.role_codes?.length ?? 0}`,
-  },
-  {
     title: '操作',
     key: 'actions',
     render: (row: DynamicStrategy) =>
@@ -245,7 +225,6 @@ const form = reactive({
   governed_functions: [] as string[],
   granted_resource_codes: [] as string[],
   module_config: {} as Record<string, StrategyModuleConfig>,
-  role_codes: [] as string[],
 })
 
 const statusSwitch = computed({
@@ -306,22 +285,13 @@ function onWriteActions(key: string, actions: string[]) {
   form.module_config[key].actions = [...actions]
 }
 
-// ===== 选项（动作字典 / 预设包）与角色 =====
+// ===== 选项（动作字典 / 预设包）=====
 const options = ref<StrategyOptions>({ modules: [], actions: [] as ActionDictItem[], presets: [] as ActionPreset[] })
-const roleOptions = ref<Array<{ label: string; value: string }>>([])
 async function loadOptions() {
   try {
     options.value = await getStrategyOptions()
   } catch {
     options.value = { modules: [], actions: [], presets: [] }
-  }
-}
-async function loadRoles() {
-  try {
-    const roles = await listRoles()
-    roleOptions.value = roles.map((r) => ({ label: r.roleName, value: r.roleCode }))
-  } catch {
-    roleOptions.value = []
   }
 }
 
@@ -335,10 +305,9 @@ async function openCreate() {
   form.governed_functions = []
   form.granted_resource_codes = []
   form.module_config = {}
-  form.role_codes = []
   clearModulePerms()
   mode.value = 'edit'
-  await Promise.all([loadOptions(), loadRoles()])
+  await loadOptions()
 }
 
 async function openEdit(row: DynamicStrategy) {
@@ -356,7 +325,6 @@ async function openEdit(row: DynamicStrategy) {
       ? { mode: cfg.mode, expr: cfg.expr, groups: cfg.groups ? cfg.groups.map((g) => ({ ...g })) : [], actions: [...cfg.actions] }
       : defaultModuleConfig()
   }
-  form.role_codes = [...(row.role_codes || [])]
   clearModulePerms()
   // 为预勾选的受限制模块预建稳定的 ModulePerm 引用（checkbox 初始值不会触发 onGovernedChange）
   for (const k of form.governed_functions) {
@@ -371,7 +339,7 @@ async function openEdit(row: DynamicStrategy) {
     }
   }
   mode.value = 'edit'
-  await Promise.all([loadOptions(), loadRoles()])
+  await loadOptions()
 }
 
 function buildPayload(): Partial<DynamicStrategy> {
@@ -387,7 +355,6 @@ function buildPayload(): Partial<DynamicStrategy> {
     governed_functions: [...form.governed_functions],
     granted_resource_codes: [...form.granted_resource_codes],
     module_config,
-    role_codes: [...form.role_codes],
   }
 }
 
@@ -547,6 +514,4 @@ onMounted(loadList)
   flex-direction: column;
   gap: var(--space-2);
 }
-
-.ds-role-select { max-width: 480px; }
 </style>

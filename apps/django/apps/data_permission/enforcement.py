@@ -217,18 +217,17 @@ def _owner_field_for(entity: str) -> str:
 def _strategy_write_scope_full(user, module_key):
     """返回 (mode, sorted_actions, scope_configs) 或 None (该模块未被指派策略管辖).
 
-    动态策略写范围合并 (v1):
-    - 解析用户 role_codes -> 经 DynamicStrategyAssignment 指派且启用的策略
-      (DynamicStrategy.status=1) -> 过滤出管辖 module_key 的策略
+    动态策略写范围合并 (v1, 2026-10-19 起策略全局生效、不绑定角色):
+    - 全部启用策略 (DynamicStrategy.status=1) -> 过滤出管辖 module_key 的策略
       (governed_functions 含该 module_key)
     - mode 优先级 scope>owner>all>none (任一策略设 scope -> scope; 否则 owner; 否则 all; 否则 none)
     - actions = 各策略该模块 actions 并集
     - scope_configs = 各 mode=='scope' 策略的 {expr, groups}, 供调用方编译自定义范围
 
-    该模块未被任何策略管辖 -> None (调用方回退既有 role 级写范围逻辑). 超管 / 无角色 -> None.
+    该模块未被任何策略管辖 -> None (调用方回退既有 role 级写范围逻辑). 超管 -> None.
     """
     try:
-        from apps.core.role_v2_query import is_super_admin, user_role_codes
+        from apps.core.role_v2_query import is_super_admin
     except ImportError:
         return None
     if not (user and getattr(user, 'is_authenticated', False)):
@@ -236,26 +235,12 @@ def _strategy_write_scope_full(user, module_key):
     if is_super_admin(user):
         return None
     try:
-        role_codes = list(user_role_codes(user))
-    except Exception:  # noqa: BLE001
-        return None
-    if not role_codes:
-        return None
-    try:
-        from apps.core.models_permission_v2 import (
-            DynamicStrategy,
-            DynamicStrategyAssignment,
-        )
+        from apps.core.models_permission_v2 import DynamicStrategy
     except ImportError:
         return None
     try:
-        strategy_codes = list(DynamicStrategyAssignment.objects.filter(
-            role_code__in=role_codes,
-        ).values_list('strategy_code', flat=True))
-        if not strategy_codes:
-            return None
         strategies = DynamicStrategy.objects.filter(
-            strategy_code__in=strategy_codes, status=1,
+            status=1,
             governed_functions__contains=[module_key],
         )
     except (OperationalError, ProgrammingError):
@@ -289,10 +274,10 @@ def _strategy_write_scope_full(user, module_key):
 def strategy_write_scope(user, module_key):
     """返回 (mode, actions) 或 None.
 
-    解析用户 role_codes -> 指派且启用的、管辖 module_key 的策略 -> 合并 module_config[module_key]:
+    启用中的、管辖 module_key 的策略(全局生效, 不绑定角色) -> 合并 module_config[module_key]:
     - mode 优先级 scope>owner>all>none
     - actions = 各策略 actions 并集
-    该模块未被任何策略管辖 -> None (调用方回退既有 role 级写范围逻辑). 超管 / 无角色 -> None.
+    该模块未被任何策略管辖 -> None (调用方回退既有 role 级写范围逻辑). 超管 -> None.
     """
     full = _strategy_write_scope_full(user, module_key)
     if full is None:

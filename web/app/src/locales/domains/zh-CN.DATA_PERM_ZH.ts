@@ -1602,7 +1602,6 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.DynamicStrategy.s6': "描述",
   'pages.settings.DynamicStrategy.s7': "受策略限制的功能",
   'pages.settings.DynamicStrategy.s8': "操作权限配置",
-  'pages.settings.DynamicStrategy.s9': "绑定角色",
   'pages.settings.DynamicStrategy.s10': "保存",
   'pages.settings.DynamicStrategy.s11': "取消",
   'pages.settings.DynamicStrategy.s12': "删除",

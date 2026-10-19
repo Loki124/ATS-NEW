@@ -5,7 +5,7 @@
  *   GET    /dynamic-strategies/                      列表
  *   POST   /dynamic-strategies/                      创建
  *   GET    /dynamic-strategies/{strategy_code}/      详情
- *   PUT    /dynamic-strategies/{strategy_code}/      更新（同步 role_codes -> assignments）
+ *   PUT    /dynamic-strategies/{strategy_code}/      更新
  *   DELETE /dynamic-strategies/{strategy_code}/      删除
  *   GET    /dynamic-strategies/options/              模块/动作/预设包选项
  *
@@ -46,8 +46,6 @@ export interface DynamicStrategy {
   granted_resource_codes: string[]
   /** module_key -> 操作权限配置（mode/actions/groups/expr） */
   module_config: Record<string, StrategyModuleConfig>
-  /** 绑定的角色 code 列表 */
-  role_codes: string[]
   created_at?: string
   updated_at?: string
 }
@@ -79,7 +77,7 @@ export async function createStrategy(payload: Partial<DynamicStrategy>): Promise
   return data.data
 }
 
-/** 更新策略（含 role_codes 重新同步到绑定关系） */
+/** 更新策略 */
 export async function updateStrategy(
   code: string,
   payload: Partial<DynamicStrategy>,

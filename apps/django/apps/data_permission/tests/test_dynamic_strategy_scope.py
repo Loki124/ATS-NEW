@@ -1,9 +1,10 @@
 """动态策略(Dynamic Strategy) 后端运行时语义测试.
 
-覆盖三项核心契约:
-1. /me 功能权限并集: 指派且启用的策略所授予的资源码并入 permissions.
+2026-10-19 起策略不绑定角色、全局生效. 覆盖四项核心契约:
+1. /me 功能权限并集: 启用中的策略(全局)所授予的资源码并入 permissions; 禁用策略不参与.
 2. strategy_write_scope 多策略合并: 动作并集 + mode 优先级 scope>owner>all>none.
-3. 未被任何策略管辖的模块 -> 返回 None (回退既有 role 级写范围逻辑).
+3. 未被任何策略管辖 / 全部禁用 -> 返回 None (回退既有 role 级写范围逻辑).
+4. 迁移 0034 给 ADMIN 角色写入的动态策略资源码经 /me 端到端可见.
 """
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -11,7 +12,6 @@ from rest_framework.test import APIClient
 from apps.core.models import Department, User
 from apps.core.models_permission_v2 import (
     DynamicStrategy,
-    DynamicStrategyAssignment,
     RoleV2,
     UserRoleV2,
 )
@@ -41,19 +41,13 @@ class DynamicStrategyScopeTest(TestCase):
             module_config=module_config,
         )
 
-    def _assign(self, strategy_code):
-        DynamicStrategyAssignment.objects.create(
-            system_code='recruit', strategy_code=strategy_code,
-            role_code=self.role_code)
-
     # ------------------------------------------------------------------
-    # 1. /me 并集
+    # 1. /me 并集 (策略全局生效, 与用户角色无关)
     # ------------------------------------------------------------------
     def test_me_union_adds_granted_codes(self):
-        """指派的启用策略其授予码应并入 /me 的 permissions."""
+        """启用策略其授予码应并入 /me 的 permissions (全局生效)."""
         self._strategy(
             'DS_UNION', ['candidate'], ['recruit:candidate:export'], {}, status=1)
-        self._assign('DS_UNION')
 
         client = APIClient()
         client.force_authenticate(user=self.user)
@@ -62,11 +56,23 @@ class DynamicStrategyScopeTest(TestCase):
         perms = resp.data['data']['permissions']
         self.assertIn('recruit:candidate:export', perms)
 
+    def test_me_union_applies_without_roles(self):
+        """无任何角色的用户同样受全局策略并集影响."""
+        roleless = User.objects.create(username='ds_roleless_user', department=self.dept)
+        self._strategy(
+            'DS_GLOBAL', ['candidate'], ['recruit:candidate:view'], {}, status=1)
+
+        client = APIClient()
+        client.force_authenticate(user=roleless)
+        resp = client.get('/api/v1/auth/me/')
+        self.assertEqual(resp.status_code, 200)
+        perms = resp.data['data']['permissions']
+        self.assertIn('recruit:candidate:view', perms)
+
     def test_me_union_skips_disabled_strategy(self):
         """禁用(status=0)的策略不参与并集."""
         self._strategy(
             'DS_OFF', ['candidate'], ['recruit:candidate:export'], {}, status=0)
-        self._assign('DS_OFF')
 
         client = APIClient()
         client.force_authenticate(user=self.user)
@@ -87,8 +93,6 @@ class DynamicStrategyScopeTest(TestCase):
         self._strategy(
             'DS_B', ['candidate'], [],
             {'candidate': {'mode': 'owner', 'actions': ['delete'], 'groups': [], 'expr': ''}})
-        self._assign('DS_A')
-        self._assign('DS_B')
 
         result = strategy_write_scope(self.user, 'candidate')
         self.assertIsNotNone(result)
@@ -106,29 +110,26 @@ class DynamicStrategyScopeTest(TestCase):
         self._strategy(
             'DS_D', ['candidate'], [],
             {'candidate': {'mode': 'owner', 'actions': ['edit'], 'groups': [], 'expr': ''}})
-        self._assign('DS_C')
-        self._assign('DS_D')
         mode, _ = strategy_write_scope(self.user, 'candidate')
         self.assertEqual(mode, 'owner')
 
     # ------------------------------------------------------------------
-    # 3. 未管辖 -> 回退 None
+    # 3. 未管辖 / 全禁用 -> 回退 None
     # ------------------------------------------------------------------
     def test_strategy_write_scope_none_when_not_governed(self):
         """模块未被任何策略管辖 -> None (回退既有 role 级逻辑)."""
         self._strategy(
             'DS_E', ['candidate'], [],
             {'candidate': {'mode': 'all', 'actions': [], 'groups': [], 'expr': ''}})
-        self._assign('DS_E')
         # 'position' 未被任何策略管辖
         self.assertIsNone(strategy_write_scope(self.user, 'position'))
 
-    def test_strategy_write_scope_none_for_unassigned_user(self):
-        """无策略指派的用户 -> None."""
+    def test_strategy_write_scope_none_when_all_disabled(self):
+        """管辖该模块的策略全部禁用 -> None."""
         self._strategy(
             'DS_F', ['candidate'], [],
-            {'candidate': {'mode': 'all', 'actions': [], 'groups': [], 'expr': ''}})
-        # 不指派给当前用户
+            {'candidate': {'mode': 'all', 'actions': [], 'groups': [], 'expr': ''}},
+            status=0)
         self.assertIsNone(strategy_write_scope(self.user, 'candidate'))
 
     # ------------------------------------------------------------------
