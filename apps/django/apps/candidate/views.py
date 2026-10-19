@@ -375,6 +375,8 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
             if rule is None or not rule.enabled:
                 return
             max_n = rule.max_selectable_tags or 5
+            # 自定义「其他」原因（末级分类 allowCustom 自由输入），服务端再校验清洗
+            custom_reasons = request.data.get('reason_custom_reasons') or []
             record_attribution(
                 candidate=candidate,
                 application=None,
@@ -383,6 +385,7 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
                 rule=rule,
                 tag_ids=valid_ids[:max_n],
                 note=data.get('reason', ''),
+                custom_reasons=custom_reasons if isinstance(custom_reasons, list) else [],
                 actor=request.user,
             )
         except Exception as e:  # noqa: BLE001 — 归因失败不影响主流程

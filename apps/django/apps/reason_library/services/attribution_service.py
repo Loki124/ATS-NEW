@@ -48,13 +48,22 @@ def resolve_tag_versions(candidate_id: str, tag_ids: Iterable[str], latest_rule_
 
 
 def record_attribution(candidate, application, scene: str, recruit_type: str,
-                       rule, tag_ids: List[str], note: str = '', actor=None) -> CandidateReasonRecord:
+                       rule, tag_ids: List[str], note: str = '',
+                       custom_reasons: Optional[List[Dict]] = None, actor=None) -> CandidateReasonRecord:
     """双写归因记录 + 候选人审计（不单独建接口，由六业务端点主接口调用）。
 
+    custom_reasons: 末级分类 allowCustom 时终端用户输入的自由文本，
+      形如 [{"category": "岗位不匹配", "text": "..."}]；空/非法项在服务端静默丢弃。
     返回创建的 ``CandidateReasonRecord``。
     """
     latest_version = getattr(rule, 'version', 1)
     versions = resolve_tag_versions(candidate.id, tag_ids, latest_version)
+
+    # 仅保留 {category: 非空 str, text: 非空 str} 的合法项（best-effort，不阻断主流程）
+    clean_custom: List[Dict] = []
+    for item in (custom_reasons or []):
+        if isinstance(item, dict) and item.get('category') and item.get('text'):
+            clean_custom.append({'category': str(item['category']), 'text': str(item['text'])})
 
     record = CandidateReasonRecord.objects.create(
         candidate=candidate,
@@ -64,6 +73,7 @@ def record_attribution(candidate, application, scene: str, recruit_type: str,
         rule=rule,
         rule_version=latest_version,
         note=note,
+        custom_reasons=clean_custom,
         created_by=actor if _actor_id(actor) else None,
     )
     tag_rows = [
@@ -84,6 +94,7 @@ def record_attribution(candidate, application, scene: str, recruit_type: str,
         'rule_version': latest_version,
         'tags': [{'tag_id': tag_id, 'rule_version': version} for tag_id, version in versions.items()],
         'note': note,
+        'custom_reasons': clean_custom,
     }, actor)
 
     return record

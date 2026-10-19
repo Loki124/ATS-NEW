@@ -446,6 +446,9 @@ class CandidateReasonRecord(models.Model):
     )
     rule_version = models.PositiveIntegerField(default=1, verbose_name='规则版本基线')
     note = models.TextField(blank=True, default='', verbose_name='备注')
+    # 自定义「其他」原因（末级分类 allowCustom 时终端用户输入的自由文本）
+    # 形如 [{"category": "岗位不匹配", "text": "候选人期望base在深圳"}]
+    custom_reasons = models.JSONField(default=list, blank=True, verbose_name='自定义其他原因')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, verbose_name='操作人',

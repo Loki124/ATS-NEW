@@ -138,6 +138,53 @@ class TestEliminateReasonAttribution:
         assert CandidateReasonRecord.objects.filter(candidate=a_candidate).count() == 0
         assert a_candidate.histories.filter(action='REASON_TAGGED').count() == 0
 
+    def test_custom_reasons_persisted(self, api_client, a_candidate, eliminate_rule):
+        """末级分类 allowCustom 的自由输入随归因记录落 custom_reasons 字段。"""
+        tag_ids = eliminate_rule._test_tag_ids
+        custom = [
+            {'category': '岗位不匹配', 'text': '候选人期望 base 在深圳'},
+            {'category': '硬性条件', 'text': '英语未达到岗位要求'},
+        ]
+        resp = api_client.post(
+            _transition_url(a_candidate),
+            {
+                'action': 'mark_process_failed',
+                'reason': '综合评估未通过',
+                'reason_tag_ids': tag_ids,
+                'reason_custom_reasons': custom,
+            },
+            format='json',
+        )
+        assert resp.status_code == 200, resp.content
+        rec = CandidateReasonRecord.objects.get(candidate=a_candidate, scene='淘汰')
+        assert rec.custom_reasons == custom
+        # 审计负载一并带出，便于追溯
+        hist = a_candidate.histories.filter(action='REASON_TAGGED').first()
+        assert hist is not None
+        assert (hist.detail or {}).get('custom_reasons') == custom
+
+    def test_custom_reasons_malformed_dropped(self, api_client, a_candidate, eliminate_rule):
+        """无 category / 空 text 的非法项被服务端静默丢弃（不阻断主流程）。"""
+        resp = api_client.post(
+            _transition_url(a_candidate),
+            {
+                'action': 'mark_process_failed',
+                'reason': 'x',
+                'reason_tag_ids': eliminate_rule._test_tag_ids,
+                'reason_custom_reasons': [
+                    {'category': '有效分类', 'text': '有效文本'},
+                    {'category': '', 'text': '缺分类'},          # 丢弃
+                    {'category': '缺文本', 'text': ''},          # 丢弃
+                    {'text': '缺分类字段'},                       # 丢弃
+                    'not-a-dict',                                # 丢弃
+                ],
+            },
+            format='json',
+        )
+        assert resp.status_code == 200
+        rec = CandidateReasonRecord.objects.get(candidate=a_candidate, scene='淘汰')
+        assert rec.custom_reasons == [{'category': '有效分类', 'text': '有效文本'}]
+
 
 class TestTalentPoolReasonAttribution:
     def test_pool_transition_writes_reason_record(self, api_client, hr_user):

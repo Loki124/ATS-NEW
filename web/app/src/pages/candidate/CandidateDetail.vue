@@ -552,7 +552,7 @@
       v-model:show="eliminateModalVisible"
       preset="card"
       :title="t('pages.candidate.CandidateDetail.s276')"
-      :width="480"
+      :width="640"
       style="max-width: 92vw"
     >
       <n-alert type="warning" :bordered="false" style="margin-bottom: 16px">
@@ -562,6 +562,7 @@
       <ReasonTagPicker
         v-if="eliminateRule"
         v-model:selected="eliminateTagIds"
+        v-model:other-reasons="eliminateOtherReasons"
         :rule="eliminateRule"
         style="margin-bottom: 16px"
       />
@@ -602,13 +603,14 @@
       v-model:show="poolModalVisible"
       preset="card"
       :title="t('pages.candidate.CandidateDetail.s282')"
-      :width="480"
+      :width="640"
       style="max-width: 92vw"
     >
       <!-- 原因库场景规则（2026-10-19）：命中「放入人才库」规则时展示原因标签选择 -->
       <ReasonTagPicker
         v-if="poolRule"
         v-model:selected="poolTagIds"
+        v-model:other-reasons="poolOtherReasons"
         :rule="poolRule"
         style="margin-bottom: 16px"
       />
@@ -1593,6 +1595,7 @@ const eliminateLoading = ref(false)
 // 原因库场景规则（2026-10-19）：命中「淘汰」规则时弹窗内嵌原因标签选择
 const eliminateRule = ref<SceneRule | null>(null)
 const eliminateTagIds = ref<string[]>([])
+const eliminateOtherReasons = ref<Array<{ catId: string; category: string; text: string }>>([])
 
 /** 拉取场景生效规则；失败/无规则均返回 null，弹窗退化为纯备注，不阻塞业务 */
 async function loadReasonRule(scene: '淘汰' | '放入人才库'): Promise<SceneRule | null> {
@@ -1606,6 +1609,7 @@ async function loadReasonRule(scene: '淘汰' | '放入人才库'): Promise<Scen
 function openEliminateModal() {
   eliminateReason.value = ''
   eliminateTagIds.value = []
+  eliminateOtherReasons.value = []
   eliminateRule.value = null
   eliminateModalVisible.value = true
   void loadReasonRule('淘汰').then((r) => {
@@ -1628,6 +1632,10 @@ async function handleEliminate() {
       ...(eliminateTagIds.value.length
         ? { reason_tag_ids: eliminateTagIds.value }
         : {}),
+      // 自定义「其他」原因（末级分类 allowCustom 自由输入），随归因记录落库
+      ...(eliminateOtherReasons.value.length
+        ? { reason_custom_reasons: eliminateOtherReasons.value }
+        : {}),
     })
     message.success(t('pages.candidate.CandidateDetail.s280'))
     eliminateModalVisible.value = false
@@ -1646,10 +1654,12 @@ const poolLoading = ref(false)
 // 原因库场景规则（2026-10-19）：命中「放入人才库」规则时弹窗内嵌原因标签选择
 const poolRule = ref<SceneRule | null>(null)
 const poolTagIds = ref<string[]>([])
+const poolOtherReasons = ref<Array<{ catId: string; category: string; text: string }>>([])
 
 function openPoolModal() {
   poolReason.value = ''
   poolTagIds.value = []
+  poolOtherReasons.value = []
   poolRule.value = null
   poolModalVisible.value = true
   void loadReasonRule('放入人才库').then((r) => {
@@ -1667,6 +1677,10 @@ async function handleMoveToPool() {
       entry_source: 'MANUAL',
       // 原因库归因（2026-10-19）：随主接口提交所选标签，后端按场景规则落归因记录
       ...(poolTagIds.value.length ? { reason_tag_ids: poolTagIds.value } : {}),
+      // 自定义「其他」原因（末级分类 allowCustom 自由输入），随归因记录落库
+      ...(poolOtherReasons.value.length
+        ? { reason_custom_reasons: poolOtherReasons.value }
+        : {}),
     })
     message.success(t('pages.candidate.CandidateDetail.s284'))
     poolModalVisible.value = false
