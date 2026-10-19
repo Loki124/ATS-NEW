@@ -172,78 +172,6 @@
           </n-checkbox-group>
         </div>
       </n-tab-pane>
-
-      <!-- ===== 页签 4：操作权限（2026-10-15 从数据权限拆出）=====
-           写范围/动作授权原先寄生在 ModulePermCard 的「段② 谁能改」里，与读范围混在
-           同一张卡，导致每张卡约一半 DOM 在讲同一件事（13 个动作 × 5 模块 = 65 个勾选框，
-           且动作字典是全局单例，同一份清单被重复渲染 5 遍）。
-           拆出后本页签只回答「能对看得见的数据做哪些操作」；未配置（不限制）的模块
-           默认折叠成一行摘要，避免一上来 65 个勾选框全铺开。 -->
-      <n-tab-pane name="action" :tab="renderActionTab" display-directive="show:lazy">
-        <div class="pane-caption-row">
-          <p class="pane-caption" :class="{ 'caption-warn': isSuperAdmin }">
-            {{ isSuperAdmin ? t('dataperm.drawer.desc.superAdmin') : t('pages.settings.permission.RoleEditModal.s45') }}
-          </p>
-          <n-space :size="8" align="center">
-            <!-- 动作字典 / 预设包管理入口：2026-10-15 从身份管理列表页工具栏迁入本页签 ——
-                 它管理的内容正是本页签动作墙的数据源，同页配置减少跨页跳转。仅超管可见。 -->
-            <n-button
-              v-if="form.id && currentUserIsSuperAdmin"
-              quaternary
-              size="tiny"
-              @click="actionManageShow = true"
-            >
-              <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
-              {{ t('dataperm.actions.title') }}
-            </n-button>
-            <n-button
-              v-if="form.id"
-              quaternary
-              size="tiny"
-              :disabled="isSuperAdmin || !dpDirty"
-              @click="onResetDataPerm"
-            >
-              {{ t('dataperm.action.reset') }}
-            </n-button>
-          </n-space>
-        </div>
-
-        <!-- 新建身份：尚未落库，无操作权限可配（write 挂在已存在的身份上，与数据权限同源） -->
-        <n-empty v-if="!form.id" :description="t('pages.settings.permission.RoleEditModal.s36')" class="dp-empty" />
-
-        <div v-else-if="dpLoading" class="dp-spin">
-          <n-spin size="large" />
-        </div>
-
-        <template v-else>
-          <div class="dp-cards">
-            <div
-              v-for="m in draft"
-              :id="`ap-card-${m.moduleKey}`"
-              :key="m.moduleKey"
-              class="dp-card-slot"
-            >
-              <ModuleActionCard
-                :module="m"
-                :label="actionModuleView(m.moduleKey).label"
-                :desc="actionModuleView(m.moduleKey).desc"
-                :disabled="cardDisabled(m)"
-                :disabled-reason="disabledReason(m)"
-                :error="dpErrors[m.moduleKey]"
-                :can-config="moduleView(m.moduleKey).dimensions.length > 0"
-                :action-registry="dpActionRegistry"
-                :preset-packages="dpPresetPackages"
-                @update:write-mode="(wm) => dpSetWriteMode(m.moduleKey, wm)"
-                @update:write-actions="(acts) => dpSetWriteActions(m.moduleKey, acts)"
-                @open-write-rule="openRule(m.moduleKey, true)"
-              />
-            </div>
-          </div>
-        </template>
-      </n-tab-pane>
-
-      <!-- 动作字典 / 预设包管理（2026-10-15 从 RolesTab 工具栏迁入「操作权限」页签） -->
-      <ActionManageModal v-model:show="actionManageShow" />
     </n-tabs>
 
     <template #footer>
@@ -316,11 +244,9 @@ import {
   NCollapse, NCollapseItem,
   useMessage, useDialog,
 } from 'naive-ui'
-import { ShieldCheckmarkOutline } from '@vicons/ionicons5'
 import { createRole, updateRole, syncRolePermissions, type RoleV2 } from '@/api/role-v2'
 import { fetchAllResources, type PermissionResource } from '@/api/permission-resource'
 import { useCloseGuard } from '@/composables/useCloseGuard'
-import { useUserStore } from '@/stores/user'
 import { resourceModuleLabel, buildSubModuleIndex } from '@/utils/permissionModules'
 import {
   useRoleDataPerm, uid,
@@ -331,8 +257,6 @@ import {
   type TemplateDrift, type TemplateRef,
 } from '@/api/data-permission'
 import ModulePermCard from '@/components/role/ModulePermCard.vue'
-import ModuleActionCard from '@/components/role/ModuleActionCard.vue'
-import ActionManageModal from '@/components/role/ActionManageModal.vue'
 import RuleConfigModal from '@/components/role/RuleConfigModal.vue'
 const { t } = useI18n()
 
@@ -348,49 +272,30 @@ const emit = defineEmits<{
 const message = useMessage()
 const dialog = useDialog()
 const saving = ref(false)
-const activeTab = ref<'basic' | 'perm' | 'data' | 'action'>('basic')
+const activeTab = ref<'basic' | 'perm' | 'data'>('basic')
 
 // ===== 数据权限（复用抽屉逻辑层） =====
 const roleIdRef = computed(() => form.id)
 const {
-  draft, loading: dpLoading, errors: dpErrors, errorKinds: dpErrorKinds, isDirty: dpDirty,
-  readDirty: dpReadDirty, writeDirty: dpWriteDirty, options: dpOptions,
-  actionRegistry: dpActionRegistry, presetPackages: dpPresetPackages,
+  draft, loading: dpLoading, errors: dpErrors, isDirty: dpDirty,
+  readDirty: dpReadDirty, options: dpOptions,
   load: dpLoad, setMode: dpSetMode, setGroups: dpSetGroups, validate: dpValidate,
-  setWriteMode: dpSetWriteMode, setWriteGroups: dpSetWriteGroups, setWriteActions: dpSetWriteActions,
+  setWriteGroups: dpSetWriteGroups,
   submit: dpSubmit, reset: dpReset, resetModule: dpResetModule, moduleReadDirty: dpModuleReadDirty,
 } = useRoleDataPerm(roleIdRef)
 const dpLoaded = ref(false)
 
 const isSuperAdmin = computed(() => form.roleCode === 'SUPER_ADMIN')
-// 当前登录者是否为超管（与「被编辑的身份是否为超管」是两件事，勿混用）：
-// 动作字典管理入口只对当前登录的超管可见。
-const userStore = useUserStore()
-const currentUserIsSuperAdmin = computed(() => (userStore.user?.roles ?? []).includes('SUPER_ADMIN'))
-const actionManageShow = ref(false)
 
 // 模块展示元数据兜底（options 接口成功时以 options 为准）
 // 2026-10-18：desc 已随模块级 ⓘ 提示一并移除（兵哥：删除各模块的单独提示内容），
-// 数据权限卡头只留标题；操作权限卡的说明在 ACTION_MODULE_META，两维度刻意区分。
+// 数据权限卡头只留标题。
 const MODULE_META: Record<string, { label: string }> = {
   demand: { label: '招聘需求' },
   process: { label: '招聘流程' },
   position: { label: '招聘职位' },
   candidate: { label: '候选人管理' },
   talent: { label: '人才库' },
-}
-
-/**
- * 操作权限页签的模块职责说明（与 MODULE_META 的"可见范围"措辞刻意区分）。
- * 🔴 不列举具体动作名 —— 动作字典是 DB 可配置的（管理员可增/停用/改名），
- *    前端写死动作清单会与字典漂移；这里只描述该维度的职责边界。
- */
-const ACTION_MODULE_META: Record<string, { label: string; desc: string }> = {
-  demand: { label: '招聘需求', desc: '控制可对招聘需求（HC）单执行哪些操作，以及能改哪些需求' },
-  process: { label: '招聘流程', desc: '控制可对招聘流程实例执行哪些操作，以及能改哪些流程' },
-  position: { label: '招聘职位', desc: '控制可对招聘职位执行哪些操作，以及能改哪些职位' },
-  candidate: { label: '候选人管理', desc: '控制可对候选人简历与跟进记录执行哪些操作，以及能改哪些记录' },
-  talent: { label: '人才库', desc: '控制可对人才库档案执行哪些操作，以及能改哪些档案' },
 }
 
 function moduleView(key: string) {
@@ -401,13 +306,6 @@ function moduleView(key: string) {
     dimensions: opt?.dimensions || [],
     attributeFields: opt?.attributeFields || [],
   }
-}
-
-/** 操作权限页签的模块视图（label 仍取后端 options，desc 用操作向措辞） */
-function actionModuleView(key: string) {
-  const opt = dpOptions.value.find((o) => o.moduleKey === key)
-  const meta = ACTION_MODULE_META[key] || { label: key, desc: '' }
-  return { label: opt?.label || meta.label, desc: meta.desc }
 }
 
 /**
@@ -422,34 +320,6 @@ function actionModuleView(key: string) {
  */
 function effectiveGranted(m: ModulePerm): boolean {
   return m.featureGranted
-}
-
-/**
- * 卡片是否置灰 —— 🔴 2026-10-18 起**仅服务「操作权限」卡**（ModuleActionCard）。
- *
- * 数据权限卡已与功能权限解耦（兵哥：数据范围是独立维度，功能有无由功能权限页签
- * 单独配置），其置灰只剩超管一种原因，模板里直接写 `:disabled="isSuperAdmin"`。
- * 本函数保留给操作权限卡：「没授予功能 → 没有可操作的数据」在那里提示仍有意义。
- *
- * 🔴 跨卡死锁豁免（卡 1.2 unset × 卡 1.3 featureGranted）：
- *    未授予功能权限的模块本应整卡禁用，但叠加上「未配置」态会形成死锁——
- *    既没配置又被判未授予，管理员连「开始配置」都点不到，权限从此无法自救。
- *    故 mode==='unset' 时**不置灰**（未配置 = 没有需要保护的东西）。
- *    禁用只作用于已配置态的卡片（none/all/scope）。
- */
-function cardDisabled(m: ModulePerm): boolean {
-  if (isSuperAdmin.value) return true
-  if (m.mode === 'unset') return false
-  return !effectiveGranted(m)
-}
-
-/** 未授予功能权限但处于未配置态时，提示降级为「可开始配置」而非「已禁用」。
- *  同 cardDisabled：仅服务操作权限卡。 */
-function disabledReason(m: ModulePerm): string | undefined {
-  if (isSuperAdmin.value) return t('dataperm.card.disabled.superAdmin')
-  if (m.mode === 'unset') return undefined
-  if (!effectiveGranted(m)) return t('dataperm.card.disabled.feature')
-  return undefined
 }
 
 function onResetDataPerm() {
@@ -726,11 +596,6 @@ const renderDataTab = () =>
     t('pages.settings.permission.RoleEditModal.s32'),
     dpReadDirty.value ? h('i', { class: 'tab-dot' }) : null,
   ])
-const renderActionTab = () =>
-  h('span', { class: 'tab-label' }, [
-    t('pages.settings.permission.RoleEditModal.s44'),
-    dpWriteDirty.value ? h('i', { class: 'tab-dot' }) : null,
-  ])
 
 // ===== 打开时初始化 =====
 watch(
@@ -782,15 +647,13 @@ async function prevalidateDataPerm(): Promise<boolean> {
   if (!form.id || !dpLoaded.value) return true
   const bad = dpValidate()
   if (bad.length) {
-    // 读/写拆分后按 errorKinds 归因跳页签：读范围报错去「数据权限」，
-    // 写范围报错去「操作权限」。跳错页签 = 把用户送到看不到错误的地方。
+    // 操作权限页签已移除，写范围校验错误改在数据权限页签的 ModulePermCard 上内联展示
+    // （dpErrors[moduleKey] 仍由 useRoleDataPerm 计算）；统一跳转到「数据权限」页签定位错误卡。
     const first = bad[0]
-    const kind = dpErrorKinds.value[first] === 'write' ? 'action' : 'data'
-    activeTab.value = kind
+    activeTab.value = 'data'
     message.error(t('dataperm.toast.saveBlocked'))
     await nextTick()
-    const anchor = kind === 'action' ? `ap-card-${first}` : `dp-card-${first}`
-    document.getElementById(anchor)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    document.getElementById(`dp-card-${first}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
     return false
   }
   // none 模式模块二次确认（与原抽屉行为一致）

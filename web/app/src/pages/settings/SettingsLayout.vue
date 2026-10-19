@@ -151,6 +151,7 @@ const rawSubMenuOptions: MenuItem[] = [
         icon: () => h(NIcon, null, { default: () => h(ShieldOutline) }),
         children: [
           { key: '/settings/permissions', label: t('pages.settings.SettingsLayout.s19'), icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
+          { key: '/settings/dynamic-strategy', label: t('pages.settings.SettingsLayout.s69'), icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
           { key: '/settings/mou', label: t('pages.settings.SettingsLayout.s21'), icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
           { key: '/settings/permissions/resources', label: t('pages.settings.SettingsLayout.s20'), icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
           { key: '/settings/field-acl', label: t('pages.settings.SettingsLayout.s22'), icon: () => h(NIcon, null, { default: () => h(LockClosedOutline) }) },

@@ -147,7 +147,9 @@ const routes: RouteRecordRaw[] = [
           { path: 'metric-rule-config', redirect: '/settings/rule-engine' },
           { path: 'metric-rules', redirect: '/settings/rule-engine' },
           { path: 'dictionary', name: 'DataDictionary', component: () => import(/* webpackChunkName: "settings-dictionary" */ '../pages/settings/DataDictionary.vue') },
-          { path: 'campus-control', name: 'CampusControl', component: () => import(/* webpackChunkName: "settings-campus" */ '../pages/settings/CampusControl.vue') },
+          // 2026-10-19 兵哥：编制管控迁到页面一级菜单（/campus/control），不再挂在 settings 布局下；
+          // 保留旧深链重定向，避免历史书签 404。
+          { path: 'campus-control', redirect: '/campus/control' },
           // G-2026-09-23: 双系统校招专属配置（仅校园招聘菜单可见；社招不呈现）
           { path: 'campus-ambassador', name: 'CampusAmbassador', component: () => import(/* webpackChunkName: "settings-campus-ambassador" */ '../pages/settings/CampusAmbassador.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
           { path: 'campus-session', name: 'CampusSession', component: () => import(/* webpackChunkName: "settings-campus-session" */ '../pages/settings/CampusSession.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN_HRBP] } },
@@ -172,6 +174,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ONLY] } },
           // ===== V2 权限管理 (2026-09-18 拆分: 身份管理主页面 + 资源管理独立页) =====
           { path: 'permissions', name: 'PermissionManagement', component: () => import(/* webpackChunkName: "settings-permissions" */ '../pages/settings/PermissionManagement.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] } },
+          { path: 'dynamic-strategy', name: 'DynamicStrategySettings', component: () => import(/* webpackChunkName: "settings-dynamic-strategy" */ '../pages/settings/DynamicStrategy.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] } },
           { path: 'permissions/resources', name: 'PermissionResources', component: () => import(/* webpackChunkName: "settings-permissions-resources" */ '../pages/settings/PermissionResources.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ADMIN] } },
           // ===== G41 院校/公司/专业信息库（合并为「动态数据」聚合页，内部 3 个一级 tab） =====
           { path: 'dynamic-data', name: 'DynamicDataLibrary', component: () => import(/* webpackChunkName: "settings-dynamic-data" */ '../pages/settings/DynamicDataLibrary.vue'), meta: { title: '动态数据', description: '院校库 / 专业库 / 公司库（用户可维护，随业务增长）' } },
@@ -231,6 +234,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import(/* webpackChunkName: "campus-live-room" */ '../pages/campus/LiveRoom.vue')
       },
       {
+        path: 'campus/service-dept',
+        name: 'CampusServiceDept',
+        component: () => import(/* webpackChunkName: "campus-service-dept" */ '../pages/campus/ServiceDept.vue')
+      },
+      {
         path: 'campus/class-room',
         name: 'CampusClassRoom',
         component: () => import(/* webpackChunkName: "campus-class-room" */ '../pages/campus/ClassRoom.vue')
@@ -240,6 +248,12 @@ const routes: RouteRecordRaw[] = [
         name: 'CampusPersonManagement',
         component: () => import(/* webpackChunkName: "campus-person" */ '../pages/campus/CampusPerson.vue'),
         meta: { title: '校招生档案' }
+      },
+      // 2026-10-19 兵哥：编制管控从 settings 嵌套布局迁到 campus 一级页面路由（菜单 key 同步改 /campus/control）
+      {
+        path: 'campus/control',
+        name: 'CampusControl',
+        component: () => import(/* webpackChunkName: "campus-control" */ '../pages/settings/CampusControl.vue')
       },
       {
         path: 'report',

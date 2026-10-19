@@ -2,16 +2,17 @@
  * 身份编辑弹窗「读 / 写拆分」（2026-10-15）DOM 级回归。
  *
  * 背景：操作权限原先寄生在 ModulePermCard 的「段② 谁能改」里，与读范围混在同一张卡，
- * 5 模块 × 13 动作 = 65 个勾选框重复堆叠。现已拆为独立页签：
- *   页签 3「数据权限」= 看得见什么（ModulePermCard，只留读范围，不掺任何操作权限信息）
- *   页签 4「操作权限」= 能对看得见的数据做哪些操作（ModuleActionCard，未配置默认折叠）
+ * 5 模块 × 13 动作 = 65 个勾选框重复堆叠。拆分后：
+ *   页签 2「数据权限」= 看得见什么（ModulePermCard，只留读范围，不掺任何操作权限信息）
+ *   页签 3「功能权限」= 资源勾选
  *
- * 本文件锁定拆分后的对外契约：
- *   - 四个页签齐备且「操作权限」与「数据权限」并列
+ * ⚠️ 2026-10-19：「操作权限」页签（ModuleActionCard + 动作字典管理入口）已从本弹窗移除，
+ *   操作权限（写范围 / 动作授权）的配置整体迁入独立的「动态策略」页（SettingsLayout.s69）。
+ *   本弹窗的 useRoleDataPerm.submit() 仍保存读 + 写 两半草稿，移除 UI 页签不改变存储的写数据。
+ *
+ * 本文件锁定对外契约：
+ *   - 三个页签齐备（基础信息 / 数据权限 / 功能权限），「数据权限」紧随「基础信息」
  *   - 数据权限页签**不含任何操作权限信息与跳转入口**（2026-10-16 兵哥拍板整条移除）
- *   - 操作权限页签默认只展开已配置（mode!=='none'）的卡，未配置的收成一行摘要
- *   - 切到操作权限页签渲染出 5 张卡（含 ap-card-* 定位锚点）
- *   - 动作墙按 常规/危险 两组渲染，预设包按钮可见
  *
  * 🔴 查询必须走 document：NModal 默认 teleport 到 body，wrapper.findAll 只能看到
  *    Wrapper 那一层（挂在 attachTo 的容器里），摸不到弹窗内容。
@@ -155,23 +156,14 @@ beforeEach(() => {
 })
 
 describe('RoleEditModal 读/写拆分', () => {
-  it('四个页签齐备，「数据权限」紧随「基础信息」（2026-10-18 兵哥调整）', async () => {
+  it('三个页签齐备，「数据权限」紧随「基础信息」（2026-10-18 兵哥调整 / 2026-10-19 移除操作权限页签）', async () => {
     factory()
     await flushPromises()
     const tabs = $all('.n-tabs-tab').map(text)
-    expect(tabs).toHaveLength(4)
+    expect(tabs).toHaveLength(3)
     expect(tabs[0]).toContain('基础信息')
     expect(tabs[1]).toContain('数据权限')
     expect(tabs[2]).toContain('功能权限')
-    expect(tabs[3]).toContain('操作权限')
-  })
-
-  it('操作权限内容默认不渲染（show:lazy），切到该页签才出现', async () => {
-    factory()
-    await flushPromises()
-    expect($all('.action-card')).toHaveLength(0)
-    await gotoTab('操作权限')
-    expect($all('.action-card')).toHaveLength(5)
   })
 
   it('数据权限页签不再出现任何操作权限摘要条/ 入口（2026-10-16 兵哥拍板）', async () => {
@@ -191,18 +183,6 @@ describe('RoleEditModal 读/写拆分', () => {
     // 但读范围自身的配置入口仍在（不能连累）
     expect($all('.module-card').length).toBe(5)
     expect($all('.module-card .summary-actions').length).toBeGreaterThan(0)
-  })
-
-  it('切到操作权限页签渲染出 5 张操作权限卡（带定位锚点）', async () => {
-    factory()
-    await flushPromises()
-    await gotoTab('数据权限')
-    expect($all('.action-card')).toHaveLength(0)
-
-    await gotoTab('操作权限')
-
-    expect($all('.action-card')).toHaveLength(5)
-    expect(document.getElementById('ap-card-demand')).toBeTruthy()
   })
 
   it('数据权限卡为「同排紧凑版」两行结构：分段选择器 + 虚线规则框 + 标签链（2026-10-18 兵哥原型）', async () => {
@@ -228,7 +208,7 @@ describe('RoleEditModal 读/写拆分', () => {
     expect(demand!.querySelector('.mc-btn-reset')).toBeNull()
 
     // 切到「全部」：规则框收起，本卡变脏 → 「重置」出现（模块粒度脏检查）
-    segs[1].click()
+    ;(segs[1] as HTMLElement).click()
     await flushPromises()
     expect($one('#dp-card-demand .mc-rule-container')).toBeNull()
     const resetBtn = $one('#dp-card-demand .mc-btn-reset')
@@ -267,72 +247,11 @@ describe('RoleEditModal 读/写拆分', () => {
 
     // 切到「无权限」（demand 卡点第一段）→ 固定文案切换，规则框仍不展开
     const segs = $one('#dp-card-demand .module-card')!.querySelectorAll('.mc-segment')
-    segs[0].click()
+    ;(segs[0] as HTMLElement).click()
     await flushPromises()
     const demandCard = $one('#dp-card-demand .module-card')
     expect(text(demandCard!.querySelector('.mc-mode-desc'))).toBe('无当前模块数据权限')
     expect(demandCard!.querySelector('.mc-rule-container')).toBeNull()
-  })
-
-  it('操作权限页签默认只展开已配置（mode!==none）的卡', async () => {
-    factory()
-    await flushPromises()
-    await gotoTab('操作权限')
-
-    const cards = $all('.action-card')
-    expect(cards).toHaveLength(5)
-    // demand(owner) / position(all) / candidate(scope) 激活 → 展开；process / talent 未配置 → 收起
-    expect(cards.filter((c) => c.classList.contains('open'))).toHaveLength(3)
-    // 收起的卡仍有一行摘要：模块名 + 徽标 + 展开入口
-    expect(text(cards[1].querySelector('.ac-title'))).toBe('process')
-    expect(text(cards[1].querySelector('.ac-badge'))).toBe('未配置')
-    expect(text(cards[1].querySelector('.ac-toggle'))).toBe('展开')
-    // 收起态不渲染动作墙（避免 65 个勾选框一上来全铺开）
-    expect(cards[1].querySelectorAll('.action-check')).toHaveLength(0)
-  })
-
-  it('展开的操作权限卡含写模式四选一 + 动作墙两组 + 预设包', async () => {
-    factory()
-    await flushPromises()
-    await gotoTab('操作权限')
-
-    const demand = $all('.action-card')[0]
-    // 写模式四选一
-    expect(demand.querySelectorAll('.ac-mode-group .n-radio-button')).toHaveLength(4)
-    // 动作墙按 常规/危险 分组（真源是后端 destructive 标记 + category，不按动作名硬编码）
-    const groups = Array.from(demand.querySelectorAll('.action-group'))
-    expect(groups).toHaveLength(2)
-    expect(text(groups[0].querySelector('.group-name'))).toBe('常规操作')
-    expect(text(groups[1].querySelector('.group-name'))).toContain('危险操作')
-    // 回归（HEAD 预存 bug）：种子把合并/删除标为 category='write' + destructive=true，
-    // 只按 category 分组会让危险组空转 → 必须落到危险组且带红色警示标记
-    const checksOf = (g: Element) => Array.from(g.querySelectorAll('.action-check')).map((c) => text(c))
-    expect(checksOf(groups[0])).toEqual(['编辑', '创建'])
-    expect(checksOf(groups[1])).toEqual(['合并', '删除'])
-    // 危险组有红色警示标记（颜色 + 文字双通道）
-    expect(text(groups[1].querySelector('.destructive-tag'))).toBe('高危')
-    // 预设包以可见按钮呈现（不藏在下拉里）
-    expect(demand.querySelector('.preset-row')).toBeTruthy()
-    expect(text(demand.querySelector('.preset-row button'))).toBe('负责人全量')
-  })
-
-  it('owner 模式已勾选动作在动作墙中回显', async () => {
-    factory()
-    await flushPromises()
-    await gotoTab('操作权限')
-
-    const demand = $all('.action-card')[0]
-    // fixture: actions = ['view','edit']；view 属 read 类别不进写范围动作墙，故仅 edit 被勾
-    expect(demand.querySelectorAll('.action-check.n-checkbox--checked')).toHaveLength(1)
-    expect(text(demand.querySelector('.action-check.n-checkbox--checked'))).toBe('编辑')
-  })
-
-  it('动作管理入口随操作权限页签出现（仅当前登录超管可见）', async () => {
-    factory()
-    await flushPromises()
-    await gotoTab('操作权限')
-    // 默认 store 无角色 → 非超管 → 不渲染（后端 IsSuperAdmin 双保险）
-    expect($all('button').some((b) => text(b).includes('动作与预设包管理'))).toBe(false)
   })
 
   it('基础信息页签只剩四项：无「来源模板」「默认数据范围」（2026-10-18 兵哥调整）', async () => {
