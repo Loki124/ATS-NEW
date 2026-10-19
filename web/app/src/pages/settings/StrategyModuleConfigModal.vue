@@ -145,10 +145,10 @@
         <h3 class="section-title">{{ t('pages.settings.DynamicStrategy.s33') }}</h3>
       </div>
       <div class="preview-box">
-        <span class="preview-text">
-          {{ t('pages.settings.DynamicStrategy.s34', { n: localActions.length }) }}
-          · {{ t('pages.settings.DynamicStrategy.s35', { m: localGroups.length }) }}
+        <span v-if="localActions.length || localGroups.length" class="preview-text">
+          {{ t('pages.settings.DynamicStrategy.s42', { conditions: conditionText, functions: functionsText }) }}
         </span>
+        <span v-else class="preview-text">{{ t('pages.settings.DynamicStrategy.s40') }}</span>
       </div>
     </section>
 
@@ -481,6 +481,40 @@ watch(
   { immediate: true },
 )
 onMounted(() => { if (props.show) resetState() })
+
+// ===== 配置预览：当满足 {条件内容} 时，可操作 {功能清单} 功能 =====
+/** 单条条件 → 人类可读文本（维度 + 运算符 + 值；动态取值显示来源标签） */
+function conditionLabel(c: PermCondition): string {
+  const dimLabel = dimMetaOf(c.dimension || '')?.label || c.dimension || ''
+  const opValue = unifiedOperatorValue(c)
+  const opLabel = unifiedOperatorOptions(c).find((o) => o.value === opValue)?.label || opValue
+  if (noValueOperator(c)) return `${dimLabel} ${opLabel}`.trim()
+  const valueLabel = isDynamic(c)
+    ? rangeLabel(c)
+    : (c.values || []).map((v) => v.label).join('、')
+  return valueLabel ? `${dimLabel} ${opLabel} ${valueLabel}` : `${dimLabel} ${opLabel}`.trim()
+}
+
+/** 条件内容：组内「且 (AND)」，组间「或 (OR)」；无条件组 = 全部数据 */
+const conditionText = computed(() => {
+  if (!localGroups.value.length) return t('pages.settings.DynamicStrategy.s43')
+  const groupTexts = localGroups.value.map((g) =>
+    (g.conditions || [])
+      .map(conditionLabel)
+      .filter(Boolean)
+      .join(t('pages.settings.DynamicStrategy.s45')),
+  )
+  const text = groupTexts.filter(Boolean).join(t('pages.settings.DynamicStrategy.s36'))
+  return text || t('pages.settings.DynamicStrategy.s43')
+})
+
+/** 功能清单：已勾选功能的名称，顿号连接 */
+const functionsText = computed(() => {
+  if (!localActions.value.length) return t('pages.settings.DynamicStrategy.s44')
+  const selected = new Set(localActions.value)
+  const labels = filteredActions.value.filter((a) => selected.has(a.key)).map((a) => a.label)
+  return labels.join('、') || t('pages.settings.DynamicStrategy.s44')
+})
 
 // ===== 确定应用 =====
 function apply() {
