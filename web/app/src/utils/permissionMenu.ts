@@ -66,7 +66,7 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/application-form', code: 'recruit:settings:application_form:menu:view' },
   { prefix: '/settings/candidate-info-table', code: 'recruit:settings:candidate_info_table:menu:view' },
   { prefix: '/settings/duplicate-candidate', code: 'recruit:settings:duplicate_candidate:menu:view' },
-  { prefix: '/settings/resume-parser-engine', code: 'recruit:settings:rule_engine:menu:view' },
+  { prefix: '/settings/resume-parser-engine', code: 'recruit:settings:resume_parser_engine:menu:view' },
 
   // ===== 需求管理 =====
   { prefix: '/settings/demand-dynamic-fields', code: 'recruit:settings:demand_dynamic_fields:menu:view' },
@@ -79,8 +79,8 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/interview-management', code: 'recruit:settings:interview_management:menu:view' },
   { prefix: '/settings/offer-management', code: 'recruit:settings:offer_management:menu:view' },
   { prefix: '/settings/campus-control', code: 'recruit:settings:campus_control:menu:view' },
-  { prefix: '/settings/campus-ambassador', code: 'recruit:settings:campus_control:menu:view' },
-  { prefix: '/settings/campus-session', code: 'recruit:settings:campus_control:menu:view' },
+  { prefix: '/settings/campus-ambassador', code: 'recruit:settings:campus_ambassador:menu:view' },
+  { prefix: '/settings/campus-session', code: 'recruit:settings:campus_session:menu:view' },
 
   // ===== 校园招聘（campus 模块）：轮岗安排 / 轮岗资源 / 班级管理 / 人员管理 =====
   // 最长前缀匹配（permissionForPath 取最长命中）；fail-open：未登记路径恒可见。

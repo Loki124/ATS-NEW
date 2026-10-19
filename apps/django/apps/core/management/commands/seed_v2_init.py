@@ -1,5 +1,5 @@
 """Seed V2 权限基础数据. Idempotent — 重复跑 update_or_create.
-T15: 60 resources + 4 templates + 1 tenant config.
+权限资源 / 模板 / 租户配置的种子数据；2026-10-18 拆分校招与规则引擎资源码。
 """
 import os
 import secrets
@@ -24,8 +24,6 @@ RESOURCES = [
     ('recruit:offer:create', '发起Offer', 'BUTTON', 'offer'),
     ('recruit:offer:edit', '编辑Offer', 'BUTTON', 'offer'),
     ('recruit:offer:approve', '审批Offer', 'BUTTON', 'offer'),
-    ('recruit:offer:approve_l1', '一级审批', 'BUTTON', 'offer'),
-    ('recruit:offer:approve_l2', '二级审批', 'BUTTON', 'offer'),
     # --- module: interview ---
     ('recruit:interview:menu:view', '面试菜单', 'MENU', 'interview'),
     ('recruit:interview:list', '面试列表', 'BUTTON', 'interview'),
@@ -77,12 +75,6 @@ RESOURCES = [
     ('recruit:talent_pool:tag:create', '新增人才库标签', 'BUTTON', 'talent_pool'),
     ('recruit:talent_pool:tag:edit', '编辑人才库标签', 'BUTTON', 'talent_pool'),
     ('recruit:talent_pool:tag:delete', '删除人才库标签', 'BUTTON', 'talent_pool'),
-    # --- module: mou ---
-    ('recruit:mou:menu:view', 'MOU菜单', 'MENU', 'mou'),
-    ('recruit:mou:list', 'MOU列表', 'BUTTON', 'mou'),
-    ('recruit:mou:create', '创建MOU', 'BUTTON', 'mou'),
-    ('recruit:mou:edit', '编辑MOU', 'BUTTON', 'mou'),
-    ('recruit:mou:approve', '审批MOU', 'BUTTON', 'mou'),
     # --- module: role ---
     ('recruit:role:menu:view', '角色菜单', 'MENU', 'role'),
     ('recruit:role:list', '角色列表', 'BUTTON', 'role'),
@@ -103,20 +95,9 @@ RESOURCES = [
     ('recruit:mgmt_unit:edit', '编辑管理单元', 'BUTTON', 'mgmt_unit'),
     # --- module: settings ---
     # 用户管理 (用户集中入口: 内部员工/外部用户/全部用户; 注册审核/用户组迁入)
-    # 顶层菜单 + 三个子菜单
-    ('recruit:settings:users:menu:view', '用户管理菜单', 'MENU', 'settings'),
-    ('recruit:settings:users:internal:menu:view', '内部员工菜单', 'MENU', 'settings'),
-    ('recruit:settings:users:external:menu:view', '外部用户菜单', 'MENU', 'settings'),
+    # 顶层菜单: 全部用户入口 (子菜单 users:internal/external 已下线, 见 core.0026)
     ('recruit:settings:users:all:menu:view', '全部用户菜单', 'MENU', 'settings'),
-    # 操作按钮 (共享粒度: 内部/外部/全部统一授权)
-    ('recruit:settings:users:list', '用户列表', 'BUTTON', 'settings'),
-    ('recruit:settings:users:create', '新增用户', 'BUTTON', 'settings'),
-    ('recruit:settings:users:edit', '编辑用户', 'BUTTON', 'settings'),
-    ('recruit:settings:users:delete', '删除用户', 'BUTTON', 'settings'),
-    ('recruit:settings:users:export', '导出用户', 'BUTTON', 'settings'),
-    # 按用户类型独立授权 (必要时做更细粒度控制)
-    ('recruit:settings:users:internal:list', '内部员工列表', 'BUTTON', 'settings'),
-    ('recruit:settings:users:external:list', '外部用户列表', 'BUTTON', 'settings'),
+    # 全部用户入口操作码 (users:internal/external 操作码已下线, 见 core.0026)
     ('recruit:settings:users:all:list', '全部用户列表', 'BUTTON', 'settings'),
     # 个人信息管理 (config)
     ('recruit:settings:account:menu:view', '个人信息管理菜单', 'MENU', 'settings'),
@@ -177,9 +158,6 @@ RESOURCES = [
     ('recruit:settings:field_acl:edit', '编辑字段权限', 'BUTTON', 'settings'),
     ('recruit:settings:field_acl:delete', '删除字段权限', 'BUTTON', 'settings'),
     ('recruit:settings:field_acl:export', '导出字段权限', 'BUTTON', 'settings'),
-    # 注册审核 (config/审核)
-    ('recruit:settings:registrations:menu:view', '注册审核菜单', 'MENU', 'settings'),
-    ('recruit:settings:registrations:approve', '审核注册', 'BUTTON', 'settings'),
     # 用户组 (迁移到「用户管理」下, 标记占位)
     ('recruit:settings:user_groups:menu:view', '用户组管理菜单', 'MENU', 'settings'),
     # 标准简历设置 (config)
@@ -223,9 +201,19 @@ RESOURCES = [
     # Offer管理 (占位)
     ('recruit:settings:offer_management:menu:view', 'Offer管理菜单', 'MENU', 'settings'),
     # 校招管控 (config)
-    ('recruit:settings:campus_control:menu:view', '校招管控菜单', 'MENU', 'settings'),
+    ('recruit:settings:campus_control:menu:view', '校招管控', 'MENU', 'settings'),
     ('recruit:settings:campus_control:edit', '编辑校招管控', 'BUTTON', 'settings'),
     ('recruit:settings:campus_control:delete', '删除校招管控', 'BUTTON', 'settings'),
+    # 校园大使 (config) — 2026-10-18 从 campus_control 拆分为独立码
+    ('recruit:settings:campus_ambassador:menu:view', '校园大使菜单', 'MENU', 'settings'),
+    ('recruit:settings:campus_ambassador:list', '校园大使列表', 'BUTTON', 'settings'),
+    ('recruit:settings:campus_ambassador:edit', '编辑校园大使', 'BUTTON', 'settings'),
+    ('recruit:settings:campus_ambassador:delete', '删除校园大使', 'BUTTON', 'settings'),
+    # 宣讲会 (config) — 2026-10-18 从 campus_control 拆分为独立码
+    ('recruit:settings:campus_session:menu:view', '宣讲会菜单', 'MENU', 'settings'),
+    ('recruit:settings:campus_session:list', '宣讲会列表', 'BUTTON', 'settings'),
+    ('recruit:settings:campus_session:edit', '编辑宣讲会', 'BUTTON', 'settings'),
+    ('recruit:settings:campus_session:delete', '删除宣讲会', 'BUTTON', 'settings'),
     # 数据字典 (management)
     ('recruit:settings:dictionary:menu:view', '数据字典菜单', 'MENU', 'settings'),
     ('recruit:settings:dictionary:create', '新增字典项', 'BUTTON', 'settings'),
@@ -288,19 +276,23 @@ RESOURCES = [
     # 公共设置 (占位)
     ('recruit:settings:public:menu:view', '公共设置菜单', 'MENU', 'settings'),
     # 统一规则引擎 (config)
-    ('recruit:settings:rule_engine:menu:view', '统一规则引擎菜单', 'MENU', 'settings'),
+    ('recruit:settings:rule_engine:menu:view', '规则引擎菜单', 'MENU', 'settings'),
     ('recruit:settings:rule_engine:edit', '编辑规则引擎', 'BUTTON', 'settings'),
+    # 简历解析引擎 (config) — 2026-10-18 从 rule_engine 拆分为独立码
+    ('recruit:settings:resume_parser_engine:menu:view', '简历解析引擎菜单', 'MENU', 'settings'),
+    ('recruit:settings:resume_parser_engine:list', '简历解析引擎列表', 'BUTTON', 'settings'),
+    ('recruit:settings:resume_parser_engine:edit', '编辑简历解析引擎', 'BUTTON', 'settings'),
     # 审批流 (resume_flow) — 2026-10-08 补齐: 此前视图未声明权限码, 写操作对全员开放
     ('recruit:settings:approval_flow:menu:view', '审批流菜单', 'MENU', 'settings'),
     ('recruit:settings:approval_flow:create', '新建审批流', 'BUTTON', 'settings'),
     ('recruit:settings:approval_flow:edit', '审批/驳回/转交', 'BUTTON', 'settings'),
     # 码表库 (management)
-    ('recruit:settings:code_tables:menu:view', '码表库菜单', 'MENU', 'settings'),
-    ('recruit:settings:code_tables:list', '码表列表', 'BUTTON', 'settings'),
-    ('recruit:settings:code_tables:create', '新增码表', 'BUTTON', 'settings'),
-    ('recruit:settings:code_tables:edit', '编辑码表', 'BUTTON', 'settings'),
-    ('recruit:settings:code_tables:delete', '删除码表', 'BUTTON', 'settings'),
-    ('recruit:settings:code_tables:export', '导出码表', 'BUTTON', 'settings'),
+    ('recruit:settings:code_tables:menu:view', '静态数据菜单', 'MENU', 'settings'),
+    ('recruit:settings:code_tables:list', '静态数据列表', 'BUTTON', 'settings'),
+    ('recruit:settings:code_tables:create', '新增静态数据', 'BUTTON', 'settings'),
+    ('recruit:settings:code_tables:edit', '编辑静态数据', 'BUTTON', 'settings'),
+    ('recruit:settings:code_tables:delete', '删除静态数据', 'BUTTON', 'settings'),
+    ('recruit:settings:code_tables:export', '导出静态数据', 'BUTTON', 'settings'),
 
     # --- module: channel ---
     # 2026-10-11 (G2 接线): channel/views.py 声明的是 recruit:channel:list, 但 seed 里
@@ -345,7 +337,7 @@ RESOURCES = [
     ('recruit:settings:rule_engine:list', '规则引擎列表', 'BUTTON', 'settings'),
     ('recruit:settings:recruitment_stage:list', '招聘阶段列表', 'BUTTON', 'settings'),
     ('recruit:settings:recruitment_round:list', '面试轮次列表', 'BUTTON', 'settings'),
-    ('recruit:settings:metrics:list', '指标列表', 'BUTTON', 'settings'),
+    ('recruit:settings:metrics:list', '指标管理', 'BUTTON', 'settings'),
     ('recruit:settings:metrics:edit', '指标维护', 'BUTTON', 'settings'),
     ('recruit:settings:data_dashboard:list', '数据看板列表', 'BUTTON', 'settings'),
     ('recruit:settings:company_library:list', '公司库列表', 'BUTTON', 'settings'),
@@ -359,9 +351,9 @@ RESOURCES = [
     ('recruit:campus:rotation:delete', '删除轮岗安排', 'BUTTON', 'campus'),
     ('recruit:campus:resource:menu:view', '轮岗资源菜单', 'MENU', 'campus'),
     ('recruit:campus:resource:list', '轮岗资源列表', 'BUTTON', 'campus'),
-    ('recruit:campus:resource:create', '新建直播间', 'BUTTON', 'campus'),
-    ('recruit:campus:resource:edit', '编辑直播间', 'BUTTON', 'campus'),
-    ('recruit:campus:resource:delete', '删除直播间', 'BUTTON', 'campus'),
+    ('recruit:campus:resource:create', '新建轮岗资源', 'BUTTON', 'campus'),
+    ('recruit:campus:resource:edit', '编辑轮岗资源', 'BUTTON', 'campus'),
+    ('recruit:campus:resource:delete', '删除轮岗资源', 'BUTTON', 'campus'),
     ('recruit:campus:class:menu:view', '班级管理菜单', 'MENU', 'campus'),
     ('recruit:campus:class:list', '班级列表', 'BUTTON', 'campus'),
     ('recruit:campus:class:create', '新建班级', 'BUTTON', 'campus'),
@@ -372,6 +364,25 @@ RESOURCES = [
     ('recruit:campus:person:create', '新建校招生档案', 'BUTTON', 'campus'),
     ('recruit:campus:person:edit', '编辑校招生档案', 'BUTTON', 'campus'),
     ('recruit:campus:person:delete', '删除校招生档案', 'BUTTON', 'campus'),
+    # --- module: campus (2026-10-19 新增：三角色工作台 / 审批流 / 操作日志) ---
+    # 需求 1-1：三角色应用端口
+    ('recruit:campus:hrbp:menu:view', 'HRBP 工作台菜单', 'MENU', 'campus'),
+    ('recruit:campus:hrbp:list', 'HRBP 工作台列表', 'BUTTON', 'campus'),
+    ('recruit:campus:hrbp:confirm', 'HRBP 信息确认', 'BUTTON', 'campus'),
+    ('recruit:campus:mentor:menu:view', '带教导师工作台菜单', 'MENU', 'campus'),
+    ('recruit:campus:mentor:list', '带教导师工作台列表', 'BUTTON', 'campus'),
+    ('recruit:campus:mentor:evaluate', '带教导师考核评价', 'BUTTON', 'campus'),
+    ('recruit:campus:headteacher:menu:view', '班主任工作台菜单', 'MENU', 'campus'),
+    ('recruit:campus:headteacher:list', '班主任工作台列表', 'BUTTON', 'campus'),
+    ('recruit:campus:headteacher:assign', '班主任分配学生', 'BUTTON', 'campus'),
+    # 需求 5-5：兼岗免审，换带教导师/直接上级需审批
+    ('recruit:campus:approval:list', '轮岗审批列表', 'BUTTON', 'campus'),
+    ('recruit:campus:approval:approve', '轮岗审批通过/驳回', 'BUTTON', 'campus'),
+    # 需求 5-6：操作日志追溯
+    # 🔴 分段名必须 snake_case（规范 R7 / core.0028 统一），禁连字符；
+    # 原 operation-log 与 0028 的 SEG_RENAME 未对齐，会导致新库 seed 后残留连字符码、
+    # 且 0028 自检在含该码的库上 RuntimeError。此处与 DB 收敛为 operation_log。
+    ('recruit:campus:operation_log:list', '校招操作日志', 'BUTTON', 'campus'),
 ]
 
 
@@ -418,8 +429,16 @@ CONFIG_CODES = [
     'recruit:settings:demand_config:edit',
     'recruit:settings:rule_engine:menu:view', 'recruit:settings:rule_engine:list',
     'recruit:settings:rule_engine:edit',
+    # 简历解析引擎 (2026-10-18 从 rule_engine 拆分为独立码)
+    'recruit:settings:resume_parser_engine:menu:view', 'recruit:settings:resume_parser_engine:list',
+    'recruit:settings:resume_parser_engine:edit',
+    # 校招（campus）三功能：校招管控 / 校园大使 / 宣讲会 (2026-10-18 拆分)
     'recruit:settings:campus_control:menu:view', 'recruit:settings:campus_control:list',
     'recruit:settings:campus_control:edit', 'recruit:settings:campus_control:delete',
+    'recruit:settings:campus_ambassador:menu:view', 'recruit:settings:campus_ambassador:list',
+    'recruit:settings:campus_ambassador:edit', 'recruit:settings:campus_ambassador:delete',
+    'recruit:settings:campus_session:menu:view', 'recruit:settings:campus_session:list',
+    'recruit:settings:campus_session:edit', 'recruit:settings:campus_session:delete',
     'recruit:settings:metrics:list', 'recruit:settings:metrics:edit',
     # 渠道成本 / 通知模板
     'recruit:channel:menu:view', 'recruit:channel:list',
@@ -428,7 +447,6 @@ CONFIG_CODES = [
     'recruit:notification:create', 'recruit:notification:edit',
     'recruit:notification:delete',
     # 管理单元 / 身份 / 用户授权 (HR 需要维护组织与授权)
-    'recruit:mou:create', 'recruit:mou:edit',
     'recruit:role:create', 'recruit:role:edit',
     'recruit:user_role:create', 'recruit:user_role:edit',
     'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
@@ -473,7 +491,7 @@ TEMPLATES = [
             'recruit:candidate:menu:view', 'recruit:candidate:list',
             'recruit:candidate:export',
             'recruit:offer:menu:view', 'recruit:offer:list',
-            'recruit:offer:approve', 'recruit:offer:approve_l1', 'recruit:offer:approve_l2',
+            'recruit:offer:approve',
             'recruit:interview:menu:view', 'recruit:interview:list',
             'recruit:demand:menu:view', 'recruit:demand:list',
             'recruit:demand:create', 'recruit:demand:approve',
@@ -483,7 +501,6 @@ TEMPLATES = [
             'recruit:application:advance',
             'recruit:referral:menu:view', 'recruit:referral:list',
             'recruit:talent_pool:menu:view', 'recruit:talent_pool:list',
-            'recruit:mou:menu:view', 'recruit:mou:list',
             'recruit:role:menu:view', 'recruit:role:list',
             'recruit:user_role:menu:view', 'recruit:user_role:list',
         ],
@@ -507,7 +524,6 @@ TEMPLATES = [
             'recruit:talent_pool:menu:view', 'recruit:talent_pool:list',
             'recruit:talent_pool:create', 'recruit:talent_pool:edit',
             'recruit:talent_pool:delete',
-            'recruit:mou:menu:view', 'recruit:mou:list',
             'recruit:role:menu:view', 'recruit:role:list',
             'recruit:user_role:menu:view', 'recruit:user_role:list',
             'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',

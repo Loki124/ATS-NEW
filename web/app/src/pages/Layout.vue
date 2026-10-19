@@ -413,6 +413,7 @@ const menuOptions = computed(() => {
       label: '校园招聘',
       icon: renderIcon(PeopleOutline),
       children: [
+        { key: '/settings/campus-control', label: '校招管控' },
         { key: '/settings/campus-ambassador', label: '校园大使' },
         { key: '/settings/campus-session', label: '宣讲会' },
         { key: '/campus/rotation-arrangement', label: '轮岗安排' },

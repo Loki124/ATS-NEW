@@ -65,7 +65,7 @@ import { NIcon, NMenu } from 'naive-ui'
 import {
   ChevronForwardOutline, ChevronBackOutline,
   PersonCircleOutline, PersonOutline, BusinessOutline, PeopleOutline, BookOutline, BookmarkOutline,
-  ClipboardOutline, StarOutline, SchoolOutline, GitNetworkOutline, GitBranchOutline,
+  ClipboardOutline, StarOutline, GitNetworkOutline, GitBranchOutline,
   StopwatchOutline, ConstructOutline, LayersOutline, InformationCircleOutline,
   ServerOutline, AnalyticsOutline,
   ColorPaletteOutline, LocationOutline, VideocamOutline, MailOutline,
@@ -202,7 +202,6 @@ const rawSubMenuOptions: MenuItem[] = [
       },
       { key: '/settings/interview-management', label: t('pages.settings.SettingsLayout.s38'), icon: () => h(NIcon, null, { default: () => h(CalendarOutline) }) },
       { key: '/settings/offer-management', label: t('pages.settings.SettingsLayout.s39'), icon: () => h(NIcon, null, { default: () => h(GiftOutline) }) },
-      { key: '/settings/campus-control', label: t('pages.settings.SettingsLayout.s40'), icon: () => h(NIcon, null, { default: () => h(SchoolOutline) }) },
       {
         // 2026-09-14 新增：招聘分类信息，数据字典收为其子项（兵哥未列入排序清单，保留并置于末尾）
         // 2026-09-20 补充：原因库加入子项，作为原因标签 / 场景规则的配置入口

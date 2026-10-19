@@ -50,6 +50,10 @@ SEG_RENAME = {
     'field-acl': 'field_acl',
     'interview-management': 'interview_management',
     'offer-management': 'offer_management',
+    # ↓ 校招操作日志按钮原本写成 operation-log（段 3 连字符），与 0028 统一风格脱节。
+    #   补进映射：库内若残留 operation-log 段值，0028 自检与改名逻辑即可覆盖，
+    #   避免「新库 seed → 0028 自检 RuntimeError」的潜在阻塞。
+    'operation-log': 'operation_log',
     'position-dynamic-fields': 'position_dynamic_fields',
     'position-info': 'position_info',
     'recruitment-process': 'recruitment_process',

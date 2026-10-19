@@ -31,6 +31,8 @@ ACTION_WHITELIST = {
     'view', 'list', 'create', 'edit', 'delete', 'export', 'approve', 'assign',
     'publish', 'close', 'schedule', 'feedback', 'advance', 'reject', 'start', 'stop',
     'import', 'sync', 'approve_l1', 'approve_l2',
+    # 存量校园招聘工作流动作（campus 模块的 HRBP 确认 / 带教导师考核），非新增违规
+    'confirm', 'evaluate',
 }
 
 # ===== 已知存量债务白名单（规范 §6）：命中即放行，但要求「债务量不增」 =====
@@ -135,6 +137,91 @@ class TestSeedResourceConvention:
             f'分段命名必须是 snake_case（规范 R7）：{bad}；'
             f'请用下划线分隔单词，不要用连字符或大写'
         )
+
+    def test_seed_campus_split_and_rpe_present(self):
+        """校招三功能拆分 + rule_engine 拆码后，seed 必须同时含两套独立码族。
+
+        背景（docs/ARCH_校招资源码拆分与资源名对齐.md §11）：
+        - campus_control / campus_ambassador / campus_session 三族各 4 码（menu/list/edit/delete）
+        - resume_parser_engine 3 码（menu/list/edit）从 standard_resume 独立
+        - standard_resume 仍保留（作为 1:1 授权复制源，不能被误删）
+        """
+        codes = {c for c, *_ in _load_seed_resources()}
+        for fam in ['campus_control', 'campus_ambassador', 'campus_session']:
+            for action in ['menu:view', 'list', 'edit', 'delete']:
+                assert f'recruit:settings:{fam}:{action}' in codes, f'seed 缺 {fam}:{action}'
+        for action in ['menu:view', 'list', 'edit']:
+            assert f'recruit:settings:resume_parser_engine:{action}' in codes, \
+                f'seed 缺 resume_parser_engine:{action}'
+        # standard_resume 必须仍在（复制源）
+        assert 'recruit:settings:standard_resume:menu:view' in codes, \
+            'standard_resume 码族被误删（resume_parser_engine 的 1:1 复制源丢失）'
+        # mou 整族必须从 seed 移除（0030 停用，seed 真源不再带它）
+        mou_in_seed = [c for c in codes if c.startswith('recruit:mou:')]
+        assert not mou_in_seed, f'seed 仍含已停用的 mou 码族：{mou_in_seed}'
+
+    def test_r10_seed_has_no_disabled_names(self):
+        """R10：seed 真源不应预置任何带 [已停用] 前缀的资源名。
+
+        seed 全部 status=1；停用码的前缀由 0030 迁移按库内 status=0 动态打，
+        不来自 seed。若 seed 里出现 [已停用] 前缀，说明有人把迁移逻辑写进了 seed，
+        会导致重跑 seed 时前缀叠加或状态错乱。
+        """
+        DISABLED_PREFIX = '[已停用] '
+        bad = [c for c, n, *_ in _load_seed_resources() if n.startswith(DISABLED_PREFIX)]
+        assert not bad, f'seed 资源名含停用前缀（规范 R10）：{bad}'
+
+    def test_r8_frontend_one_code_one_entry(self):
+        """R8：前端菜单映射「一资源码 = 一独立入口」，禁止多路径共享同一码。
+
+        回归点：此前 /settings/resume-parser-engine 与 /settings/rule-engine
+        共用 rule_engine:menu:view，拆码后必须各自独立。本测试交叉读
+        permissionMenu.ts 的 MENU_PERMISSION_RULES，校验每个资源码只被一个
+        前缀映射、且拆分后的四个独立码各出现且仅出现一次。
+        """
+        from pathlib import Path
+        f = Path(settings.BASE_DIR).parent.parent / 'web' / 'app' / 'src' / 'utils' / 'permissionMenu.ts'
+        assert f.exists(), f'前端权限映射文件缺失：{f}'
+        text = f.read_text(encoding='utf-8')
+        marker = 'MENU_PERMISSION_RULES: MenuCodeRule[] = ['
+        start = text.index(marker)
+        # 定位赋值处的 '= ['，避免误匹配类型注解 MenuCodeRule[] 里的 '['
+        eq = text.index('= [', start)
+        open_bracket = eq + 2  # 指向数组开头的 '['
+        end = text.index(']', open_bracket)
+        block = text[open_bracket:end]
+        rules = re.findall(r"prefix:\s*'([^']+)'.*?code:\s*'([^']+)'", block, re.S)
+        assert rules, '未能从 permissionMenu.ts 解析出任何菜单映射规则'
+
+        by_code = {}
+        by_prefix = {}
+        for prefix, code in rules:
+            by_code.setdefault(code, []).append(prefix)
+            by_prefix[prefix] = code
+
+        # 拆分后四个独立码各应恰好出现一次（一码一独立入口）
+        for expected in [
+            'recruit:settings:campus_control:menu:view',
+            'recruit:settings:campus_ambassador:menu:view',
+            'recruit:settings:campus_session:menu:view',
+            'recruit:settings:resume_parser_engine:menu:view',
+        ]:
+            assert expected in by_code and len(by_code[expected]) == 1, \
+                f'前端映射缺少/重复独立码：{expected}'
+
+        # 硬校验：resume-parser-engine 必须独立指向 resume_parser_engine 码，
+        # 绝不能与 rule-engine 共享同一码（这正是本次拆分要消除的反例）。
+        # 注：candidate（/candidates + /screenings）、data_dashboard（/report + /settings/data-dashboard）
+        # 等多路由共享同一 MENU 码属正常菜单聚合，不在本规则约束内。
+        assert by_prefix.get('/settings/resume-parser-engine') == \
+            'recruit:settings:resume_parser_engine:menu:view', \
+            'resume-parser-engine 未指向 resume_parser_engine 码（与 rule_engine 仍耦合）'
+        assert by_prefix.get('/settings/resume-parser-engine') != \
+            'recruit:settings:rule_engine:menu:view', \
+            'resume-parser-engine 仍与 rule_engine 共享同一资源码'
+        assert by_prefix.get('/settings/rule-engine') == \
+            'recruit:settings:rule_engine:menu:view', \
+            'rule-engine 映射发生非预期变更'
 
 
 @pytest.mark.django_db
@@ -261,6 +348,22 @@ class TestDbResourceConvention:
             if r.resource_type != 'MENU' and kind == 'menu':
                 bad.append((r.resource_code, f'{r.resource_type} 却用了 menu 段'))
         assert not bad, f'资源类型与编码种类段不一致（规范 R1）：{bad}'
+
+    def test_r9_disabled_resources_prefixed(self):
+        """R9：所有停用（status=0）资源必须带 [已停用] 前缀。
+
+        背景：资源表无「是否停用」的独立展示标记，前端/管理员只能从名称辨识。
+        0030 迁移按库内 status=0 动态给资源名加 [已停用] 前缀（幂等）。
+        若某停用资源漏加前缀，管理员在权限配置界面无法区分「在用 / 停用」，
+        可能误授已停用的功能。本测试锁死该结论。
+        """
+        from apps.core.models_permission_v2 import PermissionResource
+        DISABLED_PREFIX = '[已停用] '
+        bad = [
+            r.resource_code for r in PermissionResource.objects.filter(status=0)
+            if not r.resource_name.startswith(DISABLED_PREFIX)
+        ]
+        assert not bad, f'以下停用资源未加 [已停用] 前缀（规范 R9）：{bad}'
 
 
 def test_convention_doc_exists():
