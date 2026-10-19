@@ -32,8 +32,8 @@
 | S3 测试与质量 | 3 | 0 | 0 | 1 | 0 |
 | S4 运维与安全 | 2 | 0 | 0 | 0 | 0 |
 | S5 校招生管理（2026-10-19 新增） | 15 | 0 | 1 | 12 | 0 |
-| **S6 资源管理治理（2026-10-19 新增）** | **2** | **0** | **0** | **5** | **0** |
-| **合计** | **27** | **0** | **1** | **75** | **0** |
+| **S6 资源管理治理（2026-10-19 新增）** | **0** | **0** | **0** | **7** | **0** |
+| **合计** | **25** | **0** | **1** | **77** | **0** |
 
 **完成率**：74 / 103 ≈ **71.8%**
 
@@ -213,10 +213,10 @@
 | S6-01 | **授权引擎按 `status` 拒绝停用资源**：`permission_check.has_perm` 经禁用码缓存短路，status=0 永拒授权；`invalidate_known_codes` 同步失效禁用码缓存 | ✅ 已完成 | **P0** | — | 2h | 代码已写 + 单测 `TestDisabledResourceAuthorization` 已写并通过（6 项 S6 相关测试全绿：禁用授权回归 3 项 + R9/R10/R11）；已提交。修复根因：0026/0029 停用功能凭 role_permission 残留授权仍可访问 |
 | S6-02 | **迁移 0033 停用资源标记 + 兜底**：给全部 status=0 补 `[已停用] ` 前缀（幂等）；兜底重申 0026+0029 已知停用码 status=0（防种子/顺序复活） | ✅ 已完成 | P1 | S6-01 | 1h | 代码已写；补 `test_r9` 缺失的迁移（原注释称 0030 但实际不存在）；已提交并在测试库验证（0033 跑通、停用资源带前缀）。 |
 | S6-03 | **CI 守卫禁止 seed 复活停用码**：`test_r11` 断言 seed 不含已知停用码 | ✅ 已完成 | P2 | S6-02 | 0.5h | 代码已写（importlib 加载 0033 的 KNOWN_DISABLED_CODES 与 seed RESOURCES 求交）；已提交并运行通过。 |
-| **S6-04** | **前端模块映射补全 + 前端 CI 断言覆盖 seed 全 module**：`permissionModules.ts` 的 `RESOURCE_MODULE_LABELS` 须覆盖 seed 全部 module（否则资源管理台显示 `—`） | **⬜ 未开始** | **P2** | — | 4h | 上一轮已补 4 个漏收模块（campus/channel/notification/user_app_data_scope）的**中文名**（**随本批 S6 提交**）；**缺的是前端 CI 断言**扫描 seed module 集合 ⊆ 映射表，防下次新增模块再次漂移 |
+| **S6-04** | **前端 CI 断言覆盖 seed 全 module**：新增 vitest 测试扫描 `seed_v2_init.RESOURCES` 的 module 集合 ⊆ `permissionModules.RESOURCE_MODULE_LABELS`（否则资源管理台显示 `—`） | ✅ 已完成 | **P2** | — | 1h | 新增 `web/app/src/utils/__tests__/permissionModules.test.ts`：直接读取 seed 解析 4 元组第 4 段 module，断言全部被前端映射表收录 + 映射值非空；托管 Node 直跑 **3/3 通过**。此前漏收的 4 模块（campus/channel/notification/user_app_data_scope）中文名已随 `65fa02b7` 落地。 |
 | **S6-05** | **资源管理默认筛选策略**：前端 `ResourcesTab.vue` 状态筛选默认改为「启用」(status=1)；保留「全部」手动选项供审计已下线功能 | ✅ 已完成 | P3 | — | 0.5h | 兵哥 2026-10-19 拍板：默认只筛启用，与权限配置等消费方口径一致；离线项不再默认铺满页面，但仍可在下拉手动选「全部」拉回含停用项的全集。后端 `PermissionResourceViewSet` 缺省本就只返启用，前后端现已对齐。已改 `web/app/src/pages/settings/permission/ResourcesTab.vue`（默认值 'all'→'1' + 下拉项重排 + 注释更新），待提交 |
 | **S6-06** | **资源出入规则文档**：新增/变更/停用三场景标准流程 + 统一创建规则 + 校验闸门 | ✅ 已完成 | P1 | S6-01/02/03 | 2h | `docs/06-runbook/资源出入规则.md` 已写并提交；**待兵哥评审** |
-| **S6-07** | **在 dev / 生产库跑 `verify_resource_status` 核实并修前缀 / 清孤儿授权** | ⬜ 未开始 | P1 | S6-02 | 1h | 命令已写（`--fix` 补前缀、`--purge-orphan-grants` 清孤儿授权，默认仅报告）。须在备份后于真实库执行，核实 0026/0029 停用项是否已带前缀、是否存在孤儿授权 |
+| **S6-07** | **在 dev 库跑 `verify_resource_status` 核实并修前缀 / 清孤儿授权** | ✅ 已完成 | P1 | S6-02 | 1h | dev 库已执行：停用资源 33 条、**缺失前缀 0 条**（0033 已生效）；种子复活风险 0 条；**56 条孤儿授权已清除**（指向停用码、has_perm 永拒故为死行，属误导性遗留状态）。清除前已在 dev 同库建备份表 `role_permission_bak_20261019`(931 行) / `permission_resources_bak_20261019`(301 行)。结论：停用态一致性通过。 |
 
 ### S6 已落地代码清单（已随本批提交）
 
@@ -230,8 +230,9 @@
 | `docs/06-runbook/资源出入规则.md` | 新增出入规则文档 | S6-06 |
 | `web/app/src/utils/permissionModules.ts` | 补 4 个漏收模块中文名（上一轮，工作树未提交） | S6-04（部分） |
 | `web/app/src/pages/settings/permission/ResourcesTab.vue` | 状态筛选默认值 'all'→'1'（默认只筛启用）+ 下拉项重排 + 注释更新 | S6-05 |
+| `web/app/src/utils/__tests__/permissionModules.test.ts` | 新增 S6-04 前端 CI 断言：seed module ⊆ 前端映射表 | S6-04 |
 
-> ✅ S6-01/02/03/05/06 代码与单测已**提交并在真实测试库验证通过**或已落地（S6-05 默认筛选启用已改前端并待提交）。S6-04（前端 CI 断言）/ S6-07（真实库巡检）仍 ⬜。说明：此前 24 项护栏中 2 项 R2 失败（动态策略资源码）已由兵哥提交 `841838eb` 重编码为 `recruit:settings:dynamic_strategy:*` 修复，复跑 `test_r2` 已 2 通过，全部资源护栏绿灯。
+> ✅ S6 全 7 项均已落地：S6-01/02/03/05/06 已提交验证；S6-04 前端 CI 断言测试 `permissionModules.test.ts` 3/3 通过（待提交）；S6-07 dev 库巡检已执行（33 停用资源前缀齐、56 孤儿授权已清、种子复活 0，备份表已建）。说明：此前 24 项护栏中 2 项 R2 失败（动态策略资源码）已由兵哥 `841838eb` 修复，复跑 `test_r2` 全绿，全部资源护栏绿灯。
 
 > ✅ **关联发现已闭环（S5 归属，非 S6）**：原 `recruit:dynamic_strategy:*` 资源码第 2 段与 `module='settings'` 不符、违反 R2，导致 `test_r2_*` 2 项失败。兵哥已于 `841838eb` 将其重编码为 `recruit:settings:dynamic_strategy:*`（同步 seed / 0034 迁移 / `views_dynamic_strategy.py` 守卫 / scope 测试），复跑 `test_r2` 全绿。后端 `views_permission_v2.PermissionResourceViewSet` 缺省仅返启用（status=1），与 S6-05 前端默认启用口径一致。
 
