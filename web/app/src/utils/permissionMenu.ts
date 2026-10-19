@@ -57,6 +57,8 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   // ===== 权限管理（本模块自身入口）=====
   { prefix: '/settings/permissions/resources', code: 'recruit:settings:permissions:resources:menu:view' },
   { prefix: '/settings/permissions', code: 'recruit:settings:permissions:menu:view' },
+  // 动态策略（2026-10-19 补登记：此前未登记走 fail-open 恒可见，HRBP 等低权角色也能看到入口）
+  { prefix: '/settings/dynamic-strategy', code: 'recruit:settings:dynamic_strategy:menu:view' },
   { prefix: '/settings/mou', code: 'recruit:mou:menu:view' },
   { prefix: '/settings/field-acl', code: 'recruit:settings:field_acl:menu:view' },
 
@@ -70,11 +72,13 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
 
   // ===== 需求管理 =====
   { prefix: '/settings/demand-dynamic-fields', code: 'recruit:settings:demand_dynamic_fields:menu:view' },
+  { prefix: '/settings/demand-form-settings', code: 'recruit:settings:demand_form_settings:menu:view' },
   { prefix: '/settings/demand-config', code: 'recruit:settings:demand_config:menu:view' },
   { prefix: '/settings/scoring', code: 'recruit:settings:scoring:menu:view' },
 
   // ===== 职位 / 面试 / Offer / 校招管控 =====
   { prefix: '/settings/position-dynamic-fields', code: 'recruit:settings:position_dynamic_fields:menu:view' },
+  { prefix: '/settings/position-form-settings', code: 'recruit:settings:position_form_settings:menu:view' },
   { prefix: '/settings/position-info', code: 'recruit:settings:position_info:menu:view' },
   { prefix: '/settings/interview-management', code: 'recruit:settings:interview_management:menu:view' },
   { prefix: '/settings/offer-management', code: 'recruit:settings:offer_management:menu:view' },
@@ -91,6 +95,8 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
 
   // ===== 招聘分类信息 =====
   { prefix: '/settings/dictionary', code: 'recruit:settings:dictionary:menu:view' },
+  // 原因库（2026-10-19 补登记；子路径 tags/rules 由最长前缀命中本条）
+  { prefix: '/settings/reason-library', code: 'recruit:settings:reason_library:menu:view' },
 
   // ===== 提速配置 =====
   { prefix: '/settings/recruitment-stage', code: 'recruit:settings:recruitment_stage:menu:view' },
@@ -102,6 +108,10 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
 
   // ===== 其他 =====
   { prefix: '/settings/code-tables', code: 'recruit:settings:code_tables:menu:view' },
+  // 动态数据（院校库/专业库/公司库聚合页；2026-10-19 补登记）
+  { prefix: '/settings/dynamic-data', code: 'recruit:settings:dynamic_data:menu:view' },
+  // 前端组件规范（2026-10-19 补登记：纳入权限管控；「主题外观」/settings/theme 按兵哥拍板保持全员可见，不登记）
+  { prefix: '/settings/ui-templates', code: 'recruit:settings:ui_templates:menu:view' },
   { prefix: '/settings/data-dashboard', code: 'recruit:settings:data_dashboard:menu:view' },
   { prefix: '/settings/external', code: 'recruit:settings:external:menu:view' },
   { prefix: '/settings/rule-engine', code: 'recruit:settings:rule_engine:menu:view' },

@@ -220,6 +220,14 @@ RESOURCES = [
     ('recruit:settings:dynamic_strategy:create', '创建动态策略', 'BUTTON', 'settings'),
     ('recruit:settings:dynamic_strategy:edit', '编辑动态策略', 'BUTTON', 'settings'),
     ('recruit:settings:dynamic_strategy:delete', '删除动态策略', 'BUTTON', 'settings'),
+    # 码表补齐（2026-10-19）：以下页面上线时未配资源码，前端 MENU_PERMISSION_RULES
+    # fail-open 语义导致低权角色也能看到入口；补码后随前端映射一并纳入权限管控。
+    # （「主题外观」/settings/theme 既有 recruit:settings:theme:menu:view，按兵哥拍板保持全员可见，前端不登记映射。）
+    ('recruit:settings:reason_library:menu:view', '原因库菜单', 'MENU', 'settings'),
+    ('recruit:settings:demand_form_settings:menu:view', '需求表单设置菜单', 'MENU', 'settings'),
+    ('recruit:settings:position_form_settings:menu:view', '职位表单设置菜单', 'MENU', 'settings'),
+    ('recruit:settings:ui_templates:menu:view', '前端组件规范菜单', 'MENU', 'settings'),
+    ('recruit:settings:dynamic_data:menu:view', '动态数据菜单', 'MENU', 'settings'),
     # 数据字典 (management)
     ('recruit:settings:dictionary:menu:view', '数据字典菜单', 'MENU', 'settings'),
     ('recruit:settings:dictionary:create', '新增字典项', 'BUTTON', 'settings'),

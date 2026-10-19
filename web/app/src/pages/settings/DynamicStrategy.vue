@@ -2,145 +2,156 @@
   <div class="page-container">
     <div class="page-header">
       <div class="ph-left">
-        <h1 class="page-title">{{ mode === 'edit' ? t('pages.settings.DynamicStrategy.s3') : t('pages.settings.DynamicStrategy.s1') }}</h1>
-        <p v-if="mode === 'list'" class="page-subtitle">{{ t('pages.settings.DynamicStrategy.s21') }}</p>
-      </div>
-      <div v-if="mode === 'edit'" class="ph-right">
-        <n-button @click="goList">{{ t('pages.settings.DynamicStrategy.s11') }}</n-button>
-        <n-button type="primary" :loading="saving" @click="onSave">{{ t('pages.settings.DynamicStrategy.s10') }}</n-button>
-        <n-button v-if="editingCode" type="error" quaternary @click="onDeleteCurrent">
-          {{ t('pages.settings.DynamicStrategy.s12') }}
-        </n-button>
+        <h1 class="page-title">{{ t('pages.settings.DynamicStrategy.s1') }}</h1>
+        <p class="page-subtitle">{{ t('pages.settings.DynamicStrategy.s21') }}</p>
       </div>
     </div>
 
     <div class="page-body">
-      <!-- ===== 列表视图（乙系数据列表标准：panel-shell + toolbar + table-wrap + flex-height）===== -->
-      <template v-if="mode === 'list'">
-        <div class="glass-panel panel-shell">
-          <div class="toolbar">
-            <n-input
-              v-model:value="searchKeyword"
-              :placeholder="t('pages.settings.DynamicStrategy.s22')"
-              clearable
-              class="ds-search"
-              @change="onSearchChange"
-              @clear="onSearchChange"
-            >
-              <template #prefix>
-                <n-icon :component="SearchOutline" />
-              </template>
-            </n-input>
-            <div class="spacer"></div>
-            <n-button type="primary" class="gradient-btn" @click="openCreate">
-              <template #icon><n-icon :component="AddOutline" /></template>
-              {{ t('pages.settings.DynamicStrategy.s2') }}
-            </n-button>
-          </div>
-
-          <div class="table-wrap">
-            <n-data-table
-              :columns="columns"
-              :data="list"
-              :loading="loading"
-              :row-key="(row: DynamicStrategy) => row.strategyCode"
-              :bordered="false"
-              :pagination="pagination"
-              flex-height
-              @update:page="onPageChange"
-            >
-              <!-- 单一空态（乙系规范：禁止 n-data-table 自带空态 + 自定义 n-empty 并存） -->
-              <template #empty>
-                <n-empty :description="t('pages.settings.DynamicStrategy.s14')" />
-              </template>
-            </n-data-table>
-          </div>
+      <!-- ===== 列表（常驻；新建/编辑统一走弹窗，2026-10-19 兵哥拍板）===== -->
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-input
+            v-model:value="searchKeyword"
+            :placeholder="t('pages.settings.DynamicStrategy.s22')"
+            clearable
+            class="ds-search"
+            @change="onSearchChange"
+            @clear="onSearchChange"
+          >
+            <template #prefix>
+              <n-icon :component="SearchOutline" />
+            </template>
+          </n-input>
+          <div class="spacer"></div>
+          <n-button type="primary" class="gradient-btn" @click="openCreate">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            {{ t('pages.settings.DynamicStrategy.s2') }}
+          </n-button>
         </div>
-      </template>
 
-      <!-- ===== 详情（新建 / 编辑）视图 ===== -->
-      <template v-else>
-        <div class="glass-panel ds-form">
-          <!-- 基础信息 -->
-          <section class="ds-section">
-            <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s4') }}</h2>
-            <n-form :model="form" label-placement="top" class="ds-basic">
-              <n-form-item :label="t('pages.settings.DynamicStrategy.s4')" required>
-                <n-input
-                  v-model:value="form.strategy_name"
-                  :placeholder="t('pages.settings.DynamicStrategy.s4')"
-                  :disabled="!!editingCode"
-                />
-              </n-form-item>
-              <n-form-item :label="t('pages.settings.DynamicStrategy.s5')">
-                <div class="status-row">
-                  <n-switch v-model:value="statusSwitch" />
-                  <span class="status-text" :class="{ off: !statusSwitch }">
-                    {{ statusSwitch ? t('pages.settings.DynamicStrategy.s17') : t('pages.settings.DynamicStrategy.s18') }}
-                  </span>
-                </div>
-              </n-form-item>
-              <n-form-item :label="t('pages.settings.DynamicStrategy.s6')">
-                <n-input
-                  v-model:value="form.description"
-                  type="textarea"
-                  :rows="2"
-                  :placeholder="t('pages.settings.DynamicStrategy.s6')"
-                />
-              </n-form-item>
-            </n-form>
-          </section>
-
-          <!-- 受策略限制的功能 -->
-          <section class="ds-section">
-            <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s7') }}</h2>
-            <div v-if="!form.governed_functions.length" class="ds-hint">
-              {{ t('pages.settings.DynamicStrategy.s7') }}
-            </div>
-            <n-checkbox-group
-              v-else
-              :value="form.governed_functions"
-              @update:value="(v) => onGovernedChange(v as string[])"
-            >
-              <n-space :size="[16, 8]">
-                <n-checkbox
-                  v-for="m in GOVERNED_MODULES"
-                  :key="m.value"
-                  :value="m.value"
-                  class="ds-module-check"
-                >
-                  {{ m.label }}
-                </n-checkbox>
-              </n-space>
-            </n-checkbox-group>
-          </section>
-
-          <!-- 操作权限配置 -->
-          <section class="ds-section">
-            <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s8') }}</h2>
-            <div v-if="modulePermList.length === 0" class="ds-hint">
-              {{ t('pages.settings.DynamicStrategy.s7') }}
-            </div>
-            <div v-else class="ds-action-cards">
-              <ModuleActionCard
-                v-for="item in modulePermList"
-                :key="item.key"
-                :module="item.perm"
-                :label="MODULE_LABELS[item.key]"
-                :desc="MODULE_DESCS[item.key]"
-                :disabled="false"
-                :can-config="true"
-                :action-registry="options.actions"
-                :preset-packages="options.presets"
-                @update:write-mode="(wm: WriteMode) => onWriteMode(item.key, wm)"
-                @update:write-actions="(acts: string[]) => onWriteActions(item.key, acts)"
-                @open-write-rule="() => openRule(item.key)"
-              />
-            </div>
-          </section>
+        <div class="table-wrap">
+          <n-data-table
+            :columns="columns"
+            :data="list"
+            :loading="loading"
+            :row-key="(row: DynamicStrategy) => row.strategyCode"
+            :bordered="false"
+            :pagination="pagination"
+            flex-height
+            @update:page="onPageChange"
+          >
+            <!-- 单一空态（乙系规范：禁止 n-data-table 自带空态 + 自定义 n-empty 并存） -->
+            <template #empty>
+              <n-empty :description="t('pages.settings.DynamicStrategy.s14')" />
+            </template>
+          </n-data-table>
         </div>
-      </template>
+      </div>
     </div>
+
+    <!-- ===== 策略详情弹窗（新建 / 编辑统一走 modal）===== -->
+    <n-modal
+      :show="mode === 'edit'"
+      preset="card"
+      :title="editingCode ? t('pages.settings.DynamicStrategy.s3') : t('pages.settings.DynamicStrategy.s2')"
+      :style="{ width: '1080px', maxWidth: '95vw' }"
+      :content-style="{ maxHeight: 'min(68vh, 720px)', overflowY: 'auto', padding: '16px 20px' }"
+      :mask-closable="false"
+      @update:show="(v: boolean) => { if (!v && mode === 'edit') goList() }"
+    >
+      <div class="ds-form">
+        <!-- 基础信息 -->
+        <section class="ds-section">
+          <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s4') }}</h2>
+          <n-form :model="form" label-placement="top" class="ds-basic">
+            <n-form-item :label="t('pages.settings.DynamicStrategy.s4')" required>
+              <n-input
+                v-model:value="form.strategy_name"
+                :placeholder="t('pages.settings.DynamicStrategy.s4')"
+                :disabled="!!editingCode"
+              />
+            </n-form-item>
+            <n-form-item :label="t('pages.settings.DynamicStrategy.s5')">
+              <div class="status-row">
+                <n-switch v-model:value="statusSwitch" />
+                <span class="status-text" :class="{ off: !statusSwitch }">
+                  {{ statusSwitch ? t('pages.settings.DynamicStrategy.s17') : t('pages.settings.DynamicStrategy.s18') }}
+                </span>
+              </div>
+            </n-form-item>
+            <n-form-item :label="t('pages.settings.DynamicStrategy.s6')">
+              <n-input
+                v-model:value="form.description"
+                type="textarea"
+                :rows="2"
+                :placeholder="t('pages.settings.DynamicStrategy.s6')"
+              />
+            </n-form-item>
+          </n-form>
+        </section>
+
+        <!-- 受策略限制的功能 -->
+        <section class="ds-section">
+          <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s7') }}</h2>
+          <div v-if="!form.governed_functions.length" class="ds-hint">
+            {{ t('pages.settings.DynamicStrategy.s7') }}
+          </div>
+          <n-checkbox-group
+            v-else
+            :value="form.governed_functions"
+            @update:value="(v) => onGovernedChange(v as string[])"
+          >
+            <n-space :size="[16, 8]">
+              <n-checkbox
+                v-for="m in GOVERNED_MODULES"
+                :key="m.value"
+                :value="m.value"
+                class="ds-module-check"
+              >
+                {{ m.label }}
+              </n-checkbox>
+            </n-space>
+          </n-checkbox-group>
+        </section>
+
+        <!-- 操作权限配置 -->
+        <section class="ds-section">
+          <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s8') }}</h2>
+          <div v-if="modulePermList.length === 0" class="ds-hint">
+            {{ t('pages.settings.DynamicStrategy.s7') }}
+          </div>
+          <div v-else class="ds-action-cards">
+            <ModuleActionCard
+              v-for="item in modulePermList"
+              :key="item.key"
+              :module="item.perm"
+              :label="MODULE_LABELS[item.key]"
+              :desc="MODULE_DESCS[item.key]"
+              :disabled="false"
+              :can-config="true"
+              :action-registry="options.actions"
+              :preset-packages="options.presets"
+              @update:write-mode="(wm: WriteMode) => onWriteMode(item.key, wm)"
+              @update:write-actions="(acts: string[]) => onWriteActions(item.key, acts)"
+              @open-write-rule="() => openRule(item.key)"
+            />
+          </div>
+        </section>
+      </div>
+      <template #footer>
+        <div class="modal-footer">
+          <n-button v-if="editingCode" type="error" quaternary @click="onDeleteCurrent">
+            {{ t('pages.settings.DynamicStrategy.s12') }}
+          </n-button>
+          <div class="spacer"></div>
+          <n-button @click="goList">{{ t('pages.settings.DynamicStrategy.s11') }}</n-button>
+          <n-button type="primary" :loading="saving" @click="onSave">
+            {{ t('pages.settings.DynamicStrategy.s10') }}
+          </n-button>
+        </div>
+      </template>
+    </n-modal>
 
     <!-- 写范围自定义条件弹窗（配置写范围按钮触发；维度/属性字段由 options 按模块下发） -->
     <RuleConfigModal
@@ -163,7 +174,7 @@ import { useI18n } from 'vue-i18n'
 import { h, ref, reactive, computed, onMounted, watch } from 'vue'
 import {
   NButton, NDataTable, NInput, NSwitch, NCheckboxGroup, NCheckbox,
-  NTag, NSpace, NForm, NFormItem, NEmpty, NPopconfirm, NIcon,
+  NTag, NSpace, NForm, NFormItem, NEmpty, NPopconfirm, NIcon, NModal,
   useMessage, useDialog,
   type DataTableColumns,
 } from 'naive-ui'
@@ -590,11 +601,6 @@ onMounted(loadList)
   flex-direction: column;
   gap: var(--space-2);
 }
-.ph-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
 
 /* 列表：乙系 panel-shell + toolbar + table-wrap（结构同 DepartmentManagement） */
 .glass-panel.panel-shell {
@@ -609,13 +615,18 @@ onMounted(loadList)
 }
 .ds-search { width: 240px; }
 
-/* 表单面板 */
+/* 表单面板（置于详情弹窗内；弹窗 content-style 已提供内边距） */
 .ds-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  padding: var(--space-5);
 }
+.modal-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.modal-footer .spacer { flex: 1; }
 .ds-section { display: flex; flex-direction: column; gap: var(--space-2); }
 .ds-section-title {
   margin: 0;
