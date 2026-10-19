@@ -15,6 +15,12 @@ export const REASON_LIBRARY_EN: Record<string, string> = {
   'reasonLibrary.common.system': 'System',
   'reasonLibrary.common.custom': 'Custom',
   'reasonLibrary.common.empty': 'No data',
+
+  // ===== Business-side reason picker (embedded in detail-page eliminate/pool modals) =====
+  'reasonLibrary.picker.title': 'Select Reasons',
+  'reasonLibrary.picker.limit': '{n}/{m} selected',
+  'reasonLibrary.picker.maxReached': 'Up to {n} reasons can be selected',
+  'reasonLibrary.picker.loadFailed': 'Failed to load reason tags. Retry later or fill in the note directly.',
   'reasonLibrary.common.refresh': 'Refresh',
   'reasonLibrary.wizard.cat.expand': 'Expand / Collapse Subcategories',
   'reasonLibrary.wizard.cat.remove': 'Delete Category',

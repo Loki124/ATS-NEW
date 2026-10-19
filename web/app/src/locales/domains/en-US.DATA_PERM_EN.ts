@@ -2084,6 +2084,8 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.candidate.CandidateDetail.s309': "Recommended to {name}",
   'pages.candidate.CandidateDetail.s310': "Forwarded to {name}",
   'pages.candidate.CandidateDetail.s311': "Resume Actions",
+  'pages.candidate.CandidateDetail.s316': "Reasons Tagged",
+  'pages.candidate.CandidateDetail.s317': "Tagged {n} reason(s) for scene \"{scene}\"",
   'pages.announcement.AnnouncementDetail.s1': "Back to Policy Announcement",
   'pages.announcement.AnnouncementDetail.s2': "Reload",
   'pages.announcement.AnnouncementDetail.s3': "Back to Policy Announcement",

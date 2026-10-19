@@ -229,79 +229,48 @@
           <div v-if="createdAtText" class="rail-sub">{{ createdAtText }}</div>
         </div>
 
-        <!-- 操作 -->
+        <!-- 操作（2026-10-19 合并原「简历操作」卡片）：一行两个按钮
+             状态驱动：已淘汰 / 已入库后相应按钮转为禁用态，避免重复提交 -->
         <div class="rail-card">
           <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s192') }}</div>
-          <n-space vertical :size="8">
-            <n-button type="primary" block @click="openNotificationModal">
-              <template #icon><n-icon :component="PaperPlaneOutline" /></template>
+          <div class="action-grid">
+            <n-button type="primary" @click="openNotificationModal">
               {{ t('pages.candidate.CandidateDetail.s3') }}
             </n-button>
-            <n-button type="warning" block @click="bgModalVisible = true">
-              <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
+            <n-button type="warning" @click="bgModalVisible = true">
               {{ t('pages.candidate.InitiateBgCheck.title') }}
             </n-button>
-            <n-button type="warning" secondary block @click="openSupplementBg">
-              <template #icon><n-icon :component="ShieldCheckmarkOutline" /></template>
+            <n-button type="warning" secondary @click="openSupplementBg">
               {{ t('pages.candidate.InitiateBgCheck.titleSupplement') }}
             </n-button>
-          </n-space>
-        </div>
-
-        <!-- 简历操作（2026-10-19）：淘汰 / 放入人才库 / 推荐其他职位 / 关注 / 转发
-             状态驱动：已淘汰 / 已入库后相应按钮转为已激活态并禁用，避免重复提交 -->
-        <div class="rail-card">
-          <div class="rail-title">{{ t('pages.candidate.CandidateDetail.s311') }}</div>
-          <n-space vertical :size="8">
             <n-button
-              block
               :type="isFollowed ? 'primary' : 'default'"
               :loading="followLoading"
               :aria-pressed="isFollowed"
               @click="toggleFollow"
             >
-              <template #icon>
-                <n-icon :component="isFollowed ? StarOutline : StarOutline" />
-              </template>
               {{ isFollowed
                 ? t('pages.candidate.CandidateDetail.s293')
                 : t('pages.candidate.CandidateDetail.s291') }}
             </n-button>
-
-            <n-button block :disabled="forwardLoading" @click="openForwardModal">
-              <template #icon><n-icon :component="ShareSocialOutline" /></template>
+            <n-button :disabled="forwardLoading" @click="openForwardModal">
               {{ t('pages.candidate.CandidateDetail.s294') }}
             </n-button>
-
-            <n-button
-              block
-              :disabled="loadingPositions"
-              @click="openRecommendModal"
-            >
-              <template #icon><n-icon :component="SwapHorizontalOutline" /></template>
+            <n-button :disabled="loadingPositions" @click="openRecommendModal">
               {{ t('pages.candidate.CandidateDetail.s285') }}
             </n-button>
-
-            <n-button
-              block
-              :disabled="poolLoading || isInPool"
-              @click="openPoolModal"
-            >
-              <template #icon><n-icon :component="AlbumsOutline" /></template>
+            <n-button :disabled="poolLoading || isInPool" @click="openPoolModal">
               {{ t('pages.candidate.CandidateDetail.s282') }}
             </n-button>
-
             <n-button
               type="error"
               secondary
-              block
               :disabled="eliminateLoading || isEliminated"
               @click="openEliminateModal"
             >
-              <template #icon><n-icon :component="CloseCircleOutline" /></template>
               {{ t('pages.candidate.CandidateDetail.s276') }}
             </n-button>
-          </n-space>
+          </div>
         </div>
 
         <!-- 简历标签 -->
@@ -589,6 +558,13 @@
       <n-alert type="warning" :bordered="false" style="margin-bottom: 16px">
         {{ t('pages.candidate.CandidateDetail.s279') }}
       </n-alert>
+      <!-- 原因库场景规则（2026-10-19）：命中「淘汰」规则时展示原因标签选择 -->
+      <ReasonTagPicker
+        v-if="eliminateRule"
+        v-model:selected="eliminateTagIds"
+        :rule="eliminateRule"
+        style="margin-bottom: 16px"
+      />
       <n-form label-placement="top">
         <n-form-item
           :label="t('pages.candidate.CandidateDetail.s277')"
@@ -629,6 +605,13 @@
       :width="480"
       style="max-width: 92vw"
     >
+      <!-- 原因库场景规则（2026-10-19）：命中「放入人才库」规则时展示原因标签选择 -->
+      <ReasonTagPicker
+        v-if="poolRule"
+        v-model:selected="poolTagIds"
+        :rule="poolRule"
+        style="margin-bottom: 16px"
+      />
       <n-form label-placement="top">
         <n-form-item :label="t('pages.candidate.CandidateDetail.s283')">
           <n-input
@@ -790,11 +773,6 @@ import {
   ExpandOutline,
   ContractOutline,
   GiftOutline,
-  StarOutline,
-  ShareSocialOutline,
-  SwapHorizontalOutline,
-  AlbumsOutline,
-  CloseCircleOutline,
 } from '@vicons/ionicons5'
 import {
   getCandidate,
@@ -816,6 +794,9 @@ import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fie
 import { listFields, type FieldDefinition } from '../../api/dynamic-field'
 import InitiateBackgroundCheckModal from './InitiateBackgroundCheckModal.vue'
 import CandidateOfferPanel from '../../components/candidate/CandidateOfferPanel.vue'
+import ReasonTagPicker from '../../components/reason-library/ReasonTagPicker.vue'
+import { getActiveRule } from '../../api/reason-library'
+import type { SceneRule } from '../../types/reason-library'
 import { listBackgroundCheckOrders } from '../../api/integration'
 
 const router = useRouter()
@@ -1064,6 +1045,7 @@ const ACTION_LABEL_KEY: Record<string, string> = {
   UNBLACKLISTED: 's244',
   // 2026-10-19 新增：关注 / 转发。未登记会裸显英文枚举，操作记录不可读。
   FOLLOWED: 's292', UNFOLLOWED: 's293', FORWARDED: 's299',
+  REASON_TAGGED: 's316',
 }
 const STATE_ENUM_LABEL_KEY: Record<string, string> = {
   APPLIED: 's245', IN_PROCESS: 's246', OFFER_SENT: 's247', ONBOARDED: 's248',
@@ -1076,6 +1058,7 @@ const ACTION_TAG_TYPE: Record<string, 'success' | 'info' | 'warning' | 'error' |
   STATE_CHANGED: 'success', BLACKLIST_CHANGED: 'error', BLACKLISTED: 'error',
   UNBLACKLISTED: 'default', FOLLOWED: 'success', UNFOLLOWED: 'default',
   FORWARDED: 'info',
+  REASON_TAGGED: 'info',
 }
 function actionLabel(h: any): string {
   const key = ACTION_LABEL_KEY[h?.action]
@@ -1164,6 +1147,11 @@ function historyLines(h: any): string[] {
     const toStr = (v: any) =>
       v === true ? t('pages.candidate.CandidateDetail.s243') : v === false ? t('pages.candidate.CandidateDetail.s244') : fmtVal(v)
     lines.push(`${toStr(d.from)} → ${toStr(d.to)}`)
+  } else if (action === 'REASON_TAGGED') {
+    // 原因库归因（2026-10-19）：detail.scene + 标签数量 + 备注
+    const n = Array.isArray(d.tags) ? d.tags.length : 0
+    if (d.scene) lines.push(t('pages.candidate.CandidateDetail.s317', { scene: d.scene, n }))
+    if (d.note) lines.push(d.note)
   } else if (action === 'RESUME_PARSED') {
     const p = d.parse || {}
     if (p.provider) lines.push(t('pages.candidate.CandidateDetail.s231', { provider: p.provider }))
@@ -1602,10 +1590,27 @@ async function toggleFollow() {
 const eliminateModalVisible = ref(false)
 const eliminateReason = ref('')
 const eliminateLoading = ref(false)
+// 原因库场景规则（2026-10-19）：命中「淘汰」规则时弹窗内嵌原因标签选择
+const eliminateRule = ref<SceneRule | null>(null)
+const eliminateTagIds = ref<string[]>([])
+
+/** 拉取场景生效规则；失败/无规则均返回 null，弹窗退化为纯备注，不阻塞业务 */
+async function loadReasonRule(scene: '淘汰' | '放入人才库'): Promise<SceneRule | null> {
+  try {
+    return await getActiveRule(scene, pickDetail('recruit_type') || undefined)
+  } catch {
+    return null
+  }
+}
 
 function openEliminateModal() {
   eliminateReason.value = ''
+  eliminateTagIds.value = []
+  eliminateRule.value = null
   eliminateModalVisible.value = true
+  void loadReasonRule('淘汰').then((r) => {
+    eliminateRule.value = r
+  })
 }
 
 async function handleEliminate() {
@@ -1619,6 +1624,10 @@ async function handleEliminate() {
   try {
     await transitionCandidate(String(id), 'mark_process_failed', {
       reason: eliminateReason.value.trim(),
+      // 原因库归因（2026-10-19）：随主接口提交所选标签，后端按场景规则落归因记录
+      ...(eliminateTagIds.value.length
+        ? { reason_tag_ids: eliminateTagIds.value }
+        : {}),
     })
     message.success(t('pages.candidate.CandidateDetail.s280'))
     eliminateModalVisible.value = false
@@ -1634,10 +1643,18 @@ async function handleEliminate() {
 const poolModalVisible = ref(false)
 const poolReason = ref('')
 const poolLoading = ref(false)
+// 原因库场景规则（2026-10-19）：命中「放入人才库」规则时弹窗内嵌原因标签选择
+const poolRule = ref<SceneRule | null>(null)
+const poolTagIds = ref<string[]>([])
 
 function openPoolModal() {
   poolReason.value = ''
+  poolTagIds.value = []
+  poolRule.value = null
   poolModalVisible.value = true
+  void loadReasonRule('放入人才库').then((r) => {
+    poolRule.value = r
+  })
 }
 
 async function handleMoveToPool() {
@@ -1648,6 +1665,8 @@ async function handleMoveToPool() {
     await transitionCandidate(String(id), 'move_to_talent_pool', {
       reason: poolReason.value.trim(),
       entry_source: 'MANUAL',
+      // 原因库归因（2026-10-19）：随主接口提交所选标签，后端按场景规则落归因记录
+      ...(poolTagIds.value.length ? { reason_tag_ids: poolTagIds.value } : {}),
     })
     message.success(t('pages.candidate.CandidateDetail.s284'))
     poolModalVisible.value = false
@@ -1933,7 +1952,18 @@ async function handleForward() {
   border-top: 2px dashed color-mix(in srgb, var(--c-warning) 32%, transparent);
 }
 .stage-link.done { border-top-style: solid; border-top-color: var(--c-warning); }
-.application-list { display: flex; flex-direction: column; gap: var(--space-2); }.application-item { padding: var(--space-2) var(--space-3); background: var(--brand-soft); border-radius: 8px; }
+.application-list { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* 操作卡片：一行两个按钮（2026-10-19 合并原「简历操作」） */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.action-grid :deep(.n-button) {
+  width: 100%;
+}.application-item { padding: var(--space-2) var(--space-3); background: var(--brand-soft); border-radius: 8px; }
 .application-position { font-size: var(--fs-14); font-weight: 600; color: var(--brand-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .application-meta { display: flex; gap: var(--space-3); font-size: var(--fs-12); color: var(--ink-soft); margin-top: 2px; }
 .upload-tip { margin-top: var(--space-4); color: var(--ink-faint); font-size: var(--fs-12); }

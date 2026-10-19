@@ -429,10 +429,14 @@ export function putSceneConfig(
  * - 多条显式引用取最新 updatedAt
  * - 缓存不按 user.role 区分 (Q-A5)
  * 返回规则完整 SceneRule (含 categories 树)
+ * @param recruitType 招聘类型 ('social'|'campus')；传入可精确按 (场景,类型) 取规则，
+ *        不传时后端退化为纯按场景兜底（与历史行为一致）
  */
-export function getActiveRule(scene: SceneKey): Promise<SceneRule | null> {
+export function getActiveRule(scene: SceneKey, recruitType?: string): Promise<SceneRule | null> {
   return api
-    .get<ApiResponse<SceneRule | null>>('/reason-library/active/', { params: { scene } })
+    .get<ApiResponse<SceneRule | null>>('/reason-library/active/', {
+      params: { scene, ...(recruitType ? { recruitType } : {}) },
+    })
     .then((r) => {
       const body = r.data
       if (body?.code === 0 || body?.code === BIZ_CODE.SUCCESS) {

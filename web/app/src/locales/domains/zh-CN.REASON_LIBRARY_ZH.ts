@@ -28,6 +28,12 @@ export const REASON_LIBRARY_ZH: Record<string, string> = {
   'reasonLibrary.common.unsaved': '有未保存的修改，确定退出？',
   'reasonLibrary.common.required': '该项为必填',
   'reasonLibrary.common.addSubCategory': '添加子分类',
+
+  // ===== 业务侧原因选择器（详情页淘汰/入库等弹窗内嵌） =====
+  'reasonLibrary.picker.title': '选择原因',
+  'reasonLibrary.picker.limit': '已选 {n}/{m}',
+  'reasonLibrary.picker.maxReached': '最多可选 {n} 个原因',
+  'reasonLibrary.picker.loadFailed': '原因标签加载失败，可稍后重试或直接填写备注',
   'reasonLibrary.common.addRootCategory': '添加一级分类',
   'reasonLibrary.common.supportCustom': '展示「其他」',
   'reasonLibrary.common.delete': '删除',

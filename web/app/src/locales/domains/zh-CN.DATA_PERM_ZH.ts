@@ -2626,6 +2626,8 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.candidate.CandidateDetail.s309': "推荐给 {name}",
   'pages.candidate.CandidateDetail.s310': "转给 {name}",
   'pages.candidate.CandidateDetail.s311': "简历操作",
+  'pages.candidate.CandidateDetail.s316': "标注原因",
+  'pages.candidate.CandidateDetail.s317': "场景「{scene}」标注 {n} 个原因标签",
 
   'pages.announcement.AnnouncementDetail.s4': "公告不存在或已被下架",
   'pages.candidate.addCandidate.AsyncResult.s8': "将在\"待分配\"中展示，您可以手动处理或重新分配。",

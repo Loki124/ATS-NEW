@@ -332,9 +332,61 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
                 {'error': str(e), 'code': 'STATE_TRANSITION_ERROR'},
                 status=status.HTTP_409_CONFLICT,
             )
+
+        # 原因库归因（2026-10-19）：淘汰 / 放入人才库提交 reason_tag_ids 时，
+        # 随主接口写入 CandidateReasonRecord + REASON_TAGGED 审计（哈希链同源）。
+        # best-effort：归因属 BI 数据，写入失败不阻断业务主流程（与人才库同步同口径）。
+        self._record_reason_attribution(candidate, action_name, request, data)
+
         return Response(
             CandidateDetailSerializer(candidate, context=self.get_serializer_context()).data,
         )
+
+    # 淘汰 / 入库动作 → 原因库场景名（apps.reason_library.models.SceneOption 枚举值）
+    REASON_SCENES = {
+        'mark_process_failed': '淘汰',
+        'move_to_talent_pool': '放入人才库',
+    }
+
+    def _record_reason_attribution(self, candidate, action_name, request, data):
+        """按原因库场景规则把本次提交的原因标签落归因记录。
+
+        - 只接受真实存在且启用的标签 id（防悬空引用）；
+        - 服务端按命中规则 max_selectable_tags 截断（0=不限，兜底 5），前端上限仅是 UX；
+        - 场景无生效规则时静默跳过（规则未配置 = 不采集）。
+        """
+        scene = self.REASON_SCENES.get(action_name)
+        tag_ids = request.data.get('reason_tag_ids') or []
+        if not scene or not tag_ids:
+            return
+        try:
+            from apps.reason_library.models import ReasonTag
+            from apps.reason_library.services.active_query_service import get_active_rule
+            from apps.reason_library.services.attribution_service import record_attribution
+
+            valid_ids = list(
+                ReasonTag.objects.filter(id__in=tag_ids, enabled=True)
+                .values_list('id', flat=True)
+            )
+            if not valid_ids:
+                return
+            recruit_type = getattr(candidate, 'recruit_type', None) or None
+            rule = get_active_rule(scene, recruit_type)
+            if rule is None or not rule.enabled:
+                return
+            max_n = rule.max_selectable_tags or 5
+            record_attribution(
+                candidate=candidate,
+                application=None,
+                scene=scene,
+                recruit_type=recruit_type or 'social',
+                rule=rule,
+                tag_ids=valid_ids[:max_n],
+                note=data.get('reason', ''),
+                actor=request.user,
+            )
+        except Exception as e:  # noqa: BLE001 — 归因失败不影响主流程
+            logger.warning('原因库归因写入失败(candidate=%s, scene=%s): %s', candidate.id, scene, e)
 
     # ----------------------------------------------------------
     # 操作历史
