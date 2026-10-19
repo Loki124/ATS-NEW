@@ -61,41 +61,38 @@
       @update:show="(v: boolean) => { if (!v && mode === 'edit') goList() }"
     >
       <div class="ds-form">
-        <!-- 基础信息 -->
-        <section class="ds-section">
-          <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s4') }}</h2>
-          <n-form :model="form" label-placement="top" class="ds-basic">
-            <n-form-item :label="t('pages.settings.DynamicStrategy.s4')" required>
-              <n-input
-                v-model:value="form.strategy_name"
-                :placeholder="t('pages.settings.DynamicStrategy.s4')"
-                :disabled="!!editingCode"
-              />
-            </n-form-item>
-            <n-form-item :label="t('pages.settings.DynamicStrategy.s5')">
-              <div class="status-row">
-                <n-switch v-model:value="statusSwitch" />
-                <span class="status-text" :class="{ off: !statusSwitch }">
-                  {{ statusSwitch ? t('pages.settings.DynamicStrategy.s17') : t('pages.settings.DynamicStrategy.s18') }}
-                </span>
-              </div>
-            </n-form-item>
-            <n-form-item :label="t('pages.settings.DynamicStrategy.s6')">
-              <n-input
-                v-model:value="form.description"
-                type="textarea"
-                :rows="2"
-                :placeholder="t('pages.settings.DynamicStrategy.s6')"
-              />
-            </n-form-item>
-          </n-form>
-        </section>
+        <!-- 名称 + 状态（同行） -->
+        <div class="ds-basic-row">
+          <n-form-item :label="t('pages.settings.DynamicStrategy.s4')" required class="ds-name-item">
+            <n-input
+              v-model:value="form.strategy_name"
+              :placeholder="t('pages.settings.DynamicStrategy.s4')"
+              :disabled="!!editingCode"
+            />
+          </n-form-item>
+          <div class="status-row">
+            <n-switch v-model:value="statusSwitch" />
+            <span class="status-text" :class="{ off: !statusSwitch }">
+              {{ statusSwitch ? t('pages.settings.DynamicStrategy.s17') : t('pages.settings.DynamicStrategy.s18') }}
+            </span>
+          </div>
+        </div>
 
-        <!-- 受策略限制的功能 -->
+        <!-- 描述 -->
+        <n-form-item :label="t('pages.settings.DynamicStrategy.s6')" class="ds-desc-item">
+          <n-input
+            v-model:value="form.description"
+            type="textarea"
+            :rows="2"
+            :placeholder="t('pages.settings.DynamicStrategy.s6')"
+          />
+        </n-form-item>
+
+        <!-- 生效模块 -->
         <section class="ds-section">
           <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s7') }}</h2>
           <div v-if="!form.governed_functions.length" class="ds-hint">
-            {{ t('pages.settings.DynamicStrategy.s7') }}
+            {{ t('pages.settings.DynamicStrategy.s41') }}
           </div>
           <n-checkbox-group
             v-else
@@ -115,27 +112,25 @@
           </n-checkbox-group>
         </section>
 
-        <!-- 操作权限配置 -->
+        <!-- 权限与规则配置卡片（每勾选模块一行） -->
         <section class="ds-section">
-          <h2 class="ds-section-title">{{ t('pages.settings.DynamicStrategy.s8') }}</h2>
-          <div v-if="modulePermList.length === 0" class="ds-hint">
-            {{ t('pages.settings.DynamicStrategy.s7') }}
+          <div v-if="!moduleConfigCards.length" class="ds-hint">
+            {{ t('pages.settings.DynamicStrategy.s41') }}
           </div>
-          <div v-else class="ds-action-cards">
-            <ModuleActionCard
-              v-for="item in modulePermList"
-              :key="item.key"
-              :module="item.perm"
-              :label="MODULE_LABELS[item.key]"
-              :desc="MODULE_DESCS[item.key]"
-              :disabled="false"
-              :can-config="true"
-              :action-registry="options.actions"
-              :preset-packages="options.presets"
-              @update:write-mode="(wm: WriteMode) => onWriteMode(item.key, wm)"
-              @update:write-actions="(acts: string[]) => onWriteActions(item.key, acts)"
-              @open-write-rule="() => openRule(item.key)"
-            />
+          <div v-else class="ds-mod-cards">
+            <div
+              v-for="card in moduleConfigCards"
+              :key="card.key"
+              class="ds-mod-card"
+            >
+              <div class="ds-mod-info">
+                <span class="ds-mod-name">{{ card.label }}</span>
+                <span class="ds-mod-summary" :class="card.summaryClass">{{ card.summary }}</span>
+              </div>
+              <n-button size="small" secondary type="primary" @click="openModuleConfig(card.key)">
+                {{ t('pages.settings.DynamicStrategy.s24') }}
+              </n-button>
+            </div>
           </div>
         </section>
       </div>
@@ -153,25 +148,25 @@
       </template>
     </n-modal>
 
-    <!-- 写范围自定义条件弹窗（配置写范围按钮触发；维度/属性字段由 options 按模块下发） -->
-    <RuleConfigModal
-      :show="ruleModalShow"
-      :module-name="ruleModuleView.label"
-      :module-key="ruleModuleKey"
-      :dimensions="ruleModuleView.dimensions"
-      :attribute-fields="ruleModuleView.attributeFields"
-      :groups="ruleModalGroups"
-      :inter-expr="ruleModalInterExpr"
-      @update:show="(v: boolean) => (ruleModalShow = v)"
-      @update:groups="onRuleGroups"
-      @update:inter-expr="onRuleInterExpr"
+    <!-- 配置权限与规则弹窗（每模块独立；维度/属性字段由 options 按模块下发） -->
+    <StrategyModuleConfigModal
+      :show="configModalShow"
+      :module-key="configModuleKey"
+      :module-name="configModuleName"
+      :action-options="options.actions"
+      :dimensions="configModuleView.dimensions"
+      :attribute-fields="configModuleView.attributeFields"
+      :initial-actions="configInitialActions"
+      :initial-groups="configInitialGroups"
+      @update:show="(v: boolean) => (configModalShow = v)"
+      @apply="onConfigApply"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { h, ref, reactive, computed, onMounted, watch } from 'vue'
+import { h, ref, reactive, computed, onMounted } from 'vue'
 import {
   NButton, NDataTable, NInput, NSwitch, NCheckboxGroup, NCheckbox,
   NTag, NSpace, NForm, NFormItem, NEmpty, NPopconfirm, NIcon, NModal,
@@ -179,15 +174,14 @@ import {
   type DataTableColumns,
 } from 'naive-ui'
 import { SearchOutline, AddOutline } from '@vicons/ionicons5'
-import ModuleActionCard from '@/components/role/ModuleActionCard.vue'
-import RuleConfigModal from '@/components/role/RuleConfigModal.vue'
+import StrategyModuleConfigModal from '@/pages/settings/StrategyModuleConfigModal.vue'
 import {
   listStrategies, getStrategyOptions, createStrategy, updateStrategy, deleteStrategy,
   type DynamicStrategy, type StrategyModuleConfig, type StrategyOptions,
   type StrategyModuleOption,
 } from '@/api/dynamicStrategy'
 import type {
-  ModulePerm, WriteMode, PermConditionGroup, DimensionMeta, AttributeField,
+  PermConditionGroup, DimensionMeta, AttributeField,
 } from '@/api/data-permission'
 import { column, OP_ACTION_BUTTON_SIZE } from '@/composables/useTableColumns'
 import { remotePagination } from '@/composables/useTablePagination'
@@ -211,14 +205,6 @@ const MODULE_LABELS: Record<string, string> = {
   candidate: '候选人管理',
   talent: '人才库',
 }
-const MODULE_DESCS: Record<string, string> = {
-  demand: '控制该策略对「招聘需求」模块可执行的写操作',
-  process: '控制该策略对「招聘流程」模块可执行的写操作',
-  position: '控制该策略对「招聘职位」模块可执行的写操作',
-  candidate: '控制该策略对「候选人管理」模块可执行的写操作',
-  talent: '控制该策略对「人才库」模块可执行的写操作',
-}
-
 // ===== 视图模式 =====
 type Mode = 'list' | 'edit'
 const mode = ref<Mode>('list')
@@ -327,57 +313,67 @@ const statusSwitch = computed({
   set: (v: boolean) => { form.status = v ? 1 : 0 },
 })
 
-// ModuleActionCard 需要稳定的 ModulePerm 引用（避免每次渲染新建对象触发卡内折叠重置）
-const modulePerms = reactive<Record<string, ModulePerm>>({})
-function clearModulePerms() {
-  Object.keys(modulePerms).forEach((k) => { delete modulePerms[k] })
-}
-function ensureModulePerm(key: string) {
-  if (modulePerms[key]) return
-  const cfg = form.module_config[key] ?? defaultModuleConfig()
-  modulePerms[key] = {
-    moduleKey: key,
-    mode: 'all',
-    expr: '',
-    groups: [],
-    featureGranted: true,
-    write: { mode: cfg.mode, expr: cfg.expr, groups: cfg.groups, actions: cfg.actions },
-  }
-}
-const modulePermList = computed(() =>
-  form.governed_functions
-    .filter((k) => modulePerms[k])
-    .map((k) => ({ key: k, perm: modulePerms[k] })),
+// ===== 每模块配置卡片（编辑弹窗内：摘要 + 配置权限与规则入口）=====
+const moduleConfigCards = computed(() =>
+  form.governed_functions.map((key) => {
+    const label = MODULE_LABELS[key] || key
+    const cfg = form.module_config[key]
+    const actionCount = cfg?.actions?.length ?? 0
+    const groupCount = cfg?.groups?.length ?? 0
+    let summary: string
+    let summaryClass = ''
+    if (actionCount === 0 && groupCount === 0) {
+      summary = t('pages.settings.DynamicStrategy.s40')
+      summaryClass = 'is-empty'
+    } else {
+      const parts: string[] = []
+      if (actionCount > 0) parts.push(t('pages.settings.DynamicStrategy.s38', { n: actionCount }))
+      if (groupCount > 0) parts.push(t('pages.settings.DynamicStrategy.s39', { m: groupCount }))
+      summary = parts.join(' · ')
+      summaryClass = 'is-set'
+    }
+    return { key, label, summary, summaryClass }
+  }),
 )
 
 function onGovernedChange(vals: string[]) {
-  form.governed_functions = vals
-  for (const k of vals) {
-    if (!modulePerms[k]) {
-      const cfg = form.module_config[k] ?? defaultModuleConfig()
-      modulePerms[k] = {
-        moduleKey: k,
-        mode: 'all',
-        expr: '',
-        groups: [],
-        featureGranted: true,
-        write: { mode: cfg.mode, expr: cfg.expr, groups: cfg.groups, actions: cfg.actions },
-      }
-    }
+  // 保留已配置模块的 module_config，仅同步勾选集合（不自动建默认配置，避免误锁写范围）
+  const kept = new Set(vals)
+  for (const k of Object.keys(form.module_config)) {
+    if (!kept.has(k)) delete form.module_config[k]
   }
+  form.governed_functions = vals
 }
 
-function onWriteMode(key: string, modeVal: WriteMode) {
-  ensureModulePerm(key)
-  modulePerms[key].write!.mode = modeVal
-  if (!form.module_config[key]) form.module_config[key] = defaultModuleConfig()
-  form.module_config[key].mode = modeVal
+// ===== 配置权限与规则弹窗（每模块独立）=====
+const configModalShow = ref(false)
+const configModuleKey = ref('')
+const configModuleName = computed(() => MODULE_LABELS[configModuleKey.value] || configModuleKey.value)
+const configInitialActions = ref<string[]>([])
+const configInitialGroups = ref<PermConditionGroup[]>([])
+const configModuleView = computed(() => moduleView(configModuleKey.value))
+
+function openModuleConfig(key: string) {
+  configModuleKey.value = key
+  const cfg = form.module_config[key] ?? defaultModuleConfig()
+  configInitialActions.value = [...(cfg.actions || [])]
+  configInitialGroups.value = (cfg.groups || []).map((g) => ({
+    ...g,
+    conditions: g.conditions.map((c) => ({ ...c })),
+  }))
+  configModalShow.value = true
 }
-function onWriteActions(key: string, actions: string[]) {
-  ensureModulePerm(key)
-  modulePerms[key].write!.actions = [...actions]
+
+function onConfigApply(payload: { actions: string[]; groups: PermConditionGroup[] }) {
+  const key = configModuleKey.value
   if (!form.module_config[key]) form.module_config[key] = defaultModuleConfig()
-  form.module_config[key].actions = [...actions]
+  form.module_config[key].actions = [...payload.actions]
+  form.module_config[key].groups = payload.groups.map((g) => ({ ...g }))
+  // mode 由条件组推导：有条件组 → scope（自定义范围）；否则 → all（全部可写）。
+  // 严禁 scope 空组：空组在后端编译为 Q(pk__in=[]) 全拒。
+  form.module_config[key].mode = payload.groups.length > 0 ? 'scope' : 'all'
+  form.module_config[key].expr = ''
+  configModalShow.value = false
 }
 
 // ===== 选项（动作字典 / 预设包 / 模块×维度×属性字段）=====
@@ -390,9 +386,7 @@ async function loadOptions() {
   }
 }
 
-// ===== 写范围自定义条件弹窗（配置写范围按钮触发）=====
-const ruleModalShow = ref(false)
-const ruleModuleKey = ref('')
+// ===== 模块视图（维度/属性字段由 options 按模块下发）=====
 function moduleView(key: string): { label: string; dimensions: DimensionMeta[]; attributeFields: AttributeField[] } {
   const opt: StrategyModuleOption | undefined = options.value.modules.find((o) => (o.moduleKey ?? o.key) === key)
   const meta = MODULE_LABELS[key] || key
@@ -401,31 +395,6 @@ function moduleView(key: string): { label: string; dimensions: DimensionMeta[]; 
     dimensions: opt?.dimensions || [],
     attributeFields: opt?.attributeFields || [],
   }
-}
-const ruleModuleView = computed(() => moduleView(ruleModuleKey.value))
-const ruleModalGroups = computed<PermConditionGroup[]>(() => {
-  const cfg = form.module_config[ruleModuleKey.value] ?? defaultModuleConfig()
-  return cfg.groups || []
-})
-const ruleModalInterExpr = computed(() => {
-  const cfg = form.module_config[ruleModuleKey.value] ?? defaultModuleConfig()
-  return cfg.expr || ''
-})
-function openRule(key: string) {
-  ruleModuleKey.value = key
-  ruleModalShow.value = true
-}
-function onRuleGroups(groups: PermConditionGroup[]) {
-  const key = ruleModuleKey.value
-  if (!form.module_config[key]) form.module_config[key] = defaultModuleConfig()
-  form.module_config[key].groups = [...groups]
-  if (modulePerms[key]) modulePerms[key].write!.groups = [...groups]
-}
-function onRuleInterExpr(expr: string) {
-  const key = ruleModuleKey.value
-  if (!form.module_config[key]) form.module_config[key] = defaultModuleConfig()
-  form.module_config[key].expr = expr
-  if (modulePerms[key]) modulePerms[key].write!.expr = expr
 }
 
 // ===== 进入新建 / 编辑 =====
@@ -438,7 +407,6 @@ async function openCreate() {
   form.governed_functions = []
   form.granted_resource_codes = []
   form.module_config = {}
-  clearModulePerms()
   mode.value = 'edit'
   await loadOptions()
 }
@@ -458,27 +426,14 @@ async function openEdit(row: DynamicStrategy) {
       ? { mode: cfg.mode, expr: cfg.expr, groups: cfg.groups ? cfg.groups.map((g) => ({ ...g })) : [], actions: [...cfg.actions] }
       : defaultModuleConfig()
   }
-  clearModulePerms()
-  // 为预勾选的受限制模块预建稳定的 ModulePerm 引用（checkbox 初始值不会触发 onGovernedChange）
-  for (const k of form.governed_functions) {
-    const cfg = form.module_config[k] ?? defaultModuleConfig()
-    modulePerms[k] = {
-      moduleKey: k,
-      mode: 'all',
-      expr: '',
-      groups: [],
-      featureGranted: true,
-      write: { mode: cfg.mode, expr: cfg.expr, groups: cfg.groups, actions: cfg.actions },
-    }
-  }
   mode.value = 'edit'
   await loadOptions()
 }
 
 function buildPayload(): Record<string, unknown> {
-  const module_config: Record<string, StrategyModuleConfig> = {}
+  const moduleConfig: Record<string, StrategyModuleConfig> = {}
   for (const k of form.governed_functions) {
-    module_config[k] = form.module_config[k] ?? defaultModuleConfig()
+    moduleConfig[k] = form.module_config[k] ?? defaultModuleConfig()
   }
   return {
     strategyCode: form.strategy_code,
@@ -510,7 +465,6 @@ async function onSave() {
     }
     mode.value = 'list'
     editingCode.value = null
-    clearModulePerms()
     page.value = 1
     await loadList()
   } catch (e: any) {
@@ -523,7 +477,6 @@ async function onSave() {
 function goList() {
   mode.value = 'list'
   editingCode.value = null
-  clearModulePerms()
   loadList()
 }
 
@@ -553,7 +506,6 @@ function onDeleteCurrent() {
         message.success(t('pages.settings.DynamicStrategy.s23'))
         mode.value = 'list'
         editingCode.value = null
-        clearModulePerms()
         await loadList()
       } catch (e: any) {
         message.error(e?.response?.data?.message || e?.message || t('pages.settings.DynamicStrategy.s12'))
@@ -634,13 +586,15 @@ onMounted(loadList)
   font-weight: 600;
   color: var(--ink);
 }
-.ds-basic {
+.ds-basic-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3) var(--space-4);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: flex-end;
+  gap: var(--space-4);
 }
-.ds-basic :deep(.n-form-item) { margin-bottom: 0; }
-.status-row { display: flex; align-items: center; gap: var(--space-2); }
+.ds-name-item { margin-bottom: 0; }
+.ds-desc-item { margin-bottom: 0; }
+.status-row { display: flex; align-items: center; gap: var(--space-2); padding-bottom: 6px; }
 .status-text { font-size: 13px; color: var(--c-success-deep); }
 .status-text.off { color: var(--ink-faint); }
 
@@ -651,9 +605,26 @@ onMounted(loadList)
   color: var(--ink-faint);
   padding: var(--space-2) 0;
 }
-.ds-action-cards {
+
+/* 权限与规则配置卡片 */
+.ds-mod-cards {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
+.ds-mod-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-hairline, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+.ds-mod-info { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.ds-mod-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.ds-mod-summary { font-size: 13px; color: var(--ink-faint); }
+.ds-mod-summary.is-set { color: var(--ink-soft); }
+.ds-mod-summary.is-empty { color: var(--ink-faint); }
 </style>
