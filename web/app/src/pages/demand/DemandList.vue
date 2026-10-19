@@ -13,7 +13,7 @@
     <div v-else-if="demands.length === 0" class="empty-wrapper">
       <n-empty :description="t('pages.demand.DemandList.s11')">
         <template #extra>
-          <n-button type="primary" @click="handleCreate">{{ t('pages.demand.DemandList.s12') }}</n-button>
+          <n-button v-permission="'recruit:demand:create'" type="primary" @click="handleCreate">{{ t('pages.demand.DemandList.s12') }}</n-button>
         </template>
       </n-empty>
     </div>
@@ -128,11 +128,11 @@
         >
           全选（{{ selectedIds.length }}/{{ processedDemands.length }}）
         </n-checkbox>
-        <n-button type="primary" size="small" @click="handleCreate">
+        <n-button v-permission="'recruit:demand:create'" type="primary" size="small" @click="handleCreate">
           <template #icon><n-icon :component="AddOutline" /></template>
           创建需求
         </n-button>
-        <n-button size="small" :disabled="!selectedIds.length" @click="openBatchPeople">
+        <n-button v-permission="'recruit:demand:edit'" size="small" :disabled="!selectedIds.length" @click="openBatchPeople">
           <template #icon><n-icon :component="PeopleOutline" /></template>
           批量变更人员
         </n-button>
@@ -280,8 +280,8 @@
               <n-tag v-if="selectedDemand?.approvalStatus || selectedDemand?.approval_status" :type="getApprovalType(selectedDemand?.approvalStatus || selectedDemand?.approval_status)" size="small">{{ getApprovalText(selectedDemand?.approvalStatus || selectedDemand?.approval_status) }}</n-tag>
             </div>
             <div class="drawer-header__actions">
-              <n-button v-if="(selectedDemand?.state || selectedDemand?.demandStatus) === 'DRAFT'" type="primary" size="small" @click="handleSubmitApproval">{{ t('pages.demand.DemandList.s43') }}</n-button>
-              <n-button size="small" @click="handleEdit(selectedDemand)">{{ t('pages.demand.DemandList.s50') }}</n-button>
+              <n-button v-if="(selectedDemand?.state || selectedDemand?.demandStatus) === 'DRAFT'" v-permission="['recruit:demand:approve', 'recruit:demand:edit']" type="primary" size="small" @click="handleSubmitApproval">{{ t('pages.demand.DemandList.s43') }}</n-button>
+              <n-button v-permission="'recruit:demand:edit'" size="small" @click="handleEdit(selectedDemand)">{{ t('pages.demand.DemandList.s50') }}</n-button>
             </div>
           </div>
         </template>
