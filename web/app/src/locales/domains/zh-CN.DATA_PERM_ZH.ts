@@ -1635,6 +1635,8 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.DynamicStrategy.s43': "全部数据",
   'pages.settings.DynamicStrategy.s44': "未选择功能",
   'pages.settings.DynamicStrategy.s45': "且 (AND)",
+  // 2026-10-20：受限功能改为资源粒度后，某模块下无受管控资源时的空态说明
+  'pages.settings.DynamicStrategy.s46': "该模块暂无受策略管控的功能，请先在「资源管理」页把对应资源的「受策略管控」打开",
   'pages.settings.RecruitmentRound.s4': "新增轮次",
   'pages.settings.RecruitmentRound.s5': "轮次名称",
   'pages.settings.RecruitmentRound.s6': "如：初试/复试/终试",
@@ -2254,6 +2256,10 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.permission.ResourcesTab.s25': "全部状态",
   'pages.settings.permission.ResourcesTab.s26': "启用",
   'pages.settings.permission.ResourcesTab.s27': "停用",
+  // 2026-10-20：受策略管控（资源属性，可编辑）—— 勾上后进入动态策略「受限功能」候选
+  'pages.settings.permission.ResourcesTab.s28': "受策略管控",
+  'pages.settings.permission.ResourcesTab.s29': "是",
+  'pages.settings.permission.ResourcesTab.s30': "否",
   'pages.settings.permission.RolesTab.s1': "搜索 身份编码/名称",
   'pages.settings.permission.RolesTab.s2': "全部状态",
   'pages.settings.permission.RolesTab.s3': "全部来源",

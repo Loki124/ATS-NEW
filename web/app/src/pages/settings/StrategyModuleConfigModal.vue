@@ -15,7 +15,7 @@
     :bordered="false"
     @update:show="(v: boolean) => emit('update:show', v)"
   >
-    <!-- ① 受限功能：后端 options.actions 中 enabled 且 write/destructive 的项 -->
+    <!-- ① 受限功能：后端 options.governedResources[moduleKey] 下发的受管控资源 -->
     <section class="section">
       <div class="section-head">
         <h3 class="section-title">{{ t('pages.settings.DynamicStrategy.s25') }}</h3>
@@ -24,16 +24,16 @@
           <n-button size="tiny" tertiary @click="clearActions">{{ t('pages.settings.DynamicStrategy.s27') }}</n-button>
         </div>
       </div>
-      <n-checkbox-group :value="localActions" @update:value="(v: Array<string | number>) => onActionsChange(v)">
+      <n-checkbox-group :value="localResourceCodes" @update:value="(v: Array<string | number>) => onResourceCodesChange(v)">
         <div class="action-grid">
-          <label v-for="a in filteredActions" :key="a.key" class="action-item">
-            <n-checkbox :value="a.key">{{ a.label }}</n-checkbox>
-            <n-tag v-if="isDanger(a)" size="tiny" :bordered="false" type="error" class="danger-tag">
-              {{ t('dataperm.write.destructive') }}
-            </n-tag>
+          <label v-for="r in governedResources" :key="r.resourceCode" class="action-item">
+            <n-checkbox :value="r.resourceCode">{{ r.resourceName }}</n-checkbox>
           </label>
         </div>
       </n-checkbox-group>
+      <p v-if="!governedResources.length" class="gov-empty">
+        {{ t('pages.settings.DynamicStrategy.s46') }}
+      </p>
     </section>
 
     <!-- ② 授权条件：多条件组列表（仅 relationship），组间用「或 (OR)」分隔 -->
@@ -145,7 +145,7 @@
         <h3 class="section-title">{{ t('pages.settings.DynamicStrategy.s33') }}</h3>
       </div>
       <div class="preview-box">
-        <span v-if="localActions.length || localGroups.length" class="preview-text">
+        <span v-if="localResourceCodes.length || localGroups.length" class="preview-text">
           {{ t('pages.settings.DynamicStrategy.s42', { conditions: conditionText, functions: functionsText }) }}
         </span>
         <span v-else class="preview-text">{{ t('pages.settings.DynamicStrategy.s40') }}</span>
@@ -178,7 +178,7 @@
  */
 import { computed, ref, watch, onMounted } from 'vue'
 import {
-  NModal, NButton, NSpace, NSelect, NCheckbox, NCheckboxGroup, NTag, NIcon,
+  NModal, NButton, NSpace, NSelect, NCheckbox, NCheckboxGroup, NIcon,
 } from 'naive-ui'
 import { AddOutline, TrashOutline, ReorderFourOutline } from '@vicons/ionicons5'
 import {
@@ -189,6 +189,7 @@ import {
   type AttributeField, type PermValue, type ActionDictItem,
 } from '@/composables/useRoleDataPerm'
 import type { OperatorOption } from '@/api/data-permission'
+import type { StrategyGovernedResource } from '@/api/dynamicStrategy'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
@@ -196,49 +197,63 @@ const props = withDefaults(defineProps<{
   show: boolean
   moduleKey: string
   moduleName: string
-  /** 后端 options.actions 全部条目 */
-  actionOptions: ActionDictItem[]
+  /**
+   * 后端 options.actions 全部条目。
+   * 🔴 2026-10-20 起「受限功能」已改为资源粒度（见 governedResources），
+   *    本 prop 仅保留契约兼容，弹窗内不再渲染、不再回写。
+   */
+  actionOptions?: ActionDictItem[]
   /** 该模块的维度（来自 options.modules[moduleKey].dimensions） */
   dimensions: DimensionMeta[]
   /** 透传但不使用（不渲染任何属性条件 UI） */
   attributeFields: AttributeField[]
-  /** 打开时该模块已选的动作 key */
-  initialActions: string[]
+  /**
+   * 「受限功能」候选资源（后端 options.governedResources[moduleKey]）。
+   * 已按 strategy_governed=True + BUTTON + 启用 过滤并分组完毕，前端不再二次过滤。
+   */
+  governedResources?: StrategyGovernedResource[]
+  /** 打开时该模块已选的动作 key（旧契约，仅用于兼容；新链路用 initialResourceCodes） */
+  initialActions?: string[]
+  /** 打开时该模块已选的资源码（来自 grantedResourceCodes 中归属本模块的部分） */
+  initialResourceCodes?: string[]
   /** 打开时该模块已配的条件组 */
   initialGroups: PermConditionGroup[]
 }>(), {
+  actionOptions: () => [],
   initialActions: () => [],
+  initialResourceCodes: () => [],
   initialGroups: () => [],
   attributeFields: () => [],
+  governedResources: () => [],
 })
 
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void
-  (e: 'apply', payload: { actions: string[]; groups: PermConditionGroup[] }): void
+  /** 受限功能改为资源粒度：勾选结果以资源码集合回传，父组件并入 grantedResourceCodes */
+  (e: 'apply', payload: { resourceCodes: string[]; groups: PermConditionGroup[] }): void
 }>()
 
 const modalTitle = computed(() => `${t('pages.settings.DynamicStrategy.s24')} · ${props.moduleName}`)
 
 // ===== 内部状态 =====
-const localActions = ref<string[]>([])
+/**
+ * 「受限功能」已选集合 —— 2026-10-20 起由「动作 key」改为「资源码」。
+ * 后端 /me 并集按 grantedResourceCodes 真实生效，故勾选即写资源码。
+ */
+const localResourceCodes = ref<string[]>([])
 const localGroups = ref<PermConditionGroup[]>([])
 
-// ===== 受限功能：动作复选格 =====
-const filteredActions = computed(() =>
-  props.actionOptions.filter(
-    (a) => a.enabled && (a.category === 'write' || a.category === 'destructive'),
-  ),
-)
-const isDanger = (a: ActionDictItem): boolean => a.destructive || a.category === 'destructive'
-
-function onActionsChange(v: Array<string | number>) {
-  localActions.value = v.map(String)
+// ===== 受限功能：资源复选格 =====
+// 候选由后端按策略模块分组并过滤完毕（strategy_governed=True + BUTTON + 启用），
+// 前端不做二次过滤 —— 否则会出现「候选里勾了却在别处被静默丢弃」的漂移。
+function onResourceCodesChange(v: Array<string | number>) {
+  localResourceCodes.value = v.map(String)
 }
 function selectAll() {
-  localActions.value = filteredActions.value.map((a) => a.key)
+  localResourceCodes.value = props.governedResources.map((r) => r.resourceCode)
 }
 function clearActions() {
-  localActions.value = []
+  localResourceCodes.value = []
 }
 
 // ===== 关系维度选项 / 运算符 =====
@@ -442,7 +457,7 @@ function delGroup(gi: number) {
   localGroups.value.splice(gi, 1)
 }
 function clearAll() {
-  localActions.value = []
+  localResourceCodes.value = []
   localGroups.value = []
 }
 
@@ -470,7 +485,13 @@ function cloneGroups(src: PermConditionGroup[]): PermConditionGroup[] {
 }
 
 function resetState() {
-  localActions.value = [...(props.initialActions || [])]
+  /**
+   * 已选资源码以 props.initialResourceCodes 为准（父组件按模块从 grantedResourceCodes 切出）。
+   * ⚠️ 候选之外（后端已取消受管控 / 已停用）的存量码不在 governedResources 里，
+   *    但 Naive 的 n-checkbox-group 只回传「当前可见勾选项」，
+   *    若此处过滤掉会导致用户一打开弹窗就静默丢码 —— 故原样保留，交由后端忽略。
+   */
+  localResourceCodes.value = [...(props.initialResourceCodes || [])]
   localGroups.value = cloneGroups(props.initialGroups || [])
 }
 
@@ -508,18 +529,18 @@ const conditionText = computed(() => {
   return text || t('pages.settings.DynamicStrategy.s43')
 })
 
-/** 功能清单：已勾选功能的名称，顿号连接 */
+/** 功能清单：已勾选资源的名称，顿号连接 */
 const functionsText = computed(() => {
-  if (!localActions.value.length) return t('pages.settings.DynamicStrategy.s44')
-  const selected = new Set(localActions.value)
-  const labels = filteredActions.value.filter((a) => selected.has(a.key)).map((a) => a.label)
+  if (!localResourceCodes.value.length) return t('pages.settings.DynamicStrategy.s44')
+  const selected = new Set(localResourceCodes.value)
+  const labels = props.governedResources.filter((r) => selected.has(r.resourceCode)).map((r) => r.resourceName)
   return labels.join('、') || t('pages.settings.DynamicStrategy.s44')
 })
 
 // ===== 确定应用 =====
 function apply() {
   emit('apply', {
-    actions: [...localActions.value],
+    resourceCodes: [...localResourceCodes.value],
     groups: cloneGroups(localGroups.value),
   })
   emit('update:show', false)
@@ -564,7 +585,12 @@ function apply() {
   cursor: pointer;
   min-width: 0;
 }
-.danger-tag { font-weight: 600; }
+/* 该策略模块下无受管控资源时的说明：提示去「资源管理」页勾选，而不是留一片空白 */
+.gov-empty {
+  margin: var(--space-2, 8px) 0 0;
+  font-size: 12px;
+  color: var(--ink-faint, #94a3b8);
+}
 
 /* ===== 授权条件组列表 ===== */
 .group-list { display: flex; flex-direction: column; }

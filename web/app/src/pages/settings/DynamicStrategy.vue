@@ -153,10 +153,10 @@
       :show="configModalShow"
       :module-key="configModuleKey"
       :module-name="configModuleName"
-      :action-options="options.actions"
       :dimensions="configModuleView.dimensions"
       :attribute-fields="configModuleView.attributeFields"
-      :initial-actions="configInitialActions"
+      :governed-resources="configGovernedResources"
+      :initial-resource-codes="configInitialResourceCodes"
       :initial-groups="configInitialGroups"
       @update:show="(v: boolean) => (configModalShow = v)"
       @apply="onConfigApply"
@@ -178,7 +178,7 @@ import StrategyModuleConfigModal from '@/pages/settings/StrategyModuleConfigModa
 import {
   listStrategies, getStrategyOptions, createStrategy, updateStrategy, deleteStrategy,
   type DynamicStrategy, type StrategyModuleConfig, type StrategyOptions,
-  type StrategyModuleOption,
+  type StrategyModuleOption, type StrategyGovernedResource,
 } from '@/api/dynamicStrategy'
 import type {
   PermConditionGroup, DimensionMeta, AttributeField,
@@ -205,6 +205,31 @@ const MODULE_LABELS: Record<string, string> = {
   candidate: '候选人管理',
   talent: '人才库',
 }
+
+/**
+ * 策略模块 key → 资源 module（资源码第 2 段）映射。
+ *
+ * 用途：`granted_resource_codes` 是**扁平**的全局资源码数组，不带模块归属；
+ * 弹窗按模块编辑时，必须知道「哪些旧码属于当前模块」才能做替换式合并
+ * （否则 A 模块保存会把 B 模块的码抹掉）。
+ * 判定方式：资源码形如 `recruit:{module}:...`，取第 2 段与右值比对。
+ *
+ * 🔴 与后端 `DATA_PERM_MODULE_RESOURCE_MODULES` 保持一致，改一侧必须同步另一侧，
+ *    否则会出现「勾了却判不出归属 → 保存后丢失」。
+ */
+const STRATEGY_MODULE_RESOURCE_MODULES: Record<string, string> = {
+  demand: 'demand',
+  position: 'position',
+  candidate: 'candidate',
+  talent: 'talent_pool',
+  process: 'settings',
+}
+
+/** 取资源码的 module 段（第 2 段）；不规范的资源码返回空串 */
+function resourceModuleOf(resourceCode: string): string {
+  return (resourceCode || '').split(':')[1] ?? ''
+}
+
 // ===== 视图模式 =====
 type Mode = 'list' | 'edit'
 const mode = ref<Mode>('list')
@@ -349,14 +374,29 @@ function onGovernedChange(vals: string[]) {
 const configModalShow = ref(false)
 const configModuleKey = ref('')
 const configModuleName = computed(() => MODULE_LABELS[configModuleKey.value] || configModuleKey.value)
-const configInitialActions = ref<string[]>([])
 const configInitialGroups = ref<PermConditionGroup[]>([])
 const configModuleView = computed(() => moduleView(configModuleKey.value))
+
+/** 当前模块的「受限功能」候选资源（后端按策略模块分组，缺省兜底空数组） */
+const configGovernedResources = computed<StrategyGovernedResource[]>(
+  () => options.value.governedResources?.[configModuleKey.value] ?? [],
+)
+
+/**
+ * 打开弹窗时的已选资源码 = granted_resource_codes 中归属当前模块的那部分。
+ *
+ * ⚠️ 存量策略的 `module_config[key].actions` 是旧契约（动作 key），与资源码不是同一
+ *    个值域，**不能**回填到资源复选框里（会出现「勾选项不在候选里」的脏状态）。
+ */
+const configInitialResourceCodes = computed<string[]>(() => {
+  const module = STRATEGY_MODULE_RESOURCE_MODULES[configModuleKey.value]
+  if (!module) return []
+  return form.granted_resource_codes.filter((code) => resourceModuleOf(code) === module)
+})
 
 function openModuleConfig(key: string) {
   configModuleKey.value = key
   const cfg = form.module_config[key] ?? defaultModuleConfig()
-  configInitialActions.value = [...(cfg.actions || [])]
   configInitialGroups.value = (cfg.groups || []).map((g) => ({
     ...g,
     conditions: g.conditions.map((c) => ({ ...c })),
@@ -364,15 +404,29 @@ function openModuleConfig(key: string) {
   configModalShow.value = true
 }
 
-function onConfigApply(payload: { actions: string[]; groups: PermConditionGroup[] }) {
+function onConfigApply(payload: { resourceCodes: string[]; groups: PermConditionGroup[] }) {
   const key = configModuleKey.value
   if (!form.module_config[key]) form.module_config[key] = defaultModuleConfig()
-  form.module_config[key].actions = [...payload.actions]
+
+  // ===== 资源码按模块做替换式合并 =====
+  // granted_resource_codes 是跨模块的扁平数组，故先剔除「属于当前模块」的旧码，
+  // 再并入本次新选 —— 直接整体覆盖会把其它模块勾的码抹掉（多模块策略必踩）。
+  const module = STRATEGY_MODULE_RESOURCE_MODULES[key]
+  if (module) {
+    const next = payload.resourceCodes.map(String)
+    form.granted_resource_codes = [
+      ...form.granted_resource_codes.filter((code) => resourceModuleOf(code) !== module),
+      ...next,
+    ]
+  }
+
+  // groups 仍写 module_config；mode 仍按条件组推导（buildPayload 会把两者都出参）
   form.module_config[key].groups = payload.groups.map((g) => ({ ...g }))
   // mode 由条件组推导：有条件组 → scope（自定义范围）；否则 → all（全部可写）。
   // 严禁 scope 空组：空组在后端编译为 Q(pk__in=[]) 全拒。
   form.module_config[key].mode = payload.groups.length > 0 ? 'scope' : 'all'
   form.module_config[key].expr = ''
+  // 🔴 module_config[key].actions 不再写入：受限功能已改为资源粒度（granted_resource_codes）
   configModalShow.value = false
 }
 

@@ -83,13 +83,19 @@
 import { useI18n } from 'vue-i18n'
 /**
  * ResourcesTab.vue — 权限资源 tab (T20)
- * 后端: GET /api/v1/permissions/resources/  (ReadOnlyModelViewSet)
- * 资源为代码注册目录（seed/bootstrap 写入），仅只读展示，不提供新增/编辑/删除。
+ * 后端: GET   /api/v1/permissions/resources/      (ReadOnlyModelViewSet → list/retrieve)
+ *       PATCH /api/v1/permissions/resources/{id}/ (2026-10-20 放开的唯一写口子)
+ *
+ * 资源为代码注册目录（seed/bootstrap 写入），**不提供新增/删除，也不开放通用编辑**。
+ * 唯一可编辑项是「受策略管控」开关：它决定该资源是否进入动态策略「受限功能」候选，
+ * 故由管理员在本台逐个标，走只含 strategy_governed 的最小序列化器（改别的字段会
+ * 「五处不同步 → 静默失权」，见 docs/06-runbook/资源出入规则.md §1）。
  */
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import { NButton, NInput, NSelect, NDataTable, NAlert, NEmpty, NTag, useMessage } from 'naive-ui'
+import { NButton, NInput, NSelect, NDataTable, NAlert, NEmpty, NTag, NSwitch, useMessage } from 'naive-ui'
 import {
   fetchAllResources,
+  updateResource,
   type PermissionResource,
   type ResourceType,
 } from '@/api/permission-resource'
@@ -326,6 +332,38 @@ const columns = [
         { default: () => statusLabel(row.status) },
       ),
   }, 'short'),
+  // 受策略管控（2026-10-20）：行内开关即时保存，勾上后该资源进入动态策略
+  // 「受限功能」候选，并被 /me 并集逻辑真实限制。
+  // 写法对齐同目录 RolesTab.vue 的「状态列内联 NSwitch 启停」——成功后就地更新，
+  // 失败不改写本地值（开关自动弹回），避免 UI 与库不一致的假成功。
+  column({
+    title: () => t('pages.settings.permission.ResourcesTab.s28'),
+    key: 'strategyGoverned',
+    width: 120,
+    render: (row: PermissionResource) =>
+      h(NSwitch, {
+        value: row.strategyGoverned === true,
+        size: 'small',
+        'onUpdate:value': async (v: boolean) => {
+          const prev = row.strategyGoverned === true
+          row.strategyGoverned = v
+          try {
+            const saved = await updateResource(row.id, { strategyGoverned: v })
+            // 以服务端回参为准回填（后端可能做规范化/校验）
+            row.strategyGoverned = saved?.strategyGoverned ?? v
+            message.success(v ? '已设为受管控' : '已取消受管控')
+          } catch (e: any) {
+            // 失败回滚：本地值复原 → 开关弹回，避免 UI 显示成功但库里没改
+            row.strategyGoverned = prev
+            message.error('切换失败: ' + (e?.response?.data?.message ?? e?.message ?? e))
+          }
+        },
+      }, {
+        // 开关内嵌「是 / 否」文案：裸开关在密集表格里看不出语义归属
+        checked: () => t('pages.settings.permission.ResourcesTab.s29'),
+        unchecked: () => t('pages.settings.permission.ResourcesTab.s30'),
+      }),
+  }, 'control'),
 ]
 
 /** 切换状态筛选 → 重载（服务端按 status 过滤，前端切片随之重算） */

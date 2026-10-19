@@ -1636,6 +1636,8 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.DynamicStrategy.s43': "all data",
   'pages.settings.DynamicStrategy.s44': "no functions selected",
   'pages.settings.DynamicStrategy.s45': "AND",
+  // 2026-10-20: empty state when a module has no policy-governed resource
+  'pages.settings.DynamicStrategy.s46': "No policy-governed functions under this module. Enable \"Policy Governed\" for the resources on the Resource Management page first",
   'pages.settings.RecruitmentRound.s4': "Add Round",
   'pages.settings.RecruitmentRound.s5': "Round Name",
   'pages.settings.RecruitmentRound.s6': "e.g. Initial / Interview / Final",
@@ -2644,6 +2646,11 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.permission.ResourcesTab.s25': "All Statuses",
   'pages.settings.permission.ResourcesTab.s26': "Enabled",
   'pages.settings.permission.ResourcesTab.s27': "Disabled",
+  // 2026-10-20: strategy-governed (editable resource attribute) — checked resources become
+  // candidates of the dynamic strategy "Restricted Functions" picker
+  'pages.settings.permission.ResourcesTab.s28': "Policy Governed",
+  'pages.settings.permission.ResourcesTab.s29': "Yes",
+  'pages.settings.permission.ResourcesTab.s30': "No",
   'pages.settings.permission.ResourcesTab.s2': "Filter by Module",
   'pages.settings.permission.ResourcesTab.s3': "Refresh",
   'pages.settings.permission.RolesTab.s1': "Search identity code/name",

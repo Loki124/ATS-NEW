@@ -34,6 +34,12 @@ export interface PermissionResource {
   module?: string | null;
   sortOrder?: number;
   status: number;
+  /**
+   * 受策略管控：仅该值为 true 的 BUTTON 资源会进入动态策略「受限功能」候选，
+   * 并被 /me 的并集逻辑真实限制（后端字段 strategy_governed，出参 camelCase）。
+   * 存量数据迁移前可能缺省，故可选。
+   */
+  strategyGoverned?: boolean;
 }
 
 /**
@@ -121,6 +127,28 @@ export async function fetchAllResources(
     if (!hasNext) break
   }
   return all
+}
+
+/**
+ * 更新单个资源的「受策略管控」标记。
+ *
+ * 后端端点: PATCH /permissions/resources/{id}/ —— 由 ReadOnlyModelViewSet 单独
+ * 放开的 partial_update，**只接受** strategy_governed 一个字段，其余字段一律忽略，
+ * 避免把「资源为代码注册目录（seed 写入）」的只读约束整体打开。
+ *
+ * ⚠️ 请求体直接写 camelCase：本项目 CamelCaseJSONParser 会递归 underscoreize，
+ *    `strategyGoverned` 会被转成后端 `strategy_governed`，无需手工转 snake_case。
+ *    同理响应体由 CamelCaseJSONRenderer 出 camelCase。
+ */
+export async function updateResource(
+  id: string,
+  patch: { strategyGoverned: boolean },
+): Promise<PermissionResource> {
+  const { data } = await api.patch<{ success: boolean; data: PermissionResource }>(
+    `/permissions/resources/${id}/`,
+    patch,
+  );
+  return data.data;
 }
 
 export default api;

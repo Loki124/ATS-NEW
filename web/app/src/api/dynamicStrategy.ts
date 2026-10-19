@@ -57,12 +57,31 @@ export interface DynamicStrategy {
   updatedAt?: string
 }
 
-/** options 接口：模块 × 维度 × 属性字段矩阵 + 可配置动作字典 + 动作预设包 */
+/**
+ * 「受限功能」候选资源：后端按策略模块分组下发，已过滤
+ * strategy_governed=True + BUTTON + status=1。
+ */
+export interface StrategyGovernedResource {
+  /** 资源码（形如 recruit:demand:xxx:button:create），勾选后写入 grantedResourceCodes */
+  resourceCode: string
+  /** 资源中文名，复选框展示文案 */
+  resourceName: string
+  /** 子模块 code（资源码第 3 段），用于 UI 分组；无子模块时缺省 */
+  subModule?: string
+}
+
+/** options 接口：模块 × 维度 × 属性字段矩阵 + 可配置动作字典 + 动作预设包 + 受管控资源 */
 export interface StrategyOptions {
   /** 每模块含维度/属性字段（供「配置写范围」弹窗 RuleConfigModal 取下拉） */
   modules: StrategyModuleOption[]
   actions: ActionDictItem[]
   presets: ActionPreset[]
+  /**
+   * 策略模块 key → 该模块下「受策略管控」的资源列表（受限功能候选）。
+   * 后端契约：{ [策略模块key]: StrategyGovernedResource[] }；
+   * 旧版本无此键（缺省 undefined），取值处须用 `?? []` 兜底。
+   */
+  governedResources?: Record<string, StrategyGovernedResource[]>
 }
 
 /** options.modules 单项：与 data-permission 的 ModuleOption 同构（角色无关矩阵） */
