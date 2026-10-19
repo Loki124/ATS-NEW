@@ -18,7 +18,22 @@ class PermissionResourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = PermissionResource
         fields = ['id', 'system_code', 'resource_code', 'resource_name', 'resource_type',
-                  'parent_code', 'module', 'sort_order', 'status']
+                  'parent_code', 'module', 'sort_order', 'status', 'strategy_governed']
+
+
+class PermissionResourceStrategyGovernedSerializer(serializers.ModelSerializer):
+    """「受策略管控」开关的最小更新序列化器（2026-10-20）。
+
+    PermissionResourceViewSet 只为这个开关放开 partial_update，其余字段
+    （resource_code / resource_name / resource_type / module / status …）
+    一律不可写 —— 资源是代码注册的目录，改码即「五处不同步 → 静默失权」
+    （见 docs/06-runbook/资源出入规则.md §1 铁律），绝不能开通用 update 口子。
+    """
+
+    class Meta:
+        model = PermissionResource
+        fields = ['id', 'resource_code', 'strategy_governed']
+        read_only_fields = ['id', 'resource_code']
 
 
 class PermissionTemplateSerializer(serializers.ModelSerializer):

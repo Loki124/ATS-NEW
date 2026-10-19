@@ -41,6 +41,11 @@ class PermissionResource(models.Model):
     module = models.CharField(max_length=32, null=True, blank=True, verbose_name='模块')
     sort_order = models.IntegerField(default=0, verbose_name='排序')
     status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
+    # 受策略管控(2026-10-20): 标记为「是」的资源才会出现在动态策略的「受限功能」候选区。
+    # 缺省 False —— 未登记的资源不进入策略管辖面, 保证「不配置 = 不受限」的安全默认。
+    # 置位走数据迁移(见 core.0040), 不进 seed_v2_init.RESOURCES 四元组:
+    #   seed 无条件 update_or_create 会覆盖, 且护栏测试按 4 元解包, 改结构会连带破坏。
+    strategy_governed = models.BooleanField(default=False, verbose_name='受策略管控')
     ext_fields = models.JSONField(null=True, blank=True, verbose_name='扩展字段')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
 

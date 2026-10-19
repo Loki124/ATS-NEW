@@ -29,10 +29,11 @@ from apps.data_permission.models import (
 # 「模块 × 维度 × 属性字段」矩阵，避免两处各算一份（维度隐藏/文案/属性场景易漂移）。
 from apps.data_permission.role_scope_api import options_payload as _dp_options_payload
 
-from .models_permission_v2 import DynamicStrategy
+from .models_permission_v2 import DynamicStrategy, PermissionResource
 from .permissions_v2 import V2Permission
 from .serializers_permission_v2 import DynamicStrategySerializer
 
+SYSTEM_CODE = 'recruit'
 
 STRATEGY_MODULES = [
     {'key': 'demand', 'label': '招聘需求'},
@@ -94,10 +95,11 @@ class DynamicStrategyViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='options')
     def options(self, request):
-        """GET /api/v1/dynamic-strategies/options/ — 模块×维度×属性字段矩阵 + 动作字典 + 预设包.
+        """GET /api/v1/dynamic-strategies/options/ — 模块×维度×属性字段矩阵 + 动作字典 + 预设包 + 受管控资源.
 
         驱动器(策略编辑弹窗)下拉: 可选模块、每模块的维度/属性字段(供「配置写范围」弹窗)、
-        动作字典、动作预设包. 维度/属性字段与角色数据权限同源(角色无关).
+        动作字典、动作预设包、每模块的受管控资源(供「受限功能」勾选).
+        维度/属性字段与角色数据权限同源(角色无关).
         """
         actions = list(DataPermissionAction.objects.values(
             'key', 'label', 'category', 'destructive', 'enabled',
@@ -112,4 +114,48 @@ class DynamicStrategyViewSet(viewsets.ModelViewSet):
             'modules': dp['modules'],
             'actions': actions,
             'presets': presets,
+            'governedResources': self._governed_resources(),
         })
+
+    @staticmethod
+    def _governed_resources():
+        """按策略模块分组下发「受策略管控」的按钮资源（2026-10-20）。
+
+        返回 {策略模块key: [{resourceCode, resourceName, subModule}, ...]}。
+
+        三道过滤缺一不可：
+        1. `strategy_governed=True` —— 资源目录里显式登记的管控开关（core.0040 置位）；
+        2. `resource_type='BUTTON'` —— 「受限功能」是按钮级功能，菜单不是功能；
+        3. `status=1` —— 停用资源已被 has_perm 永拒，放进候选即「勾了也不生效」。
+
+        🔴 策略模块 → 资源 module 的映射**必须**复用 DATA_PERM_MODULE_RESOURCE_MODULES
+        （与卡 1.3 featureGranted 同一张表）。两个反直觉点，硬编码必错：
+          - talent(人才库数据) 对应资源 module `talent_pool`(人才库功能)；
+          - process(招聘流程数据) 对应资源 module `settings`(recruitment_process:*)，
+            settings 下有 200+ 资源，不过滤会直接把整个系统设置灌进候选区。
+        """
+        from apps.data_permission.role_scope_api import DATA_PERM_MODULE_RESOURCE_MODULES
+
+        out = {}
+        for module_key in DynamicStrategy.VALID_MODULE_KEYS:
+            res_modules = DATA_PERM_MODULE_RESOURCE_MODULES.get(module_key) or set()
+            rows = PermissionResource.objects.filter(
+                system_code=SYSTEM_CODE,
+                module__in=res_modules,
+                resource_type='BUTTON',
+                status=1,
+                strategy_governed=True,
+            ).order_by('module', 'resource_code').values_list(
+                'resource_code', 'resource_name',
+            )
+            out[module_key] = [
+                {
+                    'resourceCode': code,
+                    'resourceName': name,
+                    # 子模块不是独立字段，是资源码第 3 段（与前端 ResourcesTab.vue 同口径）；
+                    # 3 段码（recruit:demand:list）没有子模块层，留空串。
+                    'subModule': code.split(':')[2] if len(code.split(':')) >= 4 else '',
+                }
+                for code, name in rows
+            ]
+        return out

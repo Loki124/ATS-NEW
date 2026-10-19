@@ -407,6 +407,44 @@ RESOURCES = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# 「受策略管控」资源清单（2026-10-20 兵哥清单）——资源的 strategy_governed 真源
+#
+# 只有这里的资源才会出现在动态策略「受限功能」候选区（后端
+# GET /api/v1/dynamic-strategies/options/ 的 governedResources，过滤
+# strategy_governed=True + BUTTON + status=1）。
+#
+# 🔴 为什么不并入上面的 RESOURCES 四元组：
+#    RESOURCES 是 (code, name, type, module) 四元组，test_resource_code_convention
+#    多处按 4 元解包（`for code, _name, rtype, _module in RESOURCES`），改结构会
+#    连带破坏护栏；且 seed 对 RESOURCES 无条件 update_or_create(status=1)，
+#    把受管控标记塞进 defaults 会被重跑 seed 强行覆盖成同一套值。
+#    故本清单独立成常量，由 Command.handle 在主循环之后单独置位。
+#
+# 🔴 为什么迁移 core.0040 也 import 本常量（而不是自包含一份）：
+#    新库 migrate 时 permission_resources 还是空表，0040 置不到任何行，随后
+#    seed 才真正建资源 —— 若只靠迁移，全新环境「受限功能」候选恒为空。
+#    两侧共用同一常量，避免清单在两个地方各自漂移（与 data_permission.0006
+#    「刻意 import 业务常量而非自包含数据」同一取舍）。
+#
+# 清单核对方式与未匹配项见 core/migrations/0040 的模块 docstring。
+# ---------------------------------------------------------------------------
+STRATEGY_GOVERNED_CODES = [
+    # 招聘需求 / 招聘需求
+    'recruit:demand:list',                  # 查看需求（库内名：需求列表）
+    'recruit:demand:edit',                  # 编辑需求
+    # 职位管理 / 职位管理
+    'recruit:position:list',                # 查看职位（库内名：职位列表）
+    'recruit:position:edit',                # 编辑职位
+    # 候选人管理 / 候选人基础
+    'recruit:candidate:list',               # 查看候选人（库内名：候选人列表）
+    'recruit:candidate:edit',               # 编辑简历（库内名：编辑候选人）
+    # 候选人管理 / offer信息
+    'recruit:candidate:offer:create',       # 创建offer
+    'recruit:candidate:offer:approve',      # 发起offer审批
+]
+
+
 # 配置类资源码 (2026-10-11, G2 接线)
 # 这些模块的端点此前是裸 IsAuthenticated / 角色白名单 —— 任意登录用户都能改配置。
 # 接入 V2Permission 后改为按资源码校验, 为保持 HR / HRBP 现有的配置可用范围,
@@ -597,6 +635,14 @@ class Command(BaseCommand):
             else:
                 updated_resources += 1
 
+        # 受策略管控置位（在主循环之后：RESOURCES 的 update_or_create 不带该字段，
+        # 新建行恒为 False，这里才把清单内的码点亮）。
+        # 🔴 只置 True、**不**做「清单外归零」：管理员在资源管理台手工开的开关
+        #    属于租户决策，重跑 seed 不该把它抹掉（归零只在 0040 迁移里做一次）。
+        governed_hit = PermissionResource.objects.filter(
+            resource_code__in=STRATEGY_GOVERNED_CODES,
+        ).update(strategy_governed=True)
+
         for tpl in TEMPLATES:
             PermissionTemplate.objects.update_or_create(
                 template_code=tpl['code'],
@@ -634,6 +680,7 @@ class Command(BaseCommand):
             f'Seed OK: {created_resources} created, {updated_resources} updated, '
             f'{total} total resources, {len(all_codes)} in TMPL_ADMIN, '
             f'{len(TEMPLATES)} templates, {len(TENANT_DEFAULTS)} tenant config, '
+            f'{governed_hit} strategy_governed, '
             f'admin {"created" if admin_created else "updated"}'
         ))
 

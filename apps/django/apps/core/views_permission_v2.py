@@ -7,8 +7,8 @@ import json
 from django.db import transaction
 from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import get_object_or_404
+from rest_framework import mixins, viewsets
 from rest_framework import status as http_status
-from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -32,7 +32,19 @@ from .permissions_v2 import V2Permission
 from .scope_resolver import _pick_app_json, compile_data_range_q, resolve_scope
 
 
-class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
+class PermissionResourceViewSet(
+    EnvelopeReadOnlyMixin,
+    mixins.UpdateModelMixin,
+    viewsets.ReadOnlyModelViewSet,
+):
+    """权限资源目录（只读）+ 唯一的写口子：`strategy_governed` 单字段 PATCH。
+
+    2026-10-20 放开 partial_update 只为「受策略管控」开关：
+    动态策略「受限功能」候选区需要管理员在资源管理台逐个标记资源是否受管控，
+    而资源目录本身是代码注册的（seed + 迁移），绝不能开通用 create/update/destroy
+    —— 资源码一旦被改即「五处不同步 → 静默失权」（docs/06-runbook/资源出入规则.md §1）。
+    故此处只用只含 strategy_governed 的最小序列化器，并显式禁掉 PUT 全量更新。
+    """
     # 🔴 默认只出启用资源（status=1）：权限配置等消费方按「可用资源」理解，
     #    停用资源不应再进入勾选候选，避免把已下线功能重新授权出去。
     #    资源管理台（ResourcesTab）需要看到停用项做审计，走 ?include_disabled=1
@@ -47,6 +59,12 @@ class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
     # 服务端分页必须配稳定排序：无 order_by 时 Django Paginator 会告警
     # UnorderedObjectListWarning，且翻页间顺序不稳定 → 跨页可能重复/丢行
     ordering = ['module', 'resource_code']
+    # 写口子的守卫：按 action 精确声明，**不能**用类级 permission_required
+    # （那会让 list/retrieve 也要 dynamic_strategy:edit，打断既有只读消费方）。
+    # 语义上「谁能配动态策略，谁才能决定哪些资源受策略管控」，故复用动态策略编辑码。
+    permission_required_map = {
+        'partial_update': 'recruit:settings:dynamic_strategy:edit',
+    }
 
     def get_queryset(self):
         """status 语义改为三态查询参数：
@@ -54,7 +72,14 @@ class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
         - status=0    → 仅停用；
         - status=all  → 启用 + 停用（资源管理台审计用）。
         旧写死 filter(status=1) 的 queryset 类属性保留为基线上面的对照。
+
+        🔴 写口子例外：PATCH 走**不过滤 status** 的全集。资源管理台可切到
+        「全部 / 停用」视图，那里的行同样带「受策略管控」开关；若按默认只查启用，
+        管理员改停用资源会 404，UI 报错且无从下手。停用资源只是不进策略候选，
+        其属性本身仍应可维护（停用 ≠ 删除，可查可追溯）。读路径语义完全不变。
         """
+        if self.action == 'partial_update':
+            return PermissionResource.objects.all()
         qs = PermissionResource.objects.all()
         raw = self.request.query_params.get('status')
         if raw in (None, '', '1', 'enabled'):
@@ -68,7 +93,12 @@ class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
         return qs.order_by('module', 'resource_code')
 
     def get_serializer_class(self):
-        from .serializers_permission_v2 import PermissionResourceSerializer
+        from .serializers_permission_v2 import (
+            PermissionResourceSerializer,
+            PermissionResourceStrategyGovernedSerializer,
+        )
+        if self.action == 'partial_update':
+            return PermissionResourceStrategyGovernedSerializer
         return PermissionResourceSerializer
 
     def list(self, request, *args, **kwargs):
@@ -80,6 +110,24 @@ class PermissionResourceViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return success_response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        """PUT 整体更新一律 405 —— 资源目录只开放 strategy_governed 单字段 PATCH。
+
+        UpdateModelMixin 会同时挂上 PUT 与 PATCH；整体更新会让调用方有机会提交
+        resource_code / status 等字段，即便被序列化器挡住，也不该给出「看起来
+        能整体改」的契约。显式 405 而不是静默忽略。
+        """
+        return Response(
+            {'success': False, 'message': '资源不支持整体更新（PUT），请使用 PATCH 修改 strategyGoverned'},
+            status=http_status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        """PATCH /permissions/resources/{id}/ — 只改 strategy_governed。"""
+        kwargs['partial'] = True
+        res = super().update(request, *args, **kwargs)
+        return success_response(res.data)
 
 
 class PermissionTemplateViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelViewSet):
