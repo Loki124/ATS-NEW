@@ -38,13 +38,14 @@ RESOURCES = [
     ('recruit:demand:create', '创建需求', 'BUTTON', 'demand'),
     ('recruit:demand:edit', '编辑需求', 'BUTTON', 'demand'),
     ('recruit:demand:approve', '审批需求', 'BUTTON', 'demand'),
-    # --- module: position ---
-    ('recruit:position:menu:view', '岗位菜单', 'MENU', 'position'),
-    ('recruit:position:list', '岗位列表', 'BUTTON', 'position'),
-    ('recruit:position:create', '创建岗位', 'BUTTON', 'position'),
-    ('recruit:position:edit', '编辑岗位', 'BUTTON', 'position'),
-    ('recruit:position:publish', '发布岗位', 'BUTTON', 'position'),
-    ('recruit:position:close', '关闭岗位', 'BUTTON', 'position'),
+    # --- module: position（2026-10-19 兵哥：页面/导航均叫「职位管理」，资源中文名同步 岗位→职位；
+    #     code 第2段 position 与 module 一致（R2✓），且与 settings:position_*（职位信息设置等）同族，码不改）---
+    ('recruit:position:menu:view', '职位菜单', 'MENU', 'position'),
+    ('recruit:position:list', '职位列表', 'BUTTON', 'position'),
+    ('recruit:position:create', '创建职位', 'BUTTON', 'position'),
+    ('recruit:position:edit', '编辑职位', 'BUTTON', 'position'),
+    ('recruit:position:publish', '发布职位', 'BUTTON', 'position'),
+    ('recruit:position:close', '关闭职位', 'BUTTON', 'position'),
     # --- module: application ---
     ('recruit:application:menu:view', '申请菜单', 'MENU', 'application'),
     ('recruit:application:list', '申请列表', 'BUTTON', 'application'),

@@ -20,7 +20,7 @@ export const RESOURCE_MODULE_LABELS: Record<string, string> = {
   candidate: '候选人管理',
   interview: '面试管理',
   demand: '招聘需求',
-  position: '岗位管理',
+  position: '职位管理',
   application: '申请管理',
   onboarding: '入职管理',
   referral: '内推管理',
