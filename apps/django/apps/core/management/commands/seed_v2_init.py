@@ -228,6 +228,8 @@ RESOURCES = [
     ('recruit:settings:position_form_settings:menu:view', '职位表单设置菜单', 'MENU', 'settings'),
     ('recruit:settings:ui_templates:menu:view', '前端组件规范菜单', 'MENU', 'settings'),
     ('recruit:settings:dynamic_data:menu:view', '动态数据菜单', 'MENU', 'settings'),
+    # 招聘分类信息父项页（/settings/recruit-category 自带路由，2026-10-19 二次补登记）
+    ('recruit:settings:recruit_category:menu:view', '招聘分类信息菜单', 'MENU', 'settings'),
     # 数据字典 (management)
     ('recruit:settings:dictionary:menu:view', '数据字典菜单', 'MENU', 'settings'),
     ('recruit:settings:dictionary:create', '新增字典项', 'BUTTON', 'settings'),

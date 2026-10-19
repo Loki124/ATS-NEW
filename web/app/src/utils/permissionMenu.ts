@@ -94,6 +94,8 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/campus/person', code: 'recruit:campus:person:menu:view' },
 
   // ===== 招聘分类信息 =====
+  // 招聘分类信息父项页（自身为可点击路由；2026-10-19 补登记，此前未登记走 fail-open 恒可见）
+  { prefix: '/settings/recruit-category', code: 'recruit:settings:recruit_category:menu:view' },
   { prefix: '/settings/dictionary', code: 'recruit:settings:dictionary:menu:view' },
   // 原因库（2026-10-19 补登记；子路径 tags/rules 由最长前缀命中本条）
   { prefix: '/settings/reason-library', code: 'recruit:settings:reason_library:menu:view' },
