@@ -41,6 +41,8 @@ export const RESOURCE_MODULE_LABELS: Record<string, string> = {
   settings: '系统设置',
   // ↓ 2026-10-19 补齐：下列 4 个模块此前漏收进前端映射表，导致对应资源在
   //   ResourcesTab 模块列显示「—」（误判为无模块）。真值均来自 seed 资源名。
+  //   2026-10-20 (0044)：channel / user_app_data_scope 两族已归位 settings 家族，
+  //   标签仅作历史兜底（未跑 0044 的旧库仍可能读到旧 module 值），不影响新数据。
   channel: '渠道管理',
   notification: '通知中心',
   user_app_data_scope: '应用数据范围',

@@ -16,7 +16,7 @@ class ChannelViewSet(EnvelopeAuditModelViewSet):
     queryset = Channel.objects.all()
     serializer_class = ChannelSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:channel:list'
+    permission_required = 'recruit:settings:channel:list'
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'is_active']
@@ -30,12 +30,12 @@ class ChannelCostViewSet(EnvelopeAuditModelViewSet):
     queryset = ChannelCost.objects.all()
     serializer_class = ChannelCostSerializer
     permission_classes = [V2Permission]
-    permission_required = 'recruit:channel:cost:list'
+    permission_required = 'recruit:settings:channel:cost:list'
     permission_required_map = {
-        'create': 'recruit:channel:cost:edit',
-        'update': 'recruit:channel:cost:edit',
-        'partial_update': 'recruit:channel:cost:edit',
-        'destroy': 'recruit:channel:cost:edit',
+        'create': 'recruit:settings:channel:cost:edit',
+        'update': 'recruit:settings:channel:cost:edit',
+        'partial_update': 'recruit:settings:channel:cost:edit',
+        'destroy': 'recruit:settings:channel:cost:edit',
     }
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]

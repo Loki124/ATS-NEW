@@ -691,7 +691,7 @@ class UserAppDataScopeViewSet(EnvelopeModelViewSet):
 
     queryset = UserRoleV2.objects.none()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:user_app_data_scope:list'
+    permission_required = 'recruit:settings:user_app_data_scope:list'
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
 
     def get_serializer_class(self):
