@@ -253,7 +253,7 @@ function onPickerConfirm(payload: { catId: string; selected: ReasonTag[] }) {
   flex-shrink: 0;
 }
 .assign-badge.count { background: var(--g1); color: var(--ink-soft); }
-.assign-badge.custom { background: rgba(139, 92, 246, .12); color: #6d28d9; }
+.assign-badge.custom { background: var(--brand-alt-soft); color: var(--brand-alt-ink); }
 .assign-badge.system { background: var(--brand-warm-soft); color: var(--brand-warm-deep); }
 
 .assign-body { padding: var(--space-3); }

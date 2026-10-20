@@ -284,7 +284,7 @@ function confirm() {
   border-radius: 999px;
 }
 .picker-row .type.system { background: var(--brand-soft); color: var(--brand-fg); }
-.picker-row .type.custom { background: rgba(139, 92, 246, .12); color: #6d28d9; }
+.picker-row .type.custom { background: var(--brand-alt-soft); color: var(--brand-alt-ink); }
 .picker-row.disabled { cursor: not-allowed; opacity: .6; }
 .picker-row.disabled:hover { background: transparent; }
 .excluded-tip {

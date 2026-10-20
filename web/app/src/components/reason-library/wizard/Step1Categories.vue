@@ -437,7 +437,7 @@ function canMoveDown(cat: RuleCategory): boolean {
 }
 .level-badge.l1 { background: var(--brand-soft); color: var(--brand-fg); }
 .level-badge.l2 { background: var(--c-success-soft); color: var(--c-success-deep); }
-.level-badge.l3 { background: rgba(139, 92, 246, .12); color: #6d28d9; }
+.level-badge.l3 { background: var(--brand-alt-soft); color: var(--brand-alt-ink); }
 .level-badge.l4 { background: var(--brand-warm-soft); color: var(--brand-warm-deep); }
 
 .cat-name-input {

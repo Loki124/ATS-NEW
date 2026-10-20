@@ -274,8 +274,8 @@ onMounted(() => {
   white-space: nowrap;
 }
 .ws-origin-tag.is-auto {
-  background: rgba(24, 160, 88, 0.1);
-  color: #2b8a54;
+  background: var(--c-success-soft);
+  color: var(--c-success-deep);
 }
 .ws-origin-tag.is-manual {
   background: transparent;

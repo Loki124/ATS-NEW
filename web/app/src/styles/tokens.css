@@ -131,6 +131,9 @@
   /* 派生型 / 次级品牌强调的文字色（--brand-grad-a 的文字化替身）。
    *   grad-a #8c63fa 作装饰渐变端点没问题，但直接当文字仅 3.98:1（暗底 3.68:1）。 */
   --brand-alt-ink:   #5b32c8;
+  /* 次级强调软底（"自定义"类型徽标背景）。浅色沿用既有紫色透色 .12，
+   * 与 --brand-alt-ink(#5b32c8) 同组。暗色见 body.dark 提亮到 .22（同 --c-success-soft 规律）。 */
+  --brand-alt-soft:  rgba(139, 92, 246, .12);
 
   /* §4.3 中性灰阶（补全 X-05 灰字面量归宿；命名 n-<步长>，值=与 --g* / --ink* 同值
    *   实现全档 light 模式像素级一致；dark 模式覆盖见 §17 body.dark）
@@ -317,6 +320,9 @@ body.dark {
   --brand-fg-hover:  var(--brand-100);
   --brand-fg-on-soft: var(--brand-100);  /* 对暗色合成底 #34405E / #2F3A55 → 6.5:1 / 6.0:1 */
   --brand-alt-ink:   #c4a6ff;
+  /* 次级强调软底暗色提亮：rgba(139,92,246,.12) → .22（同 --c-success-soft 暗色加透规律），
+   * 保证 --brand-alt-ink(#c4a6ff) 压在其上对暗底可读。 */
+  --brand-alt-soft:  rgba(139, 92, 246, .22);
 
   /* 语义 deep/bg 暗色重排（深字转亮、浅底转半透明，保证暗底可读） */
   --c-success-deep: #6EE7B7;  --c-success-bg: rgba(22, 163, 74, .22);
