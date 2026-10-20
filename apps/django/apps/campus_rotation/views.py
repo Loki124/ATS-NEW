@@ -19,9 +19,13 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.db.models import Count
 
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.models import Department
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.core.scope_resolver import scope_filter_q
 from apps.core.views_permission_v2 import EnvelopeWriteMixin
 from django.db import IntegrityError
 
@@ -393,4 +397,134 @@ class ClassRoomViewSet(
         from apps.campus_control.serializers import PersonSerializer
         qs = Person.objects.filter(deleted_at__isnull=True, class_room_id=instance.id)
         data = PersonSerializer(qs, many=True).data
+        return Response({'success': True, 'data': data})
+
+
+# ---------------------------------------------------------------------------
+# BU 汇总（需求 4-1，S5-14）：直播 / 客服 / 总数据 三段式
+# ---------------------------------------------------------------------------
+class ResourceBuSummaryView(APIView):
+    """轮岗资源按 BU 拆分的三段式汇总。
+
+    端点：GET /api/v1/campus-rotation/resources/bu-summary/
+    分段：live（直播主播占用）/ service（客服占用）/ total（总数据）。
+
+    性能纪律（MEMORY.md N+1）：占用数用两条 values().annotate(Count()) 分组查询，
+    严禁逐 BU / 逐资源循环查询。
+
+    口径：
+      - anchorCount：该 BU 下 LiveRoom 的 ONGOING 占用（复用 LiveRoomSerializer.campusCount
+        的 `RotationArrangement.stage='ONGOING' AND current_dept_id=直播间.department_id`）。
+      - csCount：该 BU 下 ServiceDept 的 ONGOING 占用（RotationArrangement.service_dept_id）。
+      - capacity：资源 capacity 合计（空值按 0）。
+      - usedRate：count / capacity；capacity 为 0 → null（防除零）。
+
+    行级隔离：复用 scope_filter_q(scope_field='bu', entity='campus_resource')，
+    仅聚合当前用户可见 BU 的资源。
+    """
+
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:campus:resource:list'
+    data_perm_entity = 'campus_resource'
+    scope_field = 'bu'
+
+    def get(self, request):
+        user = request.user
+
+        # 1) 可见资源（已套行级隔离）
+        live_rooms = list(
+            LiveRoom.objects.filter(
+                scope_filter_q(user, scope_field='bu', entity='campus_resource')
+            ).values('id', 'department_id', 'bu_id', 'capacity')
+        )
+        service_depts = list(
+            ServiceDept.objects.filter(
+                scope_filter_q(user, scope_field='bu', entity='campus_resource')
+            ).values('id', 'bu_id', 'capacity')
+        )
+
+        live_dept_ids = [lr['department_id'] for lr in live_rooms if lr['department_id']]
+        sd_ids = [sd['id'] for sd in service_depts]
+
+        # 2) ONGOING 占用分组（两条聚合查询，禁 N+1）
+        live_occ = {}
+        if live_dept_ids:
+            live_occ = dict(
+                RotationArrangement.objects.filter(
+                    stage='ONGOING', current_dept_id__in=live_dept_ids
+                ).values_list('current_dept_id').annotate(cnt=Count('id'))
+            )
+        sd_occ = {}
+        if sd_ids:
+            sd_occ = dict(
+                RotationArrangement.objects.filter(
+                    stage='ONGOING', service_dept_id__in=sd_ids
+                ).values_list('service_dept_id').annotate(cnt=Count('id'))
+            )
+
+        # 3) 按 BU 聚合
+        bu_agg: dict = {}
+        for lr in live_rooms:
+            a = bu_agg.setdefault(
+                lr['bu_id'],
+                {'anchorCount': 0, 'liveCapacity': 0, 'csCount': 0, 'serviceCapacity': 0},
+            )
+            a['liveCapacity'] += lr['capacity'] or 0
+            a['anchorCount'] += live_occ.get(lr['department_id'], 0)
+        for sd in service_depts:
+            a = bu_agg.setdefault(
+                sd['bu_id'],
+                {'anchorCount': 0, 'liveCapacity': 0, 'csCount': 0, 'serviceCapacity': 0},
+            )
+            a['serviceCapacity'] += sd['capacity'] or 0
+            a['csCount'] += sd_occ.get(sd['id'], 0)
+
+        # 4) BU 名称
+        named_bu_ids = [b for b in bu_agg if b]
+        bus = (
+            {d.id: d.name for d in Department.objects.filter(id__in=named_bu_ids)}
+            if named_bu_ids else {}
+        )
+
+        def rate(count: int, capacity: int):
+            return (count / capacity) if capacity else None
+
+        def build(bu_id):
+            name = bus.get(bu_id, '') if bu_id else '未分配'
+            return bu_id, name
+
+        live, service, bu_list = [], [], []
+        for bu_id, a in bu_agg.items():
+            name = bus.get(bu_id, '') if bu_id else '未分配'
+            bu_list.append({'buId': bu_id, 'buName': name})
+            live.append({
+                'buId': bu_id, 'buName': name,
+                'anchorCount': a['anchorCount'],
+                'capacity': a['liveCapacity'],
+                'usedRate': rate(a['anchorCount'], a['liveCapacity']),
+            })
+            service.append({
+                'buId': bu_id, 'buName': name,
+                'csCount': a['csCount'],
+                'capacity': a['serviceCapacity'],
+                'usedRate': rate(a['csCount'], a['serviceCapacity']),
+            })
+
+        live.sort(key=lambda x: (x['buId'] is None, x['buName']))
+        service.sort(key=lambda x: (x['buId'] is None, x['buName']))
+        bu_list.sort(key=lambda x: (x['buId'] is None, x['buName']))
+
+        live_anchor_total = sum(a['anchorCount'] for a in bu_agg.values())
+        service_total = sum(a['csCount'] for a in bu_agg.values())
+
+        data = {
+            'live': live,
+            'service': service,
+            'total': {
+                'liveAnchorTotal': live_anchor_total,
+                'serviceTotal': service_total,
+                'grandTotal': live_anchor_total + service_total,
+                'buList': bu_list,
+            },
+        }
         return Response({'success': True, 'data': data})

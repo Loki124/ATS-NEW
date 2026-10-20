@@ -20,9 +20,12 @@
 """
 from rest_framework.routers import DefaultRouter
 
+from django.urls import path
+
 from .views import (
     ClassRoomViewSet,
     LiveRoomViewSet,
+    ResourceBuSummaryView,
     RotationArrangementViewSet,
     ServiceDeptViewSet,
 )
@@ -36,4 +39,7 @@ router.register(r'live-rooms', LiveRoomViewSet, basename='campus-live-room')
 router.register(r'class-rooms', ClassRoomViewSet, basename='campus-class-room')
 router.register(r'service-depts', ServiceDeptViewSet, basename='campus-service-dept')
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    # 需求 4-1（S5-14）：轮岗资源 BU 三段式汇总
+    path('resources/bu-summary/', ResourceBuSummaryView.as_view(), name='resource-bu-summary'),
+]
