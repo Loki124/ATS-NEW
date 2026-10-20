@@ -13,6 +13,10 @@
   GET/POST   /class-rooms/                         班级管理
   GET/PUT/DELETE /class-rooms/{id}/
   POST       /class-rooms/{id}/restore/
+
+  GET/POST   /service-depts/                        客服部门资源（需求 4-3，S5-12）
+  GET/PUT/DELETE /service-depts/{id}/
+  POST       /service-depts/{id}/restore/
 """
 from rest_framework.routers import DefaultRouter
 
@@ -20,6 +24,7 @@ from .views import (
     ClassRoomViewSet,
     LiveRoomViewSet,
     RotationArrangementViewSet,
+    ServiceDeptViewSet,
 )
 
 router = DefaultRouter()
@@ -29,5 +34,6 @@ router.register(
 )
 router.register(r'live-rooms', LiveRoomViewSet, basename='campus-live-room')
 router.register(r'class-rooms', ClassRoomViewSet, basename='campus-class-room')
+router.register(r'service-depts', ServiceDeptViewSet, basename='campus-service-dept')
 
 urlpatterns = router.urls

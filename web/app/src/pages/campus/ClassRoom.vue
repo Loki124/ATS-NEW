@@ -4,7 +4,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">班级管理</h1>
-          <p class="page-subtitle">校招生班级（班主任 / 班长 / HRBP）</p>
+          <p class="page-subtitle">校招生班级（班主任 / HRBP）</p>
         </div>
       </div>
 
@@ -78,19 +78,6 @@
                 />
               </n-form-item>
             </n-grid-item>
-            <n-grid-item>
-              <n-form-item label="班长">
-                <n-select
-                  v-model:value="formState.classMonitor"
-                  :options="userOptions"
-                  placeholder="请选择班长"
-                  clearable
-                  filterable
-                  remote
-                  :on-search="onUserSearch"
-                />
-              </n-form-item>
-            </n-grid-item>
           </n-grid>
 
           <n-grid :cols="2" :x-gap="24">
@@ -134,6 +121,25 @@
           </div>
         </template>
       </n-modal>
+
+      <!-- S5-06（需求 3-2）：班级成员明细抽屉 -->
+      <n-drawer v-model:show="membersVisible" :width="720" placement="right">
+        <n-drawer-content :title="`班级成员 · ${currentClassName}`" closable>
+          <n-data-table
+            :data="memberList"
+            :columns="memberColumns"
+            :row-key="(r: any) => r.id"
+            :loading="memberLoading"
+            :pagination="{ pageSize: 50 }"
+            :bordered="false"
+            flex-height
+          >
+            <template #empty>
+              <n-empty description="该班级暂无绑定校招生" />
+            </template>
+          </n-data-table>
+        </n-drawer-content>
+      </n-drawer>
     </div>
   </div>
 </template>
@@ -154,6 +160,7 @@ import {
   NPopconfirm,
   NIcon,
   NEmpty,
+  NDrawer,
   useMessage,
 } from 'naive-ui'
 import { AddOutline, CreateOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
@@ -190,7 +197,6 @@ const emptyForm = () => ({
   code: '',
   name: '',
   headTeacher: null as string | null,
-  classMonitor: null as string | null,
   hrbp: null as string | null,
   batch: '',
   isActive: true,
@@ -227,7 +233,6 @@ const openEdit = (row: any) => {
     code: row.code,
     name: row.name,
     headTeacher: row.headTeacher != null ? String(row.headTeacher) : null,
-    classMonitor: row.classMonitor != null ? String(row.classMonitor) : null,
     hrbp: row.hrbp != null ? String(row.hrbp) : null,
     batch: row.batch || '',
     isActive: row.isActive !== false,
@@ -235,7 +240,6 @@ const openEdit = (row: any) => {
   })
   editing.value = row
   if (row.headTeacher != null) headTeacherOptions.value = [{ label: String(row.headTeacher), value: String(row.headTeacher) }]
-  if (row.classMonitor != null) userOptions.value = [{ label: String(row.classMonitor), value: String(row.classMonitor) }]
   if (row.hrbp != null) userOptions.value = [...userOptions.value.filter((o) => o.value !== String(row.hrbp)), { label: String(row.hrbp), value: String(row.hrbp) }]
   modalVisible.value = true
 }
@@ -249,7 +253,6 @@ const save = async () => {
   const payload: any = {
     name: formState.name,
     headTeacher: formState.headTeacher,
-    classMonitor: formState.classMonitor,
     hrbp: formState.hrbp,
     batch: formState.batch,
     isActive: formState.isActive,
@@ -282,14 +285,42 @@ const remove = async (row: any) => {
   }
 }
 
+// S5-06（需求 3-2）：班级成员明细穿透 —— 列表「校招人数」可点击打开抽屉
+const membersVisible = ref(false)
+const memberLoading = ref(false)
+const memberList = ref<any[]>([])
+const currentClassName = ref('')
+const openMembers = async (row: any) => {
+  currentClassName.value = row.name || row.code || ''
+  membersVisible.value = true
+  memberLoading.value = true
+  try {
+    const resp = await api.get(`/campus-rotation/class-rooms/${row.id}/members/`)
+    const d = resp?.data
+    memberList.value = (d?.data ?? []) as any[]
+  } catch (e: any) {
+    message.error(extractError(e))
+  } finally {
+    memberLoading.value = false
+  }
+}
+const memberColumns = [
+  { title: '姓名', key: 'name', width: 110, render: (r: any) => r.name || '-' },
+  { title: '工号', key: 'employeeId', width: 120, render: (r: any) => r.employeeId || '-' },
+  { title: '在职状态', key: 'status', width: 110, render: (r: any) => r.status || '-' },
+  { title: '班主任', key: 'headTeacherName', width: 120, render: (r: any) => r.headTeacherName || '-' },
+  { title: '部门', key: 'bu', width: 110, render: (r: any) => r.bu || '-' },
+  { title: '院校', key: 'school', width: 90, render: (r: any) => r.school || '-' },
+  { title: '专业', key: 'major', width: 90, render: (r: any) => r.major || '-' },
+]
+
 const columns = [
   { title: '编号', key: 'code', width: 120, render: (row: any) => row.code || '-' },
   { title: '班级名称', key: 'name', width: 160, ellipsis: true, render: (row: any) => row.name || '-' },
   { title: '班主任', key: 'headTeacher', width: 140, render: (row: any) => (row.headTeacher != null ? String(row.headTeacher) : '-') },
-  { title: '班长', key: 'classMonitor', width: 140, render: (row: any) => (row.classMonitor != null ? String(row.classMonitor) : '-') },
   { title: 'HRBP', key: 'hrbp', width: 140, render: (row: any) => (row.hrbp != null ? String(row.hrbp) : '-') },
   { title: '批次', key: 'batch', width: 120, render: (row: any) => row.batch || '-' },
-  { title: '校招人数', key: 'studentCount', width: 100, render: (row: any) => row.studentCount ?? 0 },
+  { title: '校招人数', key: 'studentCount', width: 100, render: (row: any) => h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openMembers(row) }, { default: () => String(row.studentCount ?? 0) }) },
   {
     title: '启用',
     key: 'isActive',

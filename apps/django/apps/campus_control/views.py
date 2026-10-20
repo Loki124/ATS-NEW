@@ -124,22 +124,33 @@ def _person_to_dict(p, dim_map=None):
 
 
 class CampusCRUDMixin:
-    """写操作统一兜底：带入当前用户；软删（instance.soft_delete，复用 FullAuditModel.deleted_at）。"""
+    """写操作统一兜底：带入当前用户；软删（instance.soft_delete）；审计埋点（需求 5-6）。"""
+
+    def _audit_entity(self) -> str:
+        """审计实体标识：优先用子类声明的 audit_entity，否则回退模型名。"""
+        return getattr(self, 'audit_entity', self.queryset.model.__name__)
 
     def perform_create(self, serializer):
         try:
-            serializer.save(created_by=self.request.user, updated_by=self.request.user)
+            instance = serializer.save(created_by=self.request.user, updated_by=self.request.user)
         except IntegrityError as e:
             raise DRFValidationError({'detail': f'数据库约束冲突：{e}'})
+        from apps.common.audit_helper import log_action
+        log_action(self.request, 'create', self._audit_entity(), instance.pk)
 
     def perform_update(self, serializer):
         try:
-            serializer.save(updated_by=self.request.user)
+            instance = serializer.save(updated_by=self.request.user)
         except IntegrityError as e:
             raise DRFValidationError({'detail': f'数据库约束冲突：{e}'})
+        from apps.common.audit_helper import log_action
+        log_action(self.request, 'update', self._audit_entity(), instance.pk)
 
     def perform_destroy(self, instance):
+        pk = instance.pk
         instance.soft_delete()
+        from apps.common.audit_helper import log_action
+        log_action(self.request, 'delete', self._audit_entity(), pk)
 
 
 class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
@@ -555,6 +566,14 @@ class PersonViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
             v = params.get(f)
             if v:
                 qs = qs.filter(**{f: v})
+
+        # 2026-10-19 S5-10（需求 2-2）：班主任 / 班级 核心筛选
+        head_teacher = params.get('head_teacher')
+        if head_teacher:
+            qs = qs.filter(head_teacher_id=head_teacher)
+        class_room = params.get('class_room')
+        if class_room:
+            qs = qs.filter(class_room_id=class_room)
 
         # 月份精确匹配
         month = params.get('month')

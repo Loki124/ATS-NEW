@@ -4,7 +4,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">校招生档案</h1>
-          <p class="page-subtitle">校招生人员主数据（候选人编号 / 院校 / 专业 / 入职日期）</p>
+          <p class="page-subtitle">校招生人员主数据（姓名 / 工号 / 班级 / 班主任 / 院校 / 专业 / 入职日期）</p>
         </div>
       </div>
 
@@ -30,13 +30,6 @@
           clearable
           class="filter-select"
         />
-        <n-select
-          v-model:value="filterStatus"
-          :options="statusChoices"
-          placeholder="全部状态"
-          clearable
-          class="filter-select"
-        />
         <div class="spacer"></div>
         <n-button type="primary" :loading="loading" @click="reload">
           <template #icon><n-icon :component="RefreshOutline" /></template>
@@ -47,6 +40,21 @@
           新建档案
         </n-button>
       </div>
+
+      <n-tabs
+        :value="activeTab"
+        type="line"
+        justify="start"
+        class="status-tabs"
+        @update:value="onTabChange"
+      >
+        <n-tab-pane
+          v-for="t in statusTabs"
+          :key="t.value"
+          :name="t.value"
+          :tab="t.label"
+        />
+      </n-tabs>
 
       <div class="table-wrap">
         <n-data-table
@@ -91,6 +99,27 @@
 
           <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
+              <n-form-item label="工号">
+                <n-input v-model:value="formState.employeeId" placeholder="入职后补录" />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="班级">
+                <n-select
+                  v-model:value="formState.classRoom"
+                  :options="classRoomOptions"
+                  placeholder="请选择班级"
+                  clearable
+                  filterable
+                  remote
+                  :on-search="onClassRoomSearch"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item>
               <n-form-item label="部门" required>
                 <n-select
                   v-model:value="formState.bu"
@@ -105,6 +134,22 @@
                   v-model:value="formState.status"
                   :options="statusChoices"
                   placeholder="请选择状态"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item>
+              <n-form-item label="班主任">
+                <n-select
+                  v-model:value="formState.headTeacher"
+                  :options="headTeacherOptions"
+                  placeholder="请选择班主任"
+                  clearable
+                  filterable
+                  remote
+                  :on-search="onHeadTeacherSearch"
                 />
               </n-form-item>
             </n-grid-item>
@@ -217,6 +262,8 @@ import {
   NSelect,
   NSpace,
   NSwitch,
+  NTabPane,
+  NTabs,
   NTag,
   useMessage,
 } from 'naive-ui'
@@ -229,7 +276,13 @@ import {
   TrashOutline,
 } from '@vicons/ionicons5'
 import { api } from '../../utils/request'
-import { extractList, extractError } from '../../utils/campus'
+import {
+  extractList,
+  extractError,
+  searchUsers,
+  searchClassRooms,
+  type SelectOption,
+} from '../../utils/campus'
 
 const message = useMessage()
 
@@ -241,7 +294,20 @@ const saving = ref(false)
 
 const searchText = ref('')
 const filterBu = ref<string | null>(null)
-const filterStatus = ref<string | null>(null)
+
+// S5-05（需求 2-1）：状态页签，待入职独立展示。value='' = 全部；'待入职' 映射后端 '在途待入职'
+const statusTabs = [
+  { label: '全部', value: '' },
+  { label: '在职', value: '在职' },
+  { label: '待入职', value: '在途待入职' },
+  { label: '在途Offer', value: '在途Offer' },
+  { label: '候选池', value: '候选池' },
+]
+const activeTab = ref<string>('')
+const onTabChange = (v: string) => {
+  activeTab.value = v
+  reload()
+}
 
 // 枚举与后端 apps/campus_control/constants.py 保持一致（写时后端会校验合法性）
 const DEPTS = ['能电BG', '三到BG', '综合BG', '醒电BG']
@@ -265,6 +331,7 @@ const emptyForm = () => ({
   id: null as string | null,
   code: '',
   name: '',
+  employeeId: '',
   bu: null as string | null,
   school: null as string | null,
   major: null as string | null,
@@ -273,11 +340,23 @@ const emptyForm = () => ({
   status: '候选池' as string,
   position: '' as string,
   level: '' as string,
+  headTeacher: null as string | null,
+  classRoom: null as string | null,
   expectedEntryDate: null as number | null,
   actualEntryDate: null as number | null,
   counted: true,
 })
 const formState = reactive(emptyForm())
+
+// S5-04：班级 / 班主任 远程搜索（复用 utils/campus.searchClassRooms / searchUsers）
+const classRoomOptions = ref<SelectOption[]>([])
+const headTeacherOptions = ref<SelectOption[]>([])
+const onClassRoomSearch = async (kw: string) => {
+  classRoomOptions.value = await searchClassRooms(kw)
+}
+const onHeadTeacherSearch = async (kw: string) => {
+  headTeacherOptions.value = await searchUsers(kw)
+}
 
 /** 后端日期字段接受 YYYY-MM-DD；空值统一转 null，避免传空串触发 400。 */
 const toDateStr = (ts: number | null): string | null => {
@@ -293,7 +372,7 @@ const loadList = async () => {
     const params: Record<string, any> = { page: 1, page_size: 200 }
     if (searchText.value.trim()) params.search = searchText.value.trim()
     if (filterBu.value) params.bu = filterBu.value
-    if (filterStatus.value) params.status = filterStatus.value
+    if (activeTab.value) params.status = activeTab.value
     const resp = await api.get('/campus/persons/', { params })
     list.value = extractList(resp)
   } catch (e: any) {
@@ -316,6 +395,7 @@ const openEdit = (row: any) => {
     id: row.id,
     code: row.code,
     name: row.name || '',
+    employeeId: row.employeeId || '',
     bu: row.bu || null,
     school: row.school || null,
     major: row.major || null,
@@ -324,11 +404,20 @@ const openEdit = (row: any) => {
     status: row.status || '候选池',
     position: row.position || '',
     level: row.level || '',
+    headTeacher: row.headTeacher != null ? String(row.headTeacher) : null,
+    classRoom: row.classRoom != null ? String(row.classRoom) : null,
     expectedEntryDate: row.expectedEntryDate ? new Date(row.expectedEntryDate).getTime() : null,
     actualEntryDate: row.actualEntryDate ? new Date(row.actualEntryDate).getTime() : null,
     counted: row.counted !== false,
   })
   editing.value = row
+  // 预置已选班级 / 班主任，保证编辑时选择器回显当前值
+  classRoomOptions.value = row.classRoom != null
+    ? [{ label: row.classRoomName || String(row.classRoom), value: String(row.classRoom) }]
+    : []
+  headTeacherOptions.value = row.headTeacher != null
+    ? [{ label: row.headTeacherName || String(row.headTeacher), value: String(row.headTeacher) }]
+    : []
   modalVisible.value = true
 }
 
@@ -344,6 +433,7 @@ const save = async () => {
   saving.value = true
   const payload: any = {
     name: formState.name.trim(),
+    employee_id: formState.employeeId || '',
     bu: formState.bu,
     school: formState.school || '',
     major: formState.major || '',
@@ -352,6 +442,8 @@ const save = async () => {
     status: formState.status,
     position: formState.position || '',
     level: formState.level || '',
+    head_teacher: formState.headTeacher,
+    class_room: formState.classRoom,
     expectedEntryDate: toDateStr(formState.expectedEntryDate),
     actualEntryDate: toDateStr(formState.actualEntryDate),
     counted: formState.counted,
@@ -389,24 +481,26 @@ const statusTagType = (s: string) => {
   return 'default'
 }
 
+// S5-04（需求 2-2）：列顺序 = 姓名→工号→在职状态→入职时间→班级→班主任→部门→职务→职级→性别→院校→专业
+// D-02：隐藏「候选人编号」列（库字段 code 保留）。
+// 新增：工号(employeeId) / 班级(classRoomName) / 班主任(headTeacherName)
 const columns = [
-  { title: '候选人编号', key: 'code', width: 130, render: (row: any) => row.code || '-' },
   { title: '姓名', key: 'name', width: 110, render: (row: any) => row.name || '-' },
-  { title: '部门', key: 'bu', width: 110, render: (row: any) => row.bu || '-' },
-  { title: '院校', key: 'school', width: 90, render: (row: any) => row.school || '-' },
-  { title: '专业', key: 'major', width: 90, render: (row: any) => row.major || '-' },
-  { title: '性别', key: 'sex', width: 70, render: (row: any) => row.sex || '-' },
-  { title: '职务', key: 'position', width: 100, render: (row: any) => row.position || '-' },
-  { title: '职级', key: 'level', width: 80, render: (row: any) => row.level || '-' },
+  { title: '工号', key: 'employeeId', width: 120, render: (row: any) => row.employeeId || '-' },
   {
-    title: '实际入职', key: 'actualEntryDate', width: 120,
-    render: (row: any) => row.actualEntryDate || '-',
-  },
-  {
-    title: '状态', key: 'status', width: 110,
+    title: '在职状态', key: 'status', width: 110,
     render: (row: any) =>
       h(NTag, { type: statusTagType(row.status), size: 'small' }, { default: () => row.status || '-' }),
   },
+  { title: '入职时间', key: 'actualEntryDate', width: 120, render: (row: any) => row.actualEntryDate || '-' },
+  { title: '班级', key: 'classRoomName', width: 140, ellipsis: true, render: (row: any) => row.classRoomName || '-' },
+  { title: '班主任', key: 'headTeacherName', width: 120, render: (row: any) => row.headTeacherName || '-' },
+  { title: '部门', key: 'bu', width: 110, render: (row: any) => row.bu || '-' },
+  { title: '职务', key: 'position', width: 100, render: (row: any) => row.position || '-' },
+  { title: '职级', key: 'level', width: 80, render: (row: any) => row.level || '-' },
+  { title: '性别', key: 'sex', width: 70, render: (row: any) => row.sex || '-' },
+  { title: '院校', key: 'school', width: 90, render: (row: any) => row.school || '-' },
+  { title: '专业', key: 'major', width: 90, render: (row: any) => row.major || '-' },
   {
     title: '操作', key: 'actions', width: 140, fixed: 'right' as const,
     render: (row: any) =>
@@ -456,6 +550,10 @@ onMounted(() => {
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
+}
+/* S5-05：状态页签栏（替代原状态下拉）；与工具栏分离成独立一行 */
+.status-tabs {
+  margin: 0 0 var(--space-2);
 }
 /* 本页有 9 个筛选下拉，为控制工具栏单行不换行，搜索框收窄至 220px
  * （全局 .rule-filter-search 为 240px）。属有意例外，非遗漏。 */

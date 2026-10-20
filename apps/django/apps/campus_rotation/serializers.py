@@ -7,7 +7,7 @@
 """
 from rest_framework import serializers
 
-from .models import ClassRoom, LiveRoom, RotationArrangement
+from .models import ClassRoom, LiveRoom, RotationArrangement, ServiceDept
 from .validators import (
     CapacityExceeded,
     MENTOR_ONGOING_CAPACITY,
@@ -30,7 +30,7 @@ class LiveRoomSerializer(serializers.ModelSerializer):
         model = LiveRoom
         fields = [
             'id', 'room_no', 'name', 'department', 'bu', 'mentor',
-            'platform', 'location', 'capacity', 'social_count',
+            'platform', 'brand', 'location', 'capacity', 'social_count',
             'is_active', 'remark', 'created_at', 'updated_at', 'campus_count',
         ]
         read_only_fields = ['id', 'room_no', 'created_at', 'updated_at', 'campus_count']
@@ -60,6 +60,11 @@ class LiveRoomSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'platform': '平台字典项不存在或未启用'})
 
+        brand = attrs.get('brand')
+        if brand and not dict_key_active('BRAND', brand):
+            raise serializers.ValidationError(
+                {'brand': '品牌字典项不存在或未启用'})
+
         location = attrs.get('location')
         if location and not dict_key_active('LOCATION', location):
             raise serializers.ValidationError(
@@ -78,6 +83,77 @@ class LiveRoomSerializer(serializers.ModelSerializer):
 
 
 # ---------------------------------------------------------------------------
+# ServiceDept
+# ---------------------------------------------------------------------------
+class ServiceDeptSerializer(serializers.ModelSerializer):
+    # 只读聚合字段（不落库）：按客服部门归属 + 在校（ONGOING）状态统计校招生占用。
+    campus_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = ServiceDept
+        fields = [
+            'id', 'dept_no', 'name', 'department', 'bu', 'brand',
+            'location', 'capacity', 'cs_supervisor', 'cs_type',
+            'workstation_type', 'need_training_cert', 'social_count',
+            'is_active', 'remark', 'created_at', 'updated_at', 'campus_count',
+        ]
+        read_only_fields = ['id', 'dept_no', 'created_at', 'updated_at', 'campus_count']
+
+    def validate(self, attrs):
+        department = attrs.get('department')
+        if department is not None and not department.is_active:
+            raise serializers.ValidationError(
+                {'department': '归属部门未启用，请选择启用状态的部门'})
+
+        bu = attrs.get('bu')
+        if bu is not None:
+            if not bu.is_active:
+                raise serializers.ValidationError(
+                    {'bu': '归属BU部门未启用'})
+            if not is_bu_depth(bu):
+                raise serializers.ValidationError(
+                    {'bu': 'BU 须为二级部门（部门层级=第2级）'})
+
+        cs_supervisor = attrs.get('cs_supervisor')
+        if cs_supervisor is not None and not user_has_campus_role(cs_supervisor.id, 'CAMPUS_MENTOR'):
+            raise serializers.ValidationError(
+                {'csSupervisor': '客服主管须具备校园导师（CAMPUS_MENTOR）身份'})
+
+        location = attrs.get('location')
+        if location and not dict_key_active('LOCATION', location):
+            raise serializers.ValidationError(
+                {'location': '地点字典项不存在或未启用'})
+
+        # cs_type / workstation_type / brand 字典校验（S5-13 已建字典并启用）。
+        cs_type = attrs.get('cs_type')
+        if cs_type and not dict_key_active('CS_TYPE', cs_type):
+            raise serializers.ValidationError(
+                {'csType': '客服类型字典项不存在或未启用'})
+
+        workstation_type = attrs.get('workstation_type')
+        if workstation_type and not dict_key_active('WORKSTATION_TYPE', workstation_type):
+            raise serializers.ValidationError(
+                {'workstationType': '工位类型字典项不存在或未启用'})
+
+        brand = attrs.get('brand')
+        if brand and not dict_key_active('BRAND', brand):
+            raise serializers.ValidationError(
+                {'brand': '品牌字典项不存在或未启用'})
+
+        return attrs
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        count = 0
+        if instance.id:
+            count = RotationArrangement.objects.filter(
+                service_dept_id=instance.id, stage='ONGOING', deleted_at__isnull=True,
+            ).count()
+        ret['campusCount'] = count
+        return ret
+
+
+# ---------------------------------------------------------------------------
 # ClassRoom
 # ---------------------------------------------------------------------------
 class ClassRoomSerializer(serializers.ModelSerializer):
@@ -87,7 +163,7 @@ class ClassRoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClassRoom
         fields = [
-            'id', 'code', 'name', 'head_teacher', 'class_monitor', 'hrbp',
+            'id', 'code', 'name', 'head_teacher', 'hrbp',
             'batch', 'capacity', 'remark', 'created_at', 'updated_at', 'student_count',
         ]
         read_only_fields = ['id', 'code', 'created_at', 'updated_at', 'student_count']
@@ -116,7 +192,7 @@ class RotationArrangementSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'person_id', 'intent_bu', 'suggest_dept', 'suggest_mentor',
             'head_teacher', 'current_dept', 'mentor', 'direct_manager',
-            'class_room', 'stage', 'employee_status', 'rotation_start',
+            'class_room', 'service_dept', 'stage', 'employee_status', 'rotation_start',
             'rotation_end', 'rank', 'final_dept', 'result', 'note',
             'created_at', 'updated_at',
         ]

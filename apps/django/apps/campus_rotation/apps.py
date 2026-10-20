@@ -42,10 +42,16 @@ class CampusRotationConfig(AppConfig):
         from .seeds import (
             seed_live_room_platform_type,
             seed_location_type,
+            seed_brand_type,
+            seed_cs_type_type,
+            seed_workstation_type_type,
         )
 
         register_dictionary_seed(seed_live_room_platform_type)
         register_dictionary_seed(seed_location_type)
+        register_dictionary_seed(seed_brand_type)
+        register_dictionary_seed(seed_cs_type_type)
+        register_dictionary_seed(seed_workstation_type_type)
 
         post_migrate.connect(
             _seed_campus_roles_on_post_migrate, sender=self, weak=False,

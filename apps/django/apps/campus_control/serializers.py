@@ -250,15 +250,27 @@ class PersonSerializer(serializers.ModelSerializer):
     position = serializers.CharField(required=False, allow_blank=True, default='')
     level = serializers.CharField(required=False, allow_blank=True, default='')
 
+    # 2026-10-19 S5-10：外键展示名（FK 本身只出 PK）
+    head_teacher_name = serializers.SerializerMethodField()
+    class_room_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Person
         fields = [
-            'id', 'code', 'name', 'bu', 'school', 'sex', 'major',
+            'id', 'code', 'name', 'employee_id', 'bu', 'school', 'sex', 'major',
             'month', 'status', 'expected_entry_date', 'actual_entry_date',
             'position', 'level', 'counted',
+            'head_teacher', 'head_teacher_name', 'class_room', 'class_room_name',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    # 2026-10-19 S5-10：外键展示名（FK 本身只出 PK）
+    def get_head_teacher_name(self, obj):
+        return obj.head_teacher.full_name if obj.head_teacher_id else ''
+
+    def get_class_room_name(self, obj):
+        return obj.class_room.name if obj.class_room_id else ''
 
     def validate_code(self, value):
         qs = Person.objects.filter(code=value)

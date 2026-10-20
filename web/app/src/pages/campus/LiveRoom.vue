@@ -22,10 +22,12 @@
           <template #unchecked>显示全部</template>
         </n-switch>
         <div class="spacer"></div>
-        <n-button type="primary" @click="openCreate">
-          <template #icon><n-icon :component="AddOutline" /></template>
-          新建直播间
-        </n-button>
+        <n-dropdown :options="addResourceOptions" @select="onAddResourceSelect">
+          <n-button type="primary">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            新增资源
+          </n-button>
+        </n-dropdown>
       </div>
 
       <div class="table-wrap">
@@ -124,6 +126,20 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
+              <n-form-item label="品牌">
+                <n-select
+                  v-model:value="formState.brand"
+                  :options="brandOptions"
+                  placeholder="请选择品牌"
+                  clearable
+                  filterable
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+
+          <n-grid :cols="2" :x-gap="24">
+            <n-grid-item>
               <n-form-item label="地点">
                 <n-select
                   v-model:value="formState.location"
@@ -134,14 +150,14 @@
                 />
               </n-form-item>
             </n-grid-item>
-          </n-grid>
-
-          <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
               <n-form-item label="社招人数">
                 <n-input-number v-model:value="formState.socialCount" :min="0" style="width: 100%" />
               </n-form-item>
             </n-grid-item>
+          </n-grid>
+
+          <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
               <n-form-item label="启用">
                 <n-switch v-model:value="formState.isActive" />
@@ -167,6 +183,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   NButton,
   NDataTable,
@@ -183,6 +200,7 @@ import {
   NPopconfirm,
   NIcon,
   NEmpty,
+  NDropdown,
   useMessage,
 } from 'naive-ui'
 import { AddOutline, CreateOutline, TrashOutline, SearchOutline } from '@vicons/ionicons5'
@@ -201,6 +219,19 @@ import {
 
 const message = useMessage()
 const deptStore = useDepartmentStore()
+const router = useRouter()
+
+const addResourceOptions = [
+  { label: '新增直播间', key: 'live_room' },
+  { label: '新增客服部门', key: 'service_dept' },
+]
+const onAddResourceSelect = (key: string) => {
+  if (key === 'live_room') {
+    openCreate()
+  } else if (key === 'service_dept') {
+    router.push('/campus/service-dept')
+  }
+}
 
 const list = ref<any[]>([])
 const loading = ref(false)
@@ -212,6 +243,7 @@ const saving = ref(false)
 
 const platformOptions = ref<SelectOption[]>([])
 const locationOptions = ref<SelectOption[]>([])
+const brandOptions = ref<SelectOption[]>([])
 const mentorOptions = ref<SelectOption[]>([])
 
 const deptTreeOptions = computed(() => buildDeptTree(deptStore.departments))
@@ -230,6 +262,7 @@ const emptyForm = () => ({
   bu: null as string | null,
   mentor: null as string | null,
   platform: null as string | null,
+  brand: null as string | null,
   location: null as string | null,
   capacity: null as number | null,
   socialCount: 0,
@@ -259,8 +292,14 @@ const loadList = async () => {
 
 const loadDicts = async () => {
   try {
-    platformOptions.value = await dictOptions('LIVE_ROOM_PLATFORM')
-    locationOptions.value = await dictOptions('LOCATION')
+    const [plat, brand, loc] = await Promise.all([
+      dictOptions('LIVE_ROOM_PLATFORM'),
+      dictOptions('BRAND'),
+      dictOptions('LOCATION'),
+    ])
+    platformOptions.value = plat
+    brandOptions.value = brand
+    locationOptions.value = loc
   } catch (e: any) {
     message.error(extractError(e))
   }
@@ -282,6 +321,7 @@ const openEdit = (row: any) => {
     bu: row.bu != null ? String(row.bu) : null,
     mentor: row.mentor != null ? String(row.mentor) : null,
     platform: row.platform ?? null,
+    brand: row.brand ?? null,
     location: row.location ?? null,
     capacity: row.capacity ?? null,
     socialCount: row.socialCount ?? 0,
@@ -305,6 +345,7 @@ const save = async () => {
     bu: formState.bu,
     mentor: formState.mentor,
     platform: formState.platform,
+    brand: formState.brand,
     location: formState.location,
     capacity: formState.capacity,
     socialCount: formState.socialCount,
@@ -352,6 +393,7 @@ const columns = [
   { title: '归属BU', key: 'bu', width: 160, ellipsis: true, render: (row: any) => deptName(row.bu) },
   { title: '导师', key: 'mentor', width: 140, render: (row: any) => (row.mentor != null ? String(row.mentor) : '-') },
   { title: '平台', key: 'platform', width: 120, render: (row: any) => dictLabel(platformOptions.value, row.platform) },
+  { title: '品牌', key: 'brand', width: 110, render: (row: any) => dictLabel(brandOptions.value, row.brand) },
   { title: '地点', key: 'location', width: 100, render: (row: any) => dictLabel(locationOptions.value, row.location) },
   { title: '容量', key: 'capacity', width: 80, render: (row: any) => row.capacity ?? '-' },
   { title: '社招人数', key: 'socialCount', width: 90, render: (row: any) => row.socialCount ?? 0 },

@@ -43,6 +43,10 @@ class LiveRoom(FullAuditModel, UUIDModel):
         related_name='+', verbose_name='直播间导师',
     )
     platform = models.CharField(max_length=32, db_index=True, verbose_name='平台')
+    brand = models.CharField(
+        max_length=32, blank=True, default='', db_index=True, verbose_name='品牌',
+        help_text='BRAND 字典 key（S5-13 建字典）',
+    )
     location = models.CharField(max_length=64, blank=True, default='', verbose_name='地点')
     capacity = models.PositiveIntegerField(null=True, blank=True, verbose_name='容量上限')
     social_count = models.IntegerField(default=0, verbose_name='社招人数')
@@ -78,11 +82,85 @@ class LiveRoom(FullAuditModel, UUIDModel):
         super().save(*args, **kwargs)
 
 
+class ServiceDept(FullAuditModel, UUIDModel):
+    """客服部门（轮岗资源）。
+
+    对齐直播间（LiveRoom）公共资源字段；专属字段：客服主管 / 客服类型 /
+    工位类型 / 是否需培训认证。
+    brand 存 BRAND 字典 key（与 platform/location 同构，S5-13 建字典）；
+    客服占用数由 RotationArrangement.service_dept（ONGOING）聚合，不落库。
+    """
+
+    dept_no = models.CharField(
+        max_length=32, unique=True, verbose_name='客服部门编号',
+        help_text='业务编号，自动补 SD+6 位',
+    )
+    name = models.CharField(max_length=128, verbose_name='部门名称')
+    department = models.ForeignKey(
+        Department, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='service_depts', verbose_name='归属部门',
+    )
+    bu = models.ForeignKey(
+        Department, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='service_depts_as_bu', verbose_name='归属BU',
+    )
+    brand = models.CharField(
+        max_length=32, blank=True, default='', db_index=True, verbose_name='品牌',
+        help_text='BRAND 字典 key',
+    )
+    location = models.CharField(max_length=64, blank=True, default='', verbose_name='地点')
+    capacity = models.PositiveIntegerField(null=True, blank=True, verbose_name='可容纳人数')
+    cs_supervisor = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='客服主管',
+    )
+    cs_type = models.CharField(
+        max_length=32, blank=True, default='', verbose_name='客服类型',
+        help_text='CS_TYPE 字典 key',
+    )
+    workstation_type = models.CharField(
+        max_length=32, blank=True, default='', verbose_name='工位类型',
+        help_text='WORKSTATION_TYPE 字典 key',
+    )
+    need_training_cert = models.BooleanField(default=False, verbose_name='是否需培训认证')
+    social_count = models.IntegerField(default=0, verbose_name='社招人数')
+    is_active = models.BooleanField(default=True, db_index=True, verbose_name='启用')
+    remark = models.TextField(blank=True, default='', verbose_name='备注')
+
+    class Meta:
+        db_table = 'campus_rotation_service_depts'
+        verbose_name = '客服部门'
+        verbose_name_plural = '客服部门'
+        ordering = ['dept_no']
+
+    def save(self, *args, **kwargs):
+        # 自动补号：未设 dept_no 时，事务内锁定末行取最大序号 +1，写入 SD+6 位。
+        if not self.dept_no:
+            with transaction.atomic():
+                last = (
+                    ServiceDept.objects.select_for_update()
+                    .filter(dept_no__startswith='SD')
+                    .order_by('-dept_no')
+                    .first()
+                )
+                seq = 0
+                if last and last.dept_no and last.dept_no.startswith('SD'):
+                    try:
+                        seq = int(last.dept_no[2:8])
+                    except (ValueError, IndexError):
+                        seq = 0
+                seq += 1
+                self.dept_no = f'SD{seq:06d}'
+                super().save(*args, **kwargs)
+                return
+        super().save(*args, **kwargs)
+
+
 class ClassRoom(FullAuditModel, UUIDModel):
     """班级（班级管理）。
 
-    head_teacher 须具 HEAD_TEACHER 身份（写时校验）；class_monitor 仅 User 引用，
-    不建身份类型；hrbp 仅 User 引用。student_count 为只读聚合字段，不落库。
+    head_teacher 须具 HEAD_TEACHER 身份（写时校验）；hrbp 仅 User 引用。
+    student_count 为只读聚合字段，不落库。（D-02 关联：个人档案「班长」字段已按需求 2-3 删除）
     capacity 为运营录入的容量上限（可空），用于班级饱和校验（方案 §3.2）。
     """
 
@@ -94,10 +172,6 @@ class ClassRoom(FullAuditModel, UUIDModel):
     head_teacher = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
         related_name='+', verbose_name='班主任',
-    )
-    class_monitor = models.ForeignKey(
-        User, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name='+', verbose_name='班长',
     )
     hrbp = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
@@ -190,6 +264,10 @@ class RotationArrangement(FullAuditModel, UUIDModel):
     class_room = models.ForeignKey(
         ClassRoom, null=True, blank=True, on_delete=models.SET_NULL,
         related_name='arrangements', verbose_name='班级',
+    )
+    service_dept = models.ForeignKey(
+        ServiceDept, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='arrangements', verbose_name='客服部门',
     )
     stage = models.CharField(
         max_length=16, choices=STAGE_CHOICES, default='PENDING',

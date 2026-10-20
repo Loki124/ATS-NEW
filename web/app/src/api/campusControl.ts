@@ -90,6 +90,7 @@ export interface Person {
   id: string
   code: string
   name: string
+  employeeId: string
   bu: string
   school: string
   sex: string
@@ -100,6 +101,10 @@ export interface Person {
   actualEntryDate: string | null
   position: string
   level: string
+  headTeacher: string | null
+  headTeacherName: string
+  classRoom: string | null
+  classRoomName: string
   counted: boolean
 }
 
@@ -407,6 +412,8 @@ export interface ListPersonsParams {
   month?: string
   year?: number
   search?: string
+  headTeacher?: string
+  classRoom?: string
 }
 export const listPersons = (params?: ListPersonsParams) => {
   const q: Record<string, unknown> = { page_size: 200 }
@@ -421,15 +428,20 @@ export const listPersons = (params?: ListPersonsParams) => {
   if (params?.month) q.month = params.month
   if (params?.year) q.year = params.year
   if (params?.search) q.search = params.search
+  if (params?.headTeacher) q.headTeacher = params.headTeacher
+  if (params?.classRoom) q.classRoom = params.classRoom
   return api.get('/campus/persons/', { params: q }).then((r) => listData<Person>(r))
 }
 export const upsertPerson = (p: Partial<Person> & { code: string; name: string; bu: string; school: string; sex: string; major: string; month: string; status: string }) => {
   const payload = {
     code: p.code, name: p.name, bu: p.bu, school: p.school, sex: p.sex, major: p.major,
     month: p.month, status: p.status,
+    employee_id: p.employeeId ?? '',
     expected_entry_date: p.expectedEntryDate || null,
     actual_entry_date: p.actualEntryDate || null,
-    position: p.position ?? '', level: p.level ?? '', counted: p.counted ?? true,
+    position: p.position ?? '', level: p.level ?? '',
+    head_teacher: p.headTeacher ?? null, class_room: p.classRoom ?? null,
+    counted: p.counted ?? true,
   }
   if (p.id) return api.put(`/campus/persons/${p.id}/`, payload).then((r) => (r.data?.data ?? r.data) as Person)
   return api.post(`/campus/persons/`, payload).then((r) => (r.data?.data ?? r.data) as Person)

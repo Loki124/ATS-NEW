@@ -215,6 +215,22 @@ class Person(FullAuditModel, UUIDModel):
     user_id = models.BigIntegerField(
         null=True, blank=True, db_index=True, verbose_name='关联用户ID')
 
+    # 2026-10-19 S5-10（需求 2-2）：校招生档案增强字段
+    #   employee_id 工号：入职后由 HR 补录；待入职人员为空（User.employee_id 此时尚不存在）。
+    #   head_teacher 班主任：User 引用；「人员管理」核心筛选条件（需求 2-2）。
+    #   class_room   班级：跨 app 字符串引用 campus_rotation.ClassRoom，避免与 campus_rotation 互 import 成环。
+    employee_id = models.CharField(
+        max_length=50, blank=True, default='', db_index=True, verbose_name='工号'
+    )
+    head_teacher = models.ForeignKey(
+        'core.User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='班主任',
+    )
+    class_room = models.ForeignKey(
+        'campus_rotation.ClassRoom', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='persons', verbose_name='班级',
+    )
+
     class Meta:
         verbose_name = '人员主数据'
         verbose_name_plural = '人员主数据'

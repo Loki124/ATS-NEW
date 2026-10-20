@@ -263,6 +263,11 @@ def send_candidate_to_eliminated_pool(
 
     同一候选人在库条目唯一（is_active 且未删）：已存在则改写 pool_type 为 ELIMINATED
     （跨库移动语义），否则新建。调用方 best-effort 调用（入库失败不影响淘汰本身）。
+
+    🔴 2026-10-20 修复：created_by/updated_by 必须赋 **User 实例**（或 None），
+    此前误赋 actor.pk（整数）→ Model(**defaults) 构造即抛
+    `Cannot assign "1": "TalentPoolEntry.created_by" must be a "User" instance`，
+    被调用方 best-effort 吞掉 → 自上线起所有淘汰都没进过淘汰库（ats.log.1 有 14 次）。
     """
     entry, _ = TalentPoolEntry.objects.get_or_create(
         candidate=candidate,
@@ -273,13 +278,13 @@ def send_candidate_to_eliminated_pool(
             'source': TalentPoolEntry.EntrySource.REJECTED,
             'source_detail': entry_reason or '淘汰',
             'recruit_type': getattr(candidate, 'recruit_type', RecruitType.SOCIAL.value),
-            'created_by': getattr(actor, 'pk', None),
-            'updated_by': getattr(actor, 'pk', None),
+            'created_by': actor,
+            'updated_by': actor,
         },
     )
     if entry.pool_type != TalentPoolEntry.PoolType.ELIMINATED.value:
         entry.pool_type = TalentPoolEntry.PoolType.ELIMINATED.value
         entry.source_detail = entry_reason or '淘汰'
-        entry.updated_by = getattr(actor, 'pk', None)
+        entry.updated_by = actor
         entry.save(update_fields=['pool_type', 'source_detail', 'updated_by', 'updated_at'])
     return entry

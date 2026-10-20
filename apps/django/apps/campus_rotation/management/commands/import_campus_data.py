@@ -204,7 +204,6 @@ class Command(BaseCommand):
         defaults = {
             'name': item.get('name', ''),
             'head_teacher': resolver.resolve_user(item.get('head_teacher')),
-            'class_monitor': resolver.resolve_user(item.get('class_monitor')),
             'hrbp': resolver.resolve_user(item.get('hrbp')),
             'batch': item.get('batch', ''),
             'remark': item.get('remark', ''),
@@ -425,7 +424,6 @@ SAMPLE_DATA = '''
       "code": "CL000001",
       "name": "2026校招一班",
       "head_teacher": {"username": "lisi"},
-      "class_monitor": {"employee_id": "67890"},
       "hrbp": {"username": "wangwu"},
       "batch": "2026"
     }

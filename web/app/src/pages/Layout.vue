@@ -423,9 +423,9 @@ const menuOptions = computed(() => {
         { key: '/campus/person', label: '校招生档案' },
       ],
     })
-    // 编制管控（原「校招管控」，2026-10-19 更名）：campus 模式下的一级叶子菜单
+    // 编制管控（原「校招管控」，2026-10-19 更名）：campus 模式下的一级叶子菜单（路由 /campus/control，已脱离 settings）
     base.push({
-      key: '/settings/campus-control',
+      key: '/campus/control',
       label: '编制管控',
       icon: renderIcon(ClipboardOutline),
     })

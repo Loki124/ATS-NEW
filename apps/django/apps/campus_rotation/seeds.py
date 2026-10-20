@@ -26,6 +26,27 @@ LOCATION_ITEMS = [
     ('CHENGDU', '成都', 'Chengdu', 40),
 ]
 
+# 客服部门「品牌」字典（方案 §5.3 原拟 FK→apps.brand.Brand，但 BrandInfo 为单例雇主品牌，
+# 无法做可选品牌目录 → 改为存字典 key，与 platform/location 同构；业务方可在字典页增改）。
+BRAND_ITEMS = [
+    ('CORE', '核心品牌', 'Core Brand', 10),
+    ('ECOMMERCE', '电商品牌', 'E-commerce Brand', 20),
+    ('FINANCE', '金融品牌', 'Finance Brand', 30),
+]
+
+# 客服部门「客服类型」字典（方案 §5.3 专属项）。
+CS_TYPE_ITEMS = [
+    ('ONLINE', '在线', 'Online', 10),
+    ('OUTBOUND', '外呼', 'Outbound', 20),
+    ('AFTER_SALES', '售后', 'After-sales', 30),
+]
+
+# 客服部门「工位类型」字典（方案 §5.3 专属项）。
+WORKSTATION_TYPE_ITEMS = [
+    ('SEAT', '坐席', 'Seat', 10),
+    ('NON_SEAT', '非坐席', 'Non-seat', 20),
+]
+
 
 def seed_live_room_platform_type():
     """直播间平台字典（系统预置，可扩展）。"""
@@ -45,8 +66,47 @@ def seed_location_type():
     )
 
 
+def seed_brand_type():
+    """客服部门品牌字典（系统预置，可扩展）。"""
+    _seed_type(
+        'BRAND', '品牌', 'Brand',
+        '客服部门/直播间所属品牌枚举（方案 §5.3；原拟 FK 改字典 key）',
+        BRAND_ITEMS,
+    )
+
+
+def seed_cs_type_type():
+    """客服类型字典（系统预置，可扩展）。"""
+    _seed_type(
+        'CS_TYPE', '客服类型', 'CS Type',
+        '客服部门客服类型枚举（在线/外呼/售后）',
+        CS_TYPE_ITEMS,
+    )
+
+
+def seed_workstation_type_type():
+    """工位类型字典（系统预置，可扩展）。"""
+    _seed_type(
+        'WORKSTATION_TYPE', '工位类型', 'Workstation Type',
+        '客服部门工位类型枚举（坐席/非坐席）',
+        WORKSTATION_TYPE_ITEMS,
+    )
+
+
 def seed_campus_roles():
-    """幂等创建校招轮岗所需身份角色（RoleV2 系统预置）。"""
+    """幂等创建校招轮岗所需身份角色（RoleV2 系统预置）。
+
+    2026-10-19 新增 HRBP（需求 1-1「增加 HRBP 应用端口」+ 需求 5-1
+    「HRBP 进行信息确认」的载体）。此前 HRBP 仅作为 ClassRoom.hrbp 的 FK 字段
+    存在，无角色定义 → user_has_campus_role(user, 'HRBP') 恒为 False。
+
+    default_data_scope_type 口径（对齐 resolve_scope L2 scope_resolver.py:117-136）：
+      HRBP          DEPT_AND_SUB —— 看本部门及所有下级
+      CAMPUS_MENTOR SELF         —— 仅自己创建/被指派的数据（配合 CUSTOM 规则收窄）
+      HEAD_TEACHER  SELF         —— 同上
+    注：DEPT/DEPT_AND_SUB 依赖用户挂 department_id；未挂部门时按
+    scope_resolver 既有逻辑 continue 落到 L3/L4 保守兜底，非本函数引入的行为。
+    """
     from apps.core.models_permission_v2 import RoleV2
 
     RoleV2.objects.update_or_create(
@@ -55,6 +115,7 @@ def seed_campus_roles():
             'role_name': '校园导师',
             'template_code': None,
             'description': '校招轮岗直播间/安排导师',
+            'default_data_scope_type': 'SELF',
             'is_system': 1,
             'status': 1,
         },
@@ -65,6 +126,29 @@ def seed_campus_roles():
             'role_name': '班主任',
             'template_code': None,
             'description': '校招轮岗班级管理班主任',
+            'default_data_scope_type': 'SELF',
+            'is_system': 1,
+            'status': 1,
+        },
+    )
+    RoleV2.objects.update_or_create(
+        system_code='recruit', role_code='HRBP',
+        defaults={
+            'role_name': 'HRBP',
+            'template_code': None,
+            'description': '校招待入职信息确认与审批（需求 5-1/5-5）',
+            'default_data_scope_type': 'DEPT_AND_SUB',
+            'is_system': 1,
+            'status': 1,
+        },
+    )
+    RoleV2.objects.update_or_create(
+        system_code='recruit', role_code='CLASS_MONITOR',
+        defaults={
+            'role_name': '班长',
+            'template_code': None,
+            'description': '校招班级班长（需求 2-3 删字段后续：仅保留角色，班级不再维护班长）',
+            'default_data_scope_type': 'SELF',
             'is_system': 1,
             'status': 1,
         },
