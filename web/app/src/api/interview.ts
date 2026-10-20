@@ -49,7 +49,11 @@ export interface Interview {
 
 export async function listInterviews(params: { page?: number; pageSize?: number; feedbackStatus?: string; interviewStatus?: string } = {}) {
   const { data } = await api.get('/interviews/', { params });
-  return data?.data ?? data;
+  // 归一为 { data, pagination } 信封形（信封/裸数组双兼容），调用方读 res.data / res.pagination。
+  // 🔴 历史教训（同 invitation.ts）：2026-09-30 Batch5 改为返裸数组后，调用方
+  //    InterviewList 仍读 res.data / res.pagination → 面试列表静默空白、计数恒 0。
+  if (Array.isArray(data)) return { data, pagination: undefined };
+  return data ?? {};
 }
 
 export async function submitFeedback(interviewId: string, payload: { result: 'PASS' | 'FAIL'; reason?: string; [key: string]: any }) {

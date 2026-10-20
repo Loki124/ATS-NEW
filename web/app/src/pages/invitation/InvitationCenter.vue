@@ -25,7 +25,7 @@
     </n-grid>
 
     <!-- 抢单池 -->
-    <n-card v-if="claimPool.length > 0" :title="t('pages.invitation.InvitationCenter.s4')" :bordered="false" class="rounded-xl claim-pool">
+    <n-card v-if="claimPool?.length > 0" :title="t('pages.invitation.InvitationCenter.s4')" :bordered="false" class="rounded-xl claim-pool">
       <n-space>
         <n-tag
           v-for="item in claimPool"
@@ -256,7 +256,9 @@ async function loadList() {
 async function loadClaimPool() {
   try {
     const res = await getClaimPool()
-    claimPool.value = res.data
+    // getClaimPool 返裸数组（信封已解包）；兼容信封形后端，绝不让 undefined 进 ref
+    // （模板 claimPool.length 会直接崩 —— 2026-10-20 线上报错根因）。
+    claimPool.value = Array.isArray(res) ? res : (res?.data ?? [])
   } catch (e) { message.error(extractApiError(e, '加载抢单池失败')) }
 }
 
@@ -378,7 +380,8 @@ async function handleActionSubmit() {
 async function handleProcessExpired() {
   try {
     const res = await processExpired()
-    const s = res.data
+    // processExpired 返裸对象（信封已解包）；兼容信封形后端
+    const s = res?.data ?? res
     message.success(`处理完成: 处理 ${s.processed} 条, 重入池 ${s.requeued}, 升级 ${s.escalated}, 终止 ${s.terminated}`)
     handleRefresh()
   } catch (e: any) {

@@ -74,7 +74,13 @@ export interface ListParams {
 
 export async function listInvitations(params: ListParams = {}) {
   const { data } = await api.get('/invitations/', { params });
-  return data?.data ?? data;
+  // 归一为 { data, pagination } 信封形（信封/裸数组双兼容），调用方读 res.data / res.pagination。
+  // 🔴 历史教训（2026-09-30 信封收口 Batch6 → 2026-10-20 修复）：本函数曾改为
+  //    `return data?.data ?? data` 直接返裸数组，但调用方 InvitationCenter 仍读
+  //    res.data / res.pagination → 主表静默空白、分页计数恒 0；loadClaimPool 同类
+  //    误用还把 undefined 写进 claimPool，模板 claimPool.length 直接崩溃。
+  if (Array.isArray(data)) return { data, pagination: undefined };
+  return data ?? {};
 }
 
 export async function getClaimPool() {
