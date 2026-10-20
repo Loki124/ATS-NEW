@@ -426,10 +426,18 @@ RESOURCES = [
 #    seed 才真正建资源 —— 若只靠迁移，全新环境「受限功能」候选恒为空。
 #    两侧共用同一常量，避免清单在两个地方各自漂移（与 data_permission.0006
 #    「刻意 import 业务常量而非自包含数据」同一取舍）。
+#    同理 core.0041（第二批 3 条）也 import 本常量。
 #
-# 清单核对方式与未匹配项见 core/migrations/0040 的模块 docstring。
+# 🔴 三条资源**不在** candidate module 下，但兵哥清单把它们归在「候选人管理」：
+#      recruit:interview:schedule (module=interview) / recruit:application:advance
+#      (module=application) / recruit:talent_pool:create (module=talent_pool)。
+#    它们能进入 candidate 的候选区，靠的是 views_dynamic_strategy 的
+#    STRATEGY_MODULE_RESOURCE_MODULES（1:N 映射），不是靠改 module 字段。
+#
+# 清单核对方式、未匹配项与裁决记录见 core/migrations/0040 与 0041 的模块 docstring。
 # ---------------------------------------------------------------------------
 STRATEGY_GOVERNED_CODES = [
+    # ===== 第一批（core.0040，2026-10-20）=====
     # 招聘需求 / 招聘需求
     'recruit:demand:list',                  # 查看需求（库内名：需求列表）
     'recruit:demand:edit',                  # 编辑需求
@@ -442,6 +450,12 @@ STRATEGY_GOVERNED_CODES = [
     # 候选人管理 / offer信息
     'recruit:candidate:offer:create',       # 创建offer
     'recruit:candidate:offer:approve',      # 发起offer审批
+    # ===== 第二批（core.0041，2026-10-20）—— 扩检出「藏在别的 module 下」的 3 条 =====
+    # 候选人管理 / 面试管理
+    'recruit:interview:schedule',           # 安排面试（module=interview）
+    # 候选人管理 / 候选人基础
+    'recruit:application:advance',          # 推进流程（module=application）
+    'recruit:talent_pool:create',           # 放入人才库（module=talent_pool，库内名：入库）
 ]
 
 

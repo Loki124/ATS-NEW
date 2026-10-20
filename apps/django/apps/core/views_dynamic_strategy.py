@@ -35,6 +35,41 @@ from .serializers_permission_v2 import DynamicStrategySerializer
 
 SYSTEM_CODE = 'recruit'
 
+# ---------------------------------------------------------------------------
+# 策略模块 → 资源 module 映射（1:N，2026-10-20）
+#
+# 只服务于「受限功能」候选区（本文件 _governed_resources）。
+#
+# 🔴 为什么不复用 apps.data_permission.role_scope_api.DATA_PERM_MODULE_RESOURCE_MODULES：
+#    那张表被卡 1.3 的 featureGranted 复用（role_scope_api.py:271-273），用于判定
+#    「该角色在角色数据权限页的某模块卡片是否可用」。把它扩成 1:N（candidate 并入
+#    interview / application）会让**只持有面试资源**的角色在「候选人管理」卡片也
+#    变成 featureGranted=true —— 那是波及全量角色的、与本需求无关的行为变更。
+#    两张表语义不同：那边是「角色有没有这个功能」，这边是「这个功能归哪个策略模块管」。
+#
+# 🔴 改这里必须同步前端：web/app/src/pages/settings/DynamicStrategy.vue 的
+#    STRATEGY_MODULE_RESOURCE_MODULES（用于从 grantedResourceCodes 按模块切分，
+#    已是 Record<string, string[]> 的 1:N 形态，与下方常量互为镜像，两侧必须一致）。
+#
+# 两个反直觉点，硬编码必错：
+#   - talent(人才库数据) → 资源 module `talent_pool`(人才库功能)；但**不**把 talent_pool
+#     归入 talent 策略模块 —— 兵哥清单把「放入人才库」(recruit:talent_pool:create) 列在
+#     「候选人管理」下，故 talent_pool 并进 candidate 的策略模块集合（见下方 candidate）。
+#   - process(招聘流程数据) → 资源 module `settings`(recruitment_process:*)，
+#     settings 下有 123 条启用 BUTTON，不过滤会灌爆候选区。
+# candidate 扩到 interview / application / talent_pool 是兵哥清单把「安排面试 / 推进流程 /
+# 放入人才库」都归在候选人管理下的结果（见 core.0041 docstring）。
+# ---------------------------------------------------------------------------
+STRATEGY_MODULE_RESOURCE_MODULES: dict[str, set] = {
+    'demand': {'demand'},
+    'process': {'settings'},
+    'position': {'position'},
+    'candidate': {'candidate', 'interview', 'application', 'talent_pool'},
+    # talent 策略模块当前无受管控资源（talent_pool:create 已并入 candidate）；
+    # 保留 key 占位，_governed_resources 里 .get('talent') or set() 自然得到空候选区。
+    'talent': set(),
+}
+
 STRATEGY_MODULES = [
     {'key': 'demand', 'label': '招聘需求'},
     {'key': 'process', 'label': '招聘流程'},
@@ -128,17 +163,17 @@ class DynamicStrategyViewSet(viewsets.ModelViewSet):
         2. `resource_type='BUTTON'` —— 「受限功能」是按钮级功能，菜单不是功能；
         3. `status=1` —— 停用资源已被 has_perm 永拒，放进候选即「勾了也不生效」。
 
-        🔴 策略模块 → 资源 module 的映射**必须**复用 DATA_PERM_MODULE_RESOURCE_MODULES
-        （与卡 1.3 featureGranted 同一张表）。两个反直觉点，硬编码必错：
+        🔴 策略模块 → 资源 module 的映射**必须**使用本文件顶部定义的独立 1:N 常量
+        STRATEGY_MODULE_RESOURCE_MODULES，**不可**复用 role_scope_api 的
+        DATA_PERM_MODULE_RESOURCE_MODULES（那是 1:1 且被 featureGranted 复用，
+        改它会波及全量角色）。两个反直觉点，硬编码必错：
           - talent(人才库数据) 对应资源 module `talent_pool`(人才库功能)；
           - process(招聘流程数据) 对应资源 module `settings`(recruitment_process:*)，
             settings 下有 200+ 资源，不过滤会直接把整个系统设置灌进候选区。
         """
-        from apps.data_permission.role_scope_api import DATA_PERM_MODULE_RESOURCE_MODULES
-
         out = {}
         for module_key in DynamicStrategy.VALID_MODULE_KEYS:
-            res_modules = DATA_PERM_MODULE_RESOURCE_MODULES.get(module_key) or set()
+            res_modules = STRATEGY_MODULE_RESOURCE_MODULES.get(module_key) or set()
             rows = PermissionResource.objects.filter(
                 system_code=SYSTEM_CODE,
                 module__in=res_modules,

@@ -207,27 +207,46 @@ const MODULE_LABELS: Record<string, string> = {
 }
 
 /**
- * 策略模块 key → 资源 module（资源码第 2 段）映射。
+ * 策略模块 key → 资源 module（资源码第 2 段）**集合**映射。
  *
  * 用途：`granted_resource_codes` 是**扁平**的全局资源码数组，不带模块归属；
  * 弹窗按模块编辑时，必须知道「哪些旧码属于当前模块」才能做替换式合并
  * （否则 A 模块保存会把 B 模块的码抹掉）。
- * 判定方式：资源码形如 `recruit:{module}:...`，取第 2 段与右值比对。
+ * 判定方式：资源码形如 `recruit:{module}:...`，取第 2 段，看是否落在右侧集合内。
  *
- * 🔴 与后端 `DATA_PERM_MODULE_RESOURCE_MODULES` 保持一致，改一侧必须同步另一侧，
- *    否则会出现「勾了却判不出归属 → 保存后丢失」。
+ * 🔴 **必须是 1:N**：业务分组口径 ≠ 资源 module 口径。兵哥清单把「安排面试」
+ *    （`recruit:interview:schedule`，module=interview）、「推进流程」
+ *    （`recruit:application:advance`，module=application）与「放入人才库」
+ *    （`recruit:talent_pool:create`，module=talent_pool）都归在**候选人管理**下，
+ *    但它们不属于 `candidate` 这个资源 module。若按 1:1 硬配一对，这三条码
+ *    既切不进弹窗初始值（开弹窗漏勾），也删不掉旧值（重复堆积）。
+ *
+ * 🔴 本表是**动态策略专用**的，与角色数据权限的 `DATA_PERM_MODULE_RESOURCE_MODULES`
+ *    是两张表 —— 后者被 featureGranted 复用、波及所有角色，不能为弹窗改它。
+ *    与后端同名常量 `STRATEGY_MODULE_RESOURCE_MODULES` 互为镜像，
+ *    改一侧必须同步另一侧，否则「勾了却判不出归属 → 保存后丢失」。
  */
-const STRATEGY_MODULE_RESOURCE_MODULES: Record<string, string> = {
-  demand: 'demand',
-  position: 'position',
-  candidate: 'candidate',
-  talent: 'talent_pool',
-  process: 'settings',
+const STRATEGY_MODULE_RESOURCE_MODULES: Record<string, string[]> = {
+  demand: ['demand'],
+  process: ['settings'],
+  position: ['position'],
+  candidate: ['candidate', 'interview', 'application', 'talent_pool'],
+  // talent 策略模块当前无受管控资源（talent_pool:create 已并入 candidate）
+  talent: [],
 }
 
 /** 取资源码的 module 段（第 2 段）；不规范的资源码返回空串 */
 function resourceModuleOf(resourceCode: string): string {
   return (resourceCode || '').split(':')[1] ?? ''
+}
+
+/**
+ * 该资源码是否归属于指定策略模块。
+ * 未登记的 module key 兜底为 `[key]`（保持旧行为，不至于把已知码判成无归属）。
+ */
+function belongsToStrategyModule(resourceCode: string, moduleKey: string): boolean {
+  const mods = STRATEGY_MODULE_RESOURCE_MODULES[moduleKey] ?? [moduleKey]
+  return mods.includes(resourceModuleOf(resourceCode))
 }
 
 // ===== 视图模式 =====
@@ -387,11 +406,14 @@ const configGovernedResources = computed<StrategyGovernedResource[]>(
  *
  * ⚠️ 存量策略的 `module_config[key].actions` 是旧契约（动作 key），与资源码不是同一
  *    个值域，**不能**回填到资源复选框里（会出现「勾选项不在候选里」的脏状态）。
+ *
+ * ⚠️ 必须用集合归属判断而非等值判断：候选人模块下挂着 interview / application 两个
+ *    资源 module，按 `=== 'candidate'` 切会把已选的安排面试、推进流程漏掉 → 开弹窗丢勾。
  */
 const configInitialResourceCodes = computed<string[]>(() => {
-  const module = STRATEGY_MODULE_RESOURCE_MODULES[configModuleKey.value]
-  if (!module) return []
-  return form.granted_resource_codes.filter((code) => resourceModuleOf(code) === module)
+  const key = configModuleKey.value
+  if (!key) return []
+  return form.granted_resource_codes.filter((code) => belongsToStrategyModule(code, key))
 })
 
 function openModuleConfig(key: string) {
@@ -411,11 +433,15 @@ function onConfigApply(payload: { resourceCodes: string[]; groups: PermCondition
   // ===== 资源码按模块做替换式合并 =====
   // granted_resource_codes 是跨模块的扁平数组，故先剔除「属于当前模块」的旧码，
   // 再并入本次新选 —— 直接整体覆盖会把其它模块勾的码抹掉（多模块策略必踩）。
-  const module = STRATEGY_MODULE_RESOURCE_MODULES[key]
-  if (module) {
+  //
+  // ⚠️ 剔除必须按「是否落在当前模块的资源 module 集合内」判断，不能按单个 module 等值：
+  //    candidate 模块同时含 interview / application 两个资源 module，等值剔除会把
+  //    「安排面试 / 推进流程」的旧码留在数组里 → 取消勾选删不掉、反复保存重复堆积。
+  const mods = STRATEGY_MODULE_RESOURCE_MODULES[key]
+  if (mods) {
     const next = payload.resourceCodes.map(String)
     form.granted_resource_codes = [
-      ...form.granted_resource_codes.filter((code) => resourceModuleOf(code) !== module),
+      ...form.granted_resource_codes.filter((code) => !mods.includes(resourceModuleOf(code))),
       ...next,
     ]
   }
