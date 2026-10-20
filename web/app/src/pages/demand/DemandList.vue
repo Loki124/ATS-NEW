@@ -132,7 +132,7 @@
           <template #icon><n-icon :component="AddOutline" /></template>
           创建需求
         </n-button>
-        <n-button v-permission="'recruit:demand:edit'" size="small" :disabled="!selectedIds.length" @click="openBatchPeople">
+        <n-button v-permission="'recruit:demand:batch_update'" size="small" :disabled="!selectedIds.length" @click="openBatchPeople">
           <template #icon><n-icon :component="PeopleOutline" /></template>
           批量变更人员
         </n-button>
@@ -1144,20 +1144,20 @@ async function applyBatchPeople() {
     return
   }
   batchSaving.value = true
-  let ok = 0
-  let fail = 0
-  for (const id of ids) {
-    try {
-      await saveDynamicFieldValues('Demand', id, payload)
-      ok++
-    } catch (e) {
-      fail++
-    }
+  try {
+    // S8-02: 走专属守卫端点 /demands/batch-update-people/ (需 recruit:demand:batch_update),
+    // 不再复用 saveDynamicFieldValues 通用端点（其守卫码 dynamic_fields:edit 与需求编辑错配）。
+    const res: any = await post('/demands/batch-update-people/', { ids, values: payload })
+    const ok = res?.data?.ok ?? 0
+    const fail = res?.data?.fail ?? 0
+    batchSaving.value = false
+    batchPeopleModal.value = false
+    message.success(`已更新 ${ok} 条${fail ? `，失败 ${fail} 条` : ''}`)
+    fetchDemands()
+  } catch (error: any) {
+    batchSaving.value = false
+    message.error(extractApiError(error, '批量变更失败'))
   }
-  batchSaving.value = false
-  batchPeopleModal.value = false
-  message.success(`已更新 ${ok} 条${fail ? `，失败 ${fail} 条` : ''}`)
-  fetchDemands()
 }
 
 // 表格列定义

@@ -7,7 +7,7 @@
       </div>
       <n-space>
         <n-button @click="handleReset">{{ t('pages.settings.DemandConfig.s3') }}</n-button>
-        <n-button type="primary" class="gradient-btn" :loading="saving" @click="handleSave">{{ t('pages.settings.DemandConfig.s4') }}</n-button>
+        <n-button v-permission="['recruit:settings:demand_config:edit', 'recruit:settings:demand_config:open_grab']" type="primary" class="gradient-btn" :loading="saving" @click="handleSave">{{ t('pages.settings.DemandConfig.s4') }}</n-button>
       </n-space>
     </div>
 
@@ -48,7 +48,7 @@
         </div>
 
         <!-- 抢单设置 -->
-        <div class="glass-panel glass-panel--card config-card">
+        <div v-permission="'recruit:settings:demand_config:open_grab'" class="glass-panel glass-panel--card config-card">
           <div class="glass-panel__title">{{ t('pages.settings.DemandConfig.s50') }}</div>
           <div class="glass-panel__body">
           <n-form-item :label="t('pages.settings.DemandConfig.s62')">

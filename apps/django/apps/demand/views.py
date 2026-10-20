@@ -27,6 +27,7 @@ from .serializers import (
 )
 from .services import DemandCreateData, DemandService
 from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
+from apps.dynamic_field.views import save_entity_field_values  # 复用动态字段值落库语义
 
 
 class DemandViewSet(BaseModelViewSet):
@@ -43,6 +44,11 @@ class DemandViewSet(BaseModelViewSet):
         # 显式列出而非依赖派生，是因为它是跨实体写入（改动 Position.process），
         # 将来若要拆独立权限码，这里是唯一改动点。
         'rebind_process': ['recruit:demand:edit'],
+        # 2026-10-20 S8-02: 删除需求走专属码 recruit:demand:delete。
+        # 此前 destroy 按 action 派生 recruit:demand:delete，但 seed 未定义该码，
+        # V2Permission 回退校验 recruit:demand:list（持列表码即可删 = 越权面）。
+        # 显式声明后：只有被授权 recruit:demand:delete 的角色才能软删需求。
+        'destroy': ['recruit:demand:delete'],
     }
     # 审批人决策动作（PENDING 阶段的 approve/reject）→ 审批码；
     # 其余动作（submit/start_recruiting/pause/...）按 :edit 校验
@@ -288,8 +294,14 @@ class DemandConfigView(APIView):
     """
 
     permission_classes = [V2Permission]
-    # 读按列表码; PUT/POST 走派生 :edit (demand-config:edit)
-    permission_required = 'recruit:settings:demand_config:list'
+    # 读按列表码; POST/PUT 接受「编辑需求规则」或「开启抢单模式」任一码 (S8-02 拆专属码)。
+    # 此前整页前端漏挂 v-permission + 后端统一派生 :edit，任意能进页者皆可拨动抢单开关；
+    # 现拆 open_grab 与 edit 隔离：保存按钮二码任一即可，抢单卡单独挂 open_grab。
+    permission_required_map = {
+        'get': 'recruit:settings:demand_config:list',
+        'post': ['recruit:settings:demand_config:edit', 'recruit:settings:demand_config:open_grab'],
+        'put': ['recruit:settings:demand_config:edit', 'recruit:settings:demand_config:open_grab'],
+    }
 
     @staticmethod
     def _get_or_create():
@@ -310,3 +322,54 @@ class DemandConfigView(APIView):
 
     def put(self, request):
         return self.post(request)
+
+
+class DemandBatchUpdatePeopleView(APIView):
+    """批量变更需求人员 (HRBP / 招聘负责人 / 负责人上级) — S8-02 专属守卫端点.
+
+    POST /api/v1/demands/batch-update-people/
+         { ids: [...], values: { hrbp, hiringManager, hiringManagerSuperior } }
+    仅持有 recruit:demand:batch_update 可调用, 与「需求编辑」(recruit:demand:edit) 及通用
+    动态字段值写入端点(需 dynamic_fields:edit) 完全隔离。避免复用 saveDynamicFieldValues 时：
+      - 批量改人这类高危操作与单条需求自定义字段编辑混在同一码下；
+      - 前端按钮挂 demand:edit、后端却要 dynamic_fields:edit 的错配（此前标准角色两码皆无 → 按钮不可见）。
+    落库复用 dynamic_field.views.save_entity_field_values, 校验/upsert 语义与单条写入完全一致。
+    """
+
+    permission_classes = [V2Permission]
+    # 用方法级 map 而非单码 permission_required: 否则 APIView 的 POST 会按 CUSTOM_ACTION_SUFFIX
+    # 派生 recruit:demand:edit（因该码已注册），导致守卫码错成 edit 而非 batch_update。
+    permission_required_map = {'post': 'recruit:demand:batch_update'}
+
+    # 仅允许通过此端点变更的人员字段 (模型映射字段, 存 DynamicFieldValue)。
+    ALLOWED_FIELDS = ('hrbp', 'hiringManager', 'hiringManagerSuperior')
+
+    def post(self, request):
+        ids = request.data.get('ids') or []
+        values = request.data.get('values') or {}
+        if not isinstance(ids, list) or not ids:
+            return Response(
+                {'success': False, 'message': 'ids 必填且为非空数组'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(values, dict) or not values:
+            return Response(
+                {'success': False, 'message': 'values 必填且为非空对象'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        people_values = {k: v for k, v in values.items() if k in self.ALLOWED_FIELDS}
+        if not people_values:
+            return Response(
+                {'success': False, 'message': '仅允许变更人员字段(hrbp/hiringManager/hiringManagerSuperior)'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ok = 0
+        failed_ids: list = []
+        for demand_id in ids:
+            errors, written, _skipped = save_entity_field_values('Demand', demand_id, people_values)
+            # 校验失败, 或（无错误但）未落库任何字段 → 视为该条失败
+            if errors or written == 0:
+                failed_ids.append(demand_id)
+            else:
+                ok += 1
+        return Response({'success': True, 'ok': ok, 'fail': len(failed_ids), 'failed_ids': failed_ids})

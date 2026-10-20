@@ -65,6 +65,50 @@ def _build_field_map(field_qs) -> dict[str, object]:
     return mapping
 
 
+def save_entity_field_values(resource: str, entity_id, values) -> tuple:
+    """校验并落库某实体的动态字段值, 返回 (errors, written, skipped)。
+
+    供 ``DynamicFieldViewSet.save_values`` 与「需求批量变更人员」端点复用, 避免落库
+    逻辑分叉（同一份校验 + upsert 语义）。
+
+    - ``errors`` 非空 → 校验失败, 调用方应返回 400；
+    - ``written``   = 实际落库条数（不计被跳过的未知 key, 杜绝假成功）；
+    - ``skipped``   = 字段定义不存在/已软删而跳过的 key（如实暴露, 调用方据此感知）。
+    """
+    if not entity_id:
+        return ({'entity_id': ['必填']}, 0, [])
+    if not isinstance(values, dict):
+        return ({'values': ['必须为对象 {fieldKey: value}']}, 0, [])
+    fields = _build_field_map(
+        DynamicField.objects.filter(deleted_at__isnull=True, resource=resource)
+    )
+    errors: dict[str, list[str]] = {}
+    for fk, val in values.items():
+        f = fields.get(fk)
+        if f is None:
+            continue
+        errs = validate_field_value(f.field_type, f.validation, val)
+        if errs:
+            errors[fk] = errs
+    if errors:
+        return (errors, 0, [])
+    written = 0
+    skipped: list[str] = []
+    for fk, val in values.items():
+        f = fields.get(fk)
+        if f is None:
+            skipped.append(fk)
+            continue
+        # 必须用字段定义的原始 field_key 落库: 入站 fk 可能已被 CamelCaseJSONParser 改写
+        # (如 f_f0jbjf27 → f_f0jbjf_27), 直接落会把脏 key 写进库, 后续再也读不到。
+        DynamicFieldValue.objects.update_or_create(
+            resource=resource, entity_id=entity_id, field_key=f.field_key,
+            defaults={'value': val},
+        )
+        written += 1
+    return ({}, written, skipped)
+
+
 from apps.common.response import success_response
 
 from .models import DynamicField, DynamicFieldValue, FieldGroup, FieldLinkageRule, FieldModule
@@ -722,48 +766,12 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
             return Response({'data': [{'fieldKey': v.field_key, 'value': v.value} for v in vals]})
         entity_id = request.data.get('entity_id')
         incoming = request.data.get('values')
-        if not entity_id:
-            return Response(
-                {'success': False, 'message': 'entity_id 必填'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not isinstance(incoming, dict):
-            return Response(
-                {'success': False, 'message': 'values 必须为对象 {fieldKey: value}'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        fields = _build_field_map(self.get_queryset().filter(resource=resource))
-        errors: dict[str, list[str]] = {}
-        for fk, val in incoming.items():
-            f = fields.get(fk)
-            if f is None:
-                continue
-            errs = validate_field_value(f.field_type, f.validation, val)
-            if errs:
-                errors[fk] = errs
+        errors, written, skipped = save_entity_field_values(resource, entity_id, incoming)
         if errors:
             return Response(
                 {'success': False, 'errors': errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        written = 0
-        skipped: list[str] = []
-        for fk, val in incoming.items():
-            f = fields.get(fk)
-            if f is None:
-                # 字段定义不存在/已软删: 静默跳过会丢失录入数据且返回假成功,
-                # 这里如实记录 skipped, 调用方据此感知(详见下方返回体)。
-                skipped.append(fk)
-                continue
-            # 必须用字段定义的原始 field_key 落库: 入站 fk 可能已被 CamelCaseJSONParser
-            # 改写(如 f_f0jbjf27 → f_f0jbjf_27), 直接落会把脏 key 写进库, 后续再也读不到。
-            DynamicFieldValue.objects.update_or_create(
-                resource=resource, entity_id=entity_id, field_key=f.field_key,
-                defaults={'value': val},
-            )
-            written += 1
         # 真实落库条数, 不把被跳过的未知 key 计入 saved (避免假成功掩盖数据丢失)
         return Response({'success': True, 'saved': written, 'skipped': skipped})
 

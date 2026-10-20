@@ -38,6 +38,11 @@ RESOURCES = [
     ('recruit:demand:create', '创建需求', 'BUTTON', 'demand'),
     ('recruit:demand:edit', '编辑需求', 'BUTTON', 'demand'),
     ('recruit:demand:approve', '审批需求', 'BUTTON', 'demand'),
+    # 2026-10-20 S8-02: 删除需求 / 批量变更人员 此前均无专属码 —— 删除需求靠 destroy 派生
+    # recruit:demand:delete 但 seed 未定义 → 回退 recruit:demand:list（持列表码即可删，越权面）；
+    # 批量变更人员复用需求编辑码且无独立端点。现拆两条专属码做最小权限隔离。
+    ('recruit:demand:delete', '删除需求', 'BUTTON', 'demand'),
+    ('recruit:demand:batch_update', '批量变更需求人员', 'BUTTON', 'demand'),
     # --- module: position（2026-10-19 兵哥：页面/导航均叫「职位管理」，资源中文名同步 岗位→职位；
     #     code 第2段 position 与 module 一致（R2✓），且与 settings:position_*（职位信息设置等）同族，码不改）---
     ('recruit:position:menu:view', '职位菜单', 'MENU', 'position'),
@@ -189,6 +194,9 @@ RESOURCES = [
     # 需求规则设置 (config)
     ('recruit:settings:demand_config:menu:view', '需求规则设置菜单', 'MENU', 'settings'),
     ('recruit:settings:demand_config:edit', '编辑需求规则', 'BUTTON', 'settings'),
+    # 2026-10-20 S8-02: 全局开启抢单模式 此前前端整页漏挂 v-permission（任意能进页者皆可拨动），
+    # 拆专属码与「编辑需求规则」隔离，便于独立授权。
+    ('recruit:settings:demand_config:open_grab', '开启抢单模式', 'BUTTON', 'settings'),
     # 评分规则 (占位: 页面仅 n-empty "功能开发中")
     ('recruit:settings:scoring:menu:view', '评分规则菜单', 'MENU', 'settings'),
     # 需求字段管理 (management)
@@ -499,7 +507,7 @@ CONFIG_CODES = [
     'recruit:settings:external:create', 'recruit:settings:external:edit',
     'recruit:settings:external:delete',
     'recruit:settings:demand_config:menu:view', 'recruit:settings:demand_config:list',
-    'recruit:settings:demand_config:edit',
+    'recruit:settings:demand_config:edit', 'recruit:settings:demand_config:open_grab',
     'recruit:settings:rule_engine:menu:view', 'recruit:settings:rule_engine:list',
     'recruit:settings:rule_engine:edit',
     # 简历解析引擎 (2026-10-18 从 rule_engine 拆分为独立码)
@@ -568,6 +576,7 @@ TEMPLATES = [
             'recruit:interview:menu:view', 'recruit:interview:list',
             'recruit:demand:menu:view', 'recruit:demand:list',
             'recruit:demand:create', 'recruit:demand:approve',
+            'recruit:demand:delete', 'recruit:demand:batch_update',
             'recruit:position:menu:view', 'recruit:position:list',
             'recruit:position:create', 'recruit:position:publish',
             'recruit:application:menu:view', 'recruit:application:list',
