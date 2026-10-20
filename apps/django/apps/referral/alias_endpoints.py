@@ -214,7 +214,7 @@ def login_alias(request):
 # ============================================================
 # Recruitment process (G38)
 # ============================================================
-@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:role:list')
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:settings:permissions:roles:list')
 def stage_rules(request):
     if request.method == 'GET':
         return _empty_list()
@@ -222,7 +222,7 @@ def stage_rules(request):
     return _not_implemented('stage_rules', request, '阶段规则写入尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
-@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:role:list')
+@_scoped_view(methods=['GET', 'POST'], resource_code='recruit:settings:permissions:roles:list')
 def auto_archive_rules(request):
     if request.method == 'GET':
         return _empty_list()
@@ -325,7 +325,7 @@ def evaluate(request):
 # Permissions v1 (FE 期望 /permissions/* 走这里)
 # 2026-07-01: 已有 Role/Permission model, 这些是 alias 调真 endpoint
 # ============================================================
-@_scoped_view(methods=['GET'], resource_code='recruit:role:list')
+@_scoped_view(methods=['GET'], resource_code='recruit:settings:permissions:roles:list')
 def permissions_roles_list(request):
     _log_stub_hit('permissions_roles_list', request)
     """GET /permissions/roles/ — 角色列表 (alias 调 /roles/)
@@ -394,7 +394,7 @@ def permissions_user_roles(request, user_id):
     return Response({'success': True, 'data': data})
 
 
-@_scoped_view(methods=['GET'], resource_code='recruit:role:list')
+@_scoped_view(methods=['GET'], resource_code='recruit:settings:permissions:roles:list')
 def permissions_user_info(request):
     _log_stub_hit('permissions_user_info', request)
     """GET /permissions/user-info/ — 当前用户权限 + 角色
@@ -458,7 +458,7 @@ def permissions_user_mous(request, user_id):
     return _not_implemented('permissions_user_mous', request, '用户 MOU 分配尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
-@_scoped_view(methods=['GET'], resource_code='recruit:role:list')
+@_scoped_view(methods=['GET'], resource_code='recruit:settings:permissions:roles:list')
 def permissions_list_by_type(request):
     _log_stub_hit('permissions_list_by_type', request)
     """GET /permissions/permissions/list?type=MENU|FUNCTION|DATA — 权限字典
@@ -502,7 +502,7 @@ def permissions_list_by_type(request):
     return Response({'success': True, 'data': data})
 
 
-@_scoped_view(methods=['GET'], resource_code='recruit:role:list')
+@_scoped_view(methods=['GET'], resource_code='recruit:settings:permissions:roles:list')
 def permissions_functions(request):
     _log_stub_hit('permissions_functions', request)
     """GET /permissions/functions/ — 功能权限 (BUTTON 操作).  V2 切到 PermissionResource."""
@@ -524,7 +524,7 @@ def permissions_functions(request):
     return Response({'success': True, 'data': data})
 
 
-@_scoped_view(methods=['GET'], resource_code='recruit:role:menu:view')
+@_scoped_view(methods=['GET'], resource_code='recruit:settings:permissions:roles:menu:view')
 def permissions_menus(request):
     _log_stub_hit('permissions_menus', request)
     """GET /permissions/menus/ — 菜单/读权限.  V2 切到 PermissionResource (resource_type=MENU)."""

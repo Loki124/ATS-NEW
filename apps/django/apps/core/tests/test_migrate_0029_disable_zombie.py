@@ -30,13 +30,19 @@ class TestListIntegrity:
         assert not set(mig.ORPHAN_CODES) & set(mig.ZOMBIE_BUTTON_CODES)
 
     def test_role_auth_codes_not_touched(self):
-        """🔴 反向断言：`recruit:role:*` 是后端在役鉴权真源，绝不能进停用清单。
+        """🔴 反向断言：角色鉴权真源绝不能进停用清单。
 
-        若误加进来，角色管理页会对所有非超管 403（permissions_v2.py 按 action 派生）。
+        2026-10-20 (0043)：码族已由 recruit:role:* 归位为
+        recruit:settings:permissions:roles:*（身份管理是设置中心·权限管理的
+        子模块，不再是独立一级模块）。两个名字都断言，防回归。
+
+        若误加进来，身份管理页会对所有非超管 403（permissions_v2.py 按 action 派生）。
         """
         for code in mig.ALL_CODES:
             assert not code.startswith('recruit:role:'), \
                 f'recruit:role:* 是后端鉴权真源，不得停用：{code}'
+            assert not code.startswith('recruit:settings:permissions:roles:'), \
+                f'recruit:settings:permissions:roles:* 是后端鉴权真源，不得停用：{code}'
 
     def test_permission_menu_view_not_disabled(self):
         """🔴 反向断言：`settings:permissions:menu:view` 被前端菜单守卫消费，是活的。

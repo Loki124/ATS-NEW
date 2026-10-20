@@ -84,12 +84,17 @@ RESOURCES = [
     ('recruit:talent_pool:tag:edit', '编辑人才库标签', 'BUTTON', 'talent_pool'),
     ('recruit:talent_pool:tag:delete', '删除人才库标签', 'BUTTON', 'talent_pool'),
     # --- module: role ---
-    ('recruit:role:menu:view', '角色菜单', 'MENU', 'role'),
-    ('recruit:role:list', '角色列表', 'BUTTON', 'role'),
-    ('recruit:role:create', '创建角色', 'BUTTON', 'role'),
-    ('recruit:role:edit', '编辑角色', 'BUTTON', 'role'),
-    ('recruit:role:delete', '删除角色', 'BUTTON', 'role'),
-    ('recruit:role:assign', '分配角色', 'BUTTON', 'role'),
+    # 2026-10-20 兵哥：身份管理是「设置中心>权限管理」下的子模块，role 资源整体归位
+    #   settings 家族（0043 迁移）。码形 recruit:settings:permissions:roles:*：
+    #   第2段==module=settings（R2）、第1段==recruit（R4），与
+    #   recruit:settings:permissions:resources:*（资源管理）同构。
+    #   资源名保持「角色*」——守的是 /api/v1/roles/ 等 RBAC 端点，语义诚实。
+    ('recruit:settings:permissions:roles:menu:view', '角色菜单', 'MENU', 'settings'),
+    ('recruit:settings:permissions:roles:list', '角色列表', 'BUTTON', 'settings'),
+    ('recruit:settings:permissions:roles:create', '创建角色', 'BUTTON', 'settings'),
+    ('recruit:settings:permissions:roles:edit', '编辑角色', 'BUTTON', 'settings'),
+    ('recruit:settings:permissions:roles:delete', '删除角色', 'BUTTON', 'settings'),
+    ('recruit:settings:permissions:roles:assign', '分配角色', 'BUTTON', 'settings'),
     # --- module: user_role ---
     # --- module: settings 子模块 users：用户身份配置（2026-10-19 自 user_role 迁移，0038）---
     # 独立「用户授权」页已移除，真实入口=用户管理页(/settings/users/all)的身份配置弹窗；
@@ -157,12 +162,11 @@ RESOURCES = [
     # 权限管理 (「基本信息」下的子菜单: 身份管理/资源管理/管理单元/字段权限)
     ('recruit:settings:permission:menu:view', '权限管理菜单', 'MENU', 'settings'),
     # 身份管理 (management) —— 2026-09-18 菜单由「角色管理」更名, 2026-09-23 同步 seed 展示名
-    #   注意：本页的「新增/编辑/删除/导出角色」按钮不在此登记资源码 —— 它们与
-    #   recruit:role:{create,edit,delete,export} 名称重复，而后者是后端鉴权真源
-    #   （views_permission_v2.py:109 permission_required='recruit:role:list' +
-    #   permissions_v2.py 按 action 派生）。这 4 条 settings:permissions:* 按钮码是
-    #   2026-09-18 更名遗留的零消费僵尸码，已被 core.0029 停用、且刻意不写回 seed，
-    #   以免 seed 把 status 重置为 1 让僵尸复活。活码只有 menu:view（前端菜单守卫在用）。
+    #   2026-10-20 0043：角色鉴权码 recruit:role:* 已整体归位本家族
+    #   （recruit:settings:permissions:roles:*），模块筛选与权限树不再有独立
+    #   「身份管理(role)」一级模块；本菜单码仍只做前端菜单守卫（活码）。
+    #   注：2026-09-18 更名遗留的 settings:permissions:{create,edit,delete,export}
+    #   按钮码是零消费僵尸码，已被 core.0029 停用、且刻意不写回 seed。
     ('recruit:settings:permissions:menu:view', '身份管理菜单', 'MENU', 'settings'),
     # 资源管理 (2026-09-18 从身份管理页拆为独立菜单; 2026-09-23 补齐菜单权限标识)
     ('recruit:settings:permissions:resources:menu:view', '资源管理菜单', 'MENU', 'settings'),
@@ -532,7 +536,7 @@ CONFIG_CODES = [
     'recruit:notification:create', 'recruit:notification:edit',
     'recruit:notification:delete',
     # 管理单元 / 身份 / 用户身份配置 (HR 需要维护组织与授权)
-    'recruit:role:create', 'recruit:role:edit',
+    'recruit:settings:permissions:roles:create', 'recruit:settings:permissions:roles:edit',
     'recruit:settings:users:role_grant:create', 'recruit:settings:users:role_grant:edit',
     'recruit:settings:mgmt_unit:menu:view', 'recruit:settings:mgmt_unit:list',
     'recruit:settings:mgmt_unit:create', 'recruit:settings:mgmt_unit:edit',
@@ -587,7 +591,7 @@ TEMPLATES = [
             'recruit:application:advance',
             'recruit:referral:menu:view', 'recruit:referral:list',
             'recruit:talent_pool:menu:view', 'recruit:talent_pool:list',
-            'recruit:role:menu:view', 'recruit:role:list',
+            'recruit:settings:permissions:roles:menu:view', 'recruit:settings:permissions:roles:list',
             'recruit:settings:users:role_grant:list',
         ],
     },
@@ -610,7 +614,7 @@ TEMPLATES = [
             'recruit:talent_pool:menu:view', 'recruit:talent_pool:list',
             'recruit:talent_pool:create', 'recruit:talent_pool:edit',
             'recruit:talent_pool:delete',
-            'recruit:role:menu:view', 'recruit:role:list',
+            'recruit:settings:permissions:roles:menu:view', 'recruit:settings:permissions:roles:list',
             'recruit:settings:users:role_grant:list',
             'recruit:settings:mgmt_unit:menu:view', 'recruit:settings:mgmt_unit:list',
         ],

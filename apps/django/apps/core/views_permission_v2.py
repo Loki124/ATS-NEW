@@ -154,11 +154,12 @@ class PermissionTemplateViewSet(EnvelopeReadOnlyMixin, viewsets.ReadOnlyModelVie
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = RoleV2.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:role:list'
+    permission_required = 'recruit:settings:permissions:roles:list'
     # 2026-10-08: 同步资源是「给角色发权限」, 语义上属于分配角色而非编辑角色信息,
-    #   用 seed 里已有的 recruit:role:assign, 而不是按默认派生出的 :edit。
+    #   用 seed 里已有的 :assign 码，而不是按默认派生出的 :edit。
+    # 2026-10-20 (0043): role 码族整体归位 settings:permissions:roles:*。
     permission_required_map = {
-        'sync_resources': 'recruit:role:assign',
+        'sync_resources': 'recruit:settings:permissions:roles:assign',
     }
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     search_fields = ['role_code', 'role_name']

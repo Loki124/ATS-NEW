@@ -33,6 +33,9 @@ export const RESOURCE_MODULE_LABELS: Record<string, string> = {
   // 与侧边栏「设置中心 → 权限管理 → 管理单元」一致。本条标签仅作历史兜底
   // （未跑 0042 的旧库仍可能读到 module=mgmt_unit），不影响新数据。
   mgmt_unit: '管理单元',
+  // role 模块已随 0043 归位 settings:permissions:roles（身份管理是设置中心·权限管理
+  // 的子模块，不再是独立一级模块）；本条标签仅作历史兜底（未跑 0043 的旧库仍可能
+  // 读到 module=role），不影响新数据。
   role: '身份管理',
   // user_role 模块已随 0038 迁移为 settings:users:role_grant（用户身份配置），标签移除
   settings: '系统设置',
