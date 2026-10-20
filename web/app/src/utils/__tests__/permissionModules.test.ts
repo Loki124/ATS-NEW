@@ -16,7 +16,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { RESOURCE_MODULE_LABELS } from '../permissionModules'
+import { RESOURCE_MODULE_LABELS, buildSubModuleIndex, resourceModuleLabel } from '../permissionModules'
 
 // 跨前后端的真源路径：从本测试文件（web/app/src/utils/__tests__）上溯到仓库根，
 // 再进入 Django 种子文件。
@@ -73,5 +73,29 @@ describe('RESOURCE_MODULE_LABELS 覆盖 seed 全部 module（S6-04）', () => {
       .filter(([, label]) => !label || !label.trim())
       .map(([k]) => k)
     expect(empty, `以下模块的中文名为空: ${empty.join(', ')}`).toEqual([])
+  })
+})
+
+/**
+ * 管理单元归属断言（2026-10-20，core.0042）。
+ *
+ * 背景：管理单元原为一级模块 mgmt_unit，与侧边栏「设置中心 → 权限管理 → 管理单元」
+ * 的归属不符。现码族迁入 `recruit:settings:mgmt_unit:*`，资源管理页应把它显示成
+ * 「系统设置」模块下的「管理单元」子模块 —— 本测试锁定这一结果，防止再漂回去。
+ */
+describe('管理单元归入系统设置模块（0042）', () => {
+  const resources = [
+    { resourceCode: 'recruit:settings:mgmt_unit:menu:view', resourceName: '管理单元菜单' },
+    { resourceCode: 'recruit:settings:mgmt_unit:list', resourceName: '管理单元列表' },
+  ]
+
+  it('模块列显示「系统设置」', () => {
+    expect(resourceModuleLabel('settings')).toBe('系统设置')
+  })
+
+  it('子模块列由数据推导为「管理单元」', () => {
+    const index = buildSubModuleIndex(resources)
+    // 子模块索引按第 4 段为 menu 判定，故只有 menu:view 参与建索引
+    expect(index.settings?.mgmt_unit).toBe('管理单元')
   })
 })

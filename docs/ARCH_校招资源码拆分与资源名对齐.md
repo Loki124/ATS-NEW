@@ -300,6 +300,23 @@ campus_session     24 行（新增，复制）
 
 **若兵哥决定保留 MOU 功能**（未来在 UI 重新暴露 MOU 协议管理页）：`mou` 族保持启用 + 保留 MOU 措辞即可，**唯一必做的改动仍是 `permissionMenu.ts:60` 改指 `mgmt_unit:menu:view`** —— 无论 MOU 未来是否启用，管理单元页的守卫码都应该是 `mgmt_unit`。故此修正与 MOU 去留**解耦，可独立执行**。
 
+#### 4.3.1 2026-10-20 后续变更（兵哥裁决「一次性彻底解决」）
+
+上表第 297 行要求的守卫修正当时**未落地**，遗留至 2026-10-20 由兵哥发现（表现为非超管用户
+「管理单元」菜单项消失、直敲 URL 跳 /forbidden）。本次一并彻底处置：
+
+| 动作 | 对象 | 说明 |
+|---|---|---|
+| **码族迁入 settings** | `recruit:mgmt_unit:*` → `recruit:settings:mgmt_unit:{menu:view,list,create,edit}` | 兵哥质疑「管理单元怎么会是一级模块」——其页面入口在设置中心 → 权限管理下，模块归属应与侧边栏一致。`core.0042` 重命名 + module 同步为 settings（R2） |
+| **守卫改指在用码** | `permissionMenu.ts` `/settings/mou` → `recruit:settings:mgmt_unit:menu:view` | 原登记 `recruit:mou:menu:view`（0030 已停用码族），即本表第 297 行点名的缺陷 |
+| **后端守卫同步** | `views_permission_v2.py` `ManagementUnitViewSet.permission_required` | 随码族改名，endpoint 路径不变 |
+| **顺带清死登记** | `permissionMenu.ts` 移除 `/settings/registrations`（0026 停用码） | 自助注册下线后路由已删，登记残留 |
+| **新增防复发护栏** | `apps/core/tests/test_menu_code_registration.py` | ① 前端登记的 63 个守卫码必须存活于 seed 真源；② mgmt_unit 新族在、旧族不回写 seed（防种子复活） |
+
+> 原裁决「保留启用态 + 原名」（本表第 289 行）由此**改判**：不是停用、也不是改名歧义问题，
+> 而是**归属**问题——管理单元就该挂在 settings 家族下。第 290/291 行两条「本轮不做」
+> （物理删 `apps/mou/`、`alias_endpoints` 死端点）**依然不做**，超出本次范围。
+
 ### 4.4 code_tables 全族改名的边界（回答「是否整体改为静态数据措辞」）
 
 **结论：是，整体改，但只限本族 6 条，不动 `dictionary` 与 `dynamic_fields`。**

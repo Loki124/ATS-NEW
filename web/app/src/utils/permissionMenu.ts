@@ -50,7 +50,9 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/job-title', code: 'recruit:settings:job_title:menu:view' },
   { prefix: '/settings/job-level', code: 'recruit:settings:job_level:menu:view' },
   { prefix: '/settings/users/all', code: 'recruit:settings:users:all:menu:view' },
-  { prefix: '/settings/registrations', code: 'recruit:settings:registrations:menu:view' },
+  // 注：自助注册 / 注册审核（/settings/registrations）已于 2026-10-18 下线——路由删除、
+  // 资源码由 core.0026 停用，其登记规则随之移除（死登记会让菜单守卫指向停用码，
+  // 有 apps/core/tests/test_menu_code_registration.py 护栏兜底）。
   { prefix: '/settings/user-groups', code: 'recruit:settings:user_groups:menu:view' },
 
   // ===== 权限管理（本模块自身入口）=====
@@ -58,7 +60,11 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/permissions', code: 'recruit:settings:permissions:menu:view' },
   // 动态策略（2026-10-19 补登记：此前未登记走 fail-open 恒可见，HRBP 等低权角色也能看到入口）
   { prefix: '/settings/dynamic-strategy', code: 'recruit:settings:dynamic_strategy:menu:view' },
-  { prefix: '/settings/mou', code: 'recruit:mou:menu:view' },
+  // 管理单元（/settings/mou）。原登记 recruit:mou:menu:view（MOU 协议码族），
+  // 该族已于 0030 整族停用（status=0 + 授权清零）→ 非超管用户菜单项被裁、直敲 URL
+  // 跳 /forbidden，而其角色实际持有 mgmt_unit 授权。2026-10-20 随码族迁入 settings
+  // 家族一并改指在用码（0042）。
+  { prefix: '/settings/mou', code: 'recruit:settings:mgmt_unit:menu:view' },
   { prefix: '/settings/field-acl', code: 'recruit:settings:field_acl:menu:view' },
 
   // ===== 候选人信息 =====

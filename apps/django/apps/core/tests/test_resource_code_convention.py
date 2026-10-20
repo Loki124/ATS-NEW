@@ -31,6 +31,9 @@ ACTION_WHITELIST = {
     'view', 'list', 'create', 'edit', 'delete', 'export', 'approve', 'assign',
     'publish', 'close', 'schedule', 'feedback', 'advance', 'reject', 'start', 'stop',
     'import', 'sync', 'approve_l1', 'approve_l2',
+    # S8-02（2026-10-20，commit 3a2ccd7e）新增的两条专属守卫动作：
+    #   demand:batch_update（批量变更人员）/ demand_config:open_grab（开启抢单）
+    'batch_update', 'open_grab',
     # 存量校园招聘工作流动作（campus 模块的 HRBP 确认 / 带教导师考核），非新增违规
     'confirm', 'evaluate',
 }

@@ -405,7 +405,7 @@ class EnvelopeWriteMixin:
 class ManagementUnitViewSet(EnvelopeModelViewSet):
     queryset = ManagementUnit.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:mgmt_unit:list'
+    permission_required = 'recruit:settings:mgmt_unit:list'
     pagination_class = StandardResultsSetPagination  # per P1 audit 恢复服务端分页
     filterset_fields = ['unit_type', 'status']
 

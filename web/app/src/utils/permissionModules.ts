@@ -26,9 +26,12 @@ export const RESOURCE_MODULE_LABELS: Record<string, string> = {
   referral: '内推管理',
   invitation: '邀约管理',
   talent_pool: '人才库',
-  // mou 是 seed 里的「MOU菜单 / 创建MOU / 审批MOU」，与 mgmt_unit（管理单元）是两个模块，
-  // 早期版本曾把两者都写成「管理单元」，会导致筛选后看不出区别，故按 seed 校正。
+  // mou 是 MOU 协议码族（已随 0030 整族停用，仅停用态资源仍以此模块显示）。
   mou: 'MOU',
+  // 2026-10-20（0042）：管理单元码族已迁至 recruit:settings:mgmt_unit:*、module
+  // 同步为 settings —— 新数据在「模块」筛选里归入「系统设置」、子模块列显示「管理单元」，
+  // 与侧边栏「设置中心 → 权限管理 → 管理单元」一致。本条标签仅作历史兜底
+  // （未跑 0042 的旧库仍可能读到 module=mgmt_unit），不影响新数据。
   mgmt_unit: '管理单元',
   role: '身份管理',
   // user_role 模块已随 0038 迁移为 settings:users:role_grant（用户身份配置），标签移除

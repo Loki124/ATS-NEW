@@ -98,11 +98,15 @@ RESOURCES = [
     ('recruit:settings:users:role_grant:create', '新增身份配置', 'BUTTON', 'settings'),
     ('recruit:settings:users:role_grant:edit', '编辑身份配置', 'BUTTON', 'settings'),
     ('recruit:settings:users:role_grant:delete', '撤销身份配置', 'BUTTON', 'settings'),
-    # --- module: mgmt_unit ---
-    ('recruit:mgmt_unit:menu:view', '管理单元菜单', 'MENU', 'mgmt_unit'),
-    ('recruit:mgmt_unit:list', '管理单元列表', 'BUTTON', 'mgmt_unit'),
-    ('recruit:mgmt_unit:create', '新增管理单元', 'BUTTON', 'mgmt_unit'),
-    ('recruit:mgmt_unit:edit', '编辑管理单元', 'BUTTON', 'mgmt_unit'),
+    # --- module: settings 子模块 mgmt_unit：管理单元（2026-10-20 自 recruit:mgmt_unit:* 迁移，0042）---
+    #   原为与「候选人管理 / 招聘需求」并列的一级模块 mgmt_unit，但其页面入口位于
+    #   设置中心 → 权限管理 → 管理单元（SettingsLayout.vue），与侧边栏归属不符。
+    #   兵哥裁决：资源码一并归入 settings 家族，module 同步为 settings（R2：第 2 段 == module）。
+    #   迁移后「模块」筛选项显示为「系统设置」，子模块列显示「管理单元」，与侧边栏一致。
+    ('recruit:settings:mgmt_unit:menu:view', '管理单元菜单', 'MENU', 'settings'),
+    ('recruit:settings:mgmt_unit:list', '管理单元列表', 'BUTTON', 'settings'),
+    ('recruit:settings:mgmt_unit:create', '新增管理单元', 'BUTTON', 'settings'),
+    ('recruit:settings:mgmt_unit:edit', '编辑管理单元', 'BUTTON', 'settings'),
     # --- module: settings ---
     # 用户管理 (用户集中入口: 内部员工/外部用户/全部用户; 注册审核/用户组迁入)
     # 顶层菜单: 全部用户入口 (子菜单 users:internal/external 已下线, 见 core.0026)
@@ -530,8 +534,8 @@ CONFIG_CODES = [
     # 管理单元 / 身份 / 用户身份配置 (HR 需要维护组织与授权)
     'recruit:role:create', 'recruit:role:edit',
     'recruit:settings:users:role_grant:create', 'recruit:settings:users:role_grant:edit',
-    'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
-    'recruit:mgmt_unit:create', 'recruit:mgmt_unit:edit',
+    'recruit:settings:mgmt_unit:menu:view', 'recruit:settings:mgmt_unit:list',
+    'recruit:settings:mgmt_unit:create', 'recruit:settings:mgmt_unit:edit',
     # 组织管理扩展：职务 / 职级（2026-10-14）
     'recruit:settings:job_title:menu:view', 'recruit:settings:job_title:list',
     'recruit:settings:job_title:create', 'recruit:settings:job_title:edit',
@@ -608,7 +612,7 @@ TEMPLATES = [
             'recruit:talent_pool:delete',
             'recruit:role:menu:view', 'recruit:role:list',
             'recruit:settings:users:role_grant:list',
-            'recruit:mgmt_unit:menu:view', 'recruit:mgmt_unit:list',
+            'recruit:settings:mgmt_unit:menu:view', 'recruit:settings:mgmt_unit:list',
         ],
     },
     {

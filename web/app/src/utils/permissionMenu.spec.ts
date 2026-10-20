@@ -31,7 +31,9 @@ describe('permissionForPath', () => {
     expect(permissionForPath('/dashboard')).toBeUndefined()
     expect(permissionForPath('/some/unknown')).toBeUndefined()
     expect(isPathGuarded('/dashboard')).toBe(false)
-    expect(isPathGuarded('/offers')).toBe(true)
+    // 对照组取「当前确已登记」的路径：原写 /offers，该路由已随 Offer 并入候选人
+    // 管理（7eb66448）删除、登记一并移除，继续断言 true 会让门禁常红。
+    expect(isPathGuarded('/candidates')).toBe(true)
   })
 
   it('码表不重复且非空', () => {

@@ -78,7 +78,11 @@ recruit:settings:permissions:resources:menu:view  6 段  settings 二级子页�
 ```
 list create edit delete export view approve assign
 publish close schedule feedback advance reject start stop
+batch_update open_grab
 ```
+
+> `batch_update`（批量变更人员）/ `open_grab`（开启抢单）为 S8-02（2026-10-20，
+> commit `3a2ccd7e`）新增的专属守卫动作，已同步 `ACTION_WHITELIST`。
 
 > 🔴 **规则 R3**：动作段必须落在这个词表内。新增动作需先改本表 + 同步前端按钮，
 > 否则「加了动作但前端没有对应按钮」= 永远无法被授权的僵尸资源。
