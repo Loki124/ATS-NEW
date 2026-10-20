@@ -236,6 +236,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import(/* webpackChunkName: "campus-service-dept" */ '../pages/campus/ServiceDept.vue')
       },
       {
+        path: 'campus/resource-summary',
+        name: 'CampusResourceSummary',
+        component: () => import(/* webpackChunkName: "campus-resource-summary" */ '../pages/campus/ResourceSummary.vue')
+      },
+      {
         path: 'campus/class-room',
         name: 'CampusClassRoom',
         component: () => import(/* webpackChunkName: "campus-class-room" */ '../pages/campus/ClassRoom.vue')

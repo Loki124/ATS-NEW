@@ -35,6 +35,8 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/onboardings', code: 'recruit:onboarding:menu:view' },
   { prefix: '/report', code: 'recruit:settings:data_dashboard:menu:view' },
   { prefix: '/my-resumes', code: 'recruit:settings:scraped_resumes:menu:view' },
+  // 通知中心（顶栏铃铛进入的全局功能页；2026-10-20 补登记，此前未登记走 fail-open）
+  { prefix: '/notifications', code: 'recruit:notification:menu:view' },
 
   // ===== 公司信息 =====
   { prefix: '/settings/company/address', code: 'recruit:settings:company_address:menu:view' },
@@ -96,6 +98,7 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/campus/rotation-arrangement', code: 'recruit:campus:rotation:menu:view' },
   { prefix: '/campus/live-room', code: 'recruit:campus:resource:menu:view' },
   { prefix: '/campus/service-dept', code: 'recruit:campus:resource:menu:view' },
+  { prefix: '/campus/resource-summary', code: 'recruit:campus:resource:menu:view' },
   { prefix: '/campus/class-room', code: 'recruit:campus:class:menu:view' },
   { prefix: '/campus/person', code: 'recruit:campus:person:menu:view' },
 

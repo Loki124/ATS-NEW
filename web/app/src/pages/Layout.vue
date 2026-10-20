@@ -153,7 +153,9 @@
             </div>
           </n-button>
 
-          <n-badge :value="5" :max="99">
+          <!-- 通知中心铃铛：按功能权限显隐（2026-10-20 补登记；canAccess fail-open，
+               未配置功能权限的账号恒可见，与菜单裁剪语义一致） -->
+          <n-badge v-if="canAccess('recruit:notification:menu:view')" :value="5" :max="99">
             <n-button text :aria-label="t('pages.Layout.s9')" @click="goToNotifications">
               <n-icon :component="NotificationsOutline" :size="20" />
             </n-button>
@@ -419,6 +421,7 @@ const menuOptions = computed(() => {
         { key: '/campus/rotation-arrangement', label: '轮岗安排' },
         { key: '/campus/live-room', label: '轮岗资源' },
         { key: '/campus/service-dept', label: '客服部门' },
+        { key: '/campus/resource-summary', label: '资源汇总' },
         { key: '/campus/class-room', label: '班级管理' },
         { key: '/campus/person', label: '校招生档案' },
       ],
