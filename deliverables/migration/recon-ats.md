@@ -368,7 +368,7 @@ V1 的 `Role` / `UserRole` / `RolePermission` / `Permission` 模型**已于 2026
 - 路由：`/api/v1/onboardings/`（`apps/onboarding/urls.py`）
 - 模型（`onboarding/models.py`）：`Onboarding(FSMModelMixin, FullAuditModel)`(:23)，`offer` OneToOne / `candidate` FK / `position` FK（全 `on_delete=PROTECT`）、start_date/actual_start_date/probation_end_date、todo_list(JSON)、todo_completed(JSON)、`state`(django-fsm FSMField)、regularization_*
 - 状态机 7 态（`OnboardingState`:13）：PENDING → PREPARING → COMPLETED → PROBATION → REGULARIZED，支线 DELAYED / RESIGNED_DURING_PROBATION
-- 视图（`onboarding/views.py:22`）：`permission_classes=[V2Permission]`、`permission_required='recruit:onboarding:list'`、`scope_field='position__department'`、`filterset_fields=['state','candidate','position']`、`@action transition` + `ensure_writable(user,'onboarding',...)`
+- 视图（`onboarding/views.py:26`）：`permission_classes=[V2Permission]`、`permission_required='recruit:candidate:onboarding:list'  # 0047 自 recruit:onboarding:list 归位候选人管理「录用信息」页签`、`scope_field='position__department'`、`filterset_fields=['state','candidate','position']`、`@action transition` + `ensure_writable(user,'onboarding',...)`
 - 前端：`pages/onboarding/OnboardingList.vue`、`api/onboarding.ts`
 
 ### 7.4 ⚠️ 明确的「请勿合并」警告（代码注释原文）
