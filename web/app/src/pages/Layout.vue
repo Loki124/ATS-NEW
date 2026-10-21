@@ -394,9 +394,6 @@ const menuOptions = computed(() => {
         { key: '/screenings', label: '简历筛选' },
         { key: '/talent-pool', label: '人才库' },
         { key: '/my-resumes', label: '我找的简历' },
-        // 2026-10-14: 原「Offer管理」一级菜单移除 —— Offer 功能并入候选人详情页 Offer 页签；
-        // 「待入职」入口随之下沉到本菜单（Offer 列表不再单独成菜单）。
-        { key: '/onboardings', label: '待入职' },
       ],
     },
     {

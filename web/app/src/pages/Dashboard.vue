@@ -414,8 +414,9 @@ function onMatterAction(_matter: MatterItem) {
   else if (matterTab.value === 'position') router.push('/positions')
   else if (matterTab.value === 'interview') router.push('/interviews')
   // 2026-10-14: 原「Offer管理」菜单移除，Offer 已并入候选人详情页 Offer 页签；
-  // 待办里 Offer 相关事项统一跳「待入职」(Offer 列表不再独立成页)。
-  else if (matterTab.value === 'offer') router.push('/onboardings')
+  // 2026-10-21: 原「待入职」全局列表页亦移除，待入职并入候选人详情页 Onboarding 页签。
+  // 待办里 Offer 相关事项统一跳「候选人管理」列表（Offer/入职详情均在候选人详情页）。
+  else if (matterTab.value === 'offer') router.push('/candidates')
   else if (matterTab.value === 'recommend') router.push('/referral')
   else router.push('/notifications')
 }

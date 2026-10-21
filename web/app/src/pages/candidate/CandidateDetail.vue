@@ -71,12 +71,50 @@
     <div class="detail-layout">
       <div class="main-col">
         <n-card class="tabs-card">
+          <!-- 2026-10-21 兵哥：页签重排 —— 原始简历（新）→ 标准简历 → Offer → 待入职 → 操作记录（末位）；页签去 icon -->
           <n-tabs v-model:value="activeTab" type="line" animated>
-            <!-- 档案信息（基本信息 + 简历信息整合，按业务板块分组） -->
+            <!-- 原始简历（上传的简历原文件在线预览，pdf/图片内嵌，其余格式引导下载） -->
+            <n-tab-pane name="resume-raw">
+              <template #tab>{{ t('pages.candidate.CandidateDetail.s342') }}</template>
+              <div class="raw-resume-section">
+                <n-spin v-if="loading" style="margin: 24px 0" />
+                <template v-else>
+                  <div v-if="resumeFileUrl" class="raw-resume-actions">
+                    <n-button type="primary" @click="handleDownloadResume">
+                      <template #icon><n-icon :component="DownloadOutline" /></template>
+                      {{ t('pages.candidate.CandidateDetail.s34') }}
+                    </n-button>
+                    <n-button v-permission="'recruit:candidate:edit'" @click="openUploadResumeModal">
+                      <template #icon><n-icon :component="CloudUploadOutline" /></template>
+                      {{ t('pages.candidate.CandidateDetail.s49') }}
+                    </n-button>
+                  </div>
+                  <iframe
+                    v-if="resumeFileUrl && resumePreviewable"
+                    :src="resumeFileUrl"
+                    class="raw-resume-frame"
+                    :title="t('pages.candidate.CandidateDetail.s342')"
+                  />
+                  <div v-else-if="resumeFileUrl" class="raw-resume-fallback">
+                    <n-empty :description="t('pages.candidate.CandidateDetail.s343')" style="margin: 24px 0" />
+                  </div>
+                  <div v-else class="raw-resume-fallback">
+                    <n-empty :description="t('pages.candidate.CandidateDetail.s48')" style="margin: 24px 0">
+                      <template #extra>
+                        <n-button v-permission="'recruit:candidate:edit'" @click="openUploadResumeModal">
+                          <template #icon><n-icon :component="CloudUploadOutline" /></template>
+                          {{ t('pages.candidate.CandidateDetail.s49') }}
+                        </n-button>
+                      </template>
+                    </n-empty>
+                  </div>
+                </template>
+              </div>
+            </n-tab-pane>
+
+            <!-- 标准简历（原「档案信息」：基本信息 + 简历信息整合，按业务板块分组） -->
             <n-tab-pane name="profile">
-              <template #tab>
-                <span><n-icon :component="PersonOutline" />{{ t('pages.candidate.CandidateDetail.s183') }}</span>
-              </template>
+              <template #tab>{{ t('pages.candidate.CandidateDetail.s183') }}</template>
               <div class="profile-section">
                 <n-spin v-if="loading" style="margin: 24px 0" />
                 <template v-else>
@@ -127,11 +165,22 @@
               </div>
             </n-tab-pane>
 
-            <!-- 操作记录（真实操作历史：字段级追踪 + 哈希链完整性校验） -->
+            <!-- Offer（2026-10-14：原「Offer管理」模块并入候选人管理，按 candidate 过滤） -->
+            <n-tab-pane name="offer">
+              <template #tab>{{ t('pages.candidate.CandidateDetail.s256') }}</template>
+              <CandidateOfferPanel :candidate-id="String(route.params.id || '')" />
+            </n-tab-pane>
+
+            <!-- 待入职（2026-10-21：原独立「待入职」全局列表页移除，待入职功能并入候选人管理，
+                 作为 offer 之后的独立页签呈现；按 candidate 过滤，后端 recruit:onboarding:list 在数据层兜底权限） -->
+            <n-tab-pane name="onboarding">
+              <template #tab>{{ t('pages.candidate.CandidateDetail.s320') }}</template>
+              <CandidateOnboardingPanel :candidate-id="String(route.params.id || '')" />
+            </n-tab-pane>
+
+            <!-- 操作记录（真实操作历史：字段级追踪 + 哈希链完整性校验；2026-10-21 移至末位） -->
             <n-tab-pane name="history">
-              <template #tab>
-                <span><n-icon :component="TimeOutline" />{{ t('pages.candidate.CandidateDetail.s50') }}</span>
-              </template>
+              <template #tab>{{ t('pages.candidate.CandidateDetail.s50') }}</template>
               <div class="history-section">
                 <div class="history-toolbar">
                   <n-button size="small" :loading="verifying" @click="handleVerifyHistories">
@@ -180,14 +229,6 @@
                 </n-timeline>
                 <n-empty v-else :description="t('pages.candidate.CandidateDetail.s7')" style="margin: 24px 0" />
               </div>
-            </n-tab-pane>
-
-            <!-- Offer（2026-10-14：原「Offer管理」模块并入候选人管理，按 candidate 过滤） -->
-            <n-tab-pane name="offer">
-              <template #tab>
-                <span><n-icon :component="GiftOutline" />{{ t('pages.candidate.CandidateDetail.s256') }}</span>
-              </template>
-              <CandidateOfferPanel :candidate-id="String(route.params.id || '')" />
             </n-tab-pane>
           </n-tabs>
         </n-card>
@@ -760,8 +801,6 @@ import {
   ChevronForwardOutline,
   MailOutline,
   CallOutline,
-  PersonOutline,
-  TimeOutline,
   PaperPlaneOutline,
   ShieldCheckmarkOutline,
   CloseOutline,
@@ -774,7 +813,6 @@ import {
   LockClosedOutline,
   ExpandOutline,
   ContractOutline,
-  GiftOutline,
 } from '@vicons/ionicons5'
 import {
   getCandidate,
@@ -796,6 +834,7 @@ import { getResumeFields, putResumeFields } from '../../api/candidate-resume-fie
 import { listFields, type FieldDefinition } from '../../api/dynamic-field'
 import InitiateBackgroundCheckModal from './InitiateBackgroundCheckModal.vue'
 import CandidateOfferPanel from '../../components/candidate/CandidateOfferPanel.vue'
+import CandidateOnboardingPanel from '../../components/candidate/CandidateOnboardingPanel.vue'
 import ReasonTagPicker from '../../components/reason-library/ReasonTagPicker.vue'
 import { getActiveRule } from '../../api/reason-library'
 import type { SceneRule } from '../../types/reason-library'
@@ -806,7 +845,8 @@ const route = useRoute()
 const message = useMessage()
 const { t } = useI18n()
 
-const activeTab = ref('profile')
+// 2026-10-21：默认落「原始简历」首签
+const activeTab = ref('resume-raw')
 
 /**
  * 中文标签映射：snake_case fieldKey → i18n key（s102–s157 现有译文）。
@@ -1037,6 +1077,8 @@ const histories = computed(() => candidateDetail.value?.histories ?? [])
 const applications = computed(() => candidateDetail.value?.applications ?? [])
 const currentStage = computed(() => applications.value[0]?.currentStage ?? '')
 const resumeFileUrl = computed(() => pickDetail('resume_file_url'))
+// 原始简历在线预览：pdf 与图片可内嵌 iframe；doc/docx 浏览器不支持，引导下载
+const resumePreviewable = computed(() => /\.(pdf|png|jpe?g|gif|webp|bmp)([?#]|$)/i.test(resumeFileUrl.value ?? ''))
 
 // ===== 操作记录渲染（字段级 diff / 阶段·状态流转 / 解析溯源 / 哈希链校验） =====
 // 操作类型 → i18n key（s235–s244）；命中不到则回退原始 action 串，避免空白
@@ -1874,6 +1916,22 @@ async function handleForward() {
 }
 
 .tabs-card { border-radius: 16px; border: 1px solid var(--border-hairline); box-shadow: none; }
+
+/* ===== 原始简历（在线预览） ===== */
+.raw-resume-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.raw-resume-actions { display: flex; gap: var(--space-2); }
+.raw-resume-frame {
+  width: 100%;
+  height: 72vh;
+  border: 1px solid var(--border-hairline);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.raw-resume-fallback {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6) 0;
+}
 
 /* ===== 档案信息（板块分组 + 标签在上/值在下的栅格） ===== */
 .profile-section { padding: var(--space-2) 0; }

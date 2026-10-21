@@ -2008,7 +2008,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.candidate.CandidateDetail.s180': "Please select a file to upload",
   'pages.candidate.CandidateDetail.s181': "Resume uploaded successfully",
   'pages.candidate.CandidateDetail.s182': "Notification sent",
-  'pages.candidate.CandidateDetail.s183': "Profile",
+  'pages.candidate.CandidateDetail.s183': "Standard Resume",
   'pages.candidate.CandidateDetail.s184': "Basic Information",
   'pages.candidate.CandidateDetail.s185': "Job Intention",
   'pages.candidate.CandidateDetail.s186': "Work Experience",
@@ -2147,6 +2147,9 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.candidate.CandidateDetail.s339': "Regularize",
   'pages.candidate.CandidateDetail.s340': "Pass",
   'pages.candidate.CandidateDetail.s341': "Fail",
+  // 2026-10-21: detail tab reorder — new "Original Resume" first tab (s342/s343)
+  'pages.candidate.CandidateDetail.s342': "Original Resume",
+  'pages.candidate.CandidateDetail.s343': "This resume format cannot be previewed inline. Please download it to view.",
 
   'pages.announcement.AnnouncementDetail.s1': "Back to Policy Announcement",
   'pages.announcement.AnnouncementDetail.s2': "Reload",
@@ -2294,8 +2297,6 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.invitation.InvitationCenter.s7': "Result",
   'pages.invitation.InvitationCenter.s8': "Reason",
   'pages.invitation.InvitationCenter.s9': "Please explain the result reason",
-  'pages.onboarding.OnboardingList.s2': "Refresh",
-  'pages.onboarding.OnboardingList.s3': "Onboarding Status",
   'pages.position.PositionList.s10': "Please select department",
   'pages.position.PositionList.s11': "Related Requirement",
   'pages.position.PositionList.s12': "Please select requirement (optional)",

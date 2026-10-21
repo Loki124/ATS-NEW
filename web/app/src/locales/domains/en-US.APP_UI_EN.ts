@@ -193,7 +193,6 @@ export const APP_UI_EN: Record<string, string> = {
   'pages.interview.InterviewList.s1': "Interview Management",
   'pages.invitation.InvitationCenter.s1': "Invitation Center",
   'pages.notification.NotificationList.s1': "Notifications",
-  'pages.onboarding.OnboardingList.s1': "Onboarding Management",
   'pages.position.PositionList.s1': "Position Management",
   'pages.referral.AddReferralModal.s1': "Add Referral",
   'pages.referral.ReferralCenter.s1': "Referral Assistant",

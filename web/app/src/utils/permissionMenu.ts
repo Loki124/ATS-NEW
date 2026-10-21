@@ -32,7 +32,6 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/talent-pool', code: 'recruit:talent_pool:menu:view' },
   { prefix: '/interviews', code: 'recruit:interview:menu:view' },
   { prefix: '/invitations', code: 'recruit:invitation:menu:view' },
-  { prefix: '/onboardings', code: 'recruit:onboarding:menu:view' },
   { prefix: '/report', code: 'recruit:settings:data_dashboard:menu:view' },
   { prefix: '/my-resumes', code: 'recruit:settings:scraped_resumes:menu:view' },
   // 通知中心（顶栏铃铛进入的全局功能页；2026-10-20 补登记，此前未登记走 fail-open）
