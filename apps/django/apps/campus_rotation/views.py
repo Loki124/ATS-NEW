@@ -33,9 +33,17 @@ from django.db import IntegrityError
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from .models import ClassRoom, LiveRoom, RotationArrangement, RotationStage, ServiceDept
+from .models import (
+    ClassRoom,
+    ConcurrentPostRecord,
+    LiveRoom,
+    RotationArrangement,
+    RotationStage,
+    ServiceDept,
+)
 from .serializers import (
     ClassRoomSerializer,
+    ConcurrentPostRecordSerializer,
     LiveRoomSerializer,
     RotationArrangementSerializer,
     RotationStageSerializer,
@@ -307,6 +315,79 @@ class RotationStageViewSet(
         if arrangement:
             qs = qs.filter(arrangement_id=arrangement)
         return qs
+
+
+# ---------------------------------------------------------------------------
+# ConcurrentPostRecord（需求 5-2 / S5-25：兼岗记录）
+# ---------------------------------------------------------------------------
+class ConcurrentPostRecordViewSet(
+    EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet
+):
+    """兼岗记录 CRUD（本地落库 + 预留摩卡同步）。
+
+    顶层资源，按 `?person=` / `?arrangement=` / `?sync_status=` 过滤。
+
+    🔴 同步状态字段（sync_status / sync_request_id / sync_error / synced_at）
+    序列化器层已设为只读，客户端不得直写；同步由 `sync` 动作调用
+    `services.moka_sync.sync_concurrent_post` 独占写入（契约见 S5-26）。
+
+    🔴 行级隔离：兼岗记录依附于轮岗安排/人员，本 ViewSet 不单独套
+    ScopeQuerysetMixin，完整隔离矩阵归 S5-24 统一落地。
+    """
+
+    queryset = ConcurrentPostRecord.objects.all()
+    serializer_class = ConcurrentPostRecordSerializer
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:campus:rotation:list'
+    permission_required_map = {
+        'create': 'recruit:campus:rotation:edit',
+        'update': 'recruit:campus:rotation:edit',
+        'partial_update': 'recruit:campus:rotation:edit',
+        'destroy': 'recruit:campus:rotation:delete',
+        'sync': 'recruit:campus:rotation:edit',
+    }
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = ConcurrentPostRecord.objects.filter(deleted_at__isnull=True)
+        params = self.request.query_params
+        person = params.get('person')
+        if person:
+            qs = qs.filter(person_id=person)
+        arrangement = params.get('arrangement')
+        if arrangement:
+            qs = qs.filter(arrangement_id=arrangement)
+        sync_status = params.get('sync_status')
+        if sync_status:
+            qs = qs.filter(sync_status=sync_status)
+        return qs
+
+    @action(detail=True, methods=['post'], url_path='sync')
+    def sync(self, request, pk=None):
+        """触发摩卡兼岗同步（S5-26 钩子）。
+
+        🔴 失败不阻塞主流程：同步异常一律落 sync_status='FAILED' + sync_error，
+        返回 200，由调用方异步重试。
+        """
+        from apps.campus_rotation.services.moka_sync import sync_concurrent_post
+
+        instance = self.get_object()
+        ok = sync_concurrent_post(instance)
+        instance.refresh_from_db()
+        from apps.common.audit_helper import log_action
+        log_action(
+            self.request, 'sync', 'ConcurrentPostRecord', instance.pk,
+            new_value=instance.sync_status,
+        )
+        return Response({
+            'success': True,
+            'data': {
+                'id': str(instance.id),
+                'syncStatus': instance.sync_status,
+                'syncRequestId': instance.sync_request_id,
+                'syncError': instance.sync_error,
+            },
+        })
 
 
 # ---------------------------------------------------------------------------

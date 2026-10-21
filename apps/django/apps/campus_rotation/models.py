@@ -389,3 +389,52 @@ class RotationStage(FullAuditModel, UUIDModel):
         verbose_name_plural = '轮岗阶段'
         unique_together = [('arrangement', 'stage_no')]
         ordering = ['arrangement', 'stage_no']
+
+
+class ConcurrentPostRecord(FullAuditModel, UUIDModel):
+    """兼岗记录（需求 5-2 / S5-25，本地落库 + 预留摩卡同步）。
+
+    D-03 已定：建表 + 预留同步钩子。真实摩卡 HTTP 调用待企业 API 授权后由
+    `apps/campus_rotation/services/moka_sync.py` 补齐；本期只落库并维护
+    `sync_status` 状态机，**不阻塞主流程**（同步失败异步重试）。
+
+    `person` 用字符串引用 `campus_control.Person`（跨 app FK，避免循环导入）。
+    """
+
+    SYNC_STATUS_CHOICES = [
+        ('PENDING', '待同步'),
+        ('SYNCED', '已同步'),
+        ('FAILED', '同步失败'),
+        ('SKIPPED', '已跳过'),
+    ]
+
+    person = models.ForeignKey(
+        'campus_control.Person', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='concurrent_post_records',
+        verbose_name='兼岗人员',
+    )
+    arrangement = models.ForeignKey(
+        RotationArrangement, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='concurrent_post_records', verbose_name='轮岗安排',
+    )
+    post_type = models.CharField(max_length=32, verbose_name='兼岗类型')
+    effective_from = models.DateField(verbose_name='生效起')
+    effective_to = models.DateField(null=True, blank=True, verbose_name='生效止')
+    sync_status = models.CharField(
+        max_length=16, choices=SYNC_STATUS_CHOICES, default='PENDING',
+        db_index=True, verbose_name='摩卡同步状态',
+    )
+    sync_request_id = models.CharField(
+        max_length=64, blank=True, default='', verbose_name='摩卡请求ID',
+    )
+    sync_error = models.TextField(blank=True, default='', verbose_name='同步失败原因')
+    synced_at = models.DateTimeField(null=True, blank=True, verbose_name='同步时间')
+
+    class Meta:
+        db_table = 'campus_rotation_concurrent_post_records'
+        verbose_name = '兼岗记录'
+        verbose_name_plural = '兼岗记录'
+        ordering = ['-effective_from', '-created_at']
+
+    def __str__(self):
+        return f'{self.person_id}-{self.post_type}({self.sync_status})'

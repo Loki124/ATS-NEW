@@ -7,7 +7,14 @@
 """
 from rest_framework import serializers
 
-from .models import ClassRoom, LiveRoom, RotationArrangement, RotationStage, ServiceDept
+from .models import (
+    ClassRoom,
+    ConcurrentPostRecord,
+    LiveRoom,
+    RotationArrangement,
+    RotationStage,
+    ServiceDept,
+)
 from .validators import (
     CapacityExceeded,
     MENTOR_ONGOING_CAPACITY,
@@ -324,5 +331,37 @@ class RotationStageSerializer(serializers.ModelSerializer):
             if s and e and e < s:
                 raise serializers.ValidationError(
                     {e_fld: '结束日期不能早于开始日期'})
+
+        return attrs
+
+
+# ---------------------------------------------------------------------------
+# ConcurrentPostRecord（需求 5-2 / S5-25：兼岗记录 + 摩卡同步预留）
+# ---------------------------------------------------------------------------
+class ConcurrentPostRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConcurrentPostRecord
+        fields = [
+            'id', 'person', 'arrangement', 'post_type',
+            'effective_from', 'effective_to',
+            'sync_status', 'sync_request_id', 'sync_error', 'synced_at',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at',
+            # 同步状态字段由 moka_sync 服务独占写入，客户端不得直写
+            'sync_status', 'sync_request_id', 'sync_error', 'synced_at',
+        ]
+
+    def validate(self, attrs):
+        frm = attrs.get('effective_from') or getattr(self.instance, 'effective_from', None)
+        to = attrs.get('effective_to') or getattr(self.instance, 'effective_to', None)
+        if frm and to and to < frm:
+            raise serializers.ValidationError(
+                {'effective_to': '生效止不能早于生效起'})
+
+        post_type = attrs.get('post_type') or getattr(self.instance, 'post_type', None)
+        if not post_type:
+            raise serializers.ValidationError({'post_type': '兼岗类型必填'})
 
         return attrs

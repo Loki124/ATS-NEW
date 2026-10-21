@@ -17,6 +17,13 @@
   GET/POST   /service-depts/                        客服部门资源（需求 4-3，S5-12）
   GET/PUT/DELETE /service-depts/{id}/
   POST       /service-depts/{id}/restore/
+
+  GET/POST   /rotation-stages/                      轮岗阶段（需求 5-8，S5-21）
+  GET/PUT/DELETE /rotation-stages/{id}/
+
+  GET/POST   /concurrent-post-records/              兼岗记录（需求 5-2，S5-25）
+  GET/PUT/DELETE /concurrent-post-records/{id}/
+  POST       /concurrent-post-records/{id}/sync/    摩卡同步（S5-26）
 """
 from rest_framework.routers import DefaultRouter
 
@@ -24,6 +31,7 @@ from django.urls import path
 
 from .views import (
     ClassRoomViewSet,
+    ConcurrentPostRecordViewSet,
     LiveRoomViewSet,
     ResourceBuSummaryView,
     RotationArrangementViewSet,
@@ -39,6 +47,10 @@ router.register(
 router.register(
     r'rotation-stages', RotationStageViewSet,
     basename='campus-rotation-stage',
+)
+router.register(
+    r'concurrent-post-records', ConcurrentPostRecordViewSet,
+    basename='campus-concurrent-post-record',
 )
 router.register(r'live-rooms', LiveRoomViewSet, basename='campus-live-room')
 router.register(r'class-rooms', ClassRoomViewSet, basename='campus-class-room')
