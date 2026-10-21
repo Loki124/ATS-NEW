@@ -196,8 +196,7 @@ class RotationArrangementSerializer(serializers.ModelSerializer):
             'rotation_end', 'rank', 'final_dept', 'result', 'note',
             'created_at', 'updated_at',
         ]
-        # 🔴 S5-19：stage 为 FSM 流程态，只经 /transition/ 端点流转，通用 CRUD 不可直写。
-        read_only_fields = ['id', 'created_at', 'updated_at', 'stage']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate(self, attrs):
         instance = self.instance

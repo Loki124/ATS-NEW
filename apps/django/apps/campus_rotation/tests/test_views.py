@@ -222,7 +222,7 @@ class TestRotationArrangementCRUD:
 
         resp = auth_client.patch(
             f'{BASE}/rotation-arrangements/{rid}/',
-            {'employee_status': 'ACTIVE'},
+            {'stage': 'ONGOING', 'employee_status': 'ACTIVE'},
             format='json',
         )
         assert resp.status_code == 200
@@ -241,31 +241,13 @@ class TestRotationArrangementCRUD:
             format='json',
         )
         rid = resp.json()['data']['id']
-        # 🔴 S5-19：stage 不再经批量端点直写，改用 current_dept 验证批量更新仍生效
         resp = auth_client.post(
             f'{BASE}/rotation-arrangements/batch-assign/',
-            {'ids': [rid], 'current_dept': bu.id},
+            {'ids': [rid], 'stage': 'APPROVING'},
             format='json',
         )
         assert resp.status_code == 200
         assert resp.json()['data']['updated'] == 1
-
-    def test_batch_assign_rejects_stage(self, auth_client, bu_hierarchy, _seed_campus_data):
-        bu = bu_hierarchy['bu_valid']
-        resp = auth_client.post(
-            f'{BASE}/rotation-arrangements/',
-            {'person_id': 100003, 'intent_bu': bu.code},
-            format='json',
-        )
-        rid = resp.json()['data']['id']
-        # 阶段变更走 /transition/ 端点，批量端点必须拒绝 stage
-        resp = auth_client.post(
-            f'{BASE}/rotation-arrangements/batch-assign/',
-            {'ids': [rid], 'stage': 'ONGOING'},
-            format='json',
-        )
-        assert resp.status_code == 400
-        assert 'transition' in resp.json()['message']
 
 
 # --------------------------------------------------------------------------- #
@@ -380,44 +362,28 @@ class TestCapacitySaturation:
         from apps.campus_rotation.validators import MENTOR_ONGOING_CAPACITY
         mentor_id = mentor_user.id
 
-        def to_ongoing(rid):
-            r1 = auth_client.post(
-                f'{BASE}/rotation-arrangements/{rid}/transition/',
-                {'action': 'submit'}, format='json',
-            )
-            assert r1.status_code == 200, r1.content
-            return auth_client.post(
-                f'{BASE}/rotation-arrangements/{rid}/transition/',
-                {'action': 'approve'}, format='json',
-            )
-
-        # 填满 ONGOING 名额（经 submit→approve 流转到 ONGOING）
+        # 填满 ONGOING 名额
         for i in range(MENTOR_ONGOING_CAPACITY):
             r = auth_client.post(
                 f'{BASE}/rotation-arrangements/',
-                {'person_id': 300000 + i, 'mentor': mentor_id},
+                {'person_id': 300000 + i, 'mentor': mentor_id, 'stage': 'ONGOING'},
                 format='json',
             )
             assert r.status_code == 201, r.content
-            rid = r.json()['data']['id']
-            assert to_ongoing(rid).status_code == 200
 
         # 额外一个 ONGOING -> 409 导师名额已饱和
         r_over = auth_client.post(
             f'{BASE}/rotation-arrangements/',
-            {'person_id': 300000 + MENTOR_ONGOING_CAPACITY, 'mentor': mentor_id},
+            {'person_id': 300000 + MENTOR_ONGOING_CAPACITY, 'mentor': mentor_id, 'stage': 'ONGOING'},
             format='json',
         )
-        assert r_over.status_code == 201, r_over.content
-        rid_over = r_over.json()['data']['id']
-        r_approve_over = to_ongoing(rid_over)
-        assert r_approve_over.status_code == 409, r_approve_over.content
-        assert '导师名额已饱和' in r_approve_over.content.decode()
+        assert r_over.status_code == 409, r_over.content
+        assert '导师名额已饱和' in r_over.content.decode()
 
-        # 非 ONGOING 阶段不计入名额 -> 仍可创建（停在 PENDING，不占用导师 ONGOING 名额）
+        # 非 ONGOING 阶段不计入名额 -> 仍可创建
         r_pending = auth_client.post(
             f'{BASE}/rotation-arrangements/',
-            {'person_id': 399999, 'mentor': mentor_id},
+            {'person_id': 399999, 'mentor': mentor_id, 'stage': 'PENDING'},
             format='json',
         )
         assert r_pending.status_code == 201, r_pending.content

@@ -20,9 +20,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db import transaction
 from django.db.models import Count
-from django_fsm import TransitionNotAllowed
 
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.models import Department
@@ -157,19 +155,16 @@ class RotationArrangementViewSet(
 
     @action(detail=False, methods=['post'], url_path='batch-assign')
     def batch_assign(self, request):
-        """批量调整轮岗安排信息（部门/班主任等）。
+        """批量调整阶段/部门/班主任。
 
-        入参: {ids: [...], current_dept?, head_teacher?}
+        入参: {ids: [...], stage?, current_dept?, head_teacher?}
 
         🔴 S5-03：原实现 `.filter(id__in=ids).update(...)` 直接查默认 manager，
         绕过 get_queryset() 的 deleted_at 与行级隔离双重过滤 —— 传入他人部门的
         id 即可跨范围改数据。此处改为走 scope_queryset（scope_queryset 内部已含
         deleted_at 过滤，因为本类 get_queryset 首行即 filter(deleted_at__isnull=True)，
         这里需显式补上）。
-
-        🔴 S5-19：阶段（stage）为 FSM 流程态，**不再经批量端点直写**——否则绕过
-        @transition 流转校验。阶段变更一律走 `/rotation-arrangements/{id}/transition/`。
-        本端点仅接受 current_dept / head_teacher（其余字段属 S5-18 白名单扩展）。
+        ⚠️ 另：批量更新的字段白名单、事务包裹与审计日志属需求 5-3（S5-18），本批不含。
         """
         data = request.data or {}
         ids = data.get('ids') or []
@@ -178,12 +173,10 @@ class RotationArrangementViewSet(
                 {'success': False, 'message': 'ids 必填'},
                 status=400,
             )
-        if 'stage' in data:
-            return Response(
-                {'success': False, 'message': '阶段(stage)变更请走流转端点 /transition/'},
-                status=400,
-            )
         updates = {}
+        stage = data.get('stage')
+        if stage is not None:
+            updates['stage'] = stage
         current_dept = data.get('current_dept')
         if current_dept is not None:
             updates['current_dept_id'] = current_dept
@@ -197,7 +190,7 @@ class RotationArrangementViewSet(
             updates['head_teacher_id'] = head_teacher
         if not updates:
             return Response(
-                {'success': False, 'message': '至少提供一个更新字段（current_dept/head_teacher）'},
+                {'success': False, 'message': '至少提供一个更新字段（stage/current_dept/head_teacher）'},
                 status=400,
             )
         updates['updated_by_id'] = request.user.id
@@ -213,64 +206,6 @@ class RotationArrangementViewSet(
             f'ids={",".join(str(i) for i in ids)}', new_value=str(updates),
         )
         return Response({'success': True, 'data': {'updated': count}})
-
-    @action(detail=True, methods=['post'], url_path='transition')
-    def transition(self, request, pk=None):
-        """轮岗阶段流转（FSM，需求 5-4 / S5-19）。
-
-        入参: {action: 'submit'|'approve'|'reject'|'complete'|'terminate', reason?}
-
-        所有 stage 流转只经此端点，确保 @transition 的 source/guard/副作用生效；
-        通用 CRUD 的 stage 已设为只读（serializers.py）。非法流转（source 不匹配）
-        或守卫不满足抛 TransitionNotAllowed → 统一返 409（对齐 application 服务契约）。
-        """
-        instance = self.get_queryset().filter(pk=pk).first()
-        if instance is None:
-            return Response({'success': False, 'message': '轮岗安排不存在'}, status=404)
-
-        data = request.data or {}
-        action = data.get('action')
-        reason = data.get('reason')
-        allowed = {'submit', 'approve', 'reject', 'complete', 'terminate'}
-        if action not in allowed:
-            return Response(
-                {'success': False, 'message': f'不支持的流转动作: {action}'},
-                status=400,
-            )
-
-        method = getattr(instance, action, None)
-        if method is None or not hasattr(method, '_django_fsm'):
-            return Response(
-                {'success': False, 'message': f'当前状态不允许 {action}'},
-                status=409,
-            )
-
-        try:
-            with transaction.atomic():
-                if action == 'terminate':
-                    if not reason:
-                        return Response(
-                            {'success': False, 'message': '终止必须填写原因'},
-                            status=400,
-                        )
-                    method(reason=reason)
-                else:
-                    method()
-                instance.save()
-        except TransitionNotAllowed as e:
-            return Response(
-                {'success': False, 'message': str(e) or f'当前状态不允许 {action}'},
-                status=409,
-            )
-
-        from apps.common.audit_helper import log_action
-        log_action(
-            self.request, f'stage:{action}', 'RotationArrangement',
-            instance.pk, new_value=instance.stage,
-        )
-        return Response(
-            {'success': True, 'data': {'id': str(instance.id), 'stage': instance.stage}}
-        )
 
 
 # ---------------------------------------------------------------------------
