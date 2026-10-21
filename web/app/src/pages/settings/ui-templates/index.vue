@@ -422,7 +422,9 @@ async function copyCode() {
   background: var(--border-hairline);
   border: 1px solid var(--border-hairline);
   overflow-x: auto;
-  max-height: 420px;
+  /* 代码块最大高度：本地令牌（演示页结构尺寸，设计系统无全局令牌） */
+  --stpl-code-max-h: 420px;
+  max-height: var(--stpl-code-max-h);
   overflow-y: auto;
 }
 .code-block code {

@@ -552,7 +552,9 @@ const rowActionColumns = [
 /* 四类速览卡片 */
 .spec-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* 规格卡最小列宽：本地令牌（演示页结构尺寸，设计系统无全局令牌） */
+  --stpl-spec-min-col: 220px;
+  grid-template-columns: repeat(auto-fit, minmax(var(--stpl-spec-min-col), 1fr));
   gap: var(--space-3);
 }
 .spec-card {
@@ -620,7 +622,11 @@ const rowActionColumns = [
   color: var(--ink-faint);
   white-space: nowrap;
 }
-.matrix-corner { width: 132px; }
+.matrix-corner {
+  /* 矩阵行头列宽：本地令牌（演示页结构尺寸，设计系统无全局令牌） */
+  --stpl-matrix-corner-w: 132px;
+  width: var(--stpl-matrix-corner-w);
+}
 .matrix-rowhead {
   display: table-cell;
   vertical-align: middle;
@@ -660,7 +666,7 @@ const rowActionColumns = [
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--space-5, 24px);
+  gap: var(--space-5);
   padding: var(--space-2) 0;
 }
 .size-demo-cell {
