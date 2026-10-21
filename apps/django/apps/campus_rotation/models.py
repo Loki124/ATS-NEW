@@ -466,3 +466,59 @@ class ConcurrentPostRecord(FullAuditModel, UUIDModel):
 
     def __str__(self):
         return f'{self.person_id}-{self.post_type}({self.sync_status})'
+
+
+class RotationApproval(FullAuditModel, UUIDModel):
+    """轮岗变更审批单（需求 5-5 / S5-17）。
+
+    兼岗记录创建**免审**；更换带教导师 `mentor` / 直接上级 `direct_manager` **需审批**；
+    其他字段（阶段、部门、日期）免审。
+
+    🔴 关键行为（规格 §6.5）：**审批期间 `RotationArrangement.mentor` /
+    `direct_manager` 不改** —— 改的是本申请单（old_value / new_value）。
+    只有审批动作 `approve` 通过后，才由审批服务在同一事务内落字段到
+    `RotationArrangement` 并写两条 AuditLog。`reject` 仅记录，不落字段。
+    """
+
+    TYPE_CHOICES = [
+        ('MENTOR_CHANGE', '更换带教导师'),
+        ('MANAGER_CHANGE', '更换直接上级'),
+    ]
+
+    STATUS_CHOICES = [
+        ('PENDING', '待审批'),
+        ('APPROVED', '已通过'),
+        ('REJECTED', '已驳回'),
+    ]
+
+    arrangement = models.ForeignKey(
+        RotationArrangement, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='approvals', verbose_name='轮岗安排',
+    )
+    change_type = models.CharField(
+        max_length=16, choices=TYPE_CHOICES, verbose_name='变更类型',
+    )
+    # 存 user_id 字符串（Char(64)），与规格一致；不用 FK 是为了保留
+    # 「人员被删除后仍可追溯申请内容」的历史快照。
+    old_value = models.CharField(max_length=64, blank=True, default='', verbose_name='原值')
+    new_value = models.CharField(max_length=64, blank=True, default='', verbose_name='新值')
+    reason = models.TextField(blank=True, default='', verbose_name='变更原因')
+    status = models.CharField(
+        max_length=16, choices=STATUS_CHOICES, default='PENDING',
+        db_index=True, verbose_name='审批状态',
+    )
+    approver = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='审批人',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name='审批时间')
+    reject_reason = models.TextField(blank=True, default='', verbose_name='驳回原因')
+
+    class Meta:
+        db_table = 'campus_rotation_approvals'
+        verbose_name = '轮岗变更审批'
+        verbose_name_plural = '轮岗变更审批'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.change_type}:{self.status}'

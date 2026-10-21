@@ -449,7 +449,9 @@ RESOURCES = [
     ('recruit:campus:headteacher:assign', '班主任分配学生', 'BUTTON', 'campus'),
     # 需求 5-5：兼岗免审，换带教导师/直接上级需审批
     ('recruit:campus:approval:list', '轮岗审批列表', 'BUTTON', 'campus'),
-    ('recruit:campus:approval:approve', '轮岗审批通过/驳回', 'BUTTON', 'campus'),
+    ('recruit:campus:approval:create', '提交轮岗变更申请', 'BUTTON', 'campus'),
+    ('recruit:campus:approval:approve', '轮岗审批通过', 'BUTTON', 'campus'),
+    ('recruit:campus:approval:reject', '轮岗审批驳回', 'BUTTON', 'campus'),
     # 需求 5-6：操作日志追溯
     # 🔴 分段名必须 snake_case（规范 R7 / core.0028 统一），禁连字符；
     # 原 operation-log 与 0028 的 SEG_RENAME 未对齐，会导致新库 seed 后残留连字符码、

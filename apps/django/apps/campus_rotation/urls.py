@@ -24,6 +24,11 @@
   GET/POST   /concurrent-post-records/              兼岗记录（需求 5-2，S5-25）
   GET/PUT/DELETE /concurrent-post-records/{id}/
   POST       /concurrent-post-records/{id}/sync/    摩卡同步（S5-26）
+
+  GET/POST   /rotation-approvals/                   轮岗变更审批（需求 5-5，S5-17）
+  GET/PUT/DELETE /rotation-approvals/{id}/
+  POST       /rotation-approvals/{id}/approve/      审批通过（落字段）
+  POST       /rotation-approvals/{id}/reject/       审批驳回（不落字段）
 """
 from rest_framework.routers import DefaultRouter
 
@@ -34,6 +39,7 @@ from .views import (
     ConcurrentPostRecordViewSet,
     LiveRoomViewSet,
     ResourceBuSummaryView,
+    RotationApprovalViewSet,
     RotationArrangementViewSet,
     RotationStageViewSet,
     ServiceDeptViewSet,
@@ -51,6 +57,10 @@ router.register(
 router.register(
     r'concurrent-post-records', ConcurrentPostRecordViewSet,
     basename='campus-concurrent-post-record',
+)
+router.register(
+    r'rotation-approvals', RotationApprovalViewSet,
+    basename='campus-rotation-approval',
 )
 router.register(r'live-rooms', LiveRoomViewSet, basename='campus-live-room')
 router.register(r'class-rooms', ClassRoomViewSet, basename='campus-class-room')

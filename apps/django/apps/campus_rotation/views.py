@@ -37,6 +37,7 @@ from .models import (
     ClassRoom,
     ConcurrentPostRecord,
     LiveRoom,
+    RotationApproval,
     RotationArrangement,
     RotationStage,
     ServiceDept,
@@ -45,11 +46,24 @@ from .serializers import (
     ClassRoomSerializer,
     ConcurrentPostRecordSerializer,
     LiveRoomSerializer,
+    RotationApprovalSerializer,
     RotationArrangementSerializer,
     RotationStageSerializer,
     ServiceDeptSerializer,
 )
 from .validators import user_has_campus_role
+
+
+class BatchAssignError(Exception):
+    """批量调整中的单条失败（用于触发整批回滚）。
+
+    携带 detail = {'id': ..., 'reason': ...}，由 batch_assign 捕获后转成
+    「整批拒绝 + 失败明细」响应。
+    """
+
+    def __init__(self, detail: dict):
+        super().__init__(detail.get('reason', '批量调整失败'))
+        self.detail = detail
 
 
 class CampusCRUDMixin:
@@ -166,19 +180,22 @@ class RotationArrangementViewSet(
 
     @action(detail=False, methods=['post'], url_path='batch-assign')
     def batch_assign(self, request):
-        """批量调整轮岗安排信息（部门/班主任等）。
+        """批量调整轮岗安排信息（需求 5-3 / S5-18）。
 
-        入参: {ids: [...], current_dept?, head_teacher?}
+        入参: {ids: [...], <字段>: <值>, ...}
 
-        🔴 S5-03：原实现 `.filter(id__in=ids).update(...)` 直接查默认 manager，
-        绕过 get_queryset() 的 deleted_at 与行级隔离双重过滤 —— 传入他人部门的
-        id 即可跨范围改数据。此处改为走 scope_queryset（scope_queryset 内部已含
-        deleted_at 过滤，因为本类 get_queryset 首行即 filter(deleted_at__isnull=True)，
-        这里需显式补上）。
+        字段白名单（规格 §6.3）：
+          current_dept / head_teacher / mentor / direct_manager /
+          rotation_start / rotation_end / service_dept
+        🔴 `stage` **不在白名单**：阶段是 FSM 流程态，必须走 /transition/ 端点。
 
-        🔴 S5-19：阶段（stage）为 FSM 流程态，**不再经批量端点直写**——否则绕过
-        @transition 流转校验。阶段变更一律走 `/rotation-arrangements/{id}/transition/`。
-        本端点仅接受 current_dept / head_teacher（其余字段属 S5-18 白名单扩展）。
+        🔴 mentor / direct_manager 走**审批**（需求 5-5）：本端点不直改这两个字段，
+        而是为每条记录创建 RotationApproval 申请单；审批通过后才由审批动作落字段。
+
+        事务与失败语义（规格 §6.3）：
+          - 全批校验通过后才落库（transaction.atomic 包裹）
+          - 任一条校验失败 → **整批拒绝**，返回失败明细（不做静默部分成功）
+          - 每条成功记录写一条 AuditLog
         """
         data = request.data or {}
         ids = data.get('ids') or []
@@ -192,36 +209,156 @@ class RotationArrangementViewSet(
                 {'success': False, 'message': '阶段(stage)变更请走流转端点 /transition/'},
                 status=400,
             )
-        updates = {}
-        current_dept = data.get('current_dept')
-        if current_dept is not None:
-            updates['current_dept_id'] = current_dept
-        head_teacher = data.get('head_teacher')
-        if head_teacher is not None:
-            if not user_has_campus_role(head_teacher, 'HEAD_TEACHER'):
-                return Response(
-                    {'success': False, 'message': '班主任须具备 HEAD_TEACHER 身份'},
-                    status=400,
-                )
-            updates['head_teacher_id'] = head_teacher
-        if not updates:
+
+        # ── ① 字段白名单 ──
+        allowed_fields = {
+            'current_dept', 'head_teacher', 'mentor', 'direct_manager',
+            'rotation_start', 'rotation_end', 'service_dept',
+        }
+        payload_fields = {k: v for k, v in data.items() if k in allowed_fields}
+        unknown_fields = [
+            k for k in data.keys()
+            if k not in allowed_fields and k != 'ids'
+        ]
+        if unknown_fields:
             return Response(
-                {'success': False, 'message': '至少提供一个更新字段（current_dept/head_teacher）'},
+                {
+                    'success': False,
+                    'message': f'不支持的字段：{",".join(sorted(unknown_fields))}；'
+                               f'可用字段：{",".join(sorted(allowed_fields))}',
+                },
                 status=400,
             )
-        updates['updated_by_id'] = request.user.id
-        # 🔴 S5-03：批量更新必须走 scope_queryset 收口，否则传入他人部门的 id
-        #    即可跨范围改数据（行级隔离对 batch_assign 形同虚设）。
-        #    scope_queryset 内部不含 deleted_at 过滤，故外层先 filter(deleted_at__isnull=True)。
-        count = self.scope_queryset(
-            RotationArrangement.objects.filter(id__in=ids, deleted_at__isnull=True)
-        ).update(**updates)
-        from apps.common.audit_helper import log_action
-        log_action(
-            self.request, 'batch_assign', 'RotationArrangement',
-            f'ids={",".join(str(i) for i in ids)}', new_value=str(updates),
+        if not payload_fields:
+            return Response(
+                {
+                    'success': False,
+                    'message': '至少提供一个更新字段（'
+                               f'{"/".join(sorted(allowed_fields))}）',
+                },
+                status=400,
+            )
+
+        # ── ② 逐条目标校验（先全批校验，任一失败整批拒绝）──
+        from apps.campus_rotation.services.approval import (
+            ApprovalError,
+            create_approval_request,
         )
-        return Response({'success': True, 'data': {'updated': count}})
+
+        # 2.1 目标记录必须在可见范围内（行级隔离）
+        visible = self.scope_queryset(
+            RotationArrangement.objects.filter(id__in=ids, deleted_at__isnull=True)
+        )
+        targets = {str(o.id): o for o in visible}
+        missing = [str(i) for i in ids if str(i) not in targets]
+        if missing:
+            return Response(
+                {
+                    'success': False,
+                    'message': '部分记录不存在或不在可操作范围内',
+                    'data': {'failed': [{'id': mid, 'reason': '记录不存在或无权限'} for mid in missing]},
+                },
+                status=400,
+            )
+
+        # 2.2 字段级校验（对所有目标一致校验，因为传的是同一组值）
+        field_errors = []
+        if 'head_teacher' in payload_fields and payload_fields['head_teacher'] is not None:
+            if not user_has_campus_role(payload_fields['head_teacher'], 'HEAD_TEACHER'):
+                field_errors.append({'field': 'head_teacher', 'reason': '班主任须具备 HEAD_TEACHER 身份'})
+        if 'mentor' in payload_fields and payload_fields['mentor'] is not None:
+            if not user_has_campus_role(payload_fields['mentor'], 'CAMPUS_MENTOR'):
+                field_errors.append({'field': 'mentor', 'reason': '带教导师须具备 CAMPUS_MENTOR 身份'})
+        # 日期区间
+        rs = payload_fields.get('rotation_start')
+        re_ = payload_fields.get('rotation_end')
+        if rs and re_ and str(re_) < str(rs):
+            field_errors.append({'field': 'rotation_end', 'reason': '轮岗结束不能早于轮岗开始'})
+        # FK 存在性（current_dept / service_dept）
+        fk_instances = {}
+        for fk_field, model in (('current_dept', Department), ('service_dept', ServiceDept)):
+            if fk_field in payload_fields and payload_fields[fk_field] is not None:
+                inst = model.objects.filter(pk=payload_fields[fk_field]).first()
+                if inst is None:
+                    field_errors.append({'field': fk_field, 'reason': '目标记录不存在'})
+                else:
+                    fk_instances[fk_field] = inst
+        if field_errors:
+            return Response(
+                {
+                    'success': False,
+                    'message': '校验失败，整批未执行',
+                    'data': {'failed': field_errors},
+                },
+                status=400,
+            )
+
+        # ── ③ 事务：全批落库 ──
+        from apps.common.audit_helper import log_action
+
+        # mentor / direct_manager 需审批 → 单独走申请单，不直改
+        approval_fields = {'mentor', 'direct_manager'}
+        direct_fields = {
+            k: v for k, v in payload_fields.items() if k not in approval_fields
+        }
+
+        updated_count = 0
+        approval_count = 0
+        try:
+            with transaction.atomic():
+                for obj in targets.values():
+                    if direct_fields:
+                        for field, value in direct_fields.items():
+                            # 🔴 FK 字段必须赋模型实例，不能赋 pk 字符串
+                            #    （Django 报 "must be a Department instance"）
+                            setattr(obj, field, fk_instances.get(field, value))
+                        obj.updated_by_id = request.user.id
+                        obj.save(update_fields=list(direct_fields.keys()) + ['updated_by', 'updated_at'])
+                        updated_count += 1
+                        log_action(
+                            request, 'batch_assign', 'RotationArrangement', str(obj.pk),
+                            new_value=str(direct_fields),
+                        )
+                    # 需审批的字段：为每条记录建申请单（不改业务字段）
+                    for field, ctype in (('mentor', 'MENTOR_CHANGE'),
+                                         ('direct_manager', 'MANAGER_CHANGE')):
+                        if field not in payload_fields:
+                            continue
+                        new_user_id = payload_fields[field]
+                        if new_user_id is None:
+                            continue
+                        try:
+                            create_approval_request(
+                                arrangement=obj,
+                                change_type=ctype,
+                                new_user_id=new_user_id,
+                                reason='批量调整发起',
+                            )
+                            approval_count += 1
+                            log_action(
+                                request, 'batch_approve_req', 'RotationApproval',
+                                str(obj.pk), field=ctype, new_value=str(new_user_id),
+                            )
+                        except ApprovalError as exc:
+                            # 单条建单失败 → 整批拒绝（事务回滚）
+                            raise BatchAssignError({'id': str(obj.pk), 'reason': str(exc)})
+        except BatchAssignError as exc:
+            return Response(
+                {
+                    'success': False,
+                    'message': '整批拒绝：部分记录变更申请创建失败，已全部回滚',
+                    'data': {'failed': [exc.detail]},
+                },
+                status=400,
+            )
+
+        return Response({
+            'success': True,
+            'data': {
+                'updated': updated_count,
+                'approvalRequested': approval_count,
+            },
+        })
 
     @action(detail=True, methods=['post'], url_path='transition')
     def transition(self, request, pk=None):
@@ -427,6 +564,139 @@ class ConcurrentPostRecordViewSet(
                 'syncRequestId': instance.sync_request_id,
                 'syncError': instance.sync_error,
             },
+        })
+
+
+# ---------------------------------------------------------------------------
+# RotationApproval（需求 5-5 / S5-17：轮岗变更审批）
+# ---------------------------------------------------------------------------
+class RotationApprovalViewSet(
+    EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet
+):
+    """轮岗变更审批单（更换带教导师 / 直接上级）。
+
+    🔴 核心语义（规格 §6.5）：**创建申请单时不改业务字段** ——
+    `RotationArrangement.mentor` / `direct_manager` 在审批通过（`approve`）后
+    才由 `services/approval.py` 在同一事务内落值并写两条 AuditLog。
+
+    免审路径（本 ViewSet 不介入）：兼岗记录创建、阶段/部门/日期等其它字段变更。
+    """
+
+    queryset = RotationApproval.objects.all()
+    serializer_class = RotationApprovalSerializer
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:campus:approval:list'
+    permission_required_map = {
+        'create': 'recruit:campus:approval:create',
+        'update': 'recruit:campus:approval:approve',
+        'partial_update': 'recruit:campus:approval:approve',
+        'destroy': 'recruit:campus:approval:approve',
+        'approve': 'recruit:campus:approval:approve',
+        'reject': 'recruit:campus:approval:reject',
+    }
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = RotationApproval.objects.filter(deleted_at__isnull=True)
+        params = self.request.query_params
+        arrangement = params.get('arrangement')
+        if arrangement:
+            qs = qs.filter(arrangement_id=arrangement)
+        status = params.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        change_type = params.get('change_type')
+        if change_type:
+            qs = qs.filter(change_type=change_type)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        """创建变更申请单。
+
+        🔴 `old_value` 由服务端从安排当前值快照生成，忽略客户端传入值。
+        """
+        from apps.campus_rotation.services.approval import (
+            ApprovalError,
+            create_approval_request,
+        )
+
+        data = request.data or {}
+        arrangement = None
+        arrangement_id = data.get('arrangement')
+        if arrangement_id:
+            # 🔴 必须显式查 RotationArrangement，不能用 self.get_queryset().model
+            #    （那是 RotationApproval，会误查审批单导致恒 404）
+            arrangement = RotationArrangement.objects.filter(
+                pk=arrangement_id, deleted_at__isnull=True,
+            ).first()
+            if arrangement is None:
+                return Response(
+                    {'success': False, 'message': '轮岗安排不存在', 'code': 404},
+                    status=404,
+                )
+
+        try:
+            approval = create_approval_request(
+                arrangement=arrangement,
+                change_type=data.get('change_type'),
+                new_user_id=data.get('new_value'),
+                reason=data.get('reason') or '',
+            )
+        except ApprovalError as exc:
+            return Response(
+                {'success': False, 'message': str(exc), 'code': 400},
+                status=400,
+            )
+
+        from apps.common.audit_helper import log_action
+        log_action(
+            request, 'create', 'RotationApproval', approval.pk,
+            field=approval.change_type,
+            old_value=approval.old_value, new_value=approval.new_value,
+        )
+        data_out = RotationApprovalSerializer(approval).data
+        return Response({'success': True, 'data': data_out}, status=201)
+
+    @action(detail=True, methods=['post'], url_path='approve')
+    def approve(self, request, pk=None):
+        """审批通过：落业务字段 + 同事务写两条 AuditLog。"""
+        from apps.campus_rotation.services.approval import ApprovalError, approve as do_approve
+
+        instance = self.get_object()
+        try:
+            do_approve(instance, approver=request.user)
+        except ApprovalError as exc:
+            return Response(
+                {'success': False, 'message': str(exc), 'code': 409},
+                status=409,
+            )
+        instance.refresh_from_db()
+        return Response({
+            'success': True,
+            'data': RotationApprovalSerializer(instance).data,
+        })
+
+    @action(detail=True, methods=['post'], url_path='reject')
+    def reject(self, request, pk=None):
+        """审批驳回：仅记录，不落业务字段。"""
+        from apps.campus_rotation.services.approval import ApprovalError, reject as do_reject
+
+        instance = self.get_object()
+        data = request.data or {}
+        try:
+            do_reject(
+                instance, approver=request.user,
+                reason=data.get('reason') or data.get('reject_reason') or '',
+            )
+        except ApprovalError as exc:
+            return Response(
+                {'success': False, 'message': str(exc), 'code': 409},
+                status=409,
+            )
+        instance.refresh_from_db()
+        return Response({
+            'success': True,
+            'data': RotationApprovalSerializer(instance).data,
         })
 
 

@@ -11,6 +11,7 @@ from .models import (
     ClassRoom,
     ConcurrentPostRecord,
     LiveRoom,
+    RotationApproval,
     RotationArrangement,
     RotationStage,
     ServiceDept,
@@ -371,5 +372,37 @@ class ConcurrentPostRecordSerializer(serializers.ModelSerializer):
         post_type = attrs.get('post_type') or getattr(self.instance, 'post_type', None)
         if not post_type:
             raise serializers.ValidationError({'post_type': '兼岗类型必填'})
+
+        return attrs
+
+
+# ---------------------------------------------------------------------------
+# RotationApproval（需求 5-5 / S5-17：轮岗变更审批）
+# ---------------------------------------------------------------------------
+class RotationApprovalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RotationApproval
+        fields = [
+            'id', 'arrangement', 'change_type',
+            'old_value', 'new_value', 'reason',
+            'status', 'approver', 'approved_at', 'reject_reason',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at',
+            # 审批状态/审批人/审批时间由审批动作独占写入
+            'status', 'approver', 'approved_at', 'reject_reason',
+            # old_value 由服务端从安排当前值快照生成，客户端不得伪造
+            'old_value',
+        ]
+
+    def validate(self, attrs):
+        change_type = attrs.get('change_type') or getattr(self.instance, 'change_type', None)
+        if change_type not in dict(RotationApproval.TYPE_CHOICES):
+            raise serializers.ValidationError({'change_type': '不支持的变更类型'})
+
+        new_value = attrs.get('new_value')
+        if new_value is not None and not str(new_value).strip():
+            raise serializers.ValidationError({'new_value': '新值不能为空'})
 
         return attrs
