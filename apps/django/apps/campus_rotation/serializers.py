@@ -7,7 +7,7 @@
 """
 from rest_framework import serializers
 
-from .models import ClassRoom, LiveRoom, RotationArrangement, ServiceDept
+from .models import ClassRoom, LiveRoom, RotationArrangement, RotationStage, ServiceDept
 from .validators import (
     CapacityExceeded,
     MENTOR_ONGOING_CAPACITY,
@@ -278,5 +278,51 @@ class RotationArrangementSerializer(serializers.ModelSerializer):
                 ).exclude(id=instance.id if instance else None).count()
                 if ongoing >= MENTOR_ONGOING_CAPACITY:
                     raise CapacityExceeded('导师名额已饱和')
+
+        return attrs
+
+
+# ---------------------------------------------------------------------------
+# RotationStage（需求 5-8 / S5-21：N 段轮岗，每段独立考核）
+# ---------------------------------------------------------------------------
+class RotationStageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RotationStage
+        fields = [
+            'id', 'arrangement', 'stage_no', 'department', 'mentor',
+            'planned_start', 'planned_end', 'actual_start', 'actual_end',
+            'assessment_status', 'assessment_result', 'assessed_at', 'assessed_by',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'assessed_at']
+
+    def validate(self, attrs):
+        arrangement = attrs.get('arrangement') or getattr(self.instance, 'arrangement', None)
+        stage_no = attrs.get('stage_no') or getattr(self.instance, 'stage_no', None)
+        if arrangement and stage_no:
+            qs = RotationStage.objects.filter(
+                arrangement=arrangement, stage_no=stage_no, deleted_at__isnull=True,
+            ).exclude(id=self.instance.id if self.instance else None)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {'stageNo': '同一轮岗安排的阶段期数必须唯一'})
+
+        department = attrs.get('department')
+        if department is not None and not department.is_active:
+            raise serializers.ValidationError(
+                {'department': '阶段轮岗部门未启用'})
+
+        mentor = attrs.get('mentor')
+        if mentor is not None and not user_has_campus_role(mentor.id, 'CAMPUS_MENTOR'):
+            raise serializers.ValidationError(
+                {'mentor': '阶段带教导师须具备校园导师（CAMPUS_MENTOR）身份'})
+
+        # 日期区间：end >= start（计划与实际分别校验）
+        for s_fld, e_fld in (('planned_start', 'planned_end'), ('actual_start', 'actual_end')):
+            s = attrs.get(s_fld) or getattr(self.instance, s_fld, None)
+            e = attrs.get(e_fld) or getattr(self.instance, e_fld, None)
+            if s and e and e < s:
+                raise serializers.ValidationError(
+                    {e_fld: '结束日期不能早于开始日期'})
 
         return attrs

@@ -336,3 +336,56 @@ class RotationArrangement(FSMModelMixin, FullAuditModel, UUIDModel):
         if reason:
             prefix = f'{self.note}\n' if self.note else ''
             self.note = f'{prefix}[终止原因] {reason}'
+
+
+class RotationStage(FullAuditModel, UUIDModel):
+    """轮岗阶段（需求 5-8 / S5-21）：支持 N 段轮岗，每段独立考核。
+
+    🔴 G-06 修正：`stage`（RotationArrangement 的流程态）与 `stage_no`（期数）**正交**，
+    不混用同一字段。本表记录每一段的具体部门 / 带教导师 / 计划与实际起止 / 考核结果。
+
+    `assessment_status` 取值：PENDING（未判定）/ WAIVED（免考）/ REQUIRED（需考核）/
+    DONE（已考核）。计算口径见 S5-22（>=15 天 → REQUIRED，<15 天 → WAIVED）。
+    """
+
+    ASSESSMENT_CHOICES = [
+        ('PENDING', '未判定'),
+        ('WAIVED', '免考'),
+        ('REQUIRED', '需考核'),
+        ('DONE', '已考核'),
+    ]
+
+    arrangement = models.ForeignKey(
+        RotationArrangement, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='stages', verbose_name='轮岗安排',
+    )
+    stage_no = models.PositiveIntegerField(verbose_name='阶段期数')
+    department = models.ForeignKey(
+        Department, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='阶段轮岗部门',
+    )
+    mentor = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='阶段带教导师',
+    )
+    planned_start = models.DateField(null=True, blank=True, verbose_name='计划开始')
+    planned_end = models.DateField(null=True, blank=True, verbose_name='计划结束')
+    actual_start = models.DateField(null=True, blank=True, verbose_name='实际开始')
+    actual_end = models.DateField(null=True, blank=True, verbose_name='实际结束')
+    assessment_status = models.CharField(
+        max_length=16, choices=ASSESSMENT_CHOICES, default='PENDING',
+        verbose_name='考核状态',
+    )
+    assessment_result = models.TextField(blank=True, default='', verbose_name='考核结果')
+    assessed_at = models.DateTimeField(null=True, blank=True, verbose_name='考核时间')
+    assessed_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='考核人',
+    )
+
+    class Meta:
+        db_table = 'campus_rotation_stages'
+        verbose_name = '轮岗阶段'
+        verbose_name_plural = '轮岗阶段'
+        unique_together = [('arrangement', 'stage_no')]
+        ordering = ['arrangement', 'stage_no']

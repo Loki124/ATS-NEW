@@ -33,11 +33,12 @@ from django.db import IntegrityError
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from .models import ClassRoom, LiveRoom, RotationArrangement, ServiceDept
+from .models import ClassRoom, LiveRoom, RotationArrangement, RotationStage, ServiceDept
 from .serializers import (
     ClassRoomSerializer,
     LiveRoomSerializer,
     RotationArrangementSerializer,
+    RotationStageSerializer,
     ServiceDeptSerializer,
 )
 from .validators import user_has_campus_role
@@ -271,6 +272,41 @@ class RotationArrangementViewSet(
         return Response(
             {'success': True, 'data': {'id': str(instance.id), 'stage': instance.stage}}
         )
+
+
+# ---------------------------------------------------------------------------
+# RotationStage（需求 5-8 / S5-21：N 段轮岗，每段独立考核）
+# ---------------------------------------------------------------------------
+class RotationStageViewSet(
+    EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet
+):
+    """轮岗阶段 CRUD。
+
+    顶层资源，按 `?arrangement={id}` 过滤归属某轮岗安排的阶段；
+    阶段期数 (stage_no) 在安排内唯一（unique_together，序列化器层校验）。
+
+    🔴 行级隔离：阶段数据依附于轮岗安排，本ViewSet 不单独套 ScopeQuerysetMixin，
+    由调用方在 `arrangement` 维度控制可见性；跨实体的完整隔离矩阵归 S5-24 统一落地。
+    """
+
+    queryset = RotationStage.objects.all()
+    serializer_class = RotationStageSerializer
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:campus:rotation:list'
+    permission_required_map = {
+        'create': 'recruit:campus:rotation:edit',
+        'update': 'recruit:campus:rotation:edit',
+        'partial_update': 'recruit:campus:rotation:edit',
+        'destroy': 'recruit:campus:rotation:delete',
+    }
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = RotationStage.objects.filter(deleted_at__isnull=True)
+        arrangement = self.request.query_params.get('arrangement')
+        if arrangement:
+            qs = qs.filter(arrangement_id=arrangement)
+        return qs
 
 
 # ---------------------------------------------------------------------------

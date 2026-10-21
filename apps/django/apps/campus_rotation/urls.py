@@ -27,6 +27,7 @@ from .views import (
     LiveRoomViewSet,
     ResourceBuSummaryView,
     RotationArrangementViewSet,
+    RotationStageViewSet,
     ServiceDeptViewSet,
 )
 
@@ -34,6 +35,10 @@ router = DefaultRouter()
 router.register(
     r'rotation-arrangements', RotationArrangementViewSet,
     basename='campus-rotation-arrangement',
+)
+router.register(
+    r'rotation-stages', RotationStageViewSet,
+    basename='campus-rotation-stage',
 )
 router.register(r'live-rooms', LiveRoomViewSet, basename='campus-live-room')
 router.register(r'class-rooms', ClassRoomViewSet, basename='campus-class-room')
