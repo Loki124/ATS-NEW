@@ -23,7 +23,7 @@ class OnboardingViewSet(BaseModelViewSet):
     """入职流程 ViewSet - 按职位部门 scope 过滤 (Fix 1)"""
     queryset = Onboarding.objects.all()
     permission_classes = [V2Permission]
-    permission_required = 'recruit:onboarding:list'
+    permission_required = 'recruit:candidate:onboarding:list'  # 0047: 自 recruit:onboarding:list 归位候选人管理
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['state', 'candidate', 'position']

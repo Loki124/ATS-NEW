@@ -203,8 +203,9 @@ class TestSeedResourceConvention:
         missing = [c for c in mod.RESOURCE_SUB_MODULES if c not in inlined]
         assert not missing, f'RESOURCE_SUB_MODULES 有码未内联进 RESOURCES：{missing}'
         # 反向：清单自身不得重复（dict 天然去重，此处防未来改成 list/重复键语义漂移）
-        assert len(mod.RESOURCE_SUB_MODULES) == 10, \
-            f'RESOURCE_SUB_MODULES 应恰为 10 条（候选人管理 6 基础 + 4 offer），' \
+        # 2026-10-21（0047）：待入职并入候选人详情页「录用信息」页签，+3 条 onboarding 操作
+        assert len(mod.RESOURCE_SUB_MODULES) == 13, \
+            f'RESOURCE_SUB_MODULES 应恰为 13 条（候选人管理 6 基础 + 4 offer + 3 录用信息），' \
             f'实际 {len(mod.RESOURCE_SUB_MODULES)} 条'
 
     def test_r10_seed_has_no_disabled_names(self):

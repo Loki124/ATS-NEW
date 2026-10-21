@@ -42,6 +42,13 @@ RESOURCES = [
     ('recruit:candidate:bg_check:start', '发起背调', 'BUTTON', 'candidate'),
     ('recruit:candidate:bg_check:import', '上传背调报告', 'BUTTON', 'candidate'),
     ('recruit:candidate:bg_check:cancel', '取消背调', 'BUTTON', 'candidate'),
+    # --- module: candidate / submodule: onboarding（2026-10-21 待入职并入候选人详情页
+    #     「录用信息」页签，0047 自 module:onboarding 归位；与 offer 子模块同构：
+    #     R2 第 2 段==module=candidate，码段保留 onboarding 与后端模型/路由同源，
+    #     中文名与 sub_module 同步页签「录用信息」）---
+    ('recruit:candidate:onboarding:list', '录用信息列表', 'BUTTON', 'candidate'),
+    ('recruit:candidate:onboarding:create', '创建录用信息', 'BUTTON', 'candidate'),
+    ('recruit:candidate:onboarding:edit', '编辑录用信息', 'BUTTON', 'candidate'),
     # --- module: interview ---
     ('recruit:interview:menu:view', '面试菜单', 'MENU', 'interview'),
     ('recruit:interview:list', '面试列表', 'BUTTON', 'interview'),
@@ -74,18 +81,12 @@ RESOURCES = [
     ('recruit:position:edit', '编辑职位', 'BUTTON', 'position'),
     ('recruit:position:publish', '发布职位', 'BUTTON', 'position'),
     ('recruit:position:close', '关闭职位', 'BUTTON', 'position'),
-    # --- module: application ---
-    ('recruit:application:menu:view', '申请菜单', 'MENU', 'application'),
-    ('recruit:application:list', '申请列表', 'BUTTON', 'application'),
-    ('recruit:application:create', '创建申请', 'BUTTON', 'application'),
-    ('recruit:application:edit', '编辑申请', 'BUTTON', 'application'),
-    ('recruit:application:advance', '推进流程', 'BUTTON', 'application'),
-    ('recruit:application:reject', '拒绝申请', 'BUTTON', 'application'),
-    # --- module: onboarding ---
-    ('recruit:onboarding:menu:view', '入职菜单', 'MENU', 'onboarding'),
-    ('recruit:onboarding:list', '入职列表', 'BUTTON', 'onboarding'),
-    ('recruit:onboarding:create', '创建入职', 'BUTTON', 'onboarding'),
-    ('recruit:onboarding:edit', '编辑入职', 'BUTTON', 'onboarding'),
+    # --- module: candidate / submodule: application（2026-10-21 兵哥确认：「申请」=候选人每次
+    #     应聘记录，在候选人详情页展示多次投递；0048 自独立 module:application 归位，
+    #     与 offer/onboarding 子模块同构。menu:view/create/edit/reject 四码无任何端点
+    #     守卫与前端调用点（menu:view 为无页面孤儿码），停用不再 seed，见 0048）---
+    ('recruit:candidate:application:list', '应聘记录列表', 'BUTTON', 'candidate'),
+    ('recruit:candidate:application:advance', '推进流程', 'BUTTON', 'candidate'),
     # --- module: referral ---
     ('recruit:referral:menu:view', '内推菜单', 'MENU', 'referral'),
     ('recruit:referral:list', '内推列表', 'BUTTON', 'referral'),
@@ -590,6 +591,13 @@ RESOURCE_SUB_MODULES = {
     'recruit:candidate:offer:create': 'offer管理',
     'recruit:candidate:offer:edit': 'offer管理',
     'recruit:candidate:offer:list': 'offer管理',
+    # 候选人管理 / 录用信息（3 条 onboarding 操作，2026-10-21 待入职并入详情页页签，0047 归位）
+    'recruit:candidate:onboarding:create': '录用信息',
+    'recruit:candidate:onboarding:edit': '录用信息',
+    'recruit:candidate:onboarding:list': '录用信息',
+    # 候选人管理 / 应聘记录（2 条 application 操作，2026-10-21 兵哥确认申请=每次应聘记录，0048 归位）
+    'recruit:candidate:application:list': '应聘记录',
+    'recruit:candidate:application:advance': '应聘记录',
 }
 
 
