@@ -16,7 +16,13 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { RESOURCE_MODULE_LABELS, buildSubModuleIndex, resourceModuleLabel } from '../permissionModules'
+import {
+  RESOURCE_MODULE_LABELS,
+  buildSubModuleIndex,
+  resourceModuleLabel,
+  buildPermissionTree,
+  collectNodeCodes,
+} from '../permissionModules'
 
 // 跨前后端的真源路径：从本测试文件（web/app/src/utils/__tests__）上溯到仓库根，
 // 再进入 Django 种子文件。
@@ -97,5 +103,68 @@ describe('管理单元归入系统设置模块（0042）', () => {
     const index = buildSubModuleIndex(resources)
     // 子模块索引按第 4 段为 menu 判定，故只有 menu:view 参与建索引
     expect(index.settings?.mgmt_unit).toBe('管理单元')
+  })
+})
+
+/**
+ * 功能权限树按显式 sub_module 分组（2026-10-21 兵哥）。
+ *
+ * 背景：资源管理页已给候选人管理 10 条资源登记子模块（6 基础功能 + 4 offer管理，
+ * 存于 permission_resources.sub_module）。功能权限页签必须以该分类为准分组展示，
+ * 而不是按编码结构把 candidate:offer:* 推导成裸「offer」码段分组。
+ * 本测试锁定：显式分类优先、分组名即分类值、资源分类调整后树自动同步（数据驱动）。
+ */
+describe('功能权限树：显式 sub_module 分组优先（2026-10-21）', () => {
+  // 与 seed_v2_init.RESOURCE_SUB_MODULES 同构的样例（10 条候选人资源）
+  const resources = [
+    { resourceCode: 'recruit:candidate:create', resourceName: '新增候选人', subModule: '基础功能' },
+    { resourceCode: 'recruit:candidate:delete', resourceName: '删除候选人', subModule: '基础功能' },
+    { resourceCode: 'recruit:candidate:edit', resourceName: '编辑候选人', subModule: '基础功能' },
+    { resourceCode: 'recruit:candidate:export', resourceName: '导出候选人', subModule: '基础功能' },
+    { resourceCode: 'recruit:candidate:list', resourceName: '候选人列表', subModule: '基础功能' },
+    { resourceCode: 'recruit:candidate:menu:view', resourceName: '候选人菜单', subModule: '基础功能' },
+    { resourceCode: 'recruit:candidate:offer:approve', resourceName: '发起offer审批', subModule: 'offer管理' },
+    { resourceCode: 'recruit:candidate:offer:create', resourceName: '创建offer', subModule: 'offer管理' },
+    { resourceCode: 'recruit:candidate:offer:edit', resourceName: '编辑offer', subModule: 'offer管理' },
+    { resourceCode: 'recruit:candidate:offer:list', resourceName: '查看offer', subModule: 'offer管理' },
+  ]
+
+  const candidateOf = () => {
+    const tree = buildPermissionTree(resources)
+    const candidate = tree.find((n) => n.segment === 'candidate')
+    expect(candidate, '候选人模块节点应存在').toBeDefined()
+    return candidate!
+  }
+
+  it('按显式子模块分成两组，组名即分类值，按清单首现序排（基础功能在前）', () => {
+    expect(candidateOf().children.map((c) => c.label)).toEqual(['基础功能', 'offer管理'])
+  })
+
+  it('编码推导的裸「offer」码段分组不再出现（显式分类覆盖编码结构）', () => {
+    const candidate = candidateOf()
+    expect(candidate.children.some((c) => c.segment === 'offer')).toBe(false)
+    const offer = candidate.children.find((c) => c.label === 'offer管理')!
+    expect(offer.children.map((c) => c.label).sort()).toEqual(
+      ['发起offer审批', '创建offer', '编辑offer', '查看offer'].sort(),
+    )
+  })
+
+  it('基础功能 6 条叶子齐全（含菜单项），分组全选口径（collectNodeCodes）不受影响', () => {
+    const basic = candidateOf().children[0]
+    expect(basic.children).toHaveLength(6)
+    const codes = collectNodeCodes(basic)
+    expect(codes).toHaveLength(6)
+    expect(codes).toContain('recruit:candidate:menu:view')
+  })
+
+  it('未带 sub_module 的资源保持编码结构分组（回归：settings 菜单族不受影响）', () => {
+    const tree = buildPermissionTree([
+      { resourceCode: 'recruit:settings:account:menu:view', resourceName: '个人信息管理菜单' },
+      { resourceCode: 'recruit:settings:account:create', resourceName: '新增个人信息' },
+    ])
+    const settings = tree.find((n) => n.segment === 'settings')!
+    const account = settings.children.find((c) => c.segment === 'account')!
+    expect(account.label).toBe('个人信息管理')
+    expect(account.children).toHaveLength(2)
   })
 })

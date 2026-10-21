@@ -49,13 +49,21 @@
         </n-checkbox>
       </div>
 
-      <div v-show="depth === 0 || expanded" class="pn-body" :class="{ 'pn-body--root': depth === 0, 'pn-body--grid': childrenAreLeaves }">
+      <div v-show="depth === 0 || expanded" class="pn-body" :class="{ 'pn-body--root': depth === 0 }">
         <PermTreeNode
-          v-for="child in node.children"
+          v-for="child in branchChildren"
           :key="child.key"
           :node="child"
           :depth="depth + 1"
         />
+        <div v-if="leafChildren.length" class="pn-leaves">
+          <PermTreeNode
+            v-for="child in leafChildren"
+            :key="child.key"
+            :node="child"
+            :depth="depth + 1"
+          />
+        </div>
       </div>
     </template>
 
@@ -105,10 +113,11 @@ const selectedSet = computed(() => new Set(selectedCodes.value))
 
 const totalCodes = computed(() => collectNodeCodes(props.node).length)
 const selectedCount = computed(() => nodeSelectedCount(props.node, selectedSet.value))
-/** 子节点全部为叶子项时，承载体改多列网格（避免单条权限竖向长列表占满垂直空间） */
-const childrenAreLeaves = computed(
-  () => props.node.children.length > 0 && props.node.children.every((c) => c.children.length === 0),
-)
+/** 子节点分流：分组（含子节点）保持竖向层级，直属叶子集中进多列网格。
+ *  混合承载（模块下既有子分组又有直属叶子）时叶子同样自动压缩，
+ *  不再因「存在子分组」整卡退回单列长列表（2026-10-21 兵哥截图回归点）。 */
+const branchChildren = computed(() => props.node.children.filter((c) => c.children.length > 0))
+const leafChildren = computed(() => props.node.children.filter((c) => c.children.length === 0))
 const allChecked = computed(() => nodeAllChecked(props.node, selectedSet.value))
 const indeterminate = computed(() => nodeIndeterminate(props.node, selectedSet.value))
 
@@ -234,16 +243,15 @@ const tagText = computed(() => {
 .pn-body--root {
   padding-left: 0;
 }
-/* 叶子承载体：子节点全为叶子项时改用多列网格，把竖向长列表压成横向铺排，
-   大幅削减「功能权限」页签的垂直滚动高度（2026-10-21 兵哥：竖向排列占空间过多）。
-   含子分组的承载体仍走默认竖向堆叠，保持「模块 → 子模块」层级可读。 */
-.pn-body--grid {
+/* 直属叶子容器：多列网格铺排，把竖向长列表压成横向（与 branchChildren/leafChildren
+   分流渲染配套 —— 叶子无条件进网格，分组保持竖向层级可读） */
+.pn-leaves {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 2px 18px;
   align-items: start;
 }
-.pn-body--grid .pn-leaf {
+.pn-leaves .pn-leaf {
   padding: 3px 0;
 }
 /* 叶子：单条权限项 */

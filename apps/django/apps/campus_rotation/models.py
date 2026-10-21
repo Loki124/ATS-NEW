@@ -12,8 +12,12 @@ BU 语义（见冻结方案 §0/§2.1）：BU = ATS Department 二级部门（�
 归属 BU 存该节点 id；写时校验 bu 节点 parent 链深度==2（parent IS NOT NULL AND
 parent__parent IS NULL）。模型层不强制层级字段，校验在序列化器层完成。
 """
-from django.db import models, transaction
+from datetime import date
 
+from django.db import models, transaction
+from django_fsm import FSMField, FSMModelMixin, TransitionNotAllowed, transition
+
+from apps.campus_rotation.validators import MENTOR_ONGOING_CAPACITY
 from apps.common.models import FullAuditModel, UUIDModel
 from apps.core.models import Department, User
 
@@ -210,7 +214,7 @@ class ClassRoom(FullAuditModel, UUIDModel):
         super().save(*args, **kwargs)
 
 
-class RotationArrangement(FullAuditModel, UUIDModel):
+class RotationArrangement(FSMModelMixin, FullAuditModel, UUIDModel):
     """轮岗安排记录（校招生轮岗生命周期）。
 
     person_id 关联 campus_control.Person（不建外键，避免跨 app 耦合）。
@@ -269,9 +273,9 @@ class RotationArrangement(FullAuditModel, UUIDModel):
         ServiceDept, null=True, blank=True, on_delete=models.SET_NULL,
         related_name='arrangements', verbose_name='客服部门',
     )
-    stage = models.CharField(
+    stage = FSMField(
         max_length=16, choices=STAGE_CHOICES, default='PENDING',
-        db_index=True, verbose_name='阶段',
+        db_index=True, protected=True, verbose_name='阶段',
     )
     employee_status = models.CharField(
         max_length=16, blank=True, default='', verbose_name='员工状态',
@@ -290,3 +294,45 @@ class RotationArrangement(FullAuditModel, UUIDModel):
         verbose_name = '轮岗安排'
         verbose_name_plural = '轮岗安排'
         ordering = ['-created_at']
+
+    # ───────────────────────────────────────────────────────────────────
+    # FSM 流转（需求 5-4 / S5-19）：stage 流程态由 @transition 统一收口，
+    # protected=True 禁止任意直写（含 queryset.update），流转只走下方方法。
+    # 业务含义：PENDING →(submit)→ APPROVING →(approve)→ ONGOING
+    #           →(complete)→ DONE；ONGOING →(terminate)→ TERMINATED；
+    #           APPROVING →(reject)→ PENDING。DONE/TERMINATED 为硬终态。
+    # ───────────────────────────────────────────────────────────────────
+    def get_stage_display(self):
+        """FSMField 不会自动生成 get_<field>_display，显式补上（防序列化器丢键）。"""
+        return dict(self.STAGE_CHOICES).get(self.stage, self.stage)
+
+    @transition(field=stage, source='PENDING', target='APPROVING')
+    def submit(self):
+        """提交轮岗安排待审批（审批闸必经）。"""
+
+    @transition(field=stage, source='APPROVING', target='ONGOING')
+    def approve(self):
+        if self.mentor_id and RotationArrangement.objects.filter(
+            mentor_id=self.mentor_id, stage='ONGOING', deleted_at__isnull=True,
+        ).exclude(id=self.id).count() >= MENTOR_ONGOING_CAPACITY:
+            raise TransitionNotAllowed('导师名额已饱和')
+        self.rotation_start = self.rotation_start or date.today()
+
+    @transition(field=stage, source='APPROVING', target='PENDING')
+    def reject(self):
+        """审批驳回，回到待分配。"""
+
+    @transition(field=stage, source='ONGOING', target='DONE')
+    def complete(self):
+        self.rotation_end = self.rotation_end or date.today()
+
+    @transition(field=stage, source='ONGOING', target='TERMINATED')
+    def terminate(self, reason=None):
+        if RotationArrangement.objects.filter(
+            person_id=self.person_id, stage='ONGOING', deleted_at__isnull=True,
+        ).exclude(id=self.id).exists():
+            raise TransitionNotAllowed('该人员存在其他进行中的轮岗安排，无法判定终止对象')
+        self.rotation_end = self.rotation_end or date.today()
+        if reason:
+            prefix = f'{self.note}\n' if self.note else ''
+            self.note = f'{prefix}[终止原因] {reason}'

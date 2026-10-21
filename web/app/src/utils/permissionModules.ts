@@ -164,6 +164,12 @@ export interface PermNode {
   label: string
   /** 仅叶子节点有值 */
   leaf?: PermLeaf
+  /**
+   * 显式子模块分组（资源 sub_module 字段）的首现序。
+   * buildPermissionTree 按显式子模块建组时赋值（同模块内按资源清单首现顺序递增），
+   * 组内排序时这类分组排最前、按资源清单顺序稳定排列（如 基础功能 → offer管理）。
+   */
+  subOrder?: number
   children: PermNode[]
 }
 
@@ -203,30 +209,52 @@ function orderModulesByPriority(nodes: PermNode[], order: string[]): void {
   })
 }
 
-/** 组内排序：分组（含子节点）排在叶子之前，同类型按中文名/key 稳定排序 */
+/**
+ * 组内排序：显式子模块分组（sub_module）→ 编码推导分组 → 叶子。
+ * 同类内按中文名/key 稳定排序；显式子模块分组之间按首现序（subOrder）排列。
+ */
 function sortPermNodes(nodes: PermNode[]): void {
+  const rank = (n: PermNode): number => {
+    if (n.subOrder !== undefined) return 0
+    return n.children.length > 0 ? 1 : 2
+  }
   nodes.sort((a, b) => {
-    const ag = a.children.length > 0 ? 0 : 1
-    const bg = b.children.length > 0 ? 0 : 1
-    if (ag !== bg) return ag - bg
+    const ra = rank(a)
+    const rb = rank(b)
+    if (ra !== rb) return ra - rb
+    if (ra === 0) {
+      return (a.subOrder ?? 0) - (b.subOrder ?? 0) || a.key.localeCompare(b.key)
+    }
     return a.label.localeCompare(b.label, 'zh') || a.key.localeCompare(b.key)
   })
   for (const n of nodes) sortPermNodes(n.children)
 }
 
 /**
- * 由全量资源构建「模块 → 中间段逐层 → 末级权限项」的多层树。
+ * 由全量资源构建「模块 → 子模块/中间段 → 末级权限项」的多层树。
  * 数据驱动、无需硬编码子模块清单；新增任意深度的中间段都自动成层。
  *
- * @param resources 权限资源（resourceCode / resourceName / resourceType）
+ * 分组取值优先级（2026-10-21 兵哥：资源分类调整后功能权限页签自动同步）：
+ *   1. 显式 sub_module（资源分类真源在资源管理页）—— 命中时把该资源挂到
+ *      「模块 → 子模块展示名」一层（如 候选人管理 → 基础功能 / offer管理），
+ *      编码里的中间段（如 candidate:offer 的 offer）不再生成裸码分组；
+ *   2. 编码结构推导（第 3 段起逐层），menu 资源名去「菜单」后缀反哺分组中文名。
+ *
+ * @param resources 权限资源（resourceCode / resourceName / resourceType / subModule）
  * @returns 顶层即模块节点数组（depth 0）
  */
 export function buildPermissionTree(
-  resources: Array<{ resourceCode: string; resourceName: string; resourceType?: string }>,
+  resources: Array<{
+    resourceCode: string
+    resourceName: string
+    resourceType?: string
+    subModule?: string | null
+  }>,
 ): PermNode[] {
   const root: PermNode = { key: '', segment: '', label: '', children: [] }
+  let explicitSeq = 0
 
-  // 第一遍：按编码结构插入叶子
+  // 第一遍：按分组规则插入叶子
   for (const r of resources) {
     const segs = (r.resourceCode || '').split(':')
     if (segs[0] === 'recruit') segs.shift()
@@ -255,10 +283,18 @@ export function buildPermissionTree(
         isMenu: false,
       }
     }
+    // 显式子模块优先：命中时把「模块以下」的中间段整体替换为单个子模块展示名分组
+    const explicitSub = (r.subModule || '').trim()
+    const path =
+      explicitSub && groupPath.length > 0 ? [groupPath[0], explicitSub] : groupPath
     let cur = root
-    for (let i = 0; i < groupPath.length; i++) {
-      const seg = groupPath[i]
-      const key = groupPath.slice(0, i + 1).join('/')
+    for (let i = 0; i < path.length; i++) {
+      const seg = path[i]
+      // 显式子分组 key 走 __sub__ 命名空间，避免与编码推导的同名段撞 key
+      const key =
+        explicitSub && i === 1
+          ? `${path[0]}/__sub__/${explicitSub}`
+          : path.slice(0, i + 1).join('/')
       let child = cur.children.find((c) => c.key === key)
       if (!child) {
         const isModule = i === 0
@@ -268,6 +304,7 @@ export function buildPermissionTree(
           label: isModule ? RESOURCE_MODULE_LABELS[seg] ?? seg : seg,
           children: [],
         }
+        if (explicitSub && i === 1) child.subOrder = explicitSeq++
         cur.children.push(child)
       }
       cur = child
@@ -281,7 +318,9 @@ export function buildPermissionTree(
     })
   }
 
-  // 第二遍：用 MENU 叶子的「去菜单后缀名」反哺父分组中文名（数据驱动，无需硬编码）
+  // 第二遍：用 MENU 叶子的「去菜单后缀名」反哺父分组中文名（数据驱动，无需硬编码）。
+  // 只沿「编码路径」回填 —— 显式 sub_module 分组的 key 带 __sub__ 命名空间、不在编码
+  // 路径上，天然不会被菜单名覆盖，展示名始终是资源分类的原始值。
   for (const r of resources) {
     const segs = (r.resourceCode || '').split(':')
     if (segs[0] === 'recruit') segs.shift()
@@ -304,7 +343,7 @@ export function buildPermissionTree(
     if (ok) cur.label = label
   }
 
-  // 顶层模块按产品指定顺序；子层仍按分组优先 + 中文名稳定排序
+  // 顶层模块按产品指定顺序；子层按「显式子模块分组 → 编码推导分组 → 叶子」排序
   orderModulesByPriority(root.children, MODULE_DISPLAY_ORDER)
   root.children.forEach((m) => sortPermNodes(m.children))
   return root.children
