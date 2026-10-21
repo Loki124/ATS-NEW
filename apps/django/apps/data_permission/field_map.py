@@ -91,6 +91,72 @@ MODULE_DIMENSION_FIELDS: dict[str, dict[str, dict | str | bool | None]] = {
         'unit': True,
         'process': None,
     },
+    # ==========================================================================
+    # 校招域（2026-10-19 需求 1-2「各个角色数据相互隔离」，S5-02）
+    # ==========================================================================
+    # 🔴 校招实体此前完全缺席 → role_entity_scope_q 拿不到 CUSTOM 规则，
+    #    「带教导师只看自己带的」「班主任只看本班」这类按人/按班的隔离无处表达，
+    #    只能回退默认 scope（部门/SELF）。本组登记是 B0 的核心交付。
+    #
+    # ⚠️ 本次仅登记确有部门承载字段的三类实体；campus_person 因 Person 无部门字段
+    #    （bu 是 CharField choices，head_teacher/class_room 待 S5-10 新增）推迟登记，
+    #    详见下方 campus_class 块后的注释。
+    #
+    # dept 取值口径（Department.pk 为 CharField，FK 直接给 id 空间）：
+    #   campus_arrangement  current_dept —— 当前轮岗部门，最贴近「谁管这条安排」
+    #   campus_resource      bu          —— 归属 BU（BU = 二级部门）
+    #   campus_class         hrbp__department —— ClassRoom 自身无 department FK，
+    #                                    经 HRBP 用户带出部门
+    # hrbp/head_teacher/mentor/campus_class 四个用户/班级维度供 CUSTOM 规则使用，
+    # 均可直接编译为 Q(head_teacher_id__in=[当前用户 id]) 这类精确条件。
+    'campus_arrangement': {
+        'dept': 'current_dept_id',
+        'owner': 'mentor_id',
+        'creator': 'created_by_id',
+        'hrbp': 'class_room__hrbp_id',
+        'head_teacher': 'head_teacher_id',
+        'mentor': 'mentor_id',
+        'campus_class': 'class_room_id',
+        'unit': True,
+        'process': None,
+    },
+    'campus_resource': {
+        'dept': 'bu_id',
+        'owner': None,
+        'creator': 'created_by_id',
+        'unit': True,
+        'process': None,
+    },
+    'campus_class': {
+        'dept': 'hrbp__department_id',
+        'owner': 'hrbp_id',
+        'creator': 'created_by_id',
+        'hrbp': 'hrbp_id',
+        'head_teacher': 'head_teacher_id',
+        'unit': True,
+        'process': None,
+    },
+    # ⚠️ campus_person 暂不登记（与 ENTITY_SCOPE 同步推迟到 S5-10）：Person 当前无部门承载
+    #   字段（bu 是 CharField choices，head_teacher/class_room 待 S5-10 新增）。S5-10 落地后
+    #   在此补 'campus_person': {'dept': 'head_teacher__department_id', 'head_teacher': 'head_teacher_id',
+    #   'campus_class': 'class_room_id', 'creator': 'created_by_id', 'unit': True, 'process': None}。
+    # ↑ 上段为 S5-02 当时的前置未就绪记录；S5-10 已落地 Person.head_teacher（User FK）
+    #   与 Person.class_room（ClassRoom FK），前置现已就绪 —— 2026-10-21 S5-24 补登记。
+    #   维度口径：
+    #     dept       head_teacher__department_id —— 经班主任带出部门
+    #     head_teacher head_teacher_id           —— 班主任「只看本班」
+    #     campus_class class_room_id             —— 经班级维度（与 campus_arrangement 同构）
+    #     hrbp       class_room__hrbp_id         —— 经班级 HRBP（「HRBP 看本部门及下级」）
+    'campus_person': {
+        'dept': 'head_teacher__department_id',
+        'owner': None,
+        'creator': 'created_by_id',
+        'hrbp': 'class_room__hrbp_id',
+        'head_teacher': 'head_teacher_id',
+        'campus_class': 'class_room_id',
+        'unit': True,
+        'process': None,
+    },
 }
 
 # 维度元信息（供 options 接口下发前端展示名 + 运算符 + 动态源）。
@@ -194,6 +260,25 @@ DIMENSION_META: dict[str, dict] = {
         'contextKeys': ['currentUser.managedUnits'],
     },
     'process': {'key': 'process', 'label': '招聘流程', 'valueType': 'process'},
+    # —— 校招域维度（2026-10-19 S5-02，配合 MODULE_DIMENSION_FIELDS 校招四实体）——
+    # 用户类维度，与 creator/hrbp 同款「包含/不包含」+ currentUser.id 动态源；
+    # 承载需求 1-2「带教导师只看自己带的 / 班主任只看本班」这类按人隔离规则。
+    'head_teacher': {
+        'key': 'head_teacher', 'label': '班主任', 'valueType': 'user',
+        'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    'mentor': {
+        'key': 'mentor', 'label': '带教导师', 'valueType': 'user',
+        'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
+    # 班级维度：valueType 非 user/department，用 str 承载班级 id。
+    # 编译器对裸字符串走 static __in 分支（见模块 docstring spec 形状说明）。
+    'campus_class': {
+        'key': 'campus_class', 'label': '班级', 'valueType': 'string',
+        'contextKeys': [], 'operators': [{'value': 'in', 'label': '包含'}],
+    },
 }
 
 # 模块专属维度展示名（优先级高于 DIMENSION_META['label']）。
@@ -228,6 +313,30 @@ MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
         'position_tbp': '所属职位的TBP',
         'position_hrbp': '所属职位的HRBP',
         'position_creator': '所属职位的职位创建人',
+    },
+    # 校招域（2026-10-19 S5-02）：与 DIMENSION_META['label'] 同值，此处登记是为
+    # 保持「每个已登记实体都有专属标签项」的一致性，便于后续按模块覆写显示名。
+    'campus_arrangement': {
+        'dept': '当前轮岗部门',
+        'creator': '创建人',
+        'hrbp': '班级HRBP',
+        'head_teacher': '班主任',
+        'mentor': '带教导师',
+        'campus_class': '班级',
+    },
+    'campus_resource': {
+        'dept': '归属BU',
+        'creator': '创建人',
+    },
+    'campus_class': {
+        'dept': 'HRBP所在部门',
+        'creator': '创建人',
+        'hrbp': '班级HRBP',
+        'head_teacher': '班主任',
+    },
+    'campus_person': {
+        'dept': '所属部门',
+        'creator': '创建人',
     },
 }
 

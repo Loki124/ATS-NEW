@@ -31,6 +31,32 @@ ENTITY_SCOPE: dict[str, dict[str, str]] = {
     'invitation': {'scope_field': 'application__position__department', 'creator_field': 'inviter'},
     'talent_pool': {'scope_field': 'last_position__department', 'creator_field': 'created_by'},
     'referral': {'scope_field': 'referrer__department', 'creator_field': 'referrer'},
+    # --- 校招域（2026-10-19 需求 1-2「各个角色数据相互隔离」）---
+    # 校招实体此前完全未登记 → entity_scope_q 显式 KeyError，导出/批量等非 ViewSet 入口
+    # 无范围配置，导致「列表看不到的数据换个接口就能导出/改」。
+    # 本次先登记「确有部门承载字段」的三类实体；campus_person 推迟到 S5-10。
+    #
+    # scope_field 口径（必须指向模型上承载 Department id 的字段，否则 __in 过滤失效/FieldError）：
+    #   campus_class       经 hrbp（班级 HRBP）带出部门 —— ClassRoom.hrbp 是 User FK，
+    #                       User.department 是 Department FK → hrbp__department 合法。
+    #   campus_resource    bu 是 Department FK（归属 BU = 二级部门）→ bu 合法。
+    #   campus_arrangement current_dept 是 Department FK（当前轮岗部门）→ 合法。
+    #
+    # ⚠️ campus_person 暂不登记：Person 当前无部门承载字段 —— Person.bu 是 CharField choices
+    #   （BU 类别代码，非 Department.id），head_teacher / class_room 等关系字段要到 S5-10
+    #   才新增。强行登记只能写空串 scope_field，既通不过 tests/test_entity_scope.py 的
+    #   「每实体必须有非空 scope_field」断言，又会在 S5-03 接入后触发 FieldError。
+    #   S5-10 落地 Person.head_teacher / Person.class_room 后，再补
+    #   'campus_person': {'scope_field': 'head_teacher__department', ...} 与
+    #   MODULE_DIMENSION_FIELDS['campus_person'] 的 head_teacher / campus_class 维度。
+    # ↑ 上段为 S5-02 当时的前置未就绪记录；S5-10 已落地 Person.head_teacher（User FK）
+    #   与 Person.class_room（ClassRoom FK），前置现已就绪 —— 2026-10-21 S5-24 补登记。
+    #   scope_field 口径：head_teacher__department —— 班主任（User FK）→ User.department
+    #   （Department FK），合法路径；无班主任时该维度为空（回退 creator SELF）。
+    'campus_class': {'scope_field': 'hrbp__department', 'creator_field': 'created_by'},
+    'campus_resource': {'scope_field': 'bu', 'creator_field': 'created_by'},
+    'campus_arrangement': {'scope_field': 'current_dept', 'creator_field': 'created_by'},
+    'campus_person': {'scope_field': 'head_teacher__department', 'creator_field': 'created_by'},
 }
 
 

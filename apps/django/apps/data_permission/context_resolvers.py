@@ -90,6 +90,13 @@ DYNAMIC_DIMENSION_RULES: dict[str, frozenset[str]] = {
         'position_tbp', 'position_hrbp', 'position_creator',
         # 需求补充人员维度（提出人已在上；共享人/用人经理/用人经理上级/抢单人）
         'sharers', 'hiring_manager', 'hiring_manager_superior', 'resume_grabber',
+        # 2026-10-21 S5-24（需求 1-2）：校招域「班主任/带教导师按人隔离」维度接入动态源。
+        # head_teacher / mentor 与 hrbp 同属用户类维度，可接 currentUser.id 动态值源，
+        # 编译为 Q(head_teacher_id__in=[user.pk]) / Q(mentor_id__in=[user.pk])。
+        # 归属 campus_person / campus_arrangement 实体（MODULE_DIMENSION_FIELDS 已登记），
+        # 未登记该维度的实体即使写了规则也不会被编译（field_map 取不到路径 → no-op），
+        # 故此处登记不影响存量规则语义。
+        'head_teacher', 'mentor',
     }),
     'unit': frozenset({'unit'}),
 }

@@ -36,7 +36,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import V2Permission
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 
@@ -502,7 +502,9 @@ class ControlRuleViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelView
         return services.import_rule_group(g, user)
 
 
-class PersonViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
+class PersonViewSet(
+    EnvelopeWriteMixin, CampusCRUDMixin, ScopeQuerysetMixin, viewsets.ModelViewSet
+):
     """人员主数据 CRUD（全局主数据，一行一人；counted 控制是否计入核算）。
 
     get_queryset 仅对 list 生效（retrieve/update/delete 不套过滤，保证按 id 仍可查可改）：
@@ -532,6 +534,13 @@ class PersonViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
         'restore': 'recruit:campus:person:edit',
     }
     pagination_class = StandardResultsSetPagination
+    # 🔴 S5-24（需求 1-2）：行级隔离配置（与 core/entity_scope.py 的
+    # ENTITY_SCOPE['campus_person'] 对应，tests/test_entity_scope.py 会断言不漂移）
+    # scope_field = head_teacher__department —— 经班主任带出部门
+    # （Person.bu 是 CharField choices 非 Department FK，不能直接用作 scope_field）
+    scope_field = 'head_teacher__department'
+    scope_creator_field = 'created_by'
+    data_perm_entity = 'campus_person'
 
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
@@ -600,4 +609,11 @@ class PersonViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
             from django.db.models import Q
             qs = qs.filter(Q(code__icontains=search) | Q(name__icontains=search))
 
-        return qs
+        # 🔴 S5-24（需求 1-2）：行级隔离收口 —— 校招生档案按班主任/班级/HRBP 维度隔离。
+        #    scope_field 走 ENTITY_SCOPE['campus_person']（head_teacher__department），
+        #    CUSTOM 维度（head_teacher / campus_class / hrbp）走
+        #    MODULE_DIMENSION_FIELDS['campus_person']，由管理员在数据权限规则中配置。
+        #    口径与 campus_rotation 的三个 ViewSet 一致：行级隔离只作用于 list，
+        #    retrieve/update/delete 保持按 id 可取（不因不可见而 404，避免前端
+        #    详情页打不开却无法判断原因）。
+        return self.scope_queryset(qs)
