@@ -176,8 +176,9 @@
     <n-card class="list-card">
       <n-checkbox-group v-model:value="selectedKeys">
         <div class="candidate-list">
-          <div v-for="row in rows" :key="row.key" class="candidate-row">
-            <div class="row-checkbox">
+          <!-- 2026-10-21：整卡可点进入详情；checkbox 与右侧操作区 stop 防误触 -->
+          <div v-for="row in rows" :key="row.key" class="candidate-row" @click="handleViewDetail(row)">
+            <div class="row-checkbox" @click.stop>
               <n-checkbox :value="row.key" />
             </div>
             <div class="row-main">
@@ -185,7 +186,7 @@
                 <!-- 左列：标题行（姓名+编号+次数+标签）/ 资料行 / 投递行 -->
                 <div class="row-left">
                   <div class="card-head">
-                    <span class="candidate-name" @click="handleViewDetail(row)">{{ row.name }}</span>
+                    <span class="candidate-name">{{ row.name }}</span>
                     <span class="candidate-code">（{{ row.code || row.id }}）</span>
                     <span v-if="row.applicationCount" class="apply-count">{{ row.applicationCount }}次</span>
                     <span
@@ -227,8 +228,8 @@
                 </div>
               </div>
             </div>
-            <!-- 右上操作：更多 ⋯ 下拉（查看详情/转发简历/安排面试） + 备注 -->
-            <div class="row-actions">
+            <!-- 右上操作：更多 ⋯ 下拉（查看详情/转发简历/安排面试） + 备注（stop：不触发整卡跳转） -->
+            <div class="row-actions" @click.stop>
               <n-dropdown
                 trigger="click"
                 :options="[
@@ -1298,6 +1299,9 @@ watch(
   border-bottom: 1px dashed var(--border-hairline);
   border-radius: 12px;
   transition: box-shadow 0.2s, border-color 0.2s;
+}
+.candidate-row {
+  cursor: pointer;
 }
 .candidate-row:hover {
   box-shadow: 0 4px 16px var(--overlay-scrim-weak);
