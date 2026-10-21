@@ -219,6 +219,11 @@ class CandidateCreateSerializer(serializers.Serializer):
 
 class CandidateUpdateSerializer(serializers.ModelSerializer):
     """更新候选人基本信息（不可改手机号/状态）"""
+    # 2026-10-21: 显式声明为 CharField。模型 resume_file_url 是 URLField，
+    # ModelSerializer 会自动生成 URLField 并拒绝站内相对路径（/media/...），
+    # 导致上传简历回写 400。本字段同时承载外链与站内相对路径两种形态。
+    resume_file_url = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
     class Meta:
         model = Candidate
         fields = [

@@ -50,6 +50,19 @@ class TestCandidateAuditBehavior:
         changes = {ch['field']: ch for ch in h.detail.get('changes', [])}
         assert changes.get('resume_file_url', {}).get('new') == 'https://x.com/r.pdf'
 
+    def test_update_accepts_relative_resume_url(self, auth_client):
+        """2026-10-21 回归：本地/SECURE_MEDIA_DOWNLOAD 回传的是站内相对路径
+        (/media/uploads/... 或 /api/v1/media/secure/...)，PATCH 必须接受，不得按 URLField 拒绝 400。
+        """
+        c = Candidate.objects.create(name='审计相对路径', phone='13800007012', recruit_type='social')
+        for url in ('/media/uploads/20261021/abc.pdf', '/api/v1/media/secure/uploads/20261021/abc.pdf'):
+            resp = auth_client.patch(
+                f'/api/v1/candidates/{c.id}/', {'resume_file_url': url}, format='json',
+            )
+            assert resp.status_code == 200, f'相对路径 {url} 应被接受: {resp.content}'
+            c.refresh_from_db()
+            assert c.resume_file_url == url
+
     def test_histories_endpoint_time_desc_and_filter(self, auth_client):
         c = Candidate.objects.create(name='审计C', phone='13800007003', recruit_type='social')
         CandidateHistory.objects.create(candidate=c, action='INFO_UPDATED', detail={'changes': []})
