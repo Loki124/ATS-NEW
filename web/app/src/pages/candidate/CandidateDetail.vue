@@ -1028,7 +1028,12 @@ interface CandidateDetailData {
   /** 投递记录（后端 get_applications，CamelCase 键） */
   applications?: Array<{
     id?: string; code?: string; positionTitle?: string | null
+    /** 职位编号（截图「J06279」位） */
+    positionCode?: string | null
+    /** 所属流程名 */
     processName?: string | null
+    /** 流程编号（截图「HC09481」位，code 是流程线号，多版本共用同一 code） */
+    processCode?: string | null
     state?: string; currentStage?: string | null
     grabbedByName?: string
     stageList?: string[]
