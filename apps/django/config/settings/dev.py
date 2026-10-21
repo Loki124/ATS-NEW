@@ -30,7 +30,9 @@ CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 
 # 邮件
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# 2026-10-18: 改为 env 驱动 (默认仍 console) — .env 配好阿里云 DirectMail SMTP 后,
+# 本地 dev 即可真实发信 (注册验证码流程真机联调); 不设 EMAIL_BACKEND 时行为不变。
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 
 # V2 启动校验: dev 默认禁用, 配合 `python manage.py migrate` / `seed_v2_init` 等初始化阶段使用
 # 设 PERMISSION_V2_BOOTSTRAP_DISABLED=1 (在 .env 或 shell) 暂时跳过启动校验
