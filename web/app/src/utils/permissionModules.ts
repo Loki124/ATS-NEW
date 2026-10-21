@@ -146,6 +146,33 @@ export function resourceSubModuleLabel(
 // 为忠实「按编码结构」且零遗漏：每个资源都落为一个叶子，分组节点是纯容器，
 // 故「既是分组又是叶子」的情况（如某菜单型资源与其按钮同挂一个分组）天然成立。
 
+/**
+ * 功能权限树「码段路径 → 中文」兜底映射（key 为各段以 / 连接，含模块段）。
+ *
+ * 分组名的第一优先级是「该路径下启用 MENU 资源名去『菜单』后缀」（数据回填）；
+ * 但部分分组没有启用的菜单锚点，会裸露英文码段（2026-10-21 兵哥截图）：
+ *   - metrics / role_grant：只有 BUTTON，从未有过 MENU；
+ *   - users：唯一菜单「用户管理菜单」已停用（0026），前端默认只拉启用资源；
+ *   - job_level / channel:cost / talent_pool:tag / campus:approval 等同理。
+ * 本表按 dev 库启用资源全量盘点（2026-10-21）登记，仅作展示兜底——
+ * 若日后某路径补建了启用的菜单资源，菜单回填会自动覆盖本表（优先级更高）。
+ * 新增无锚点分组时须在此登记，否则该分组在「功能权限」页签显示英文码段。
+ */
+export const GROUP_PATH_LABELS: Record<string, string> = {
+  'candidate/offer': 'offer管理', // 与 sub_module 分类值对齐（sub_module 缺失时的兜底）
+  'settings/metrics': '指标管理',
+  'settings/users': '用户管理', // 用户管理菜单已停用（0026），启用后菜单名自动接管
+  'settings/users/role_grant': '用户身份配置',
+  'settings/job_level': '职级职等',
+  'settings/job_level/category': '职级类别',
+  'settings/job_level/grade': '职等',
+  'settings/job_level/sequence': '职级序列',
+  'settings/channel/cost': '渠道成本',
+  'talent_pool/tag': '人才库标签',
+  'campus/approval': '轮岗审批',
+  'campus/operation_log': '操作日志',
+}
+
 export interface PermLeaf {
   resourceCode: string
   resourceName: string
@@ -301,7 +328,12 @@ export function buildPermissionTree(
         child = {
           key,
           segment: seg,
-          label: isModule ? RESOURCE_MODULE_LABELS[seg] ?? seg : seg,
+          // 分组名优先级：菜单名回填（第二遍）> 码段路径映射 > 原码段。
+          // 显式子分组 key 带 __sub__ 命名空间，不可能命中 GROUP_PATH_LABELS，
+          // 其 seg 本身就是 sub_module 展示名。
+          label: isModule
+            ? RESOURCE_MODULE_LABELS[seg] ?? seg
+            : GROUP_PATH_LABELS[key] ?? seg,
           children: [],
         }
         if (explicitSub && i === 1) child.subOrder = explicitSeq++

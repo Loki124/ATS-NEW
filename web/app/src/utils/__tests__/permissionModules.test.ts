@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   RESOURCE_MODULE_LABELS,
+  GROUP_PATH_LABELS,
   buildSubModuleIndex,
   resourceModuleLabel,
   buildPermissionTree,
@@ -166,5 +167,50 @@ describe('功能权限树：显式 sub_module 分组优先（2026-10-21）', () 
     const account = settings.children.find((c) => c.segment === 'account')!
     expect(account.label).toBe('个人信息管理')
     expect(account.children).toHaveLength(2)
+  })
+})
+
+/**
+ * 功能权限树分组名兜底映射（2026-10-21 兵哥截图：metrics/users/role_grant 裸英文）。
+ *
+ * 根因：这些分组没有「启用的 MENU 资源」做名字锚点（metrics/role_grant 只有
+ * BUTTON；users 唯一菜单已随 0026 停用，前端默认只拉启用资源）。
+ * GROUP_PATH_LABELS 是展示兜底，锁定三类行为：兜底生效、菜单回填优先、值非空。
+ */
+describe('功能权限树：无菜单锚点分组的中文兜底（GROUP_PATH_LABELS）', () => {
+  it('映射表每条值必须非空（防手滑登记空串）', () => {
+    const empty = Object.entries(GROUP_PATH_LABELS)
+      .filter(([, label]) => !label || !label.trim())
+      .map(([k]) => k)
+    expect(empty).toEqual([])
+  })
+
+  it('metrics / users / role_grant 分组显示中文而非裸码段', () => {
+    const tree = buildPermissionTree([
+      { resourceCode: 'recruit:settings:metrics:list', resourceName: '指标管理' },
+      { resourceCode: 'recruit:settings:metrics:edit', resourceName: '指标维护' },
+      { resourceCode: 'recruit:settings:users:all:menu:view', resourceName: '全部用户菜单' },
+      { resourceCode: 'recruit:settings:users:all:list', resourceName: '全部用户列表' },
+      { resourceCode: 'recruit:settings:users:role_grant:create', resourceName: '新增身份配置' },
+    ])
+    const settings = tree.find((n) => n.segment === 'settings')!
+    const bySegment = (seg: string) => settings.children.find((c) => c.segment === seg)
+    expect(bySegment('metrics')!.label).toBe('指标管理')
+    expect(bySegment('users')!.label).toBe('用户管理')
+    const users = bySegment('users')!
+    // 子层：全部用户（菜单回填）与 role_grant（兜底映射）
+    expect(users.children.find((c) => c.segment === 'all')!.label).toBe('全部用户')
+    expect(users.children.find((c) => c.segment === 'role_grant')!.label).toBe('用户身份配置')
+  })
+
+  it('菜单名回填优先于兜底映射（menu 锚点启用后自动接管）', () => {
+    // settings/users 已登记兜底「用户管理」；若该路径直接挂启用菜单，
+    // 菜单名必须覆盖兜底值（数据真源优先）
+    const tree = buildPermissionTree([
+      { resourceCode: 'recruit:settings:metrics:menu:view', resourceName: '指标中心菜单' },
+      { resourceCode: 'recruit:settings:metrics:list', resourceName: '指标管理' },
+    ])
+    const settings = tree.find((n) => n.segment === 'settings')!
+    expect(settings.children.find((c) => c.segment === 'metrics')!.label).toBe('指标中心')
   })
 })
