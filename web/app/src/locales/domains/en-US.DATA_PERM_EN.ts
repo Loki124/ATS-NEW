@@ -2151,6 +2151,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   // 2026-10-21: detail tab reorder — new "Original Resume" first tab (s342/s343)
   'pages.candidate.CandidateDetail.s342': "Original Resume",
   'pages.candidate.CandidateDetail.s343': "This resume format cannot be previewed inline. Please download it to view.",
+  'pages.candidate.CandidateDetail.s344': "OK",
 
   'pages.announcement.AnnouncementDetail.s1': "Back to Policy Announcement",
   'pages.announcement.AnnouncementDetail.s2': "Reload",

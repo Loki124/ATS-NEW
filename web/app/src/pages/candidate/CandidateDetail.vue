@@ -555,14 +555,14 @@
       </template>
     </n-modal>
 
-    <!-- 上传简历弹窗 -->
+    <!-- 上传简历弹窗（2026-10-21 修复：card 弹窗无 positive 按钮，原 @positive-click 永不触发；
+         现补 footer 确定按钮 + 真实上传：/media/upload/ 拿 url → PATCH resume_file_url → 刷新详情） -->
     <n-modal
       v-model:show="uploadResumeModalVisible"
       preset="card"
       :title="t('pages.candidate.CandidateDetail.s96')"
       :width="500"
       style="max-width: 90vw"
-      @positive-click="handleUploadResume"
     >
       <n-upload
         v-model:file-list="fileList"
@@ -571,12 +571,27 @@
         accept=".pdf,.doc,.docx"
         @before-upload="beforeUpload"
       >
-        <n-button>
+        <n-button :disabled="uploadingResume">
           <template #icon><n-icon :component="CloudUploadOutline" /></template>
           {{ t('pages.candidate.CandidateDetail.s97') }}
         </n-button>
       </n-upload>
       <div class="upload-tip">{{ t('pages.candidate.CandidateDetail.s98') }}</div>
+      <template #action>
+        <n-space justify="end">
+          <n-button :disabled="uploadingResume" @click="uploadResumeModalVisible = false">
+            {{ t('pages.candidate.CandidateDetail.s90') }}
+          </n-button>
+          <n-button
+            type="primary"
+            :loading="uploadingResume"
+            :disabled="fileList.length === 0 || uploadingResume"
+            @click="handleUploadResume"
+          >
+            {{ t('pages.candidate.CandidateDetail.s344') }}
+          </n-button>
+        </n-space>
+      </template>
     </n-modal>
 
     <!-- 发起背调（供应商集成系统） -->
@@ -817,6 +832,7 @@ import {
 import {
   getCandidate,
   listCandidates,
+  updateCandidate,
   verifyCandidateHistories,
   transitionCandidate,
   recommendCandidateToPosition,
@@ -838,7 +854,7 @@ import CandidateOnboardingPanel from '../../components/candidate/CandidateOnboar
 import ReasonTagPicker from '../../components/reason-library/ReasonTagPicker.vue'
 import { getActiveRule } from '../../api/reason-library'
 import type { SceneRule } from '../../types/reason-library'
-import { listBackgroundCheckOrders } from '../../api/integration'
+import { listBackgroundCheckOrders, uploadMedia } from '../../api/integration'
 
 const router = useRouter()
 const route = useRoute()
@@ -1557,11 +1573,30 @@ const handleSaveResume = async () => {
   }
 }
 
-const handleUploadResume = () => {
-  if (fileList.value.length === 0) { message.warning(t('pages.candidate.CandidateDetail.s180')); return }
-  message.success(t('pages.candidate.CandidateDetail.s181'))
-  uploadResumeModalVisible.value = false
-  fileList.value = []
+// 2026-10-21 修复假上传：原实现只弹成功提示，未调任何 API。
+// 真实链路：POST /media/upload/（multipart）→ PATCH candidates/{id} resume_file_url → 刷新详情。
+// 审计：resume_file_url 在 RESUME_FILE_FIELDS 内，后端自动记 RESUME_UPLOADED。
+const uploadingResume = ref(false)
+const handleUploadResume = async () => {
+  const raw = fileList.value[0]?.file
+  const file = raw instanceof File ? raw : (raw as any)?.file
+  if (!file) { message.warning(t('pages.candidate.CandidateDetail.s180')); return }
+  const id = route.params.id
+  if (!id) return
+  uploadingResume.value = true
+  try {
+    const up = await uploadMedia(file)
+    await updateCandidate(String(id), { resume_file_url: up.url })
+    message.success(t('pages.candidate.CandidateDetail.s181'))
+    uploadResumeModalVisible.value = false
+    fileList.value = []
+    // 刷新详情，原始简历页签立即可预览
+    await loadCandidateData(String(id))
+  } catch (e) {
+    message.error(t('pages.candidate.CandidateDetail.s179'))
+  } finally {
+    uploadingResume.value = false
+  }
 }
 
 const handleSaveNote = () => {

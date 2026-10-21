@@ -174,7 +174,10 @@ class CandidateCreateSerializer(serializers.Serializer):
     current_company = serializers.CharField(required=False, allow_blank=True, max_length=100)
     current_position = serializers.CharField(required=False, allow_blank=True, max_length=100)
     expected_salary = serializers.DecimalField(required=False, allow_null=True, max_digits=10, decimal_places=2)
-    resume_file_url = serializers.URLField(required=False, allow_blank=True, max_length=500)
+    # 2026-10-21: URLField → CharField。本字段承载两种形态：外链（摩卡同步完整 URL）
+    # 与站内相对路径（/media/uploads/... 或 SECURE_MEDIA_DOWNLOAD 的 /api/v1/media/secure/...），
+    # DRF URLField 会拒绝相对路径导致上传后回写 400。
+    resume_file_url = serializers.CharField(required=False, allow_blank=True, max_length=500)
     resume_text = serializers.CharField(required=False, allow_blank=True)
     id_card_no = serializers.CharField(required=False, allow_blank=True, max_length=20)
     source_channel_id = serializers.CharField(required=False, allow_blank=True)

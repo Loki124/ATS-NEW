@@ -2695,6 +2695,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   // 2026-10-21 兵哥：详情页签重排 —— 新增「原始简历」首签（s342/s343）
   'pages.candidate.CandidateDetail.s342': "原始简历",
   'pages.candidate.CandidateDetail.s343': "该简历格式暂不支持在线预览，请下载后查看",
+  'pages.candidate.CandidateDetail.s344': "确定",
 
   'pages.announcement.AnnouncementDetail.s4': "公告不存在或已被下架",
   'pages.candidate.addCandidate.AsyncResult.s8': "将在\"待分配\"中展示，您可以手动处理或重新分配。",
