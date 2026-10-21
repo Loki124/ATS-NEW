@@ -55,10 +55,14 @@ def _service_dept(dept, bu, capacity):
 
 
 def _ongoing(current_dept=None, service_dept=None, person_id=900001):
-    return RotationArrangement.objects.create(
-        person_id=person_id, stage='ONGOING',
-        current_dept=current_dept, service_dept=service_dept,
+    # 🔴 S5-19：stage 为 FSM 流程态，初始 PENDING，经 submit→approve 才到 ONGOING。
+    obj = RotationArrangement.objects.create(
+        person_id=person_id, current_dept=current_dept, service_dept=service_dept,
     )
+    obj.submit()
+    obj.approve()
+    obj.save()
+    return obj
 
 
 def test_bu_summary_aggregates_and_null_rate(db, bu_hierarchy):
