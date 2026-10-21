@@ -171,6 +171,7 @@ import {
   searchUsers,
   type SelectOption,
 } from '../../utils/campus'
+import { column } from '../../composables/useTableColumns'
 
 const message = useMessage()
 
@@ -304,48 +305,55 @@ const openMembers = async (row: any) => {
     memberLoading.value = false
   }
 }
+// S5-08：列对齐接入 useTableColumns 单一真源
 const memberColumns = [
-  { title: '姓名', key: 'name', width: 110, render: (r: any) => r.name || '-' },
-  { title: '工号', key: 'employeeId', width: 120, render: (r: any) => r.employeeId || '-' },
-  { title: '在职状态', key: 'status', width: 110, render: (r: any) => r.status || '-' },
-  { title: '班主任', key: 'headTeacherName', width: 120, render: (r: any) => r.headTeacherName || '-' },
-  { title: '部门', key: 'bu', width: 110, render: (r: any) => r.bu || '-' },
-  { title: '院校', key: 'school', width: 90, render: (r: any) => r.school || '-' },
-  { title: '专业', key: 'major', width: 90, render: (r: any) => r.major || '-' },
+  column({ title: '姓名', key: 'name', width: 110, render: (r: any) => r.name || '-' }),
+  column({ title: '工号', key: 'employeeId', width: 120, render: (r: any) => r.employeeId || '-' }),
+  column({ title: '在职状态', key: 'status', width: 110, render: (r: any) => r.status || '-' }),
+  column({ title: '班主任', key: 'headTeacherName', width: 120, render: (r: any) => r.headTeacherName || '-' }),
+  column({ title: '部门', key: 'bu', width: 110, render: (r: any) => r.bu || '-' }),
+  column({ title: '院校', key: 'school', width: 90, render: (r: any) => r.school || '-' }),
+  column({ title: '专业', key: 'major', width: 90, render: (r: any) => r.major || '-' }),
 ]
 
 const columns = [
-  { title: '编号', key: 'code', width: 120, render: (row: any) => row.code || '-' },
-  { title: '班级名称', key: 'name', width: 160, ellipsis: true, render: (row: any) => row.name || '-' },
-  { title: '班主任', key: 'headTeacher', width: 140, render: (row: any) => (row.headTeacher != null ? String(row.headTeacher) : '-') },
-  { title: 'HRBP', key: 'hrbp', width: 140, render: (row: any) => (row.hrbp != null ? String(row.hrbp) : '-') },
-  { title: '批次', key: 'batch', width: 120, render: (row: any) => row.batch || '-' },
-  { title: '校招人数', key: 'studentCount', width: 100, render: (row: any) => h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openMembers(row) }, { default: () => String(row.studentCount ?? 0) }) },
-  {
-    title: '启用',
-    key: 'isActive',
-    width: 80,
-    render: (row: any) =>
-      h(NTag, { type: row.isActive !== false ? 'success' : 'default', size: 'small' }, {
-        default: () => (row.isActive !== false ? '启用' : '停用'),
-      }),
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 140,
-    fixed: 'right' as const,
-    render: (row: any) =>
-      h(NSpace, { size: 8, wrap: false }, {
-        default: () => [
-          h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openEdit(row) }, { default: () => '编辑', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
-          h(NPopconfirm, { onPositiveClick: () => remove(row), positiveText: '确认', negativeText: '取消' }, {
-            default: () => '确认删除该班级？',
-            trigger: () => h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => '删除', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
-          }),
-        ],
-      }),
-  },
+  column({ title: '编号', key: 'code', width: 120, render: (row: any) => row.code || '-' }),
+  column({ title: '班级名称', key: 'name', width: 160, ellipsis: true, render: (row: any) => row.name || '-' }),
+  column({ title: '班主任', key: 'headTeacher', width: 140, render: (row: any) => (row.headTeacher != null ? String(row.headTeacher) : '-') }),
+  column({ title: 'HRBP', key: 'hrbp', width: 140, render: (row: any) => (row.hrbp != null ? String(row.hrbp) : '-') }),
+  column({ title: '批次', key: 'batch', width: 120, render: (row: any) => row.batch || '-' }),
+  column({ title: '校招人数', key: 'studentCount', width: 100, render: (row: any) => h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openMembers(row) }, { default: () => String(row.studentCount ?? 0) }) }, 'numeric'),
+  column(
+    {
+      title: '启用',
+      key: 'isActive',
+      width: 80,
+      render: (row: any) =>
+        h(NTag, { type: row.isActive !== false ? 'success' : 'default', size: 'small' }, {
+          default: () => (row.isActive !== false ? '启用' : '停用'),
+        }),
+    },
+    'short',
+  ),
+  column(
+    {
+      title: '操作',
+      key: 'actions',
+      width: 140,
+      fixed: 'right' as const,
+      render: (row: any) =>
+        h(NSpace, { size: 8, wrap: false }, {
+          default: () => [
+            h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openEdit(row) }, { default: () => '编辑', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
+            h(NPopconfirm, { onPositiveClick: () => remove(row), positiveText: '确认', negativeText: '取消' }, {
+              default: () => '确认删除该班级？',
+              trigger: () => h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => '删除', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
+            }),
+          ],
+        }),
+    },
+    'control',
+  ),
 ]
 
 const pagination = () => ({ pageSize: 50, showSizePicker: false })

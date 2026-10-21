@@ -231,6 +231,7 @@ import {
   dictOptions,
   type SelectOption,
 } from '../../utils/campus'
+import { column } from '../../composables/useTableColumns'
 
 const message = useMessage()
 const deptStore = useDepartmentStore()
@@ -397,33 +398,38 @@ const dictLabel = (options: SelectOption[], key: string | null | undefined) => {
 }
 const deptName = (id: any) => (id != null ? deptStore.getById(String(id))?.name || String(id) : '-')
 
+// S5-08：列对齐接入 useTableColumns 单一真源
 const columns = [
-  { title: '编号', key: 'deptNo', width: 120, render: (row: any) => row.deptNo || '-' },
-  { title: '名称', key: 'name', width: 160, ellipsis: true, render: (row: any) => row.name || '-' },
-  { title: '归属部门', key: 'department', width: 160, ellipsis: true, render: (row: any) => deptName(row.department) },
-  { title: '归属BU', key: 'bu', width: 160, ellipsis: true, render: (row: any) => deptName(row.bu) },
-  { title: '客服主管', key: 'csSupervisor', width: 140, render: (row: any) => (row.csSupervisor != null ? String(row.csSupervisor) : '-') },
-  { title: '地点', key: 'location', width: 100, render: (row: any) => dictLabel(locationOptions.value, row.location) },
-  { title: '品牌', key: 'brand', width: 110, render: (row: any) => dictLabel(brandOptions.value, row.brand) },
-  { title: '客服类型', key: 'csType', width: 100, render: (row: any) => dictLabel(csTypeOptions.value, row.csType) },
-  { title: '工位类型', key: 'workstationType', width: 100, render: (row: any) => dictLabel(workstationOptions.value, row.workstationType) },
-  { title: '容量', key: 'capacity', width: 80, render: (row: any) => row.capacity ?? '-' },
-  { title: '社招人数', key: 'socialCount', width: 90, render: (row: any) => row.socialCount ?? 0 },
-  { title: '校招占用', key: 'campusCount', width: 90, render: (row: any) => row.campusCount ?? 0 },
-  {
-    title: '启用',
-    key: 'isActive',
-    width: 80,
-    render: (row: any) =>
-      h(NTag, { type: row.isActive !== false ? 'success' : 'default', size: 'small' }, {
-        default: () => (row.isActive !== false ? '启用' : '停用'),
-      }),
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 140,
-    fixed: 'right' as const,
+  column({ title: '编号', key: 'deptNo', width: 120, render: (row: any) => row.deptNo || '-' }),
+  column({ title: '名称', key: 'name', width: 160, ellipsis: true, render: (row: any) => row.name || '-' }),
+  column({ title: '归属部门', key: 'department', width: 160, ellipsis: true, render: (row: any) => deptName(row.department) }),
+  column({ title: '归属BU', key: 'bu', width: 160, ellipsis: true, render: (row: any) => deptName(row.bu) }),
+  column({ title: '客服主管', key: 'csSupervisor', width: 140, render: (row: any) => (row.csSupervisor != null ? String(row.csSupervisor) : '-') }),
+  column({ title: '地点', key: 'location', width: 100, render: (row: any) => dictLabel(locationOptions.value, row.location) }),
+  column({ title: '品牌', key: 'brand', width: 110, render: (row: any) => dictLabel(brandOptions.value, row.brand) }),
+  column({ title: '客服类型', key: 'csType', width: 100, render: (row: any) => dictLabel(csTypeOptions.value, row.csType) }),
+  column({ title: '工位类型', key: 'workstationType', width: 100, render: (row: any) => dictLabel(workstationOptions.value, row.workstationType) }),
+  column({ title: '容量', key: 'capacity', width: 80, render: (row: any) => row.capacity ?? '-' }, 'numeric'),
+  column({ title: '社招人数', key: 'socialCount', width: 90, render: (row: any) => row.socialCount ?? 0 }, 'numeric'),
+  column({ title: '校招占用', key: 'campusCount', width: 90, render: (row: any) => row.campusCount ?? 0 }, 'numeric'),
+  column(
+    {
+      title: '启用',
+      key: 'isActive',
+      width: 80,
+      render: (row: any) =>
+        h(NTag, { type: row.isActive !== false ? 'success' : 'default', size: 'small' }, {
+          default: () => (row.isActive !== false ? '启用' : '停用'),
+        }),
+    },
+    'short',
+  ),
+  column(
+    {
+      title: '操作',
+      key: 'actions',
+      width: 140,
+      fixed: 'right' as const,
     render: (row: any) =>
       h(NSpace, { size: 8, wrap: false }, {
         default: () => [
@@ -434,7 +440,9 @@ const columns = [
           }),
         ],
       }),
-  },
+    },
+    'control',
+  ),
 ]
 
 const pagination = () => ({ pageSize: 50, showSizePicker: false })

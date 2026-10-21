@@ -281,8 +281,16 @@ import {
   extractError,
   searchUsers,
   searchClassRooms,
+  DEPTS,
+  SCHOOLS,
+  MAJORS,
+  SEXES,
+  STATUS,
+  POSITIONS,
+  LEVELS,
   type SelectOption,
 } from '../../utils/campus'
+import { column } from '../../composables/useTableColumns'
 
 const message = useMessage()
 
@@ -309,14 +317,7 @@ const onTabChange = (v: string) => {
   reload()
 }
 
-// 枚举与后端 apps/campus_control/constants.py 保持一致（写时后端会校验合法性）
-const DEPTS = ['能电BG', '三到BG', '综合BG', '醒电BG']
-const SCHOOLS = ['985', '211', '双一流', '其他']
-const MAJORS = ['工学', '其他']
-const SEXES = ['男', '女']
-const STATUS = ['在职', '在途Offer', '在途待入职', '候选池']
-const POSITIONS = ['技术研发', '产品', '设计', '运营', '职能', '销售']
-const LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5']
+// 枚举单一真源见 utils/campus（与后端 apps/campus_control/constants.py 保持一致，G-08 已收敛）
 
 const toChoices = (arr: string[]) => arr.map((v) => ({ label: v, value: v }))
 const buChoices = toChoices(DEPTS)
@@ -484,38 +485,45 @@ const statusTagType = (s: string) => {
 // S5-04（需求 2-2）：列顺序 = 姓名→工号→在职状态→入职时间→班级→班主任→部门→职务→职级→性别→院校→专业
 // D-02：隐藏「候选人编号」列（库字段 code 保留）。
 // 新增：工号(employeeId) / 班级(classRoomName) / 班主任(headTeacherName)
+// S5-08：列对齐接入 useTableColumns 单一真源（数据列表尽量居中，操作列 control 档）
 const columns = [
-  { title: '姓名', key: 'name', width: 110, render: (row: any) => row.name || '-' },
-  { title: '工号', key: 'employeeId', width: 120, render: (row: any) => row.employeeId || '-' },
-  {
-    title: '在职状态', key: 'status', width: 110,
-    render: (row: any) =>
-      h(NTag, { type: statusTagType(row.status), size: 'small' }, { default: () => row.status || '-' }),
-  },
-  { title: '入职时间', key: 'actualEntryDate', width: 120, render: (row: any) => row.actualEntryDate || '-' },
-  { title: '班级', key: 'classRoomName', width: 140, ellipsis: true, render: (row: any) => row.classRoomName || '-' },
-  { title: '班主任', key: 'headTeacherName', width: 120, render: (row: any) => row.headTeacherName || '-' },
-  { title: '部门', key: 'bu', width: 110, render: (row: any) => row.bu || '-' },
-  { title: '职务', key: 'position', width: 100, render: (row: any) => row.position || '-' },
-  { title: '职级', key: 'level', width: 80, render: (row: any) => row.level || '-' },
-  { title: '性别', key: 'sex', width: 70, render: (row: any) => row.sex || '-' },
-  { title: '院校', key: 'school', width: 90, render: (row: any) => row.school || '-' },
-  { title: '专业', key: 'major', width: 90, render: (row: any) => row.major || '-' },
-  {
-    title: '操作', key: 'actions', width: 140, fixed: 'right' as const,
-    render: (row: any) =>
-      h(NSpace, { size: 8, wrap: false }, {
-        default: () => [
-          h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openEdit(row) },
-            { default: () => '编辑', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
-          h(NPopconfirm, { onPositiveClick: () => remove(row), positiveText: '确认', negativeText: '取消' }, {
-            default: () => '确认删除该校招生档案？',
-            trigger: () => h(NButton, { size: 'small', quaternary: true, type: 'error' },
-              { default: () => '删除', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
-          }),
-        ],
-      }),
-  },
+  column({ title: '姓名', key: 'name', width: 110, render: (row: any) => row.name || '-' }),
+  column({ title: '工号', key: 'employeeId', width: 120, render: (row: any) => row.employeeId || '-' }),
+  column(
+    {
+      title: '在职状态', key: 'status', width: 110,
+      render: (row: any) =>
+        h(NTag, { type: statusTagType(row.status), size: 'small' }, { default: () => row.status || '-' }),
+    },
+    'short',
+  ),
+  column({ title: '入职时间', key: 'actualEntryDate', width: 120, render: (row: any) => row.actualEntryDate || '-' }),
+  column({ title: '班级', key: 'classRoomName', width: 140, ellipsis: true, render: (row: any) => row.classRoomName || '-' }),
+  column({ title: '班主任', key: 'headTeacherName', width: 120, render: (row: any) => row.headTeacherName || '-' }),
+  column({ title: '部门', key: 'bu', width: 110, render: (row: any) => row.bu || '-' }),
+  column({ title: '职务', key: 'position', width: 100, render: (row: any) => row.position || '-' }),
+  column({ title: '职级', key: 'level', width: 80, render: (row: any) => row.level || '-' }),
+  column({ title: '性别', key: 'sex', width: 70, render: (row: any) => row.sex || '-' }),
+  column({ title: '院校', key: 'school', width: 90, render: (row: any) => row.school || '-' }),
+  column({ title: '专业', key: 'major', width: 90, render: (row: any) => row.major || '-' }),
+  column(
+    {
+      title: '操作', key: 'actions', width: 140, fixed: 'right' as const,
+      render: (row: any) =>
+        h(NSpace, { size: 8, wrap: false }, {
+          default: () => [
+            h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => openEdit(row) },
+              { default: () => '编辑', icon: () => h(NIcon, null, { default: () => h(CreateOutline) }) }),
+            h(NPopconfirm, { onPositiveClick: () => remove(row), positiveText: '确认', negativeText: '取消' }, {
+              default: () => '确认删除该校招生档案？',
+              trigger: () => h(NButton, { size: 'small', quaternary: true, type: 'error' },
+                { default: () => '删除', icon: () => h(NIcon, null, { default: () => h(TrashOutline) }) }),
+            }),
+          ],
+        }),
+    },
+    'control',
+  ),
 ]
 
 onMounted(() => {

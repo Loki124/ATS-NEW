@@ -18,6 +18,27 @@ export interface SelectOption {
 }
 
 // ---------------------------------------------------------------------------
+// 校招领域枚举（单一真源）
+// G-08 收敛：原分散在 pages/campus/CampusPerson.vue 与 api/campusControl.ts 各定义一份，
+// 现统一收口到此处。保持普通 string[]（非 as const），兼容 CampusPerson 的 toChoices(arr: string[])。
+// 取值须与后端 apps/campus_control/constants.py 保持一致（写时后端会校验合法性）。
+// ---------------------------------------------------------------------------
+/** 部门（BU）候选：能电BG / 三到BG / 综合BG / 醒电BG */
+export const DEPTS: string[] = ['能电BG', '三到BG', '综合BG', '醒电BG']
+/** 院校标签：985 / 211 / 双一流 / 其他 */
+export const SCHOOLS: string[] = ['985', '211', '双一流', '其他']
+/** 专业标签：工学 / 其他 */
+export const MAJORS: string[] = ['工学', '其他']
+/** 性别：男 / 女 */
+export const SEXES: string[] = ['男', '女']
+/** 校招生在职状态：在职 / 在途Offer / 在途待入职 / 候选池 */
+export const STATUS: string[] = ['在职', '在途Offer', '在途待入职', '候选池']
+/** 职务：技术研发 / 产品 / 设计 / 运营 / 职能 / 销售 */
+export const POSITIONS: string[] = ['技术研发', '产品', '设计', '运营', '职能', '销售']
+/** 职级：L1~L5 */
+export const LEVELS: string[] = ['L1', 'L2', 'L3', 'L4', 'L5']
+
+// ---------------------------------------------------------------------------
 // 响应解析
 // ---------------------------------------------------------------------------
 

@@ -20,15 +20,22 @@
 import { api } from '../utils/request'
 
 /* ============================ 领域常量 ============================ */
-export const DEPTS = ['能电BG', '三到BG', '综合BG', '醒电BG']
-export const SCHOOLS = ['985', '211', '双一流', '其他']
-export const MAJORS = ['工学', '其他']
-export const SEXES = ['男', '女']
+// G-08 收敛：校招枚举（DEPTS/SCHOOLS/MAJORS/SEXES/STATUS/POSITIONS/LEVELS）单一真源已迁至 utils/campus，
+// 此处 re-export 以保留 campusControl 的历史导出面，禁止再本地定义（避免双源漂移）。
+export {
+  DEPTS,
+  SCHOOLS,
+  MAJORS,
+  SEXES,
+  STATUS,
+  POSITIONS,
+  LEVELS,
+} from '../utils/campus'
+// 维度 / 强度 仍服务于 campusControl 内部类型推导，保留本地定义
 export const DIMS = ['院校标签', '专业标签', '性别'] as const
 export const STRENGTH = ['硬约束', '软约束'] as const  // v2.9：原「仅提示」已合并至「软约束」（后端处理一致）
-export const STATUS = ['在职', '在途Offer', '在途待入职', '候选池'] as const
-export const POSITIONS = ['技术研发', '产品', '设计', '运营', '职能', '销售']
-export const LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5']
+
+// 月份（人员比例管控规则用，非 G-08 校招枚举双源范畴，保留 campusControl 本地定义）
 export const ALL_MONTHS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
 export const MONTHS = ALL_MONTHS
 

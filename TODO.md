@@ -2,7 +2,7 @@
 
 > **单一事实源（Single Source of Truth）**：本文件是全项目待办事项的**唯一权威台账**。
 > **维护纪律**：每完成一项任务，**必须立即**在本文件标记 ✅ 并更新进度统计，禁止只在会话/记忆里口头完成。
-> **最后更新**：2026-10-20（S8-02 三处越权面专属守卫落地 commit `3a2ccd7e`；S8 纳入台账并校正合计）
+> **最后更新**：2026-10-21（S5-14 后端+回归测试 `59dfa177`；S5-15 前端三段式汇总页 `35325fc5`；S5-08 顺接整改进行中）
 
 ---
 
@@ -31,18 +31,18 @@
 | S2 前端工程化 | 7 | 0 | 0 | 2 | 0 |
 | S3 测试与质量 | 3 | 0 | 0 | 1 | 0 |
 | S4 运维与安全 | 2 | 0 | 0 | 0 | 0 |
-| S5 校招生管理（2026-10-19 新增） | 15 | 0 | 1 | 12 | 0 |
+| S5 校招生管理（2026-10-19 新增） | 12 | 1 | 1 | 14 | 0 |
 | **S6 资源管理治理（2026-10-19 新增）** | **0** | **0** | **0** | **7** | **0** |
 | **S7 元素级权限漏挂整改（2026-10-19 全站扫漏）** | **10** | **0** | **0** | **0** | **0** |
 | **S8 受策略管控资源清单补全（2026-10-20 兵哥裁决）** | **1** | **1** | **0** | **1** | **0** |
-| **合计** | **40** | **1** | **1** | **78** | **0** |
+| **合计** | **37** | **2** | **1** | **80** | **0** |
 
-**完成率**：78 / 120 ≈ **65.0%**
+**完成率**：80 / 120 ≈ **66.7%**
 
 > 📌 S6 计入口径：S6-01/02/03/06 代码与单测已写但**尚未提交、尚未在真实库验证**，记 `🟡 进行中`；S6-04/07 未开始；S6-05（默认筛选策略）待兵哥决策，记 `⏸️ 已挂起`。**严禁假绿**：上述"已落地"项待提交+验证后由执行者改为 ✅。
 
 > 📌 每次状态变更须同步更新本表，否则视为台账失效。
-> 📐 **计数口径**：S0 汇总为 43 项（明细见 `docs/07-audit/TODO_2026-10-08.md`，本表不展开）；S1–S8 每行计 1 项。当前未完成 42 项（40 未开始 + 1 进行中 + 1 受阻）= S1×2 + S2×7 + S3×3 + S4×2 + S5×16（15 未开始 + 1 受阻）+ S7×10 + S8×2（S8-01 进行中 + S8-03 未开始）。（2026-10-20 校正：原合计行 35/112 与分阶段行算术不符，已按分阶段行重算。）
+> 📐 **计数口径**：S0 汇总为 43 项（明细见 `docs/07-audit/TODO_2026-10-08.md`，本表不展开）；S1–S8 每行计 1 项。当前未完成 40 项（37 未开始 + 2 进行中 + 1 受阻）= S1×2 + S2×7 + S3×3 + S4×2 + S5×16（12 未开始 + 1 进行中 + 1 受阻）+ S7×10 + S8×2（S8-01 进行中 + S8-03 未开始）。（2026-10-21 校正：S5-08 启动进行中，S5 未开始 13→12、进行中 0→1，合计未开始 38→37、进行中 1→2。）
 > 🔴 **S5 完成率大幅回落是预期行为** —— 新纳入 28 项需求（27 未开始 + 1 受阻），非质量滑坡。
 
 ---
@@ -144,7 +144,7 @@
 | S5-05 | 【需求 2-1】人员页按状态页签 + 待入职独立页签 | ✅ 已完成 | P1 | — | 3h | 人员管理页状态下拉→页签（含「待入职」映射 `在途待入职`）；🔴 **轮岗安排页签**（`APPROVING`/`TERMINATED`）依赖 S5-19 FSM，留待该批 |
 | S5-06 | 【需求 3-2】班级成员明细穿透（人数列可点击 + 抽屉） | ✅ 已完成 | P1 | — | 5h | 新增 `GET /campus-rotation/class-rooms/{id}/members/`（后端）；班级列表「校招人数」可点击打开 `n-drawer` 成员明细（前端）；依赖 S5-10 `Person.class_room` |
 | S5-07 | 【需求 4-2】轮岗资源页改「新增资源」下拉（直播间/客服部门） | ✅ 已完成 | P2 | — | 2h | 新增 `ServiceDept.vue` 管理页（CRUD + 校招占用聚合）+ `LiveRoom.vue` 顶部「新增资源」下拉（新增直播间/新增客服部门）+ 路由 `/campus/service-dept` + 菜单「客服部门」复用 `recruit:campus:resource:menu:view`；后端 `service-depts` 全 CRUD 由 S5-12 提供 |
-| S5-08 | 顺接整改：campus 四页 columns 接入 `useTableColumns` + 收敛枚举双源 | ⬜ 未开始 | P2 | S5-04 | 4h | `useTableColumns` 在 campus 目录零引用；`CampusPerson.vue:247-253` 与 `api/campusControl.ts:23-33` 枚举双源漂移（G-08） |
+| S5-08 | 顺接整改：campus 四页 columns 接入 `useTableColumns` + 收敛枚举双源 | 🟡 进行中 | P2 | S5-04 | 4h | `useTableColumns` 在 campus 目录零引用；`CampusPerson.vue:247-253` 与 `api/campusControl.ts:23-33` 枚举双源漂移（G-08） |
 
 ### B2 班级与档案模型
 
@@ -160,8 +160,8 @@
 |---|---|---|---|---|---|---|
 | S5-12 | 【需求 4-3】新建 `ServiceDept` 客服部门模型（含 3 个专属字段） | ✅ 已完成 | P1 | B0 | 8h | 模型 `ServiceDept`（19 字段，dept_no 自动 SD+6）+ 迁移 `0004_service_dept_and_arrangement_service_dept`（dev 已应用，表 `campus_rotation_service_depts` 落地）+ `ServiceDeptSerializer`（location 校验 LOCATION；cs_type/workstation_type/brand 字典校验留 S5-13）+ `ServiceDeptViewSet`（复用 `recruit:campus:resource:*` 权限、scope_field=bu/campus_resource）+ `RotationArrangement.service_dept` FK（已加列 `service_dept_id`）。⚠️ `BrandInfo` 实为**单例**（非品牌目录），`brand` 改存 `BRAND` 字典 key（与 platform/location 同构），字典由 S5-13 建立 |
 | S5-13 | 【需求 4-3】新建 3 个数据字典（`CS_TYPE`/`WORKSTATION_TYPE`/`BRAND`）+ `LiveRoom` 补 brand 字段 + ServiceDept 临时输入框升级字典下拉 | ✅ 已完成 | P1 | S5-12 | 4h | `seeds.py` 新增 `seed_brand_type/seed_cs_type_type/seed_workstation_type_type` 并注册到 `apps.py`；`LiveRoom.brand` 字段 + 迁移 `0005_liveroom_brand`（dev 已应用，`campus_rotation_live_rooms.brand` 落地）；`LiveRoomSerializer`+`ServiceDeptSerializer` 加 BRAND/CS_TYPE/WORKSTATION_TYPE 字典校验（非法 key 拒绝、中文错误）；前端 `ServiceDept.vue`/`LiveRoom.vue` 三个/一个临时 `n-input` 升级为 `n-select` 字典下拉 + 表格中文列。dev 已手动注入三字典种子（BRAND=3/CS_TYPE=3/WORKSTATION_TYPE=2 项） |
-| S5-14 | 【需求 4-1】BU 汇总拆分为 直播汇总/客服汇总/总数据 三段式 | ⬜ 未开始 | P1 | S5-12 | 6h | 🔴 禁 N+1，须 `values().annotate(Count())` 分组；`capacity=0` 时 `usedRate` 返 `null` 不除零 |
-| S5-15 | 【需求 4-1】前端三段式汇总页（表格优先，图表作增强） | ⬜ 未开始 | P2 | S5-14 | 2h | 现状**完全缺失**，无任何图表组件 |
+| S5-14 | 【需求 4-1】BU 汇总拆分为 直播汇总/客服汇总/总数据 三段式 | ✅ 已完成 | P1 | S5-12 | 6h | 后端 `ResourceBuSummaryView`（GET `/api/v1/campus-rotation/resources/bu-summary/`）+ 路由注册；三段式 live/service/total；🔴 两条 `values().annotate(Count())` 分组禁 N+1；`capacity=0`→`usedRate=null` 防除零；行级隔离复用 `scope_filter_q(scope_field='bu', entity='campus_resource')`。回归测试 `test_bu_summary.py` 真实 MySQL 下 **1 passed**（commit `59dfa177`）。前端页 S5-15 |
+| S5-15 | 【需求 4-1】前端三段式汇总页（表格优先，图表作增强） | ✅ 已完成 | P2 | S5-14 | 2h | 前端 `ResourceSummary.vue` + 路由 `campus/resource-summary` + 菜单「资源汇总」（`pages/Layout.vue` 校招生管理分组）+ 菜单权限前缀 `recruit:campus:resource:menu:view`（`utils/permissionMenu.ts`）。复用 S5-14 后端 `GET /api/v1/campus-rotation/resources/bu-summary/`；三段式 直播/客服/总数据，`capacity=0`→`usedRate=null` 前端显示「—」。**vue-tsc 类型检查通过**（托管 Node 直跑，仅无关在途测试文件有错；commit `35325fc5`）。图表增强待定 |
 
 ### B4 确认流程与审批流
 
@@ -299,9 +299,9 @@
 
 | ID | 事项 | 优先级 | 状态 | 备注 |
 |---|---|---|---|---|
-| S8-01 | 补建缺失的按钮资源码（原 26 条，S8-02 已补 3 条，剩 23 条），并置 `strategy_governed=True` | P1 | 🟡 进行中 | 走 `seed_v2_init.STRATEGY_GOVERNED_CODES` + 数据迁移（0042 起）+ **同步五处**（资源表 / role_permission / permission_templates / 前端 permissionMenu.ts / 各 views.py 的 permission_required）。剩 23 条清单见下；S8-02（`3a2ccd7e`）为参考实现模式；方案设计已派架构师，产出 `docs/方案_S8-01_缺失资源码补建.md` |
+| S8-01 | 补建缺失的按钮资源码（原 26 条，S8-02 已补 3 条，剩 23 条；逐条调研后实际补建 11 条），并置 `strategy_governed=True` | P1 | 🟡 进行中 | 方案 `docs/方案_S8-01_缺失资源码补建.md`（609 行）。兵哥 2026-10-20 裁 8 项：迁移用 **0044** 依赖在途 0043（T03 等其合入）；词表 +4（recommend/eliminate/notify/cancel）；发送通知只做端点+落库（渠道投递后置）；C 类 7 条移 S8-03；邀约码进候选人策略候选区；不批跑补权。11 新码 = interview:edit/delete、invitation:edit/reject、candidate:assign/recommend/eliminate/notify、candidate:bg_check:start/import/cancel。T01/T02 实施中 |
 | S8-02 | 🔴 三个功能当前**无任何权限码守卫**（越权面） | P0 | ✅ 已完成 | 已确认是真缺口。commit `3a2ccd7e`：`recruit:demand:delete`（destroy 精确守卫，修复「回退 list 即可删」）/ `recruit:settings:demand_config:open_grab`（与 edit 拆分，按方法守卫）/ `recruit:demand:batch_update`（独立端点 + 人员字段白名单）。5 例 pytest 全绿；前端 DemandList/DemandConfig 补 v-permission。**未 push（待授权）** |
-| S8-03 | 简历筛选 / 面试邀约 / 背调 三个子模块**整体无资源码** | P1 | ⬜ 未开始 | 可随 S8-01 一并补建（23 条中占 10 条：简历筛选 3 / 面试邀约 2 / 背调 5）；背调（发起/重发/取消/补充/添加）系统内完全不存在 |
+| S8-03 | 简历筛选 / 面试邀约 / 背调 三个子模块**整体无资源码** | P1 | ⬜ 未开始 | S8-01 落地后邀约/背调写码已补（invitation:edit/reject、candidate:bg_check:*）；剩余 = ①简历筛选薄壳页仍无码族 ②C 类 7 条功能不存在项（邀请筛选简历/撤回筛选邀请/催促筛选/催促面评/面试邀请/打印面试反馈/重发背调，D4 裁决移入，待功能 PRD 后再建码） |
 
 **S8-01 缺失清单（原 26 条 → S8-02 已补 3 条 → 剩 23 条）**
 - 招聘需求：删除需求 ✅(S8-02)、编辑画像、开启抢单 ✅(S8-02)、批量修改 ✅(S8-02)
