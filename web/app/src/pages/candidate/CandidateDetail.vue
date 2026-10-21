@@ -89,12 +89,27 @@
                       {{ t('pages.candidate.CandidateDetail.s49') }}
                     </n-button>
                   </div>
-                  <iframe
-                    v-if="resumeFileUrl && resumePreviewable"
-                    :src="resumeFileUrl"
-                    class="raw-resume-frame"
-                    :title="t('pages.candidate.CandidateDetail.s342')"
-                  />
+                  <template v-if="resumeFileUrl && resumePreviewable">
+                    <iframe
+                      v-if="resumeObjectUrl"
+                      :src="resumeObjectUrl"
+                      class="raw-resume-frame"
+                      :title="t('pages.candidate.CandidateDetail.s342')"
+                    />
+                    <n-empty
+                      v-else-if="resumePreviewError"
+                      :description="t('pages.candidate.CandidateDetail.s345')"
+                      style="margin: 24px 0"
+                    >
+                      <template #extra>
+                        <n-button type="primary" @click="handleDownloadResume">
+                          <template #icon><n-icon :component="DownloadOutline" /></template>
+                          {{ t('pages.candidate.CandidateDetail.s34') }}
+                        </n-button>
+                      </template>
+                    </n-empty>
+                    <n-spin v-else style="margin: 24px 0" />
+                  </template>
                   <div v-else-if="resumeFileUrl" class="raw-resume-fallback">
                     <n-empty :description="t('pages.candidate.CandidateDetail.s343')" style="margin: 24px 0" />
                   </div>
@@ -807,7 +822,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
@@ -1095,6 +1110,45 @@ const currentStage = computed(() => applications.value[0]?.currentStage ?? '')
 const resumeFileUrl = computed(() => pickDetail('resume_file_url'))
 // 原始简历在线预览：pdf 与图片可内嵌 iframe；doc/docx 浏览器不支持，引导下载
 const resumePreviewable = computed(() => /\.(pdf|png|jpe?g|gif|webp|bmp)([?#]|$)/i.test(resumeFileUrl.value ?? ''))
+
+// 2026-10-21 兵哥：预览失败修复 —— 后端对 media 响应下发 X-Frame-Options: DENY，
+// dev 下页面在 5212、Vite 代理把 /media 转发到 8000，iframe 直连 src 会被浏览器
+// 判定跨源禁嵌 → 显示「预览失败」。改为经鉴权 fetch 取为 blob，再以同源 objectURL
+// 内嵌 iframe：① 绕过 X-Frame-Options；② 自动携带 Authorization（secure 下载端点亦可用）。
+const resumeObjectUrl = ref('')
+const resumePreviewError = ref(false)
+
+function buildAbsoluteMediaUrl(rel: string): string {
+  if (/^https?:\/\//i.test(rel)) return rel
+  const base = window.location.origin
+  return rel.startsWith('/') ? `${base}${rel}` : `${base}/${rel}`
+}
+
+async function loadResumePreview() {
+  if (resumeObjectUrl.value) {
+    URL.revokeObjectURL(resumeObjectUrl.value)
+    resumeObjectUrl.value = ''
+  }
+  resumePreviewError.value = false
+  const url = resumeFileUrl.value
+  if (!url || !resumePreviewable.value) return
+  try {
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+    const resp = await fetch(buildAbsoluteMediaUrl(url), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+    const blob = await resp.blob()
+    resumeObjectUrl.value = URL.createObjectURL(blob)
+  } catch (e) {
+    resumePreviewError.value = true
+  }
+}
+
+watch(resumeFileUrl, () => { loadResumePreview() }, { immediate: true })
+onBeforeUnmount(() => {
+  if (resumeObjectUrl.value) URL.revokeObjectURL(resumeObjectUrl.value)
+})
 
 // ===== 操作记录渲染（字段级 diff / 阶段·状态流转 / 解析溯源 / 哈希链校验） =====
 // 操作类型 → i18n key（s235–s244）；命中不到则回退原始 action 串，避免空白
