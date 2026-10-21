@@ -103,6 +103,14 @@ describe('动态取值条件（data-permission）', () => {
     it('编号越界被拦截', () => {
       expect(validateExpr('5', 2)).not.toBeNull()
     })
+
+    it('运算符结尾缺运算数被拦截（如 1 and / 1 or 2 and）', () => {
+      // 历史漏判：and 结尾的残缺表达式曾被错误放行（andSeen 先置 true 让 res.valid 变 true）。
+      // 后端 expr_compiler.validate_expr 本就拒绝（已由序列化器守卫兜底），前端也须立即标红。
+      expect(validateExpr('1 and', 2)).not.toBeNull()
+      expect(validateExpr('1 or 2 and', 3)).not.toBeNull()
+      expect(validateExpr('or 1', 2)).not.toBeNull()
+    })
   })
 
   /**

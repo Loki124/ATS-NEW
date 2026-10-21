@@ -319,7 +319,14 @@ function parseFull(toks: Tok[], start: number, maxIndex: number) {
   };
 
   const valid = parseOr(0);
-  return { valid, error: err ?? (valid ? null : '表达式语法错误'), pos };
+  // 🔴 err 一旦被置位即为语法错误。关键漏判修复：`1 and` / `1 or 2 and` 这类
+  // 「运算符结尾缺运算数」的表达式，parseAnd 会先记 andSeen=true 再因 atom 不完整报错，
+  // 上面 `!left.andSeen && err` 守卫因 andSeen=true 不触发，但 err('表达式不完整') 已置位——
+  // 旧逻辑靠 `if (!res.valid)` 判定，而此类表达式 res.valid 反被算成 true，于是被错误放行。
+  // 后端 expr_compiler 对这类输入正确拒绝（已由序列化器守卫兜底），但前端也应在 typing 时
+  // 立即标红，避免用户等到保存才撞 400。err 只在真实语法错误时被赋值，判非法无副作用。
+  if (err) return { valid: false, error: err, pos };
+  return { valid: true, error: null, pos };
 }
 
 // ---------------------------------------------------------------------------

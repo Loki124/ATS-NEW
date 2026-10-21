@@ -1625,7 +1625,6 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.DynamicStrategy.s33': "配置预览",
   'pages.settings.DynamicStrategy.s34': "已选功能 {n} 项",
   'pages.settings.DynamicStrategy.s35': "条件组 {m} 组",
-  'pages.settings.DynamicStrategy.s36': "或 (OR)",
   'pages.settings.DynamicStrategy.s37': "确定应用",
   'pages.settings.DynamicStrategy.s38': "已授权 {n} 项",
   'pages.settings.DynamicStrategy.s39': "已配置 {m} 组条件",
@@ -1634,7 +1633,6 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.DynamicStrategy.s42': "当满足 {conditions} 时，可操作 {functions} 功能",
   'pages.settings.DynamicStrategy.s43': "全部数据",
   'pages.settings.DynamicStrategy.s44': "未选择功能",
-  'pages.settings.DynamicStrategy.s45': "且 (AND)",
   // 2026-10-20：受限功能改为资源粒度后，某模块下无受管控资源时的空态说明
   'pages.settings.DynamicStrategy.s46': "该模块暂无受策略管控的功能，请先在「资源管理」页把对应资源的「受策略管控」打开",
   'pages.settings.RecruitmentRound.s4': "新增轮次",

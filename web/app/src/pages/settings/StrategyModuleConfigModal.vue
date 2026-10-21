@@ -1,8 +1,14 @@
 <template>
   <!--
     动态策略「配置权限与规则」弹窗（全新独立组件）。
-    职责单一：编辑某个模块的「写动作集合 actions」与「授权条件组 groups」
-    （组间组合固定为 OR，无表达式输入框）。mode 由父组件计算，本弹窗不负责。
+    职责单一：编辑某个模块的「写动作集合 actions」与「授权条件组 groups」。
+    两级布尔表达式均由用户手填（与角色数据权限弹窗 RuleConfigModal 完全同构）：
+      · 组内表达式 group.expr —— 引用本组条件序号 1..N，留空 = 且 (AND)；
+      · 组间组合 expr        —— 引用条件组序号 1..N，留空 = 或 (OR)。
+    保存前逐组校验表达式语法（validateExpr，与后端 expr_compiler 同口径），
+    非法即拦截并提示，绝不放行 —— 否则 enforcement 编译期抛错被吞 →
+    Q(pk__in=[]) → 该模块对所有人静默全拒（安全事变了）。
+    mode 由父组件计算，本弹窗不负责。
     条件行仅支持关系维度（relationship），不渲染任何属性条件 / 权限模板引用 UI。
   -->
   <n-modal
@@ -36,7 +42,7 @@
       </p>
     </section>
 
-    <!-- ② 授权条件：多条件组列表（仅 relationship），组间用「或 (OR)」分隔 -->
+    <!-- ② 授权条件：多条件组列表（仅 relationship）；组内/组间关系由手填表达式决定（留空 = 且/或） -->
     <section class="section">
       <div class="section-head">
         <h3 class="section-title">{{ t('pages.settings.DynamicStrategy.s28') }}</h3>
@@ -44,7 +50,6 @@
 
       <div v-if="localGroups.length" class="group-list">
         <template v-for="(g, gi) in localGroups" :key="g.id">
-          <div v-if="gi > 0" class="group-sep">{{ t('pages.settings.DynamicStrategy.s36') }}</div>
           <div class="group-block">
             <div class="group-head">
               <span class="group-title">
@@ -121,6 +126,47 @@
                 <n-icon :component="TrashOutline" />
               </button>
             </div>
+
+            <!-- 组内表达式（用户手填，引用本组条件序号 1..N；留空 = 且 AND）。
+                 交互与 RuleConfigModal 逐行同构：label + info 图标 hover 提示
+                 + 输入框 + 校验状态图标（ok 绿勾 / bad 红叹，hover 出原因）。 -->
+            <div class="group-inner-row">
+              <span class="inner-label">
+                {{ t('dataperm.modal.expr.intraLabel') }}
+                <n-tooltip trigger="hover">
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="hint-btn"
+                      :aria-label="t('dataperm.modal.expr.intraPlaceholder')"
+                    >
+                      <n-icon :component="InformationCircleOutline" />
+                    </button>
+                  </template>
+                  {{ t('dataperm.modal.expr.intraPlaceholder') }}
+                </n-tooltip>
+              </span>
+              <n-input
+                v-model:value="g.expr"
+                size="small"
+                clearable
+                placeholder=""
+                :class="{ 'input-error': !!intraError(g) }"
+              />
+              <n-tooltip trigger="hover">
+                <template #trigger>
+                  <button
+                    type="button"
+                    class="expr-status"
+                    :class="intraError(g) ? 'bad' : 'ok'"
+                    :aria-label="intraError(g) ? t('dataperm.modal.expr.invalid', { reason: intraError(g) || '' }) : t('dataperm.modal.expr.valid')"
+                  >
+                    <n-icon :component="intraError(g) ? AlertCircleOutline : CheckmarkCircleOutline" />
+                  </button>
+                </template>
+                {{ intraError(g) ? t('dataperm.modal.expr.invalid', { reason: intraError(g) || '' }) : t('dataperm.modal.expr.valid') }}
+              </n-tooltip>
+            </div>
           </div>
         </template>
       </div>
@@ -137,6 +183,49 @@
       <a v-if="localGroups.length" class="add-link" @click="addGroup">
         <n-icon :component="AddOutline" /> {{ t('dataperm.modal.addGroup') }}
       </a>
+
+      <!-- 组间组合（引用条件组序号 1..N；留空 = 或 OR）。提示同上：info 图标 + 状态图标。
+           自定义组间表达式下，此输入行 + 预览句是真实关系的唯一载体（已移除静态「或 (OR)」分隔符，
+           它会把用户配的「且」显示成「或」，属于放大权限的误导）。 -->
+      <div v-if="localGroups.length" class="inter-block">
+        <div class="group-inner-row">
+          <span class="inner-label">
+            {{ t('dataperm.modal.expr.interLabel') }}
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <button
+                  type="button"
+                  class="hint-btn"
+                  :aria-label="t('dataperm.modal.expr.interPlaceholder')"
+                >
+                  <n-icon :component="InformationCircleOutline" />
+                </button>
+              </template>
+              {{ t('dataperm.modal.expr.interPlaceholder') }}
+            </n-tooltip>
+          </span>
+          <n-input
+            v-model:value="localInter"
+            size="small"
+            clearable
+            placeholder=""
+            :class="{ 'input-error': !!interError }"
+          />
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <button
+                type="button"
+                class="expr-status"
+                :class="interError ? 'bad' : 'ok'"
+                :aria-label="interError ? t('dataperm.modal.expr.invalid', { reason: interError || '' }) : t('dataperm.modal.expr.valid')"
+              >
+                <n-icon :component="interError ? AlertCircleOutline : CheckmarkCircleOutline" />
+              </button>
+            </template>
+            {{ interError ? t('dataperm.modal.expr.invalid', { reason: interError || '' }) : t('dataperm.modal.expr.valid') }}
+          </n-tooltip>
+        </div>
+      </div>
     </section>
 
     <!-- ③ 配置预览：实时显示已选功能项数与条件组数 -->
@@ -175,16 +264,26 @@
  * onUnifiedOperatorChange / onRangeChange / onValuesChange / addCondition /
  * delCondition / delGroup / addGroup。
  * 不移植任何 isAttr / 属性条件 / 权限模板（templateRef）相关代码。
+ *
+ * 2026-10-20 表达式能力补齐（兵哥截图反馈「条件之间无法设置且/或」）：
+ * 组内（group.expr）/ 组间（localInter）两级表达式输入 + validateExpr 实时校验
+ * + previewOf 预览，apply 前与 RuleConfigModal.confirm 同构拦截。
  */
 import { computed, ref, watch, onMounted } from 'vue'
 import {
   NModal, NButton, NSpace, NSelect, NCheckbox, NCheckboxGroup, NIcon,
+  NInput, NTooltip, NTag, useMessage,
 } from 'naive-ui'
-import { AddOutline, TrashOutline, ReorderFourOutline } from '@vicons/ionicons5'
+import {
+  AddOutline, TrashOutline, ReorderFourOutline,
+  InformationCircleOutline, CheckmarkCircleOutline, AlertCircleOutline,
+} from '@vicons/ionicons5'
 import {
   uid,
   dynamicSourceOptions,
   resolveValueSource,
+  validateExpr,
+  previewOf,
   type DimensionMeta, type PermCondition, type PermConditionGroup,
   type AttributeField, type PermValue, type ActionDictItem,
 } from '@/composables/useRoleDataPerm'
@@ -192,6 +291,7 @@ import type { OperatorOption } from '@/api/data-permission'
 import type { StrategyGovernedResource } from '@/api/dynamicStrategy'
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
+const message = useMessage()
 
 const props = withDefaults(defineProps<{
   show: boolean
@@ -218,6 +318,8 @@ const props = withDefaults(defineProps<{
   initialResourceCodes?: string[]
   /** 打开时该模块已配的条件组 */
   initialGroups: PermConditionGroup[]
+  /** 打开时该模块已配的组间组合表达式（scope 模式生效；留空 = 或 OR） */
+  initialExpr?: string
 }>(), {
   actionOptions: () => [],
   initialActions: () => [],
@@ -225,12 +327,14 @@ const props = withDefaults(defineProps<{
   initialGroups: () => [],
   attributeFields: () => [],
   governedResources: () => [],
+  initialExpr: '',
 })
 
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void
-  /** 受限功能改为资源粒度：勾选结果以资源码集合回传，父组件并入 grantedResourceCodes */
-  (e: 'apply', payload: { resourceCodes: string[]; groups: PermConditionGroup[] }): void
+  /** 受限功能改为资源粒度：勾选结果以资源码集合回传，父组件并入 grantedResourceCodes；
+   *  expr 为组间组合表达式（手填，留空 = 或 OR），父组件原样写回 module_config[key].expr */
+  (e: 'apply', payload: { resourceCodes: string[]; groups: PermConditionGroup[]; expr: string }): void
 }>()
 
 const modalTitle = computed(() => `${t('pages.settings.DynamicStrategy.s24')} · ${props.moduleName}`)
@@ -242,6 +346,8 @@ const modalTitle = computed(() => `${t('pages.settings.DynamicStrategy.s24')} ·
  */
 const localResourceCodes = ref<string[]>([])
 const localGroups = ref<PermConditionGroup[]>([])
+/** 组间组合表达式（引用条件组序号 1..N；留空 = 或 OR）。resetState 时由 initialExpr 回填。 */
+const localInter = ref<string>('')
 
 // ===== 受限功能：资源复选格 =====
 // 候选由后端按策略模块分组并过滤完毕（strategy_governed=True + BUTTON + 启用），
@@ -461,6 +567,19 @@ function clearAll() {
   localGroups.value = []
 }
 
+// ===== 表达式实时校验（validateExpr 与后端 expr_compiler 同口径）=====
+/** 组内表达式错误原因；留空 = 且 (AND)，合法（与 RuleConfigModal.intraError 逐字同构）。 */
+function intraError(g: PermConditionGroup): string | null {
+  if (!g.expr || !g.expr.trim()) return null
+  return validateExpr(g.expr, g.conditions.length)
+}
+
+/** 组间组合错误原因；留空 = 或 (OR)，合法（与 RuleConfigModal.interError 逐字同构）。 */
+const interError = computed<string | null>(() => {
+  if (!localInter.value || !localInter.value.trim()) return null
+  return validateExpr(localInter.value, localGroups.value.length)
+})
+
 // ===== 深拷贝并补全 id（往返编辑不损坏存量条件）=====
 function cloneGroups(src: PermConditionGroup[]): PermConditionGroup[] {
   return (src || []).map((g) => ({
@@ -493,6 +612,8 @@ function resetState() {
    */
   localResourceCodes.value = [...(props.initialResourceCodes || [])]
   localGroups.value = cloneGroups(props.initialGroups || [])
+  // 组间组合表达式回填（父组件 configInitialExpr computed 供数；缺省空串 = 或 OR）
+  localInter.value = props.initialExpr ?? ''
 }
 
 // show 变为 true 时重置内部状态；onMounted 也兜底一次
@@ -504,30 +625,21 @@ watch(
 onMounted(() => { if (props.show) resetState() })
 
 // ===== 配置预览：当满足 {条件内容} 时，可操作 {功能清单} 功能 =====
-/** 单条条件 → 人类可读文本（维度 + 运算符 + 值；动态取值显示来源标签） */
-function conditionLabel(c: PermCondition): string {
-  const dimLabel = dimMetaOf(c.dimension || '')?.label || c.dimension || ''
-  const opValue = unifiedOperatorValue(c)
-  const opLabel = unifiedOperatorOptions(c).find((o) => o.value === opValue)?.label || opValue
-  if (noValueOperator(c)) return `${dimLabel} ${opLabel}`.trim()
-  const valueLabel = isDynamic(c)
-    ? rangeLabel(c)
-    : (c.values || []).map((v) => v.label).join('、')
-  return valueLabel ? `${dimLabel} ${opLabel} ${valueLabel}` : `${dimLabel} ${opLabel}`.trim()
-}
-
-/** 条件内容：组内「且 (AND)」，组间「或 (OR)」；无条件组 = 全部数据 */
-const conditionText = computed(() => {
-  if (!localGroups.value.length) return t('pages.settings.DynamicStrategy.s43')
-  const groupTexts = localGroups.value.map((g) =>
-    (g.conditions || [])
-      .map(conditionLabel)
-      .filter(Boolean)
-      .join(t('pages.settings.DynamicStrategy.s45')),
-  )
-  const text = groupTexts.filter(Boolean).join(t('pages.settings.DynamicStrategy.s36'))
-  return text || t('pages.settings.DynamicStrategy.s43')
-})
+/**
+ * 条件内容预览：改用 previewOf（与后端 expr_compiler 同口径的两级布尔表达式渲染）。
+ * 组内 / 组间关系按用户手填表达式**真实**呈现（留空分别回落 且/或），
+ * 不再像旧实现那样把 join 写死 —— 写死会把用户配的「且」显示成「或」，
+ * 属于放大权限的误导。预览为空（无条件组）时回落「全部数据」。
+ */
+const conditionText = computed(() =>
+  previewOf({
+    moduleKey: '',
+    mode: 'scope' as const,
+    expr: localInter.value,
+    groups: localGroups.value,
+    featureGranted: true,
+  }) || t('pages.settings.DynamicStrategy.s43'),
+)
 
 /** 功能清单：已勾选资源的名称，顿号连接 */
 const functionsText = computed(() => {
@@ -539,9 +651,34 @@ const functionsText = computed(() => {
 
 // ===== 确定应用 =====
 function apply() {
+  // 无任何条件组：与 RuleConfigModal.confirm 同构的早退（mode 将由父组件推导为 all，
+  // 表达式不参与编译，故不做表达式校验）。
+  if (localGroups.value.length === 0) {
+    emit('apply', {
+      resourceCodes: [...localResourceCodes.value],
+      groups: [],
+      expr: localInter.value,
+    })
+    emit('update:show', false)
+    return
+  }
+  // ① 组内表达式逐组校验（任一失败 → warning 拦截，**不发 apply**）
+  for (let gi = 0; gi < localGroups.value.length; gi++) {
+    const reason = intraError(localGroups.value[gi])
+    if (reason) {
+      message.warning(t('dataperm.error.exprIntra', { n: gi + 1, reason }))
+      return
+    }
+  }
+  // ② 组间组合表达式校验
+  if (interError.value) {
+    message.warning(t('dataperm.error.exprInter', { reason: interError.value }))
+    return
+  }
   emit('apply', {
     resourceCodes: [...localResourceCodes.value],
     groups: cloneGroups(localGroups.value),
+    expr: localInter.value,
   })
   emit('update:show', false)
 }
@@ -594,14 +731,6 @@ function apply() {
 
 /* ===== 授权条件组列表 ===== */
 .group-list { display: flex; flex-direction: column; }
-.group-sep {
-  text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-faint, #94a3b8);
-  margin: var(--space-3, 12px) 0;
-  letter-spacing: 0.04em;
-}
 .group-block {
   background: var(--surface, #fff);
   border: 1px solid var(--border-hairline, #e2e8f0);
@@ -690,6 +819,90 @@ function apply() {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
+}
+
+/* ===== 组内表达式 / 组间组合：label + input + 状态图标的一行式
+   （移植自 RuleConfigModal，保持本文件 var(--x, fallback) 既有风格）===== */
+.group-inner-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  margin-top: 8px;
+}
+.inner-label {
+  font-size: var(--fs-12, 12px);
+  color: var(--ink-soft, #64748b);
+  white-space: nowrap;
+  min-width: 72px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.group-inner-row :deep(.n-input) { flex: 1; min-width: 0; }
+
+/* 提示图标按钮：button 保键盘可达 + aria-label 供读屏，hover/focus 出 n-tooltip。
+   cursor: help 明示「这是说明、不是动作」。 */
+.hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint, #94a3b8);
+  cursor: help;
+  padding: 0;
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.hint-btn:hover,
+.hint-btn:focus-visible {
+  color: var(--brand, #6366f1);
+  background: var(--g1, rgba(148, 163, 184, 0.1));
+  outline: none;
+}
+.hint-btn:focus-visible {
+  outline: 2px solid var(--brand, #6366f1);
+  outline-offset: 1px;
+}
+
+/* 表达式校验状态图标（ok 绿勾 / bad 红叹，hover 出原因） */
+.expr-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  cursor: help;
+  padding: 0;
+  font-size: 15px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.expr-status.ok { color: var(--c-success-deep, #065f46); }
+.expr-status.bad { color: var(--c-error-deep, #b91c1c); }
+.expr-status:hover { background: var(--g1, rgba(148, 163, 184, 0.1)); }
+.expr-status:focus-visible { outline: 2px solid var(--brand, #6366f1); outline-offset: 1px; }
+
+/* 输入错误态：error 边框 + 浅红底 */
+.input-error :deep(.n-input__input-el) {
+  border-color: var(--c-error-deep, #b91c1c) !important;
+  background: var(--c-error-soft, rgba(239, 68, 68, 0.06));
+}
+
+/* 组间组合：极浅底，标示它是「组合方式」而非条件本身 */
+.inter-block {
+  margin-top: var(--space-3, 12px);
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--g1, rgba(148, 163, 184, 0.1));
+  border: 1px solid var(--border-hairline, #e2e8f0);
 }
 
 /* 添加条件组文字链 */

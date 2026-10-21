@@ -246,6 +246,34 @@ class DynamicStrategySerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'module_config': f'模块 {module_key} 非法 mode: {mode}',
                 })
+            # scope 模式的表达式**语法**校验（2026-10-20 兵哥 BugFix：
+            # 动态策略弹窗恢复组内/组间且或关系的手填能力后，保存期必须同口径拦截）。
+            # 为什么必须拦：非法表达式（如 `1 and 2 or 3` 同层混用）若被保存成功，
+            # enforcement 编译期抛 ExprError 被 L347 except 吞掉 → compiled=None →
+            # Q(pk__in=[]) → 该模块对**所有人**静默全拒（fail-closed 方向的安全事故，
+            # 且配置界面看不出任何异常）。
+            # 只校验表达式语法（validate_expr 不碰维度/取值），存量合法配置不受牵连；
+            # all/owner/none 模式无表达式语义，不校验。
+            if mode == 'scope' and (cfg or {}).get('groups'):
+                # 函数级 import 防循环（expr_compiler -> core.models，照 enforcement.py 习惯）
+                from apps.data_permission.expr_compiler import validate_expr
+                groups = cfg['groups']
+                for i, g in enumerate(groups, start=1):
+                    if not isinstance(g, dict):
+                        raise serializers.ValidationError({
+                            'module_config': f'模块 {module_key} 第 {i} 组格式错误',
+                        })
+                    reason = validate_expr(
+                        (g.get('expr') or '').strip(), len(g.get('conditions') or []))
+                    if reason:
+                        raise serializers.ValidationError({
+                            'module_config': f'模块 {module_key} 第 {i} 组表达式有误：{reason}',
+                        })
+                reason = validate_expr((cfg.get('expr') or '').strip(), len(groups))
+                if reason:
+                    raise serializers.ValidationError({
+                        'module_config': f'模块 {module_key} 组间组合表达式有误：{reason}',
+                    })
         return attrs
 
 

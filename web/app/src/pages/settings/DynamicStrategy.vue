@@ -158,6 +158,7 @@
       :governed-resources="configGovernedResources"
       :initial-resource-codes="configInitialResourceCodes"
       :initial-groups="configInitialGroups"
+      :initial-expr="configInitialExpr"
       @update:show="(v: boolean) => (configModalShow = v)"
       @apply="onConfigApply"
     />
@@ -394,6 +395,16 @@ const configModalShow = ref(false)
 const configModuleKey = ref('')
 const configModuleName = computed(() => MODULE_LABELS[configModuleKey.value] || configModuleKey.value)
 const configInitialGroups = ref<PermConditionGroup[]>([])
+/**
+ * 打开弹窗时的组间组合表达式（scope 模式生效；留空 = 或 OR）。
+ * 与 configInitialResourceCodes 同 pattern：computed 随 configModuleKey
+ * （openModuleConfig 里赋值）联动取数，缺省兜底空串。
+ * 🔴 2026-10-20 前这里没有回填链路，弹窗又恒写 expr=''，导致已配置的
+ *    组间关系每次保存都被抹回「或」——表达式能力等于不存在。
+ */
+const configInitialExpr = computed<string>(
+  () => form.module_config[configModuleKey.value]?.expr ?? '',
+)
 const configModuleView = computed(() => moduleView(configModuleKey.value))
 
 /** 当前模块的「受限功能」候选资源（后端按策略模块分组，缺省兜底空数组） */
@@ -423,10 +434,11 @@ function openModuleConfig(key: string) {
     ...g,
     conditions: g.conditions.map((c) => ({ ...c })),
   }))
+  // configInitialExpr 是 computed（随上面赋的 configModuleKey 联动），无需在此赋值
   configModalShow.value = true
 }
 
-function onConfigApply(payload: { resourceCodes: string[]; groups: PermConditionGroup[] }) {
+function onConfigApply(payload: { resourceCodes: string[]; groups: PermConditionGroup[]; expr: string }) {
   const key = configModuleKey.value
   if (!form.module_config[key]) form.module_config[key] = defaultModuleConfig()
 
@@ -451,7 +463,10 @@ function onConfigApply(payload: { resourceCodes: string[]; groups: PermCondition
   // mode 由条件组推导：有条件组 → scope（自定义范围）；否则 → all（全部可写）。
   // 严禁 scope 空组：空组在后端编译为 Q(pk__in=[]) 全拒。
   form.module_config[key].mode = payload.groups.length > 0 ? 'scope' : 'all'
-  form.module_config[key].expr = ''
+  // 组间组合表达式原样回写（弹窗手填，留空 = 或 OR）。
+  // 🔴 2026-10-20 前此处恒写 ''（抹数据）：用户配好的「且」关系每次保存都被打回「或」，
+  //    既丢配置又是放大权限的静默错误；后端 compile_scope_q 的两级表达式能力被整体旁路。
+  form.module_config[key].expr = payload.expr ?? ''
   // 🔴 module_config[key].actions 不再写入：受限功能已改为资源粒度（granted_resource_codes）
   configModalShow.value = false
 }
