@@ -2,7 +2,7 @@
 
 > **单一事实源（Single Source of Truth）**：本文件是全项目待办事项的**唯一权威台账**。
 > **维护纪律**：每完成一项任务，**必须立即**在本文件标记 ✅ 并更新进度统计，禁止只在会话/记忆里口头完成。
-> **最后更新**：2026-10-21（**S9 候选人模块 UI 联动整改 `b8b7a6f8`/`fc232250`/`6aefc0e6`/`1a43ee37` 已落地并推送**；S5-09 name 唯一约束 `27d8721f`；S5-16 兵哥裁定暂缓放待办；Q-06 班级重名盘点 0 重名已清；S5-19 `stage` FSM 化 `051a2671` 已落地）
+> **最后更新**：2026-10-21（**S5 后端批次 6 项落地：S5-17/S5-18 `dcfdec32`、S5-21 `6afa23a1`、S5-22 `5d1ef12b`、S5-25/S5-26 `00b170c9`，S5 已完成 18→24、完成率 75.8%**；**S9 候选人模块 UI 联动整改 `b8b7a6f8`/`fc232250`/`6aefc0e6`/`1a43ee37` 已落地并推送**；S5-09 name 唯一约束 `27d8721f`；S5-16 兵哥裁定暂缓放待办；Q-06 班级重名盘点 0 重名已清；S5-19 `stage` FSM 化 `051a2671` 已落地）
 
 ---
 
@@ -31,19 +31,19 @@
 | S2 前端工程化 | 7 | 0 | 0 | 2 | 0 |
 | S3 测试与质量 | 3 | 0 | 0 | 1 | 0 |
 | S4 运维与安全 | 2 | 0 | 0 | 0 | 0 |
-| S5 校招生管理（2026-10-19 新增） | 8 | 0 | 1 | 18 | 1 |
+| S5 校招生管理（2026-10-19 新增） | 2 | 0 | 1 | 24 | 1 |
 | **S6 资源管理治理（2026-10-19 新增）** | **0** | **0** | **0** | **7** | **0** |
 | **S7 元素级权限漏挂整改（2026-10-19 全站扫漏）** | **10** | **0** | **0** | **0** | **0** |
 | **S8 受策略管控资源清单补全（2026-10-20 兵哥裁决）** | **1** | **1** | **0** | **1** | **0** |
 | **S9 候选人模块 UI 联动整改（2026-10-21 兵哥截图指令）** | **0** | **0** | **0** | **4** | **0** |
-| **合计** | **33** | **1** | **1** | **88** | **1** |
+| **合计** | **27** | **1** | **1** | **94** | **1** |
 
-**完成率**：88 / 124 ≈ **71.0%**
+**完成率**：94 / 124 ≈ **75.8%**
 
 > 📌 S6 计入口径：S6-01/02/03/06 代码与单测已写但**尚未提交、尚未在真实库验证**，记 `🟡 进行中`；S6-04/07 未开始；S6-05（默认筛选策略）待兵哥决策，记 `⏸️ 已挂起`。**严禁假绿**：上述"已落地"项待提交+验证后由执行者改为 ✅。
 
 > 📌 每次状态变更须同步更新本表，否则视为台账失效。
-> 📐 **计数口径**：S0 汇总为 43 项（明细见 `docs/07-audit/TODO_2026-10-08.md`，本表不展开）；S1–S9 每行计 1 项。当前未完成 35 项（33 未开始 + 1 进行中 + 1 受阻）= S1×2 + S2×7 + S3×3 + S4×2 + S5×10（8 未开始 + 1 受阻 + 1 挂起）+ S7×10 + S8×2（S8-01 进行中 + S8-03 未开始）。（2026-10-21 校正：S5-09 落地 name 唯一约束→S5 未开始 11→10、已完成 16→17；S5-16 兵哥裁定暂缓→S5 挂起 0→1、未开始 10→9；S5-19 `stage` FSM 化 `051a2671`→S5 未开始 9→8、已完成 17→18；S9 新增 5 项全部已完成→已完成 84→88、合计 120→124；合计未开始 36→33。）
+> 📐 **计数口径**：S0 汇总为 43 项（明细见 `docs/07-audit/TODO_2026-10-08.md`，本表不展开）；S1–S9 每行计 1 项。当前未完成 30 项（27 未开始 + 1 进行中 + 1 受阻 + 1 挂起）= S1×2 + S2×7 + S3×3 + S4×2 + S5×4（2 未开始 + 1 受阻 + 1 挂起）+ S7×10 + S8×2（S8-01 进行中 + S8-03 未开始）。（2026-10-21 校正：S5-09 落地 name 唯一约束→S5 未开始 11→10、已完成 16→17；S5-16 兵哥裁定暂缓→S5 挂起 0→1、未开始 10→9；S5-19 `stage` FSM 化 `051a2671`→S5 未开始 9→8、已完成 17→18；S9 新增 5 项全部已完成→已完成 84→88、合计 120→124；S5 后端批次 6 项落地——S5-17/S5-18 `dcfdec32`、S5-21 `6afa23a1`、S5-22 `5d1ef12b`、S5-25/S5-26 `00b170c9`→S5 未开始 8→2、已完成 18→24、合计未开始 33→27、已完成 88→94、完成率 71.0%→75.8%。）
 > 🔴 **S5 完成率大幅回落是预期行为** —— 新纳入 28 项需求（27 未开始 + 1 受阻），非质量滑坡。
 
 ---
@@ -169,8 +169,8 @@
 | ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
 |---|---|---|---|---|---|---|
 | S5-16 | 【需求 5-1】`PreEntryConfirmation` 模型 + HRBP 取三级部门 + 超 3 天 Celery 自动确认 | ⏸️ 挂起 | P0 | B0、S5-10 | 10h | 🟡 **兵哥 2026-10-21 裁定暂缓放入待办**：意向部门来源=offer 表单「意向部门」，但该取值功能尚未实现、前置未就绪故挂起；原「受 Q-04 阻塞」已转为来源口径明确（非 `Person.intent_dept` 字段）。需新增 `is_level3_dept()` 不可复用 `is_bu_depth()` |
-| S5-17 | 【需求 5-5】`RotationApproval` 审批流（带教导师/直接上级变更需审，兼岗免审） | ⬜ 未开始 | P0 | B0 | 8h | 审批期间**不改**实体字段，改申请单；APPROVED 后才落字段；同事务写 2 条 AuditLog |
-| S5-18 | 【需求 5-3】批量调整端点增强（字段白名单 + 事务 + 日志 + 整批拒绝语义） | ⬜ 未开始 | P1 | S5-17 | 5h | 现有 `batch_assign` 无日志无事务无白名单；🔴 S5-20 FSM 化后必须同步改造，否则 `.update(stage=)` 绕过流转校验 |
+| S5-17 | 【需求 5-5】`RotationApproval` 审批流（带教导师/直接上级变更需审，兼岗免审） | ✅ 已完成 | P0 | B0 | 8h | commit `dcfdec32`：`RotationApproval` 模型 + 迁移 `0010`（dev 已应用）；`services/approval.py` 落审批语义 —— **审批期间不改实体字段**（改申请单），APPROVED 后事务内落字段 + 写 **2 条** AuditLog（审批动作 + 字段变更），REJECTED 仅记录不落字段；目标人员不存在 → 事务回滚不落半截数据。API `GET/POST /rotation-approvals/` + `POST /{id}/approve/` + `POST /{id}/reject/`（重复审批 → 409）。补权限码 `approval:create` / `approval:reject`（原仅 list+approve 且 approve 兼带驳回语义）。11 个专项单测全绿。🔧 修真 bug：建单查安排曾误用 `self.get_queryset().model`（是 RotationApproval → 恒 404），改显式查 `RotationArrangement` |
+| S5-18 | 【需求 5-3】批量调整端点增强（字段白名单 + 事务 + 日志 + 整批拒绝语义） | ✅ 已完成 | P1 | S5-17 | 5h | commit `dcfdec32`（与 S5-17 同批，`views.py` 无法拆分）：字段白名单 `current_dept/head_teacher/mentor/direct_manager/rotation_start/rotation_end/service_dept`，`stage` 拒（走 `/transition/`），未知字段 400 回传可用清单；`transaction.atomic` 包裹 + **整批拒绝**语义（任一失败全批回滚 + 失败明细，不静默部分成功）；每条写 1 条 AuditLog；mentor/direct_manager **不直改**，改建 RotationApproval 申请单（与 S5-17 同一套服务）。9 个专项单测全绿。🔧 修两处真 bug：① FK 赋 pk 字符串 → ValueError 500，改为先查实例再 setattr；② 审计 action 名 22 字符超 `AuditLog.action` max_length=20 → MySQL DataError 1406 **毒化整个事务**（`log_action` 的 try/except 拦不住，MySQL 层错误已破坏连接事务态），改用 18 字符 |
 | S5-19 | 【需求 5-4】`stage` 改 FSMField + 终止上一轮轮岗进度 | ✅ 已完成 | P1 | S5-18 | 5h | commit `051a2671`：FSM 对齐 `onboarding/models.py` 范式（django_fsm-2，`protected=True`，`get_stage_display()` 显式补）；迁移 `0007` 已应用 dev 库；新增 `POST /transition/`（submit/approve/reject/complete/terminate，非法 source/未知动作返 409/400，TransitionNotAllowed→409，terminate 必填 reason）；同 person 多条 `ONGOING` 终止报 409、导师名额上限守卫；12 个 FSM 专项单测 + 受影响 `test_views`/`test_bu_summary` 全绿。🔓 解锁下游 S5-21/S5-25。⚠️ 完整 S5-18（事务+整批拒绝语义+全字段白名单）仍待做，本次仅在 S5-19 内先行完成 `batch_assign` 去 `stage` 直写（stage 变更一律走 `/transition/`）以打通 FSM 依赖 |
 
 ### B5 算法与考核
@@ -178,8 +178,8 @@
 | ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
 |---|---|---|---|---|---|---|
 | S5-20 | 【需求 5-7】性别均衡分配算法 `gender_balance.py` | ✅ 已完成 | P1 | B0 | 8h | 新建 `campus_rotation/services/gender_balance.py` 纯函数 `allocate_by_gender(persons, resources, ratio=0.6)`：按 BU 分组、贪心+代价（每轮选男占比偏离最大资源、缺啥补啥）、并列按剩余容量→资源 id 稳定排序保证可复现、容量0跳过、失衡标记 `imbalanced`（交 BP 手动调）；输出为「建议」不落库。5 个纯函数单测（禁 mount、不碰 DB）全绿：**均衡偏差≤容忍 / 全男失衡不崩 / 容量0跳过 / 可复现 / 超容量进 unassigned**。⚠️ 「一键应用建议」落库端点未做，属写入集成（归 S5-18 批量调整或单独端点，本次未含） |
-| S5-21 | 【需求 5-8】`RotationStage` 多阶段轮岗（支持 N 段）+ 每段独立考核 | ⬜ 未开始 | P1 | S5-19 | 8h | 🔴 `stage`(流程态) 与 `stage_no`(期数) **正交**不得混用（G-06）；`unique_together(arrangement, stage_no)` |
-| S5-22 | 【需求 5-9】15 天考核规则引擎 + 每日提醒任务 | ⬜ 未开始 | P1 | S5-21 | 4h | `>=15天`→`REQUIRED`（缺考核结果拒绝流转）；`<15天`→`WAIVED`；🟠 Q-02「是否含首尾」待确认 |
+| S5-21 | 【需求 5-8】`RotationStage` 多阶段轮岗（支持 N 段）+ 每段独立考核 | ✅ 已完成 | P1 | S5-19 | 8h | commit `6afa23a1`：`RotationStage` 模型（arrangement FK + `stage_no` + 部门/导师 + 计划/实际起止 + 考核状态/结果）+ 迁移 `0008`（dev 已应用）；`unique_together(arrangement, stage_no)`。🔴 `stage`(流程态) 与 `stage_no`(期数) **正交**不得混用（G-06），已在模型 docstring 固化。API `GET/POST /rotation-stages/`（支持 `?arrangement=` 过滤）+ 端点 4 个专项单测全绿 |
+| S5-22 | 【需求 5-9】15 天考核规则引擎 + 每日提醒任务 | ✅ 已完成 | P1 | S5-21 | 4h | commit `5d1ef12b`：`services/assessment.py` 规则引擎（`evaluate_assessment_status` 纯函数 + `can_mark_assessed` 前置校验 + `mark_assessed` 落值）；`>=15天`→`REQUIRED`（缺结论拒绝置 DONE → 400）、`<15天`→`WAIVED`、日期缺失→`PENDING` 不阻断；实际起止优先、缺失回退计划起止；Q-02「是否含首尾」按建议默认值实现（`end-start >= timedelta(days=15)`，不含首尾），阈值集中为 `ASSESSMENT_MIN_DAYS` 一处常量。🔴 **判定入口收敛到模型层 `RotationStage.save()`** —— 若只挂序列化器，直接 ORM `create()`（导入脚本/管理命令/其它 service）会绕过判定造成状态漂移。API `POST /rotation-stages/{id}/mark-assessed/`；Celery `rotation_assessment_reminder` 每日 09:00 扫「REQUIRED 且临近结束未考核」（beat 已注册 + 任务路由已加 + autodiscover 实测可发现）。13 个专项单测全绿 |
 
 ### B6 端口与数据隔离落地
 
@@ -192,8 +192,8 @@
 
 | ID | 任务 | 状态 | 优先级 | 依赖 | 工时 | 备注 |
 |---|---|---|---|---|---|---|
-| S5-25 | 【需求 5-2】`ConcurrentPostRecord` 兼岗记录表 + 确认入职自动触发轮岗安排 | ⬜ 未开始 | P1 | S5-19 | 6h | 挂载点参考 `onboarding/services.py:49-52` 既有 campus_control 钩子范式 |
-| S5-26 | 【需求 5-2】摩卡同步钩子 `moka_sync.py`（本期仅契约+桩实现） | ⬜ 未开始 | P2 | S5-25 | 4h | D-03 已定；🟠 **真实 API 联调待企业授权**，授权后仅替换 service 实现，接口层已隔离 |
+| S5-25 | 【需求 5-2】`ConcurrentPostRecord` 兼岗记录表 + 确认入职自动触发轮岗安排 | ✅ 已完成 | P1 | S5-19 | 6h | commit `00b170c9`：`ConcurrentPostRecord` 模型（person FK 字符串引用 `campus_control.Person` 避免跨 app 循环导入 + arrangement FK + post_type + 生效期 + sync_status/sync_request_id/sync_error/synced_at）+ 迁移 `0009`（dev 已应用）；API `GET/POST /concurrent-post-records/`（`?person=`/`?arrangement=`/`?sync_status=` 过滤）+ `POST /{id}/sync/`；同步状态字段序列化器只读（实测传 `sync_status=SYNCED` 落库仍 PENDING）。9 个专项单测全绿。⚠️ **「确认入职自动触发轮岗安排」这半段未含**：依赖 S5-16 的 `PreEntryConfirmation`（兵哥裁定暂缓挂起），前置未就绪故无法落地 |
+| S5-26 | 【需求 5-2】摩卡同步钩子 `moka_sync.py`（本期仅契约+桩实现） | ✅ 已完成 | P2 | S5-25 | 4h | commit `00b170c9`（与 S5-25 同批）：`services/moka_sync.py` 定义 `sync_concurrent_post(record) -> bool`，契约按规格原文（输入 person 工号姓名 + arrangement 部门/导师/直属上级 + 生效期；输出摩卡记录 ID 回写 `sync_request_id` + status=SYNCED；失败写 `sync_error` + status=FAILED，**不阻塞主流程**异步重试）。🔴 本期企业 API 未授权 → `_push_to_moka` 主动抛 `MokaSyncDisabled` 而非返假 ID，**严禁伪造 SYNCED**（否则台账「已同步」与摩卡侧永久漂移且无从校正），当前保持 PENDING。4 个契约单测覆盖 SKIPPED/PENDING/FAILED/SYNCED 四条路径 |
 | S5-27 | 【需求 5-6】`AuditService` 全量埋点（统一 helper + 四模块接入） | ✅ 已完成 | P0 | B0 | 8h | 新建 `common/audit_helper.py` 统一 `log_action`（降级不阻断主流程）；`campus_rotation`/`campus_control` 共享 `CampusCRUDMixin` 的 create/update/destroy + rotation 的 restore/batch_assign 全量埋点。**Person 的写入口因复用同一 mixin 已自动覆盖**；6 类非 CRUD 场景（批量/终止/确认/自动确认/审批/性别重排）随对应功能开发（S5-11~S5-26）补埋点 |
 
 ### 待澄清（阻塞项，不计入上述工时）
@@ -331,6 +331,21 @@
 
 > 📌 S9-01/02/03/05 为前端改动、S9-04 为后端序列化器改动。**均已随推送上线，后端无需为新代码重启**（前提：8000 进程已加载 `6aefc0e6` 的序列化器；若进程早于该提交启动则需重启一次）。
 > 📌 验证口径：`locale:audit` 0 问题；Vite 编译 200；pytest 6–10 过；PDF 实际渲染需人工在已登录浏览器确认（自动化 DOM 快照看不到 iframe 内容）。
+
+---
+
+---
+
+## 本会话其他落地项（2026-10-21，兵哥指令）
+
+> 来源：动态策略弹窗条件关系修复 + ui-templates 演示页令牌化（续）+ UI 文档收敛。
+> ⚠️ 本段为工作树未提交补充（与上方 S9 段同处一份在途 TODO.md，为避免 scoop 他人 WIP 暂不入库）；权威记录见 `.workbuddy/memory/2026-10-21.md`。
+
+| 事项 | 状态 | 优先级 | 备注 |
+|---|---|---|---|
+| 动态策略弹窗条件关系修复：组内 / 组间且或关系恢复可设 + 后端保存期表达式校验（400 防御层，杜绝 enforcement 编译异常被吞→模块对所有人静默全拒） | ✅ 已完成 | P1 | commit `4cee8bef`；后端校验落点 `docs/03-product/data-permission-ui-design.md` §F4.6 |
+| ui-templates 演示页硬编码 px 补成语义令牌（4/8/11px/圆角/240px 导航宽）+ 残余布局 px 收口为本地 `--stpl-*` 令牌（420/220/132px + 冗余兜底） | ✅ 已完成 | P2 | commit `171818e9` + `b3f89097`；令牌文档门禁（token-doc-audit）零悬空、stylelint 通过 |
+| UI 文档收敛：`docs/04-ui` 14 → 6 份并清理孤儿截图，README 改写为唯一权威索引（L0–L5 层级） | ✅ 已完成 | P2 | commit `20f4217d` |
 
 ---
 
