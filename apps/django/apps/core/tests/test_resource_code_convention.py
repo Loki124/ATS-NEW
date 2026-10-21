@@ -34,6 +34,11 @@ ACTION_WHITELIST = {
     # S8-02（2026-10-20，commit 3a2ccd7e）新增的两条专属守卫动作：
     #   demand:batch_update（批量变更人员）/ demand_config:open_grab（开启抢单）
     'batch_update', 'open_grab',
+    # S8-01（2026-10-20）新增的四条专属守卫动作，每个都有真实按钮（R3 立法本意）：
+    #   candidate:recommend（转推其他职位）/ candidate:eliminate（淘汰）
+    #   candidate:notify（发送通知）/ candidate:bg_check:cancel（取消背调订单）
+    # 资源码动作段与 ACTION_REGISTRY 动作键同词（规范「双轨制同词」口径建议）。
+    'recommend', 'eliminate', 'notify', 'cancel',
     # 存量校园招聘工作流动作（campus 模块的 HRBP 确认 / 带教导师考核），非新增违规
     'confirm', 'evaluate',
 }
@@ -164,6 +169,43 @@ class TestSeedResourceConvention:
         # mou 整族必须从 seed 移除（0030 停用，seed 真源不再带它）
         mou_in_seed = [c for c in codes if c.startswith('recruit:mou:')]
         assert not mou_in_seed, f'seed 仍含已停用的 mou 码族：{mou_in_seed}'
+
+    def test_s8_01_new_codes_inlined_in_resources(self):
+        """S8-01 的 11 条新码必须内联进 RESOURCES（防两份清单漂移）。
+
+        S8_01_NEW_CODES 是迁移 0043 的 import 面（存量库兜底建行），RESOURCES 是
+        seed 真源；两份必须严格一致，否则迁移建的码与 seed 建的码会分叉。
+        """
+        import importlib
+        mod = importlib.import_module(
+            'apps.core.management.commands.seed_v2_init'
+        )
+        inlined = {c for c, *_ in mod.RESOURCES}
+        missing = [c for c, *_ in mod.S8_01_NEW_CODES if c not in inlined]
+        assert not missing, f'S8_01_NEW_CODES 有码未内联进 RESOURCES：{missing}'
+        # 反向：新码清单自身不得重复
+        listed = [c for c, *_ in mod.S8_01_NEW_CODES]
+        assert len(listed) == len(set(listed)) == 11, \
+            f'S8_01_NEW_CODES 应恰为 11 条不重复码，实际 {len(listed)} 条'
+
+    def test_resource_sub_modules_subset_of_resources(self):
+        """RESOURCE_SUB_MODULES（子模块展示名清单）必须 ⊆ RESOURCES（防两份清单漂移）。
+
+        同 S8_01_NEW_CODES 的护栏逻辑：seed 兜底置位与迁移 0046 共用该常量，
+        清单里的码若不在 RESOURCES 内，seed 主循环根本不会建出该行，置位静默落空
+        （迁移侧也一样 —— 码不存在时 .update() 命中 0 行，无任何报错）。
+        """
+        import importlib
+        mod = importlib.import_module(
+            'apps.core.management.commands.seed_v2_init'
+        )
+        inlined = {c for c, *_ in mod.RESOURCES}
+        missing = [c for c in mod.RESOURCE_SUB_MODULES if c not in inlined]
+        assert not missing, f'RESOURCE_SUB_MODULES 有码未内联进 RESOURCES：{missing}'
+        # 反向：清单自身不得重复（dict 天然去重，此处防未来改成 list/重复键语义漂移）
+        assert len(mod.RESOURCE_SUB_MODULES) == 10, \
+            f'RESOURCE_SUB_MODULES 应恰为 10 条（候选人管理 6 基础 + 4 offer），' \
+            f'实际 {len(mod.RESOURCE_SUB_MODULES)} 条'
 
     def test_r10_seed_has_no_disabled_names(self):
         """R10：seed 真源不应预置任何带 [已停用] 前缀的资源名。

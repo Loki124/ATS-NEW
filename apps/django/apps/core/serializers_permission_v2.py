@@ -18,7 +18,7 @@ class PermissionResourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = PermissionResource
         fields = ['id', 'system_code', 'resource_code', 'resource_name', 'resource_type',
-                  'parent_code', 'module', 'sort_order', 'status', 'strategy_governed']
+                  'parent_code', 'module', 'sub_module', 'sort_order', 'status', 'strategy_governed']
 
 
 class PermissionResourceStrategyGovernedSerializer(serializers.ModelSerializer):

@@ -32,6 +32,12 @@ export interface PermissionResource {
   resourceType: ResourceType;
   parentCode?: string | null;
   module?: string | null;
+  /**
+   * 子模块展示名（后端 sub_module，出参 camelCase）。settings 等模块的子模块可由
+   * 资源码结构推导（buildSubModuleIndex），candidate 等四段码推导不出 —— 后端显式
+   * 登记（如「基础功能 / offer管理」）。展示时优先取本字段，空则回退码结构推导。
+   */
+  subModule?: string | null;
   sortOrder?: number;
   status: number;
   /**

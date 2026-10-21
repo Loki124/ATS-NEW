@@ -167,6 +167,42 @@ export interface PermNode {
   children: PermNode[]
 }
 
+/**
+ * 功能权限树（身份管理「功能权限」页签）顶层模块展示顺序。
+ * 业务口径由产品指定（2026-10-21）：招聘需求 → 招聘职位 → 候选人 → 邀约 →
+ * 面试 → 人才库 → 内推 → 通知中心 → 校园招聘 → 系统设置。
+ * 未登记的模块（application / onboarding / mou / role / mgmt_unit / channel /
+ * user_app_data_scope 等历史/设置相关族）排在表末，按中文名稳定排序，保证不丢模块。
+ * 仅作用于功能权限树展示，不影响资源注册真源与数据权限卡顺序。 */
+export const MODULE_DISPLAY_ORDER: string[] = [
+  'demand', // 招聘需求
+  'position', // 招聘职位
+  'candidate', // 候选人
+  'invitation', // 邀约
+  'interview', // 面试
+  'talent_pool', // 人才库
+  'referral', // 内推
+  'notification', // 通知中心
+  'campus', // 校园招聘
+  'settings', // 系统设置
+]
+
+/**
+ * 顶层模块按产品指定顺序排序；未登记的模块排在表末，按中文名稳定排序。
+ * 仅作用于功能权限树的顶层模块节点（segment 即模块代码）。 */
+function orderModulesByPriority(nodes: PermNode[], order: string[]): void {
+  const rank = (seg: string) => {
+    const idx = order.indexOf(seg)
+    return idx === -1 ? order.length : idx
+  }
+  nodes.sort((a, b) => {
+    const ra = rank(a.segment)
+    const rb = rank(b.segment)
+    if (ra !== rb) return ra - rb
+    return a.label.localeCompare(b.label, 'zh') || a.key.localeCompare(b.key)
+  })
+}
+
 /** 组内排序：分组（含子节点）排在叶子之前，同类型按中文名/key 稳定排序 */
 function sortPermNodes(nodes: PermNode[]): void {
   nodes.sort((a, b) => {
@@ -268,7 +304,9 @@ export function buildPermissionTree(
     if (ok) cur.label = label
   }
 
-  sortPermNodes(root.children)
+  // 顶层模块按产品指定顺序；子层仍按分组优先 + 中文名稳定排序
+  orderModulesByPriority(root.children, MODULE_DISPLAY_ORDER)
+  root.children.forEach((m) => sortPermNodes(m.children))
   return root.children
 }
 

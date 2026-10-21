@@ -1329,6 +1329,7 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.permission.RoleEditModal.s43': "未分栏",
   'pages.settings.permission.RoleEditModal.s44': "操作权限",
   'pages.settings.permission.RoleEditModal.s45': "配置该身份对可见数据可执行的操作（写范围与具体动作）",
+  'pages.settings.permission.RoleEditModal.s46': "全不选",
   'pages.settings.permission.RoleEditModal.s39': "数据权限加载失败:",
   'pages.settings.permission.RoleEditModal.s40': "基础信息与功能权限已保存，但数据权限保存失败:",
   'pages.settings.Placeholder.s4': "入职设置",

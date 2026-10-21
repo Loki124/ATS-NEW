@@ -151,6 +151,22 @@ const subModuleOptions = computed(() => {
       })
     }
   }
+  // 显式登记的子模块（sub_module 字段，2026-10-21）：candidate 等四段码推导不出
+  // （如候选人管理「基础功能 / offer管理」），不并入会导致这些行筛不出来。
+  // 按当前模块范围收集去重；value 直接用展示名（筛选谓词同时匹配推导值与本字段）。
+  const scope = moduleFilter.value
+    ? data.value.filter((r) => r.module === moduleFilter.value)
+    : data.value
+  const seen = new Set(opts.map((o) => o.value))
+  for (const r of scope) {
+    const sub = r.subModule?.trim()
+    if (!sub || seen.has(sub)) continue
+    seen.add(sub)
+    opts.push({
+      label: moduleFilter.value ? sub : `${resourceModuleLabel(r.module)} / ${sub}`,
+      value: sub,
+    })
+  }
   return opts.sort((a, b) => a.label.localeCompare(b.label, 'zh'))
 })
 
@@ -208,7 +224,9 @@ const filteredData = computed(() => {
     if (resourceTypeFilter.value && r.resourceType !== resourceTypeFilter.value) return false
     if (subModuleFilter.value) {
       const parts = r.resourceCode.split(':')
-      if (parts.length < 4 || parts[2] !== subModuleFilter.value) return false
+      const derivedSub = parts.length >= 4 ? parts[2] : ''
+      // 同时匹配码结构推导值与显式登记的 sub_module（两者的 option value 共用一个下拉）
+      if (derivedSub !== subModuleFilter.value && r.subModule !== subModuleFilter.value) return false
     }
     if (!kw) return true
     return (
@@ -307,16 +325,18 @@ const columns = [
   }, 'short'),
   // 子模块列：settings 下 32 个二级/三级分栏（个人信息 / 制度公告 / 校招管控…），
   // module 值同为 settings，仅靠模块列无法区分归属，故单列一列展示中文名。
+  // 2026-10-21：显式登记的 sub_module 优先（candidate 等四段码结构推导不出，
+  // 后端按兵哥清单登记「基础功能 / offer管理」），空则回退码结构推导。
   column({
     title: '子模块',
     key: 'subModule',
     width: 130,
     render: (row: PermissionResource) => {
-      const label = resourceSubModuleLabel(row.resourceCode, subModuleIndex.value)
+      const label = row.subModule || resourceSubModuleLabel(row.resourceCode, subModuleIndex.value)
       if (!label) {
         return h('span', { class: 'dim-text' }, '—')
       }
-      return h('span', { title: row.resourceCode.split(':')[2] }, label)
+      return h('span', { title: row.subModule || row.resourceCode.split(':')[2] }, label)
     },
   }, 'short'),
   // 状态列（2026-10-18 兵哥）：停用 = 功能已下线但保留资源码可追溯。

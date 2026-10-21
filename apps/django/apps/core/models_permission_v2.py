@@ -39,6 +39,13 @@ class PermissionResource(models.Model):
     resource_type = models.CharField(max_length=20, choices=RESOURCE_TYPE_CHOICES, verbose_name='资源类型')
     parent_code = models.CharField(max_length=128, null=True, blank=True, verbose_name='父资源编码')
     module = models.CharField(max_length=32, null=True, blank=True, verbose_name='模块')
+    # 子模块展示名（2026-10-21）：settings 等模块的子模块可由资源码结构推导
+    # （五段码第 4 段为 menu，前端 buildSubModuleIndex），但 candidate 这类四段码
+    # （recruit:candidate:create）无子模块段亦无 menu 锚点，推导恒为「—」。
+    # 本字段显式登记展示名（如「基础功能 / offer管理」），前端优先显示、空则回退推导。
+    # 置位同 strategy_governed 双路径模式：数据迁移（core.0046）+ seed 兜底
+    # （RESOURCE_SUB_MODULES），不进 RESOURCES 四元组（护栏测试按 4 元解包，改结构会连带破坏）。
+    sub_module = models.CharField(max_length=64, null=True, blank=True, verbose_name='子模块')
     sort_order = models.IntegerField(default=0, verbose_name='排序')
     status = models.SmallIntegerField(default=1, verbose_name='状态(1启用 0禁用)')
     # 受策略管控(2026-10-20): 标记为「是」的资源才会出现在动态策略的「受限功能」候选区。

@@ -1330,6 +1330,7 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.settings.permission.RoleEditModal.s43': "Ungrouped",
   'pages.settings.permission.RoleEditModal.s44': "Operation Permissions",
   'pages.settings.permission.RoleEditModal.s45': "Configure which operations this identity can perform on visible data (write scope and specific actions)",
+  'pages.settings.permission.RoleEditModal.s46': "Deselect All",
   'pages.settings.permission.RoleEditModal.s39': "Failed to load data permissions: ",
   'pages.settings.permission.RoleEditModal.s40': "Basics and function permissions were saved, but data permissions failed to save: ",
   'pages.settings.Placeholder.s4': "Onboarding Settings",

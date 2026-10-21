@@ -49,7 +49,7 @@
         </n-checkbox>
       </div>
 
-      <div v-show="depth === 0 || expanded" class="pn-body" :class="{ 'pn-body--root': depth === 0 }">
+      <div v-show="depth === 0 || expanded" class="pn-body" :class="{ 'pn-body--root': depth === 0, 'pn-body--grid': childrenAreLeaves }">
         <PermTreeNode
           v-for="child in node.children"
           :key="child.key"
@@ -105,6 +105,10 @@ const selectedSet = computed(() => new Set(selectedCodes.value))
 
 const totalCodes = computed(() => collectNodeCodes(props.node).length)
 const selectedCount = computed(() => nodeSelectedCount(props.node, selectedSet.value))
+/** 子节点全部为叶子项时，承载体改多列网格（避免单条权限竖向长列表占满垂直空间） */
+const childrenAreLeaves = computed(
+  () => props.node.children.length > 0 && props.node.children.every((c) => c.children.length === 0),
+)
 const allChecked = computed(() => nodeAllChecked(props.node, selectedSet.value))
 const indeterminate = computed(() => nodeIndeterminate(props.node, selectedSet.value))
 
@@ -229,6 +233,18 @@ const tagText = computed(() => {
 }
 .pn-body--root {
   padding-left: 0;
+}
+/* 叶子承载体：子节点全为叶子项时改用多列网格，把竖向长列表压成横向铺排，
+   大幅削减「功能权限」页签的垂直滚动高度（2026-10-21 兵哥：竖向排列占空间过多）。
+   含子分组的承载体仍走默认竖向堆叠，保持「模块 → 子模块」层级可读。 */
+.pn-body--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 2px 18px;
+  align-items: start;
+}
+.pn-body--grid .pn-leaf {
+  padding: 3px 0;
 }
 /* 叶子：单条权限项 */
 .pn-leaf {

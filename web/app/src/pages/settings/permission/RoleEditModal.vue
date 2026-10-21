@@ -89,7 +89,30 @@
 
       <!-- ===== 页签 3：功能权限 ===== -->
       <n-tab-pane name="perm" :tab="renderPermTab" display-directive="show:lazy">
-        <p class="pane-caption">{{ t('pages.settings.permission.RoleEditModal.s34') }}</p>
+        <div class="pane-caption-row">
+          <p class="pane-caption">{{ t('pages.settings.permission.RoleEditModal.s34') }}</p>
+          <!-- 全局全选/全不选（2026-10-21 兵哥）：模块级「全选」在每张模块卡头上，
+               这里是跨全部模块的一次性操作 —— 全选勾当前加载的全部启用资源。 -->
+          <div class="perm-global-actions">
+            <n-button
+              size="tiny"
+              quaternary
+              type="primary"
+              :disabled="!allResources.length"
+              @click="selectAllPerms"
+            >
+              {{ t('pages.settings.permission.RoleEditModal.s37') }}
+            </n-button>
+            <n-button
+              size="tiny"
+              quaternary
+              :disabled="!selectedCodes.length"
+              @click="clearAllPerms"
+            >
+              {{ t('pages.settings.permission.RoleEditModal.s46') }}
+            </n-button>
+          </div>
+        </div>
         <div v-if="!allResources.length && resourcesFailedMsg" class="res-error">
           <n-alert type="error" :bordered="false">{{ resourcesFailedMsg }}</n-alert>
         </div>
@@ -404,6 +427,16 @@ const statusSwitch = computed({
 // ===== 功能权限：按编码结构构建「模块 → 中间段逐层 → 末级权限项」树 =====
 // 数据源为该身份可配置的权限资源全集；任意深度的中间段都会自动成层，零遗漏、零硬编码。
 const permTree = computed(() => buildPermissionTree(allResources.value))
+
+/** 顶部「全选」：勾选当前加载的全部功能资源（fetchAllResources 缺省仅返回启用项，
+ *  与树所展示的集合同源 —— 树里看得见的才进全选范围）。 */
+function selectAllPerms() {
+  selectedCodes.value = allResources.value.map((r) => r.resourceCode)
+}
+/** 顶部「全不选」：一键清空全部勾选（各模块的展开/折叠状态不受影响）。 */
+function clearAllPerms() {
+  selectedCodes.value = []
+}
 
 /** 折叠状态（节点 key 集合）。默认全部收起，避免系统设置下数十项平铺发散 */
 const expandedKeys = ref<Set<string>>(new Set())
@@ -872,6 +905,13 @@ async function onSubmit() {
 /* 「展开全部子模块」是文字按钮，与「全选」复选框之间留出可点击间距 */
 .pg-expand + .pg-all {
   margin-left: var(--space-4);
+}
+/* 功能权限页签顶部全局操作（2026-10-21 兵哥）：全选 / 全不选，与说明文字同行右置 */
+.perm-global-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
 }
 .perm-item {
   align-items: flex-start;

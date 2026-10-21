@@ -26,12 +26,35 @@ RESOURCES = [
     ('recruit:candidate:offer:create', '创建Offer', 'BUTTON', 'candidate'),
     ('recruit:candidate:offer:edit', '编辑Offer', 'BUTTON', 'candidate'),
     ('recruit:candidate:offer:approve', '发起Offer审批', 'BUTTON', 'candidate'),
+    # 2026-10-20 S8-01: 候选人维度四个细分动作此前统一派生 recruit:candidate:edit（粗码），
+    # 且「发送通知」前后端都无端点（前端 message.success 假成功 stub）。现补专属码做
+    # 最小权限隔离：assign/recommend/eliminate 挂既有批量/transition 端点（T02 精确守卫），
+    # notify 挂新建 CandidateBatchNotifyView（T02；端点+校验+落库，渠道投递后置 D3）。
+    ('recruit:candidate:assign', '分配职位', 'BUTTON', 'candidate'),
+    ('recruit:candidate:recommend', '转推其他职位', 'BUTTON', 'candidate'),
+    ('recruit:candidate:eliminate', '淘汰候选人', 'BUTTON', 'candidate'),
+    ('recruit:candidate:notify', '发送通知', 'BUTTON', 'candidate'),
+    # 2026-10-20 S8-01: 背调业务动作（发起/上传报告/取消）此前错守「外部集成配置域」
+    # recruit:settings:external:edit —— 能配生态对接的人才能做背调，语义错域。摘到
+    # 候选人模块 bg_check 子族（R2：第 2 段 == module=candidate；4 段码，子模块段
+    # bg_check 为 snake_case ✓）。发起/补充共 start 码（同一端点同一创建语义，
+    # parent_order_id 只是入参，D6）；import 守 upload-report（路由同批补，此前 404）。
+    ('recruit:candidate:bg_check:start', '发起背调', 'BUTTON', 'candidate'),
+    ('recruit:candidate:bg_check:import', '上传背调报告', 'BUTTON', 'candidate'),
+    ('recruit:candidate:bg_check:cancel', '取消背调', 'BUTTON', 'candidate'),
     # --- module: interview ---
     ('recruit:interview:menu:view', '面试菜单', 'MENU', 'interview'),
     ('recruit:interview:list', '面试列表', 'BUTTON', 'interview'),
     ('recruit:interview:schedule', '安排面试', 'BUTTON', 'interview'),
     ('recruit:interview:feedback', '提交反馈', 'BUTTON', 'interview'),
     ('recruit:interview:export', '导出面试', 'BUTTON', 'interview'),
+    # 2026-10-20 S8-01: 面试的 edit/delete 码此前 seed 未定义 —— InterviewViewSet 的
+    # update/destroy 按 action 派生 recruit:interview:edit / :delete，两者均不在
+    # known_resource_codes() → 告警回退 recruit:interview:list（持列表码即可改/删面试，
+    # 越权面，与 S8-02「持 list 即可删需求」同款）。现补两条专属码，由 T02 的
+    # permission_required_map 精确守卫（update/partial_update→edit，destroy→delete）。
+    ('recruit:interview:edit', '编辑面试', 'BUTTON', 'interview'),
+    ('recruit:interview:delete', '删除面试', 'BUTTON', 'interview'),
     # --- module: demand ---
     ('recruit:demand:menu:view', '需求菜单', 'MENU', 'demand'),
     ('recruit:demand:list', '需求列表', 'BUTTON', 'demand'),
@@ -72,6 +95,13 @@ RESOURCES = [
     ('recruit:invitation:menu:view', '邀约菜单', 'MENU', 'invitation'),
     ('recruit:invitation:list', '邀约列表', 'BUTTON', 'invitation'),
     ('recruit:invitation:create', '发起邀约', 'BUTTON', 'invitation'),
+    # 2026-10-20 S8-01: 邀约的 edit/reject 码此前 seed 未定义 —— InvitationViewSet.transition
+    # （邀约全部 FSM 边共用的端点）按自定义 action 派生 recruit:invitation:edit，不在码表
+    # → 回退 recruit:invitation:list（持列表码即可走全部流转，越权面）。现补两条专属码：
+    # edit 守一般流转与 update/destroy，reject 守「标记失败」边（transition 方法内细查，
+    # 与 OfferViewSet.TRANSITION_ACTION_PERM 同款 G1 模式，见 T02）。
+    ('recruit:invitation:edit', '编辑邀约', 'BUTTON', 'invitation'),
+    ('recruit:invitation:reject', '标记邀约失败', 'BUTTON', 'invitation'),
     # --- module: talent_pool ---
     ('recruit:talent_pool:menu:view', '人才库菜单', 'MENU', 'talent_pool'),
     ('recruit:talent_pool:list', '人才库列表', 'BUTTON', 'talent_pool'),
@@ -222,9 +252,9 @@ RESOURCES = [
     # Offer管理 (占位)
     ('recruit:settings:offer_management:menu:view', 'Offer管理菜单', 'MENU', 'settings'),
     # 编制管控 (campus 模块 config) — 2026-10-20 自 recruit:settings:campus_control:* 迁移至 campus 家族（0045）
-    ('recruit:campus:campus_control:menu:view', '编制管控', 'MENU', 'settings'),
-    ('recruit:campus:campus_control:edit', '编辑编制管控', 'BUTTON', 'settings'),
-    ('recruit:campus:campus_control:delete', '删除编制管控', 'BUTTON', 'settings'),
+    ('recruit:campus:campus_control:menu:view', '编制管控', 'MENU', 'campus'),
+    ('recruit:campus:campus_control:edit', '编辑编制管控', 'BUTTON', 'campus'),
+    ('recruit:campus:campus_control:delete', '删除编制管控', 'BUTTON', 'campus'),
     # 校园大使 (config) — 2026-10-18 从 campus_control 拆分为独立码
     ('recruit:settings:campus_ambassador:menu:view', '校园大使菜单', 'MENU', 'settings'),
     ('recruit:settings:campus_ambassador:list', '校园大使列表', 'BUTTON', 'settings'),
@@ -365,7 +395,7 @@ RESOURCES = [
     # 2026-10-11 (G2 接线): 这些模块此前只有 menu:view + 写码, 缺读码。
     # 端点接入 V2Permission 后读操作需要一个可校验的码 (permission_required 即读码),
     # 否则只能拿 menu:view / edit 码凑, 语义不准。写码仍复用各模块既有 :edit/:create/:delete。
-    ('recruit:campus:campus_control:list', '编制管控列表', 'BUTTON', 'settings'),
+    ('recruit:campus:campus_control:list', '编制管控列表', 'BUTTON', 'campus'),
     ('recruit:settings:dictionary:list', '数据字典列表', 'BUTTON', 'settings'),
     ('recruit:settings:dynamic_fields:list', '动态字段列表', 'BUTTON', 'settings'),
     ('recruit:settings:duplicate_candidate:list', '重复候选人规则列表', 'BUTTON', 'settings'),
@@ -428,6 +458,38 @@ RESOURCES = [
 
 
 # ---------------------------------------------------------------------------
+# S8-01（2026-10-20）补建的 11 条资源码（四元组与 RESOURCES 同构）
+#
+# 🔴 为什么 RESOURCES 里已内联、这里还要再列一份：
+#    上面的 RESOURCES 按 module 分节内联（可读性优先，新码长在自己的模块段里），
+#    迁移 core.0043 需要「一份可 import 的清单」给存量库兜底建行（新库 migrate 时
+#    资源表为空、码靠 seed 建；存量库升级后不重跑 seed 码就不存在 → 守卫告警回退）。
+#    本常量就是那个 import 面（同 STRATEGY_GOVERNED_CODES 模式：seed 仍是唯一真源，
+#    迁移只是存量兜底）。
+#    防漂移护栏：test_resource_code_convention.py 断言本清单 ⊆ RESOURCES。
+#
+# 覆盖的越权面（详见 docs/方案_S8-01_缺失资源码补建.md §2）：
+#   - interview:edit/delete      ：修「持 interview:list 即可改/删面试」
+#   - invitation:edit/reject     ：修「持 invitation:list 即可走邀约全部 FSM 边」
+#   - candidate:bg_check:*       ：修背调 5 项错守 settings:external:edit 的错域守卫
+#   - candidate:assign/recommend/eliminate/notify ：从 candidate:edit 粗码拆出细分粒度
+# ---------------------------------------------------------------------------
+S8_01_NEW_CODES = [
+    ('recruit:interview:edit', '编辑面试', 'BUTTON', 'interview'),
+    ('recruit:interview:delete', '删除面试', 'BUTTON', 'interview'),
+    ('recruit:invitation:edit', '编辑邀约', 'BUTTON', 'invitation'),
+    ('recruit:invitation:reject', '标记邀约失败', 'BUTTON', 'invitation'),
+    ('recruit:candidate:assign', '分配职位', 'BUTTON', 'candidate'),
+    ('recruit:candidate:recommend', '转推其他职位', 'BUTTON', 'candidate'),
+    ('recruit:candidate:eliminate', '淘汰候选人', 'BUTTON', 'candidate'),
+    ('recruit:candidate:notify', '发送通知', 'BUTTON', 'candidate'),
+    ('recruit:candidate:bg_check:start', '发起背调', 'BUTTON', 'candidate'),
+    ('recruit:candidate:bg_check:import', '上传背调报告', 'BUTTON', 'candidate'),
+    ('recruit:candidate:bg_check:cancel', '取消背调', 'BUTTON', 'candidate'),
+]
+
+
+# ---------------------------------------------------------------------------
 # 「受策略管控」资源清单（2026-10-20 兵哥清单）——资源的 strategy_governed 真源
 #
 # 只有这里的资源才会出现在动态策略「受限功能」候选区（后端
@@ -453,6 +515,8 @@ RESOURCES = [
 #      (module=application) / recruit:talent_pool:create (module=talent_pool)。
 #    它们能进入 candidate 的候选区，靠的是 views_dynamic_strategy 的
 #    STRATEGY_MODULE_RESOURCE_MODULES（1:N 映射），不是靠改 module 字段。
+#    S8-01（2026-10-20）同款：recruit:invitation:edit / :reject（module=invitation）
+#    经 D7 裁决并入 candidate 集合（兵哥把「标记邀约失败」归在候选人管理策略卡）。
 #
 # 清单核对方式、未匹配项与裁决记录见 core/migrations/0040 与 0041 的模块 docstring。
 # ---------------------------------------------------------------------------
@@ -476,7 +540,57 @@ STRATEGY_GOVERNED_CODES = [
     # 候选人管理 / 候选人基础
     'recruit:application:advance',          # 推进流程（module=application）
     'recruit:talent_pool:create',           # 放入人才库（module=talent_pool，库内名：入库）
+    # ===== 第三批（S8-01，2026-10-20）—— 11 条新码全部置位（兵哥清单初衷）=====
+    # 面试编辑/删除（修「持 list 即可改/删面试」越权面）
+    'recruit:interview:edit',               # 编辑面试（module=interview）
+    'recruit:interview:delete',             # 删除面试（module=interview）
+    # 邀约编辑/标记失败（修「持 list 即可走邀约 FSM」越权面）
+    'recruit:invitation:edit',              # 编辑邀约（module=invitation）
+    'recruit:invitation:reject',            # 标记邀约失败（module=invitation）
+    # 候选人细分动作（从 candidate:edit 粗码拆出；module=candidate 直接入候选区）
+    'recruit:candidate:assign',             # 分配职位
+    'recruit:candidate:recommend',          # 转推其他职位
+    'recruit:candidate:eliminate',          # 淘汰候选人
+    'recruit:candidate:notify',             # 发送通知
+    # 背调三动作（从 settings:external:edit 错域摘出；module=candidate，bg_check 子族）
+    'recruit:candidate:bg_check:start',     # 发起背调
+    'recruit:candidate:bg_check:import',    # 上传背调报告
+    'recruit:candidate:bg_check:cancel',    # 取消背调
 ]
+
+
+# ---------------------------------------------------------------------------
+# 资源「子模块」展示名清单（2026-10-21 兵哥）——资源的 sub_module 真源
+#
+# 背景：资源管理页「子模块」列原纯靠资源码结构推导（buildSubModuleIndex：五段码
+# 第 4 段为 menu，如 recruit:settings:account:menu:view → 子模块 account，中文名取
+# menu 资源名去「菜单」后缀）。candidate 的码是四段（recruit:candidate:create /
+# recruit:candidate:offer:create），无子模块段亦无 menu 锚点，推导恒为「—」。
+# 本清单显式登记展示名，由 Command.handle 在主循环之后置位；迁移 core.0046
+# import 本常量给存量库兜底（同 STRATEGY_GOVERNED_CODES 的双路径模式：
+# 存量库靠迁移、全新库靠 seed，两侧共用一份清单防漂移）。
+#
+# 🔴 为什么不并入 RESOURCES 四元组：同 STRATEGY_GOVERNED_CODES 的理由 ——
+#    护栏测试（test_resource_code_convention）按 4 元解包，改结构会连带破坏。
+#    且 seed 主循环 update_or_create 不带该字段，这里单独置位即可。
+#
+# 🔴 与 strategy_governed 的差异：本字段无管理员手工编辑入口（资源管理台唯一
+#    可编辑项是受策略管控开关），seed 恒为真源，故可无条件覆盖（不需「只置不清」）。
+# ---------------------------------------------------------------------------
+RESOURCE_SUB_MODULES = {
+    # 候选人管理 / 基础功能（6 条基础操作）
+    'recruit:candidate:create': '基础功能',
+    'recruit:candidate:delete': '基础功能',
+    'recruit:candidate:edit': '基础功能',
+    'recruit:candidate:export': '基础功能',
+    'recruit:candidate:list': '基础功能',
+    'recruit:candidate:menu:view': '基础功能',
+    # 候选人管理 / offer管理（4 条 offer 操作）
+    'recruit:candidate:offer:approve': 'offer管理',
+    'recruit:candidate:offer:create': 'offer管理',
+    'recruit:candidate:offer:edit': 'offer管理',
+    'recruit:candidate:offer:list': 'offer管理',
+}
 
 
 # 配置类资源码 (2026-10-11, G2 接线)
@@ -526,8 +640,8 @@ CONFIG_CODES = [
     'recruit:settings:resume_parser_engine:menu:view', 'recruit:settings:resume_parser_engine:list',
     'recruit:settings:resume_parser_engine:edit',
     # 校招（campus）三功能：编制管控 / 校园大使 / 宣讲会 (2026-10-18 拆分；编制管控 2026-10-20 迁 campus 家族 0045)
-    'recruit:settings:campus_control:menu:view', 'recruit:settings:campus_control:list',
-    'recruit:settings:campus_control:edit', 'recruit:settings:campus_control:delete',
+    'recruit:campus:campus_control:menu:view', 'recruit:campus:campus_control:list',
+    'recruit:campus:campus_control:edit', 'recruit:campus:campus_control:delete',
     'recruit:settings:campus_ambassador:menu:view', 'recruit:settings:campus_ambassador:list',
     'recruit:settings:campus_ambassador:edit', 'recruit:settings:campus_ambassador:delete',
     'recruit:settings:campus_session:menu:view', 'recruit:settings:campus_session:list',
@@ -615,6 +729,17 @@ TEMPLATES = [
             'recruit:application:menu:view', 'recruit:application:list',
             'recruit:invitation:menu:view', 'recruit:invitation:list',
             'recruit:invitation:create',
+            # 2026-10-20 S8-01: 11 条新码全部进专员模板 —— 专员是这些功能的真实操作者
+            # （已持 interview:schedule / invitation:list+create / candidate:*），守卫
+            # 收紧后不给新码 = 专员集体丢功能（方案 §6.2/§6.3）。DIRECTOR 不加
+            # （「看+审批」定位）；bg_check 三码另由迁移 0043 从 settings:external:edit
+            # 持有人 1:1 复制取得（行为保持优先），复制与模板赋值取并集不冲突。
+            'recruit:interview:edit', 'recruit:interview:delete',
+            'recruit:invitation:edit', 'recruit:invitation:reject',
+            'recruit:candidate:assign', 'recruit:candidate:recommend',
+            'recruit:candidate:eliminate', 'recruit:candidate:notify',
+            'recruit:candidate:bg_check:start', 'recruit:candidate:bg_check:import',
+            'recruit:candidate:bg_check:cancel',
             'recruit:talent_pool:menu:view', 'recruit:talent_pool:list',
             'recruit:talent_pool:create', 'recruit:talent_pool:edit',
             'recruit:talent_pool:delete',
@@ -678,6 +803,14 @@ class Command(BaseCommand):
             resource_code__in=STRATEGY_GOVERNED_CODES,
         ).update(strategy_governed=True)
 
+        # 子模块展示名置位（2026-10-21）：update_or_create 不带该字段，主循环后单独写。
+        # 无手工编辑入口，seed 恒为真源，可无条件覆盖（清单见 RESOURCE_SUB_MODULES 注释）。
+        sub_module_hit = 0
+        for code, sub in RESOURCE_SUB_MODULES.items():
+            sub_module_hit += PermissionResource.objects.filter(
+                resource_code=code,
+            ).update(sub_module=sub)
+
         for tpl in TEMPLATES:
             PermissionTemplate.objects.update_or_create(
                 template_code=tpl['code'],
@@ -715,7 +848,7 @@ class Command(BaseCommand):
             f'Seed OK: {created_resources} created, {updated_resources} updated, '
             f'{total} total resources, {len(all_codes)} in TMPL_ADMIN, '
             f'{len(TEMPLATES)} templates, {len(TENANT_DEFAULTS)} tenant config, '
-            f'{governed_hit} strategy_governed, '
+            f'{governed_hit} strategy_governed, {sub_module_hit} sub_module, '
             f'admin {"created" if admin_created else "updated"}'
         ))
 
