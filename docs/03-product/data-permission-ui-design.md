@@ -416,6 +416,15 @@ interface RoleDataPermPayload {
 4. 成功 → `saved = clone(draft)`（脏检查归零）→ toast「数据权限已保存」→ 关闭抽屉 → `emit('saved')` → 列表行「默认数据范围」列同步刷新。
 5. 失败 → toast 错误信息 + 保留抽屉内容与脏状态；若 HTTP 409（并发冲突，见 §6.6）→ 提示「该角色的数据权限已被他人更新，请刷新后重试」并提供「重新加载」按钮。
 
+### F4.6 后端保存期表达式校验（防御层，2026-10-21 新增，commit `4cee8bef`）
+
+前端 F4.1–F4.5 的实时校验是**第一道**防线；后端在 **scope 模式保存期**再做一次语法校验（`serializers_permission_v2.py` 的 `validate_expr`），二者口径与 §2.4 完全一致：
+
+- 触发：`POST /api/v1/roles/{roleId}/data-permissions/` 写 `RoleDataPermPayload` 时，对每条 `mode === 'scope'` 模块的 `module.expr` 与每个 `group.expr` 复跑 §2.4 语法（括号成对 / 不嵌套 / 同层不混用 and·or / 编号真实存在）。
+- 非法 → 直接 **HTTP 400**（错误体带 `<原因>`，与前端「✕ 原因」同源），**拦截落库**。
+- 必要性：若非法表达式绕过前端直写库，enforcement 编译期会抛 `ExprError` 被 fail-safe 吞掉 → 该模块对**所有人静默全拒**（看似"保存成功"实则权限失效）。后端校验把"保存期"卡在编译之前，杜绝该静默失效路径。
+- 设计态：本文件为前端交互设计稿，**后端模型 / API / enforcement 的权威见 `docs/03-product/data-permission-prd.md`**；该 PRD 当前未覆盖动态策略表达式校验，本小节为动态策略修复的临时落点，后续应回流 PRD。
+
 ### F5 关闭（脏检查）
 - 触发源：footer「取消」、header ×、遮罩点击、Esc。
 - `isDirty === false` → 直接关闭。
