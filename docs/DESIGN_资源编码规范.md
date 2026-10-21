@@ -49,6 +49,46 @@
 | 倒数第 2 段 | **种类** | 受控词表，见 §3 |
 | 最后 1 段 | **动作** | 受控词表，见 §3 |
 
+### 2.2 子模块：`sub_module` 是独立数据库列（与编码段并存）
+
+> 2026-10-21（本会话）：在 `PermissionResource` 上新增**独立列** `sub_module`
+> （迁移 `core.0046_permissionresource_sub_module`，字段
+> `CharField(null=True, blank=True, max_length=64, verbose_name='子模块')`），
+> 与资源码里的 `{sub_module}...` 段是**两套并存**的表示：
+> - 资源码字符串仍保留 `recruit:{module}[:{sub_module}...]:{kind}:{action}` 段（历史 / 展示兼容）；
+> - `PermissionResource.sub_module` 是**权威**来源，功能权限树与「资源管理」页子模块列均以它为准，
+>   不再依赖从码段推导。
+>
+> 为什么单列：candidate 的码是四段（`recruit:candidate:create` /
+> `recruit:candidate:offer:create`），无子模块段、也无 menu 锚点，纯靠码段推导恒为「—」。
+> 单列后由 seed / 迁移显式置位，前端统一以该列展示。
+
+**清单真源 `RESOURCE_SUB_MODULES`**（`apps/core/management/commands/seed_v2_init.py`）：
+
+- 字典 `{资源码: 子模块展示名}`，本会话（2026-10-21 兵哥清单）初版为 **10 条**：
+  候选人管理下 `create / delete / edit / export / list / menu:view` →「基础功能」，
+  `offer:approve / offer:create / offer:edit / offer:list` →「offer管理」。
+- 不并入 `RESOURCES` 四元组：护栏测试按 4 元解包，改结构会破坏；seed 主循环
+  `update_or_create` 不带该字段，这里单独后置位即可。
+- 后续 0047 / 0048 又归位「录用信息」「应聘记录」子模块，清单随之扩展 ——
+  **新增子模块须同步此处，否则子模块列 / 分组回退为码段推导或菜单锚点回填**。
+
+**双路径置位（同 `STRATEGY_GOVERNED_CODES` 模式，防两处漂移）**：
+
+- 存量库（dev / prod 已 seed）→ 迁移 `core.0046` `import` 同一份 `RESOURCE_SUB_MODULES`，
+  按码 `Resource.objects.filter(resource_code=code).update(sub_module=sub)` 兜底置位；
+- 全新库（migrate 时 `permission_resources` 仍空）→ 迁移置不到任何行
+  （打「缺失 N 条」告警，属预期），由 `seed_v2_init.Command.handle` 主循环之后单独置位。
+- 该字段无管理员手工编辑入口，seed 恒为真源，可无条件覆盖（不需「只置不清」）。
+
+**护栏** `test_resource_code_convention.py::test_resource_sub_modules_subset_of_resources`：
+
+- 断言 `RESOURCE_SUB_MODULES ⊆ RESOURCES`（码不在 `RESOURCES` 内 → seed / 迁移置位静默落空，无任何报错）；
+- 同时锁定清单条数（初始 10，后续每新增子模块须同步更新该断言，否则 CI 失败）。
+
+**序列化器**：`PermissionResourceSerializer.fields` 仅将 `sub_module` 作为**读出参**（`'sub_module'`，不回写），
+资源分类只在「资源管理」页配置，不从前端功能权限页签写回。
+
 ### 2.1 按层级定段（示例）
 
 ```
