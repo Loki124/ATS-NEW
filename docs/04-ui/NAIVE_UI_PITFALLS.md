@@ -204,9 +204,59 @@ body > .v-binder-follower-container
 
 ---
 
-## 8. 关联文档
+## 8. 🔴 内嵌媒体预览（iframe）被 `X-Frame-Options` 静默拦截（2026-10-21 实证，commit `1a43ee37`）
+
+**结论：后端对 media 响应下发 `X-Frame-Options: DENY` 时，`curl` 能取到 200 字节完整，浏览器却拒绝渲染 iframe → 用户看到「预览失败」。这是「链路全通但页面报错」的典型形态。**
+
+### 8.1 复现与判定
+
+| 检查项 | 现象 |
+|---|---|
+| `curl -s -D - -o /dev/null <pdf_url>` | `200`、`content-type: application/pdf`、`content-length` 正常 |
+| 同响应头 | **含 `x-frame-options: DENY`** ← 真凶 |
+| 页面 `<iframe :src="pdfUrl">` | 浏览器原生「预览失败 / 无法加载」 |
+
+根因链：
+
+1. `config/settings/base.py` 的 `X_FRAME_OPTIONS = 'DENY'` + `XFrameOptionsMiddleware` 对**所有**响应（含 `/media/`）加该头。
+2. dev 页面在 `:5212`，Vite 把 `/media` 代理到 `:8000` —— **端口不同即跨源**，`DENY` 无条件禁止任何 framing（`SAMEORIGIN` 也只允许同源）。
+3. `curl` 不执行 framing 检查，故 200；浏览器渲染即被拦截。
+
+> 判定要点：**只要 `curl` 200 但浏览器报预览失败，第一件事查 `x-frame-options` 与 CSP `frame-src`**，不要反复怀疑路径/权限/Content-Type。
+
+### 8.2 修法（前端 blob 方案，推荐）
+
+不动全局安全头（`DENY` 对其他端点仍是正确配置），改由前端经鉴权 `fetch` 取为 blob，用**同源** `objectURL` 内嵌：
+
+```ts
+const resumeObjectUrl = ref('')
+async function loadResumePreview() {
+  const url = resumeFileUrl.value
+  if (!url) return
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+  const resp = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+  resumeObjectUrl.value = URL.createObjectURL(await resp.blob())
+}
+// 模板：<iframe :src="resumeObjectUrl" />
+onBeforeUnmount(() => { if (resumeObjectUrl.value) URL.revokeObjectURL(resumeObjectUrl.value) })
+```
+
+优点：① `blob:` URL 属同源，不受 `X-Frame-Options` 约束；② 自动携带 `Authorization`（`SECURE_MEDIA_DOWNLOAD` 的 `/api/v1/media/secure/...` 端点同样可用）；③ 前端可感知失败并回退为「下载」引导，避免浏览器原生白屏报错。
+
+### 8.3 配套必做
+
+- **必须 `URL.revokeObjectURL` 释放**（`onBeforeUnmount` + URL 变更时先 revoke），否则反复切换候选人会持续占用内存。
+- **必须有失败态**：`fetch` 失败时展示「加载失败 + 下载按钮」，不许留空白或让浏览器原生错误页常驻。
+- ⚠️ 若后端改用 `SAMEORIGIN` 且前端与后端**同源**（生产环境 Django 同时 serve 前端与 media），可省掉 blob 层；但 dev 跨端口形态下 `SAMEORIGIN` 依然会被拦，故 blob 方案通用性更好。
+- ⚠️ 排查时顺手确认无 CSP 限制：`grep -rn "content-security-policy\|frame-src\|default-src"`，`blob:` 需被 `frame-src`/`default-src` 允许。
+
+---
+
+## 9. 关联文档
 
 - 设置页滚动契约（`.page-body` 滚动链） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md`
+- 后端序列化器字段类型陷阱（同批实证） → `docs/06-runbook/ENGINEERING_RULES.md` §15
 - 表单弹窗遮罩关闭守卫（useCloseGuard 接法） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md` §6.1
 - 标准简历三层结构 + 拖拽 → `docs/04-ui/UI_STANDARD.md` 附录 B
 - 分页统一组件 → `docs/04-ui/UI_STANDARD.md` §8.2

@@ -237,3 +237,45 @@ UI 规范的权威来源**只允许一套层级**，定义在 `docs/04-ui/README
 
 1. **弹窗内边距（已定调，2026-10-19）：统一 16px。** `tokens.css` 中 `--modal-pad-x/y: var(--space-5)` 实际 =16px，注释已改为「16px（= --space-5）」，`UI_STANDARD.md` §5.4 只引用令牌名（原 §1.3 的 24px/20px 漂移已清除），不再有真源内部漂移。
 2. **`FRONTEND_RULES_CONSOLIDATED.md` §19.1** 已在本步骤收敛到 README 的 L0–L5（移除已归档的 frontend-DESIGN / UI_INDEX / UI_RECONCILIATION 引用，修正 AGENTS.md「唯一权威源」表述为 L1 行为约束），不再另立分歧优先级表。
+
+## 15. 🔴 ModelSerializer 自动生成字段的类型陷阱（2026-10-21 实证，commit `6aefc0e6`）
+
+**结论：凡 `ModelSerializer` 未显式声明的字段，其校验类型由「模型字段类型」自动推导；模型与业务承载形态不一致时，自动生成的校验器会静默拒绝合法入参 → 400。**
+
+实证链路（候选人简历上传）：
+
+| 环节 | 事实 |
+|---|---|
+| 模型 | `Candidate.resume_file_url = models.URLField(...)`（历史设计，因该字段同时承载外链） |
+| 业务实际值 | `/media/uploads/20261021/xxx.pdf`、`/api/v1/media/secure/...` —— **站内相对路径**，非绝对 URL |
+| 创建序列化器 | 显式声明 `CharField(required=False, allow_blank=True, max_length=500)` → 创建通过 |
+| **更新序列化器** | **未声明** → `ModelSerializer` 按模型自动生成 `URLField` → DRF `URLValidator` 拒绝相对路径 → **PATCH 400** |
+
+### 15.1 三条硬规则
+
+1. **改字段承载形态时，逐一排查所有引用它的序列化器**。同一模型常有 `XxxCreateSerializer` / `XxxUpdateSerializer` / `XxxListSerializer` 多个，`ModelSerializer` 各自独立推导字段类型，改一处不等于全改。
+2. **「自动生成」比「手写」更隐蔽**：手写字段错误一眼可见；自动生成字段的错误只在特定入参下暴露，且通常被前端笼统显示为「保存失败」。
+3. **回归测试必须用真实形态的入参**。本坑用绝对 URL（`https://...`）测永远绿，必须补相对路径用例才能真正锁住：
+
+```python
+# apps/django/apps/candidate/tests/test_audit_behavior.py
+def test_update_accepts_relative_resume_url(...):
+    for rel in ('/media/uploads/2026/x.pdf', '/api/v1/media/secure/2026/x.pdf'):
+        resp = client.patch(f'/api/v1/candidates/{cid}/', {'resume_file_url': rel}, ...)
+        assert resp.status_code == 200
+```
+
+### 15.2 判定法（30 秒定位）
+
+症状「某端点 PATCH/POST 报 400，但字段值肉眼合法」→ 在 `manage.py shell` 里直接实例化序列化器校验：
+
+```python
+from apps.candidate.serializers import CandidateUpdateSerializer
+s = CandidateUpdateSerializer(instance=c, data={'resume_file_url': '/media/x.pdf'}, partial=True)
+print(s.is_valid(), s.errors)   # 若 errors 含 'Enter a valid URL.' → 即本坑
+```
+
+## 16. 关联前端坑
+
+- iframe 内嵌媒体预览被 `X-Frame-Options` 拦截 → `docs/04-ui/NAIVE_UI_PITFALLS.md` §8
+- 前端组件坑 → `docs/04-ui/NAIVE_UI_PITFALLS.md`
