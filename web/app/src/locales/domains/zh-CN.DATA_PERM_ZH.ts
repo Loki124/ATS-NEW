@@ -2677,8 +2677,8 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.candidate.CandidateDetail.s316': "标注原因",
   'pages.candidate.CandidateDetail.s317': "场景「{scene}」标注 {n} 个原因标签",
 
-  // 待入职页签（2026-10-21：并入候选人详情页，置于 Offer 页签之后）
-  'pages.candidate.CandidateDetail.s320': "待入职",
+  // 录用信息页签（原「待入职」，2026-10-21 并入候选人详情页，置于 Offer 页签之后）
+  'pages.candidate.CandidateDetail.s320': "录用信息",
   'pages.candidate.CandidateDetail.s321': "该候选人暂无入职记录",
   'pages.candidate.CandidateDetail.s322': "入职日期",
   'pages.candidate.CandidateDetail.s323': "实际入职",

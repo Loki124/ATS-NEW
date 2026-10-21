@@ -2133,8 +2133,8 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.candidate.CandidateDetail.s316': "Reasons Tagged",
   'pages.candidate.CandidateDetail.s317': "Tagged {n} reason(s) for scene \"{scene}\"",
 
-  // Onboarding tab (2026-10-21: merged into Candidate Detail, after the Offer tab)
-  'pages.candidate.CandidateDetail.s320': "Onboarding",
+  // Hiring Info tab (formerly Onboarding; merged into Candidate Detail after the Offer tab, 2026-10-21)
+  'pages.candidate.CandidateDetail.s320': "Hiring Info",
   'pages.candidate.CandidateDetail.s321': "No onboarding record for this candidate",
   'pages.candidate.CandidateDetail.s322': "Start Date",
   'pages.candidate.CandidateDetail.s323': "Actual Start",
