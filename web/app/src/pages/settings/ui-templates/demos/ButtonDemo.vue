@@ -469,7 +469,7 @@ const rowActionColumns = [
   column({ title: '权限码数', key: 'count', width: 110 }, 'numeric'),
   column({
     title: '操作', key: 'actions', width: 150, fixed: 'right',
-    render: (row: MiniRow) => h('div', { style: 'display:flex; gap:8px;' }, [
+    render: (row: MiniRow) => h('div', { style: 'display:flex; gap: var(--space-2);' }, [
       h(NButton, {
         class: 'stpl-btn stpl-btn--ghost',
         quaternary: true,
@@ -542,8 +542,8 @@ const rowActionColumns = [
 }
 .demo-block-desc b { color: var(--ink); font-weight: 500; }
 .demo-block-desc code {
-  padding: 0 4px;
-  border-radius: 4px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
   background: var(--stpl-inset-bg, var(--surface));
   font-family: var(--font-mono, monospace);
   font-size: 0.9em;
@@ -584,9 +584,9 @@ const rowActionColumns = [
 }
 .spec-scene-k {
   display: inline-block;
-  margin-right: 4px;
-  padding: 0 4px;
-  border-radius: 4px;
+  margin-right: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
   background: var(--stpl-panel-bg, var(--surface));
   color: var(--ink-soft);
   font-size: 0.9em;
@@ -615,7 +615,7 @@ const rowActionColumns = [
 }
 .matrix-statehint {
   display: block;
-  font-size: 11px;
+  font-size: var(--fs-12);
   font-weight: 400;
   color: var(--ink-faint);
   white-space: nowrap;
@@ -675,7 +675,7 @@ const rowActionColumns = [
   color: var(--ink);
 }
 .size-demo-hint {
-  font-size: 11px;
+  font-size: var(--fs-12);
   color: var(--ink-faint);
   white-space: nowrap;
 }

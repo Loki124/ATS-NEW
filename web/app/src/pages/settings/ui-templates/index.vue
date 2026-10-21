@@ -332,7 +332,9 @@ async function copyCode() {
 }
 .tpl-nav {
   flex: none;
-  width: 240px;
+  /* 左导航栏宽：本地令牌（设计系统无 240px 全局令牌，结构宽度原值保留） */
+  --stpl-nav-width: 240px;
+  width: var(--stpl-nav-width);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -342,7 +344,7 @@ async function copyCode() {
 .tpl-nav-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   align-items: flex-start;
   text-align: left;
   padding: var(--space-2);
@@ -453,13 +455,13 @@ async function copyCode() {
 .rule-icon,
 .ref-icon {
   flex: none;
-  margin-top: 3px;
+  margin-top: var(--space-1);
   color: var(--c-success);
 }
 .ref-icon { color: var(--ink-soft); }
 .caveat-icon {
   flex: none;
-  margin-top: 3px;
+  margin-top: var(--space-1);
   color: var(--c-warning);
 }
 .caveat-title {
@@ -473,8 +475,8 @@ async function copyCode() {
 .spec-list code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   background: var(--border-hairline);
-  padding: 0 4px;
-  border-radius: 4px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
 }
 .spec-table-title {
   margin: var(--space-2) 0 var(--space-1);

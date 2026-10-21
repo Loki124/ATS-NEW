@@ -113,11 +113,11 @@ function levelLabel(level: DocLevel): string {
 }
 .doc-badge {
   flex: none;
-  margin-top: 3px;
+  margin-top: var(--space-1);
   padding: 0 var(--space-1);
   border-radius: var(--radius-sm);
-  font-size: 11px;
-  line-height: 18px;
+  font-size: var(--fs-12);
+  line-height: 1.6;
 }
 .doc-badge--must {
   color: var(--c-success-deep);
@@ -136,8 +136,8 @@ function levelLabel(level: DocLevel): string {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   background: var(--border-hairline);
   color: var(--ink);
-  padding: 0 4px;
-  border-radius: 4px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
   margin-left: var(--space-2);
 }
 .doc-foot {
@@ -153,6 +153,6 @@ function levelLabel(level: DocLevel): string {
 }
 .doc-foot-icon {
   flex: none;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 </style>

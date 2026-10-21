@@ -163,8 +163,8 @@ async function submit() {
   /* 无 --font-mono 令牌，直接用系统等宽族（纯装饰性代码标注，不属品牌/语义色范围） */
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--text-meta);
-  padding: 1px 4px;
-  border-radius: 4px;
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
   background: var(--border-hairline);
 }
 </style>
