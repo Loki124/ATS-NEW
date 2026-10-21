@@ -89,7 +89,7 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/settings/position-info', code: 'recruit:settings:position_info:menu:view' },
   { prefix: '/settings/interview-management', code: 'recruit:settings:interview_management:menu:view' },
   { prefix: '/settings/offer-management', code: 'recruit:settings:offer_management:menu:view' },
-  { prefix: '/campus/control', code: 'recruit:settings:campus_control:menu:view' },
+  { prefix: '/campus/control', code: 'recruit:campus:campus_control:menu:view' },
   { prefix: '/settings/campus-ambassador', code: 'recruit:settings:campus_ambassador:menu:view' },
   { prefix: '/settings/campus-session', code: 'recruit:settings:campus_session:menu:view' },
 

@@ -221,10 +221,10 @@ RESOURCES = [
     ('recruit:settings:interview_management:menu:view', '面试管理菜单', 'MENU', 'settings'),
     # Offer管理 (占位)
     ('recruit:settings:offer_management:menu:view', 'Offer管理菜单', 'MENU', 'settings'),
-    # 编制管控 (config)
-    ('recruit:settings:campus_control:menu:view', '编制管控', 'MENU', 'settings'),
-    ('recruit:settings:campus_control:edit', '编辑编制管控', 'BUTTON', 'settings'),
-    ('recruit:settings:campus_control:delete', '删除编制管控', 'BUTTON', 'settings'),
+    # 编制管控 (campus 模块 config) — 2026-10-20 自 recruit:settings:campus_control:* 迁移至 campus 家族（0045）
+    ('recruit:campus:campus_control:menu:view', '编制管控', 'MENU', 'settings'),
+    ('recruit:campus:campus_control:edit', '编辑编制管控', 'BUTTON', 'settings'),
+    ('recruit:campus:campus_control:delete', '删除编制管控', 'BUTTON', 'settings'),
     # 校园大使 (config) — 2026-10-18 从 campus_control 拆分为独立码
     ('recruit:settings:campus_ambassador:menu:view', '校园大使菜单', 'MENU', 'settings'),
     ('recruit:settings:campus_ambassador:list', '校园大使列表', 'BUTTON', 'settings'),
@@ -365,7 +365,7 @@ RESOURCES = [
     # 2026-10-11 (G2 接线): 这些模块此前只有 menu:view + 写码, 缺读码。
     # 端点接入 V2Permission 后读操作需要一个可校验的码 (permission_required 即读码),
     # 否则只能拿 menu:view / edit 码凑, 语义不准。写码仍复用各模块既有 :edit/:create/:delete。
-    ('recruit:settings:campus_control:list', '编制管控列表', 'BUTTON', 'settings'),
+    ('recruit:campus:campus_control:list', '编制管控列表', 'BUTTON', 'settings'),
     ('recruit:settings:dictionary:list', '数据字典列表', 'BUTTON', 'settings'),
     ('recruit:settings:dynamic_fields:list', '动态字段列表', 'BUTTON', 'settings'),
     ('recruit:settings:duplicate_candidate:list', '重复候选人规则列表', 'BUTTON', 'settings'),
@@ -525,7 +525,7 @@ CONFIG_CODES = [
     # 简历解析引擎 (2026-10-18 从 rule_engine 拆分为独立码)
     'recruit:settings:resume_parser_engine:menu:view', 'recruit:settings:resume_parser_engine:list',
     'recruit:settings:resume_parser_engine:edit',
-    # 校招（campus）三功能：编制管控 / 校园大使 / 宣讲会 (2026-10-18 拆分)
+    # 校招（campus）三功能：编制管控 / 校园大使 / 宣讲会 (2026-10-18 拆分；编制管控 2026-10-20 迁 campus 家族 0045)
     'recruit:settings:campus_control:menu:view', 'recruit:settings:campus_control:list',
     'recruit:settings:campus_control:edit', 'recruit:settings:campus_control:delete',
     'recruit:settings:campus_ambassador:menu:view', 'recruit:settings:campus_ambassador:list',

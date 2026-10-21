@@ -150,9 +150,11 @@ class TestSeedResourceConvention:
         - standard_resume 仍保留（作为 1:1 授权复制源，不能被误删）
         """
         codes = {c for c, *_ in _load_seed_resources()}
-        for fam in ['campus_control', 'campus_ambassador', 'campus_session']:
+        # 编制管控 2026-10-20 迁 campus 家族（0045），其余两族仍属 settings 家族
+        module_of = {'campus_control': 'campus', 'campus_ambassador': 'settings', 'campus_session': 'settings'}
+        for fam, mod in module_of.items():
             for action in ['menu:view', 'list', 'edit', 'delete']:
-                assert f'recruit:settings:{fam}:{action}' in codes, f'seed 缺 {fam}:{action}'
+                assert f'recruit:{mod}:{fam}:{action}' in codes, f'seed 缺 {fam}:{action}'
         for action in ['menu:view', 'list', 'edit']:
             assert f'recruit:settings:resume_parser_engine:{action}' in codes, \
                 f'seed 缺 resume_parser_engine:{action}'
@@ -223,7 +225,7 @@ class TestSeedResourceConvention:
 
         # 拆分后四个独立码各应恰好出现一次（一码一独立入口）
         for expected in [
-            'recruit:settings:campus_control:menu:view',
+            'recruit:campus:campus_control:menu:view',
             'recruit:settings:campus_ambassador:menu:view',
             'recruit:settings:campus_session:menu:view',
             'recruit:settings:resume_parser_engine:menu:view',

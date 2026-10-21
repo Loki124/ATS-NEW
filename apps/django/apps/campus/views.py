@@ -34,18 +34,18 @@ class CampusModelViewSetMixin(ScopeQuerysetMixin):
     - 软删（FullAuditModel.deleted_at）+ 审计字段（created_by/updated_by）注入；
     - 列表默认隐藏软删行；
     - 权限整改（B0）：裸 IsAuthenticated → V2Permission + 资源码（复用 campus_control
-      资源码，码不变；校园大使/宣讲会沿用 recruit:settings:campus_control:*）。
+      资源码，码不变；校园大使/宣讲会沿用 recruit:campus:campus_control:*）。
     """
 
     pagination_class = StandardResultsSetPagination
     permission_classes = [V2Permission]
-    permission_required = 'recruit:settings:campus_control:list'
+    permission_required = 'recruit:campus:campus_control:list'
     permission_required_map = {
-        'create': 'recruit:settings:campus_control:edit',
-        'update': 'recruit:settings:campus_control:edit',
-        'partial_update': 'recruit:settings:campus_control:edit',
-        'destroy': 'recruit:settings:campus_control:delete',
-        'restore': 'recruit:settings:campus_control:edit',
+        'create': 'recruit:campus:campus_control:edit',
+        'update': 'recruit:campus:campus_control:edit',
+        'partial_update': 'recruit:campus:campus_control:edit',
+        'destroy': 'recruit:campus:campus_control:delete',
+        'restore': 'recruit:campus:campus_control:edit',
     }
 
     def get_queryset(self):

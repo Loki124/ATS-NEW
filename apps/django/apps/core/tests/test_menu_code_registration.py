@@ -77,3 +77,21 @@ class TestMgmtUnitFamilyMigrated:
         seed = {c for c, *_ in _load_seed_resources()}
         revived = sorted(c for c in seed if c.startswith('recruit:mgmt_unit:'))
         assert not revived, f'seed 仍含已迁移的旧 mgmt_unit 码族：{revived}'
+
+
+class TestCampusControlFamilyMigrated:
+    """编制管控码族重归属 campus 模块（0045）后的真源断言。"""
+
+    def test_new_family_present(self):
+        seed = {c: rest for c, *rest in _load_seed_resources()}
+        for action in ('menu:view', 'list', 'edit', 'delete'):
+            code = f'recruit:campus:campus_control:{action}'
+            assert code in seed, f'seed 缺 {code}'
+            module = seed[code][2]
+            assert module == 'campus', f'{code} 的 module 应为 campus，实为 {module}'
+
+    def test_old_family_absent(self):
+        """旧码族 recruit:settings:campus_control:* 不得回写 seed —— 否则重跑种子会让已迁移的码复活。"""
+        seed = {c for c, *_ in _load_seed_resources()}
+        revived = sorted(c for c in seed if c.startswith('recruit:settings:campus_control:'))
+        assert not revived, f'seed 仍含已迁移的旧 campus_control 码族：{revived}'
