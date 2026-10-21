@@ -251,7 +251,7 @@ def test_rule_takes_effect_immediately_no_60s_wait(super_admin, role, department
         user_id=observer.pk, role_code=role.role_code, system_code='recruit',
     )
     RolePermissionV2.objects.get_or_create(
-        role_code=role.role_code, resource_code='recruit:application:list',
+        role_code=role.role_code, resource_code='recruit:candidate:application:list',
         system_code='recruit',
     )
     req = APIRequestFactory().get('/api/v1/applications/')

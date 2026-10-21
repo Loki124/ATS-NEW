@@ -95,3 +95,28 @@ class TestCampusControlFamilyMigrated:
         seed = {c for c, *_ in _load_seed_resources()}
         revived = sorted(c for c in seed if c.startswith('recruit:settings:campus_control:'))
         assert not revived, f'seed 仍含已迁移的旧 campus_control 码族：{revived}'
+
+
+class TestApplicationFamilyMigrated:
+    """「申请」码族重归属候选人管理（0048）后的真源断言。
+
+    产品语义：Application = 候选人每次应聘记录，无独立「申请管理」页，
+    故自独立 module=application 一族 6 码归位：
+      - list / advance 改名 recruit:candidate:application:*（module=candidate，子模块「应聘记录」）；
+      - menu:view/create/edit/reject 四码无任何端点守卫与前端调用点（menu:view 为孤儿码），
+        停用不再 seed。
+    """
+
+    def test_new_family_present(self):
+        seed = {c: rest for c, *rest in _load_seed_resources()}
+        for action in ('list', 'advance'):
+            code = f'recruit:candidate:application:{action}'
+            assert code in seed, f'seed 缺 {code}'
+            module = seed[code][2]
+            assert module == 'candidate', f'{code} 的 module 应为 candidate，实为 {module}'
+
+    def test_old_family_absent(self):
+        """旧 recruit:application:* 码族不得回写 seed —— 改名/停用的码若回写会让迁移失效。"""
+        seed = {c for c, *_ in _load_seed_resources()}
+        revived = sorted(c for c in seed if c.startswith('recruit:application:'))
+        assert not revived, f'seed 仍含已迁移的旧 application 码族：{revived}'

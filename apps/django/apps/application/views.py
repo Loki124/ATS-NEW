@@ -87,7 +87,7 @@ class ApplicationViewSet(EnvelopeWriteMixin, ScopeQuerysetMixin, SoftDeleteViewS
         'current_link__stage_rule',
     )
     permission_classes = [V2Permission]
-    permission_required = 'recruit:application:list'
+    permission_required = 'recruit:candidate:application:list'
     pagination_class = StandardResultsSetPagination
     lookup_field = 'id'
     scope_field = 'position__department'
@@ -584,7 +584,7 @@ class GrabPoolViewSet(viewsets.GenericViewSet):
     get_queryset()，但 drf-spectacular 生成 schema 时会访问，避免告警。
     """
     permission_classes = [V2Permission]
-    permission_required = 'recruit:application:list'
+    permission_required = 'recruit:candidate:application:list'
     pagination_class = StandardResultsSetPagination
     queryset = Application.objects.none()
     serializer_class = ApplicationListSerializer

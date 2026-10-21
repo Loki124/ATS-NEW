@@ -241,25 +241,25 @@ def evaluate_candidate(request, candidate_id):
     return _ok({'passed': True, 'failedItems': [], 'prompt': None, 'candidateId': candidate_id})
 
 
-@_scoped_view(methods=['GET'], resource_code='recruit:application:list')
+@_scoped_view(methods=['GET'], resource_code='recruit:candidate:application:list')
 def check_stage_transition(request, application_id):
     _log_stub_hit('check_stage_transition', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': application_id, 'checks': []})
 
 
-@_scoped_view(methods=['GET'], resource_code='recruit:application:list')
+@_scoped_view(methods=['GET'], resource_code='recruit:candidate:application:list')
 def check_stage_transition_no_id(request):
     _log_stub_hit('check_stage_transition_no_id', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': None, 'checks': []})
 
 
-@_scoped_view(methods=['GET'], resource_code='recruit:application:list')
+@_scoped_view(methods=['GET'], resource_code='recruit:candidate:application:list')
 def check_stage_transition_top(request):
     _log_stub_hit('check_stage_transition_top', request)
     return _ok({'canTransition': True, 'nextStageId': None, 'applicationId': None, 'checks': []})
 
 
-@_scoped_view(methods=['GET', 'POST', 'PUT'], resource_code='recruit:application:list')
+@_scoped_view(methods=['GET', 'POST', 'PUT'], resource_code='recruit:candidate:application:list')
 def recruitment_rounds(request, id=None):
     if request.method == 'GET':
         return _empty_list()
@@ -267,7 +267,7 @@ def recruitment_rounds(request, id=None):
     return _not_implemented('recruitment_rounds', request, '招聘轮次写入尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 
 
-@_scoped_view(methods=['PUT'], resource_code='recruit:application:advance')
+@_scoped_view(methods=['PUT'], resource_code='recruit:candidate:application:advance')
 def recruitment_rounds_status(request, id):
     return _not_implemented('recruitment_rounds_status', request, '招聘轮次状态变更尚未实现：此前 stub 伪装成功却未落库，现按安全规约返回 501。')
 

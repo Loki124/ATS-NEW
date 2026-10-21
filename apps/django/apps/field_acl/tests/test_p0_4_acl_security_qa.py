@@ -59,7 +59,7 @@ def plain_user(db, department):
     """非超管 HR —— 脱敏验证的真正对象（超管会 bypass，见 test_superuser_*）。
 
     三个坑（QA 逐条实测，都是"接口 200 但列表空/403"的假绿陷阱）：
-    1. 必须授予 `recruit:application:list`：ApplicationViewSet 声明了
+    1. 必须授予 `recruit:candidate:application:list`：ApplicationViewSet 声明了
        `permission_required`，无此码 GET /api/v1/applications/ 直接 **403**；
     2. 必须挂 `department`：ApplicationViewSet.scope_field = 'position__department'
        做行级过滤，无部门 → 列表恒空 → "脱敏断言"在空列表上恒不执行；
@@ -77,7 +77,7 @@ def plain_user(db, department):
     from apps.core.models_permission_v2 import RolePermissionV2
     RolePermissionV2.objects.get_or_create(
         role_code='QA_ACL_ROLE',
-        resource_code='recruit:application:list',
+        resource_code='recruit:candidate:application:list',
         system_code='recruit',
     )
     return u

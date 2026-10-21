@@ -49,8 +49,23 @@
             <span v-if="lockOwnerText" class="meta-chip lock-chip">
               <n-icon :component="LockClosedOutline" />{{ t('pages.candidate.CandidateDetail.s205') }}：{{ lockOwnerText }}
             </span>
-            <n-tag v-if="appliedPosition" class="position-tag" :bordered="false" size="small">
-              {{ appliedPosition }}
+            <!-- 应聘职位：点击展开「已投递 N 次」浮层面板（2026-10-21 兵哥需求：申请=每次应聘记录） -->
+            <n-tag
+              v-if="appliedPosition"
+              class="position-tag"
+              :bordered="false"
+              size="small"
+              tag="div"
+              :class="{ 'position-tag--clickable': applicationPanelVisible, 'position-tag--multi': applicationRecords.length > 1 }"
+              role="button"
+              tabindex="0"
+              @click="toggleApplicationPanel"
+              @keydown.enter.prevent="toggleApplicationPanel"
+              @keydown.space.prevent="toggleApplicationPanel"
+            >
+              <span v-if="applicationRecords.length > 1" class="position-tag__count">{{ applicationRecords.length }}</span>
+              <span class="position-tag__text">{{ appliedPosition }}</span>
+              <n-icon v-if="applicationRecords.length > 1" :component="ChevronForwardOutline" class="position-tag__caret" />
             </n-tag>
           </div>
           <div class="identity-meta-row">
@@ -67,7 +82,35 @@
       </div>
     </n-card>
 
-    <!-- 主体：左主内容区 + 右操作栏 -->
+    <!-- 已投递 N 次浮层面板（2026-10-21 兵哥需求：申请=每次应聘记录，展示每次应聘的不同职位）
+         锚点=身份条里的应聘职位标签；点击标签开合；点击外部/ESC 关闭 -->
+    <div v-if="applicationPanelVisible" class="application-panel" role="dialog" :aria-label="applicationPanelTitle">
+      <div class="application-panel__head">{{ applicationPanelTitle }}</div>
+      <div class="application-panel__body">
+        <div
+          v-for="rec in applicationRecords"
+          :key="rec.id || rec.createdAt"
+          class="application-record"
+        >
+          <div class="application-record__top">
+            <span class="application-record__position">{{ rec.positionTitle || '—' }}</span>
+            <span v-if="rec.positionCode || rec.processCode" class="application-record__codes">
+              <span v-if="rec.positionCode">（{{ rec.positionCode }}）</span>
+              <span v-if="rec.processCode">（{{ rec.processCode }}）</span>
+            </span>
+            <span v-if="rec.createdAt" class="application-record__time">{{ formatTime(rec.createdAt) }}</span>
+          </div>
+          <div v-if="rec.processName" class="application-record__sub">{{ rec.processName }}</div>
+          <div v-if="rec.currentStage" class="application-record__stage">
+            {{ t('pages.candidate.CandidateDetail.applicationPanelStage') }}：{{ rec.currentStage }}
+            <span v-if="rec.stageList && rec.stageList.length">（{{ rec.stageList.join(' / ') }}）</span>
+          </div>
+          <div v-if="rec.state" class="application-record__state">{{ rec.state }}</div>
+        </div>
+      </div>
+    </div>
+    <!-- 浮层遮罩：仅用于捕获点击关闭，不遮挡视觉（透明） -->
+    <div v-if="applicationPanelVisible" class="application-panel__mask" @click="applicationPanelVisible = false" />
     <div class="detail-layout">
       <div class="main-col">
         <n-card class="tabs-card">
@@ -186,8 +229,8 @@
               <CandidateOfferPanel :candidate-id="String(route.params.id || '')" />
             </n-tab-pane>
 
-            <!-- 待入职（2026-10-21：原独立「待入职」全局列表页移除，待入职功能并入候选人管理，
-                 作为 offer 之后的独立页签呈现；按 candidate 过滤，后端 recruit:onboarding:list 在数据层兜底权限） -->
+            <!-- 录用信息（原「待入职」，2026-10-21：原独立「待入职」全局列表页移除，功能并入候选人管理，
+                 作为 offer 之后的独立页签呈现；按 candidate 过滤，后端 recruit:candidate:onboarding:list 在数据层兜底权限） -->
             <n-tab-pane name="onboarding">
               <template #tab>{{ t('pages.candidate.CandidateDetail.s320') }}</template>
               <CandidateOnboardingPanel :candidate-id="String(route.params.id || '')" />
@@ -1148,7 +1191,18 @@ async function loadResumePreview() {
 watch(resumeFileUrl, () => { loadResumePreview() }, { immediate: true })
 onBeforeUnmount(() => {
   if (resumeObjectUrl.value) URL.revokeObjectURL(resumeObjectUrl.value)
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', onPanelKeydown)
+  }
 })
+
+/** 应聘记录浮层面板：ESC 关闭（2026-10-21） */
+function onPanelKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') applicationPanelVisible.value = false
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', onPanelKeydown)
+}
 
 // ===== 操作记录渲染（字段级 diff / 阶段·状态流转 / 解析溯源 / 哈希链校验） =====
 // 操作类型 → i18n key（s235–s244）；命中不到则回退原始 action 串，避免空白
@@ -1393,6 +1447,27 @@ const resumeSourceText = computed(() => {
 
 /** 流程阶段有序列表（后端 applications[0].stage_list，按 order 升序） */
 const stageList = computed<string[]>(() => applications.value[0]?.stageList ?? [])
+
+/**
+ * 应聘记录（= 后端 Application 列表，候选人每次应聘一条）
+ * 2026-10-21 兵哥需求：「申请」= 候选人的每次应聘，在详情页展示多次投递、每次对应不同职位。
+ * 后端 applications 已按 -created_at 排序（最新在前），此处保持原序不再二次排序。
+ */
+const applicationRecords = computed(() => applications.value ?? [])
+
+/** 浮层面板开关：点击身份条的应聘职位标签开合 */
+const applicationPanelVisible = ref(false)
+
+function toggleApplicationPanel() {
+  if (!applicationRecords.value.length) return
+  applicationPanelVisible.value = !applicationPanelVisible.value
+}
+
+/** 面板标题：「此候选人已投递 N 次」（N=1 时也用同一措辞保持稳定） */
+const applicationPanelTitle = computed<string>(() => {
+  const n = applicationRecords.value.length
+  return t('pages.candidate.CandidateDetail.applicationPanelTitle', { count: n })
+})
 
 /** 当前阶段在阶段列表中的下标；-1 = 未匹配/无数据 */
 const currentStageIdx = computed(() => {
@@ -1969,7 +2044,7 @@ async function handleForward() {
 </script>
 
 <style scoped>
-.candidate-detail-page { padding: var(--space-6); background: var(--c-info-soft); min-height: 100vh; }
+.candidate-detail-page { padding: var(--space-6); background: var(--c-info-soft); min-height: 100vh; position: relative; }
 .page-header { margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
 .back-btn { border: none; background: transparent; }
 .header-ops { flex-wrap: wrap; }
@@ -1984,6 +2059,50 @@ async function handleForward() {
 .identity-name { font-size: var(--fs-20); font-weight: 700; color: var(--ink); }
 .identity-code { font-size: var(--fs-12); color: var(--ink-soft); background: var(--border-hairline); border-radius: 6px; padding: 2px 8px; font-family: ui-monospace, monospace; }
 .position-tag { background: var(--brand-soft); color: var(--brand-fg); border-radius: 9999px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ===== 应聘记录浮层面板（2026-10-21 兵哥需求：申请=每次应聘记录） ===== */
+/* 标签可点击态：多次投递才显示次数徽标 + 展开箭头（单次投递保持原静态标签观感） */
+.position-tag--clickable { cursor: pointer; }
+.position-tag--clickable:hover { background: var(--brand-tint); }
+.position-tag--multi { max-width: 420px; }
+.position-tag__count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-right: 6px;
+  background: var(--brand); color: var(--brand-fg-on-soft); border-radius: 9999px;
+  font-size: var(--fs-10); font-weight: 700; line-height: 1;
+}
+.position-tag__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.position-tag__caret { margin-left: 4px; flex-shrink: 0; transition: transform var(--dur-fast) var(--ease-out); }
+.position-tag--clickable .position-tag__caret { transform: rotate(90deg); }
+
+/* 面板本体：锚定在身份条下方（absolute 挂在 identity-card 之后） */
+.application-panel {
+  position: absolute; left: var(--page-pad-x); right: var(--page-pad-x);
+  top: 96px; z-index: var(--z-dropdown);
+  background: var(--glass-bg-elevated); backdrop-filter: var(--glass-blur-panel);
+  border: 1px solid var(--glass-border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated); padding: var(--space-4);
+}
+.application-panel__head {
+  font-size: var(--fs-14); font-weight: 600; color: var(--ink);
+  padding-bottom: var(--space-3); margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.application-panel__body { display: flex; flex-direction: column; gap: var(--space-3); }
+.application-record {
+  background: var(--surface); border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md); padding: var(--space-3) var(--space-4);
+}
+.application-record__top { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+.application-record__position { font-size: var(--fs-14); font-weight: 600; color: var(--ink); }
+.application-record__codes { font-size: var(--fs-12); color: var(--ink-soft); font-family: ui-monospace, monospace; }
+.application-record__time { margin-left: auto; font-size: var(--fs-12); color: var(--ink-faint); }
+.application-record__sub { font-size: var(--fs-12); color: var(--ink-soft); margin-top: var(--space-1); }
+.application-record__stage { font-size: var(--fs-12); color: var(--ink-soft); margin-top: var(--space-1); }
+.application-record__state { font-size: var(--fs-12); color: var(--brand-fg); margin-top: var(--space-1); }
+
+/* 透明遮罩：仅捕获点击关闭，不遮挡视觉 */
+.application-panel__mask { position: fixed; inset: 0; z-index: calc(var(--z-dropdown) - 1); }
 .identity-meta-row { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: var(--space-2); }
 .meta-chip { font-size: var(--fs-12); color: var(--ink-soft); display: inline-flex; align-items: center; gap: 4px; }
 .lock-chip .n-icon { color: var(--c-warning); }

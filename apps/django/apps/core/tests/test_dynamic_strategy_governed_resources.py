@@ -1,14 +1,15 @@
 """穿透测试：动态策略「受限功能」候选区（governedResources）按 1:N 模块映射归组。
 
-背景（2026-10-20）：
+背景（2026-10-20；application:advance 于 0048 归位 candidate）：
 - 资源码第 2 段（module）与「策略模块」分组口径不同。兵哥清单把「安排面试」
-  (recruit:interview:schedule, module=interview) 与「推进流程」(recruit:application:advance,
-  module=application) 归在「候选人管理」(策略模块 candidate) 下，但它们不属于
-  `candidate` 资源 module。
+  (recruit:interview:schedule, module=interview) 与「放入人才库」
+  (recruit:talent_pool:create, module=talent_pool) 归在「候选人管理」(策略模块 candidate) 下，
+  但它们不属于 `candidate` 资源 module；「推进流程」(recruit:candidate:application:advance)
+  原 module=application，0048 已归位 candidate 直接入候选区（'application' 桥接 key 暂留兼容）。
 - 后端 _governed_resources() 必须走**独立 1:N 常量** STRATEGY_MODULE_RESOURCE_MODULES
-  (candidate -> {candidate, interview, application})，而不能复用 role_scope_api 的
-  1:1 DATA_PERM_MODULE_RESOURCE_MODULES（candidate -> {candidate}）—— 否则这 3 条
-  跨 module 资源进不了 candidate 候选区，勾选后也按模块切分不出来。
+  (candidate -> {candidate, interview, application, talent_pool, invitation})，而不能复用
+  role_scope_api 的 1:1 DATA_PERM_MODULE_RESOURCE_MODULES（candidate -> {candidate}）—— 否则
+  这些跨 module 资源进不了 candidate 候选区，勾选后也按模块切分不出来。
 - 本测试直接调用 _governed_resources() 真实代码路径，断言 3 条跨 module 资源确实
   出现在 candidate 候选区，从根上锁死「常量未切换」这类静默失效。
 """
@@ -49,10 +50,23 @@ def test_governed_resources_groups_cross_module_codes_under_candidate():
     assert 'recruit:candidate:offer:approve' in candidate_codes
     # 第二批 3 条（跨 module，靠 1:N 映射归入 candidate）
     assert 'recruit:interview:schedule' in candidate_codes
-    assert 'recruit:application:advance' in candidate_codes
+    assert 'recruit:candidate:application:advance' in candidate_codes
     assert 'recruit:talent_pool:create' in candidate_codes
-    # 候选区总数 = 4 + 3 = 7（含跨 module 的 interview/application/talent_pool）
-    assert len(candidate_codes) == 7
+    # 第三批（S8-01，2026-10-20）11 条：
+    #   - 7 条 module=candidate 直接入候选区（assign/recommend/eliminate/notify + bg_check 三条）
+    #   - interview:edit/delete 靠 interview 映射、invitation:edit/reject 靠 invitation
+    #     映射（D7 新增）归入 candidate —— 兵哥清单把它们归在候选人管理策略卡下
+    for code in (
+        'recruit:candidate:assign', 'recruit:candidate:recommend',
+        'recruit:candidate:eliminate', 'recruit:candidate:notify',
+        'recruit:candidate:bg_check:start', 'recruit:candidate:bg_check:import',
+        'recruit:candidate:bg_check:cancel',
+        'recruit:interview:edit', 'recruit:interview:delete',
+        'recruit:invitation:edit', 'recruit:invitation:reject',
+    ):
+        assert code in candidate_codes, f'S8-01 新码未进 candidate 候选区：{code}'
+    # 候选区总数 = 4 + 3 + 11 = 18（含跨 module 的 interview/application/talent_pool/invitation）
+    assert len(candidate_codes) == 18
     # 反向守卫：talent_pool:create 只应归属 candidate，不得同时出现在 talent 候选区，
     # 否则弹窗按模块替换式合并会把另一模块的勾选误删（见 onConfigApply 切分逻辑）。
     talent_codes = {r['resourceCode'] for r in out['talent']}
@@ -95,7 +109,11 @@ def test_governed_resources_respects_status_and_type_and_flag():
     assert candidate_codes == {'recruit:candidate:list'}
 
     # 常量维度自检：candidate 必须覆盖 interview / application / talent_pool（1:N 不复用 1:1 表）
-    assert STRATEGY_MODULE_RESOURCE_MODULES['candidate'] == {'candidate', 'interview', 'application', 'talent_pool'}
+    # S8-01（D7）起再并入 invitation：邀约 edit/reject 两条码（module=invitation）按兵哥
+    # 清单归候选人管理策略卡，不并入则勾不到 = 策略管不了。
+    assert STRATEGY_MODULE_RESOURCE_MODULES['candidate'] == {
+        'candidate', 'interview', 'application', 'talent_pool', 'invitation',
+    }
     # talent 策略模块当前无受管控资源（talent_pool:create 已并入 candidate）
     assert STRATEGY_MODULE_RESOURCE_MODULES['talent'] == set()
     assert STRATEGY_MODULE_RESOURCE_MODULES['process'] == {'settings'}

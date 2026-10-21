@@ -132,8 +132,12 @@ class CandidateDetailSerializer(FieldAclSerializerMixin, serializers.ModelSerial
                 'id': app.id,
                 'code': app.code,
                 'position_title': app.position.title if app.position else None,
+                # 职位编号（截图「J06279」位）：随职位一起展示，便于按编号定位职位
+                'position_code': app.position.code if app.position else None,
                 # 所属流程（应聘职位对应的招聘流程）与流程版本
                 'process_name': app.process.name if app.process else None,
+                # 流程编号（截图「HC09481」位）：code 是流程线号，多版本共用同一 code
+                'process_code': app.process.code if app.process else None,
                 'workflow_version': app.workflow_version or '',
                 'state': app.state,
                 'current_stage': app.current_stage.name if app.current_stage else None,

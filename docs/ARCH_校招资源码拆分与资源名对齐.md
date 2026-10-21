@@ -309,6 +309,8 @@ campus_session     24 行（新增，复制）
 |---|---|---|
 | **码族迁入 settings** | `recruit:mgmt_unit:*` → `recruit:settings:mgmt_unit:{menu:view,list,create,edit}` | 兵哥质疑「管理单元怎么会是一级模块」——其页面入口在设置中心 → 权限管理下，模块归属应与侧边栏一致。`core.0042` 重命名 + module 同步为 settings（R2） |
 | **码族迁入 campus** | `recruit:settings:campus_control:*` → `recruit:campus:campus_control:{menu:view,list,edit,delete}` | 兵哥质疑「编制管控已是校园招聘模块级资源，资源管理中却归在系统设置」——其侧边栏入口在「校园招聘」分组（/campus/control），module 应与侧边栏一致。`core.0045` 重命名 + module 同步为 campus（R2）。范围仅 campus_control；ambassador/session 侧边栏仍在 /settings/ 故不迁 |
+| **申请码族归位 candidate** | `recruit:application:{list,advance}` → `recruit:candidate:application:{list,advance}`（子模块「应聘记录」）；`recruit:application:{menu:view,create,edit,reject}` 停用 | 兵哥确认「申请」= 候选人每次应聘记录（候选人详情页展示多次投递、每次对应不同职位/流程线），系统无独立「申请管理」页。`core.0048` 把有真实负载的 list/advance 改名归 candidate 模块（R2/R4，与 offer/onboarding 子模块同构）；menu:view/create/edit/reject 四码无任何端点守卫、前端无调用点（menu:view 为孤儿码），停用不再 seed（保留可追溯） |
+| **新增防复发护栏** | `apps/core/tests/test_menu_code_registration.py::TestApplicationFamilyMigrated` | ① 新族 `recruit:candidate:application:{list,advance}` 在 seed 且 module=candidate；② 旧 `recruit:application:*` 全族不回写 seed（防种子复活） |
 | **守卫改指在用码** | `permissionMenu.ts` `/settings/mou` → `recruit:settings:mgmt_unit:menu:view` | 原登记 `recruit:mou:menu:view`（0030 已停用码族），即本表第 297 行点名的缺陷 |
 | **后端守卫同步** | `views_permission_v2.py` `ManagementUnitViewSet.permission_required` | 随码族改名，endpoint 路径不变 |
 | **顺带清死登记** | `permissionMenu.ts` 移除 `/settings/registrations`（0026 停用码） | 自助注册下线后路由已删，登记残留 |

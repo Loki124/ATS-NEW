@@ -217,7 +217,8 @@ const MODULE_LABELS: Record<string, string> = {
  *
  * 🔴 **必须是 1:N**：业务分组口径 ≠ 资源 module 口径。兵哥清单把「安排面试」
  *    （`recruit:interview:schedule`，module=interview）、「推进流程」
- *    （`recruit:application:advance`，module=application）与「放入人才库」
+ *    （`recruit:candidate:application:advance`，原 module=application、0048 归位 candidate）
+ *    与「放入人才库」
  *    （`recruit:talent_pool:create`，module=talent_pool）都归在**候选人管理**下，
  *    但它们不属于 `candidate` 这个资源 module。若按 1:1 硬配一对，这三条码
  *    既切不进弹窗初始值（开弹窗漏勾），也删不掉旧值（重复堆积）。

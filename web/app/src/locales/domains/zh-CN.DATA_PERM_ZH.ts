@@ -2697,6 +2697,9 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.candidate.CandidateDetail.s343': "该简历格式暂不支持在线预览，请下载后查看",
   'pages.candidate.CandidateDetail.s344': "确定",
   'pages.candidate.CandidateDetail.s345': "简历预览加载失败，请下载后查看",
+  // 已投递 N 次浮层面板（2026-10-21 兵哥需求：申请=每次应聘记录，展示多次投递）
+  'pages.candidate.CandidateDetail.applicationPanelTitle': "此候选人已投递{count}次",
+  'pages.candidate.CandidateDetail.applicationPanelStage': "进入阶段",
 
   'pages.announcement.AnnouncementDetail.s4': "公告不存在或已被下架",
   'pages.candidate.addCandidate.AsyncResult.s8': "将在\"待分配\"中展示，您可以手动处理或重新分配。",

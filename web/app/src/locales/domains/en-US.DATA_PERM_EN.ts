@@ -2153,6 +2153,9 @@ export const DATA_PERM_EN: Record<string, string> = {
   'pages.candidate.CandidateDetail.s343': "This resume format cannot be previewed inline. Please download it to view.",
   'pages.candidate.CandidateDetail.s344': "OK",
   'pages.candidate.CandidateDetail.s345': "Failed to load preview. Please download to view.",
+  // 已投递 N 次浮层面板（2026-10-21 兵哥需求：申请=每次应聘记录，展示多次投递）
+  'pages.candidate.CandidateDetail.applicationPanelTitle': "This candidate has applied {count} times",
+  'pages.candidate.CandidateDetail.applicationPanelStage': "Entered stage",
 
   'pages.announcement.AnnouncementDetail.s1': "Back to Policy Announcement",
   'pages.announcement.AnnouncementDetail.s2': "Reload",
