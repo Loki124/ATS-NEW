@@ -22,6 +22,7 @@ app.conf.task_routes = {
     'apps.gdpr.tasks.*': {'queue': 'gdpr'},
     'apps.invitation.tasks.*': {'queue': 'invitation'},
     'apps.talent_pool.tasks.*': {'queue': 'talent_pool'},
+    'apps.campus_rotation.tasks.*': {'queue': 'campus_rotation'},
 }
 
 # === 任务优先级 ===

@@ -557,6 +557,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.audit.tasks.audit_cleanup_healthcheck',
         'schedule': 60 * 60,  # 1 小时
     },
+    # S5-22（需求 5-9）：轮岗阶段考核提醒（满 15 天需考核但临近结束未考核）
+    'rotation-assessment-reminder': {
+        'task': 'apps.campus_rotation.tasks.rotation_assessment_reminder',
+        'schedule': crontab(hour=9, minute=0),  # 每日 09:00
+    },
 }
 
 # === Channels ===

@@ -390,6 +390,34 @@ class RotationStage(FullAuditModel, UUIDModel):
         unique_together = [('arrangement', 'stage_no')]
         ordering = ['arrangement', 'stage_no']
 
+    def save(self, *args, **kwargs):
+        """落库前套用 15 天考核规则（需求 5-9 / S5-22）。
+
+        🔴 规则**必须在模型层**生效：若只挂序列化器，直接 ORM `create()`（导入脚本、
+        管理命令、其它服务的 service）会绕过判定，出现「已判定却存 PENDING」的
+        状态漂移。此处是唯一判定入口，序列化器层只负责拒收客户端直写值。
+
+        口径：`>= ASSESSMENT_MIN_DAYS`(15) 天 → REQUIRED；不足 → WAIVED；
+        日期不全 → 保持 PENDING（不阻断，由定时任务兜底）。
+        已 DONE（已考核）不重判；已 WAIVED 仅在口径升级为 REQUIRED 时覆盖。
+        """
+        from apps.campus_rotation.services.assessment import (
+            STATUS_DONE,
+            STATUS_REQUIRED,
+            STATUS_WAIVED,
+            evaluate_assessment_status,
+        )
+
+        if self.assessment_status != STATUS_DONE:
+            evaluated = evaluate_assessment_status(self)
+            if evaluated == STATUS_REQUIRED or self.assessment_status != STATUS_WAIVED:
+                if evaluated != self.assessment_status:
+                    self.assessment_status = evaluated
+                    update_fields = kwargs.get('update_fields')
+                    if update_fields is not None and 'assessment_status' not in update_fields:
+                        kwargs['update_fields'] = list(update_fields) + ['assessment_status']
+        super().save(*args, **kwargs)
+
 
 class ConcurrentPostRecord(FullAuditModel, UUIDModel):
     """兼岗记录（需求 5-2 / S5-25，本地落库 + 预留摩卡同步）。

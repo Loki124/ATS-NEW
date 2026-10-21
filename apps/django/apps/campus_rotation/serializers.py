@@ -301,7 +301,11 @@ class RotationStageSerializer(serializers.ModelSerializer):
             'assessment_status', 'assessment_result', 'assessed_at', 'assessed_by',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'assessed_at']
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'assessed_at',
+            # 考核状态由 15 天规则引擎独占判定，客户端不得直写
+            'assessment_status',
+        ]
 
     def validate(self, attrs):
         arrangement = attrs.get('arrangement') or getattr(self.instance, 'arrangement', None)
@@ -331,6 +335,10 @@ class RotationStageSerializer(serializers.ModelSerializer):
             if s and e and e < s:
                 raise serializers.ValidationError(
                     {e_fld: '结束日期不能早于开始日期'})
+
+        # 考核状态由模型层 save() 的 15 天规则独占判定，客户端不得直写
+        # （read_only_fields 已排除，此处再兜一层丢弃显式传入值）
+        attrs.pop('assessment_status', None)
 
         return attrs
 

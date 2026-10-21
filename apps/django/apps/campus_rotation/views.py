@@ -316,6 +316,46 @@ class RotationStageViewSet(
             qs = qs.filter(arrangement_id=arrangement)
         return qs
 
+    @action(detail=True, methods=['post'], url_path='mark-assessed')
+    def mark_assessed(self, request, pk=None):
+        """阶段置为「已考核」（需求 5-9 / S5-22）。
+
+        🔴 15 天规则：满 15 天（REQUIRED）且未填考核结论 → 拒绝，返 400。
+        不足 15 天（WAIVED）→ 免考放行。
+        """
+        from apps.campus_rotation.services.assessment import (
+            can_mark_assessed,
+            mark_assessed as do_mark_assessed,
+        )
+
+        instance = self.get_object()
+        data = request.data or {}
+        result = (data.get('result') or data.get('assessment_result') or '').strip()
+
+        allowed, reason = can_mark_assessed(instance, pending_result=result)
+        if not allowed:
+            return Response(
+                {'success': False, 'message': reason, 'code': 400},
+                status=400,
+            )
+
+        do_mark_assessed(instance, result=result, assessed_by=request.user)
+
+        from apps.common.audit_helper import log_action
+        log_action(
+            request, 'assess', 'RotationStage', instance.pk,
+            new_value=instance.assessment_status,
+        )
+        return Response({
+            'success': True,
+            'data': {
+                'id': str(instance.id),
+                'assessmentStatus': instance.assessment_status,
+                'assessmentResult': instance.assessment_result,
+                'assessedAt': instance.assessed_at.isoformat() if instance.assessed_at else None,
+            },
+        })
+
 
 # ---------------------------------------------------------------------------
 # ConcurrentPostRecord（需求 5-2 / S5-25：兼岗记录）
