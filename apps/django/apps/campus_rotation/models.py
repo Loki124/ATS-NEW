@@ -168,7 +168,7 @@ class ClassRoom(FullAuditModel, UUIDModel):
         max_length=32, unique=True, verbose_name='班级编号',
         help_text='业务编号，自动补 CL+6 位',
     )
-    name = models.CharField(max_length=64, verbose_name='班级名')
+    name = models.CharField(max_length=64, unique=True, verbose_name='班级名')
     head_teacher = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
         related_name='+', verbose_name='班主任',
