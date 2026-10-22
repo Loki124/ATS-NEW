@@ -37,7 +37,7 @@ def known_resource_codes() -> set:
     """返回 PermissionResource 中已注册的 resource_code 集合 (缓存 5 分钟).
 
     V2 schema 未应用时降级为空集合 —— 此时所有派生码都会回退到视图声明的原码,
-    等价于修复前的行为, 不会在迁移中间态把人锁死在门外.
+    等价于修复前的行为, 不会在迁移中间态把人锁死在门外。
     """
     codes = cache.get(_KNOWN_CODES_CACHE_KEY)
     if codes is not None:
@@ -51,6 +51,35 @@ def known_resource_codes() -> set:
         codes = set()
     cache.set(_KNOWN_CODES_CACHE_KEY, codes, _codes_cache_ttl())
     return codes
+
+
+_RESOURCE_SCHEMA_READY_KEY = 'ats:v2:permission_resource_schema_ready'
+
+
+def resource_codes_ready() -> bool:
+    """V2 权限资源表是否**已就绪**（表存在，迁移已应用）。
+
+    2026-10-21（卡 A1）新增。用于区分两种「码集合为空」的**不同语义** ——
+    它们的处置完全相反：
+
+    | 情形 | 码集合 | 语义 | 处置 |
+    |---|---|---|---|
+    | 表不存在（迁移未应用 / 初始化中间态） | 空 | 环境未就绪 | 派生写码**降级回退读码**，不阻断（避免迁移窗口把人锁死） |
+    | 表存在但该派生码未注册 | 非空但不含该码 | 资源码**真缺失** | 派生写码 **fail-closed 拒绝**（否则持读码账号即可写 → 权限提升） |
+
+    旧实现把两种情形混为一谈，一律回退读码 —— 这是 P0 越权面的根因。
+    """
+    ready = cache.get(_RESOURCE_SCHEMA_READY_KEY)
+    if ready is not None:
+        return bool(ready)
+    try:
+        PermissionResource.objects.exists()
+        ready = True
+    except (OperationalError, ProgrammingError):
+        ready = False
+    cache.set(_RESOURCE_SCHEMA_READY_KEY, ready, _codes_cache_ttl())
+    return ready
+
 
 
 def invalidate_known_codes():
@@ -80,8 +109,10 @@ class V2Permission(BasePermission):
        - 写操作 → **拒绝**。此前此处默认放行, 导致只持 ":list" 的账号可对同一
          ModelViewSet 做 create/update/destroy (权限提升)。写操作必须显式声明。
 
-    派生码在 PermissionResource 中不存在时回退原码并告警 —— 避免种子数据滞后
-    (例如某资源只定义了 :list/:create) 时把合法写操作一并锁死。
+    派生码在 PermissionResource 中不存在时**拒绝该写操作**（fail-closed）——
+    旧行为是回退到视图声明的读码，等于「持 :list 的账号可执行写操作」（权限提升）。
+    唯一例外：V2 资源表本身尚未就绪（迁移未应用），此时降级放行以免把初始化窗口锁死。
+    两种情形由 resource_codes_ready() 区分。
     """
 
     def has_permission(self, request, view):
@@ -124,7 +155,28 @@ class V2Permission(BasePermission):
             return self._any(user, required)
 
         # 4) 单码: 按 action 派生
-        return has_perm(user, self._derive(required, action, is_read))
+        if is_read:
+            return has_perm(user, required)
+        code = self._derive(required, action, is_read)
+        if code not in known_resource_codes():
+            if not resource_codes_ready():
+                # V2 资源表尚未就绪（迁移未应用 / 初始化中间态）→ 降级回退读码，
+                # 不阻断，避免迁移窗口把人锁死在门外。
+                logger.warning(
+                    'V2 schema 未就绪: 派生码 %r 无法校验 (action=%s), 降级校验 %r。',
+                    code, action or '-', required,
+                )
+                return has_perm(user, required)
+            # 资源表就绪但派生码未注册 → fail-closed 拒绝写操作。
+            # 旧行为是回退到读码（持 :list 的账号即可写 = 权限提升），已修。
+            logger.error(
+                'V2 派生写码未注册, 拒绝该写操作: 资源 %r 未定义 %r (action=%s)。'
+                '请在 seed_v2_init.RESOURCES 补该码后重跑 seed。',
+                required.rsplit(':', 1)[0] if ':' in required else required,
+                code, action or '-',
+            )
+            return False
+        return has_perm(user, code)
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -134,7 +186,13 @@ class V2Permission(BasePermission):
 
     @staticmethod
     def _derive(required: str, action: str, is_read: bool) -> str:
-        """由声明的读权限码派生出当前 action 应校验的码."""
+        """由声明的读权限码派生出当前 action 应校验的码.
+
+        2026-10-21（卡 A1）：**不再回退**。旧实现在派生码未注册时
+        `return required`（回退到读码），导致「持 :list 的账号可执行写操作」
+        —— 权限提升。派生码的注册校验移交 has_permission 统一处置，
+        那里区分「表未就绪（降级放行）」与「码真缺失（fail-closed 拒绝）」。
+        """
         if is_read:
             return required
         suffix = ACTION_SUFFIX.get(action, CUSTOM_ACTION_SUFFIX)
@@ -142,14 +200,7 @@ class V2Permission(BasePermission):
         derived = f'{base}:{suffix}'
         if derived == required:
             return required
-        if derived in known_resource_codes():
-            return derived
-        logger.warning(
-            'V2 权限码缺失: 资源 %r 未定义 %r (action=%s), 回退校验 %r。'
-            '请在 seed_v2_init.RESOURCES 补该码。',
-            base, derived, action or '-', required,
-        )
-        return required
+        return derived
 
     @staticmethod
     def _reject_undeclared_write(view, request) -> bool:

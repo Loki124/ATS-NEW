@@ -12,6 +12,8 @@
 import hashlib
 import json
 
+from apps.common.pii import redact_field_value, scrub_text
+
 
 class AuditImmutabilityError(Exception):
     """审计行不可修改/删除（不可篡改）。"""
@@ -82,13 +84,28 @@ def diff_fields(old_snapshot: dict, new_snapshot: dict, fields) -> list:
     """逐字段比对，返回 ``[{field, label, old, new}]``（仅含发生变化的字段）。
 
     比对前先做 ``norm_empty`` 空值归一化：null↔'' 不算变更。
+
+    2026-10-21（整改卡 C3）**写入端治本**：落库的 ``old``/``new`` 一律走
+    ``apps.common.pii.redact_field_value`` 脱敏 —— 手机号/邮箱/身份证掩码,
+    姓名/简历正文整体隐去。
+
+    为什么必须治本: 审计链 ``detail`` 在 ``row_hash`` 的哈希输入里
+    (见 ``compute_row_hash``), 行不可篡改 → **PII 一旦落进审计链, 就成了清不掉的副本**。
+    只在「被遗忘权」时清理是打地鼠: 候选人每次改简历都会再落一份 PII 原值。
+    注意: **比对仍用原值**, 只有落库值脱敏 —— 否则 'ab@x.com' → 'ac@x.com'
+    这类变更脱敏后两边相同, 会把真实变更误判成「无变化」而漏记。
     """
     changes = []
     for f in fields:
         old = norm_empty(jsonable((old_snapshot or {}).get(f)))
         new = norm_empty(jsonable((new_snapshot or {}).get(f)))
         if old != new:
-            changes.append({'field': f, 'label': FIELD_LABELS.get(f, f), 'old': old, 'new': new})
+            changes.append({
+                'field': f,
+                'label': FIELD_LABELS.get(f, f),
+                'old': redact_field_value(f, old),
+                'new': redact_field_value(f, new),
+            })
     return changes
 
 
@@ -241,7 +258,8 @@ def record_forward(candidate, *, from_user, to_user, note: str = '', forward_id=
         'forward_id': str(forward_id) if forward_id else None,
         'from': _user_ref(from_user),
         'to': _user_ref(to_user),
-        'note': (note or '')[:500],
+        # 2026-10-21 (整改卡 C3): 附言里常被写入候选人联系方式 → 落库前脱敏
+        'note': scrub_text((note or '')[:500]),
         'source': 'detail_page',
     }
     # 操作人即转发人（正常路径一致）；保留 actor 入参以便未来区分代操作场景

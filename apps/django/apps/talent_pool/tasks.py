@@ -4,13 +4,13 @@ from datetime import timedelta
 from typing import Dict, List
 
 from celery import shared_task
-from django.db import DatabaseError
+from django.db import DatabaseError, OperationalError
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='apps.talent_pool.tasks.recommend_candidates')
+@shared_task(name='apps.talent_pool.tasks.recommend_candidates', max_retries=3, default_retry_delay=5, autoretry_for=(OperationalError,))
 def recommend_candidates() -> Dict:
     """智能推荐人才库候选人给开放职位（每小时）"""
     from apps.notification.services import NotificationService
@@ -62,7 +62,7 @@ def recommend_candidates() -> Dict:
     }
 
 
-@shared_task(name='apps.talent_pool.tasks.cleanup_inactive_entries')
+@shared_task(name='apps.talent_pool.tasks.cleanup_inactive_entries', max_retries=3, default_retry_delay=5, autoretry_for=(OperationalError,))
 def cleanup_inactive_entries() -> Dict:
     """清理长期未激活的人才库条目（每日）"""
     from .models import TalentPoolEntry

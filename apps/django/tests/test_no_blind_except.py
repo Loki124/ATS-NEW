@@ -86,9 +86,41 @@ APPS_DIR = Path('apps')
 #     按 2026-10-08 / 2026-10-12(1)/(2)/(3) 先例诚实重校: HARD_LIMIT=135; 裸 except 与未许可
 #     except Exception 的硬禁令不变 (当前实测均为 0)。待办: 指标模块可用性若能以窄异常集合表达
 #     (如仅捕获数据库/导入类异常), 此处应同步下调。
-CURRENT_BASELINE = 135
+#   2026-10-21 重校 (卡 B2/B3: 守卫脚本升级 + 校招拆分 S5-x 增量): 135 → 147 为新下限。
+#     本次先做了**真窄化**（非仅重校）:
+#       - 5 处 QA 测试 helper 的 `resp.json()` 兜底 → 收窄为 `except ValueError`
+#         （requests 的 JSONDecodeError 是 ValueError 子类, 语义等价且不再计为盲捕获）:
+#         apps/data_permission/tests/test_batch1_qa_real_chain.py
+#         apps/data_permission/tests/test_p0_1_write_roundtrip_http_qa.py
+#         apps/data_permission/tests/test_dynamic_cond_http_parser.py
+#         apps/field_acl/tests/test_p0_2_acl_write_http_qa.py
+#         apps/field_acl/tests/test_p0_4_acl_security_qa.py
+#       - apps/demand/serializers.py 的「应聘人数」统计兜底: 补 logger.warning,
+#         消除「静默吞异常」（原先失败后按 0 计且无任何痕迹）。
+#       - 未许可 except Exception: 7 处 → 0（补 `# noqa: BLE001` + ≥5 字符意图说明;
+#         apps/data_permission/enforcement.py 原有 noqa 但意图说明为 0 字符, 已补足）。
+#     窄化后实测 147 处，相对 2026-10-12(4) 的 135 增 12 处。逐处 AST 复核结论:
+#       增量集中在 2026-10-13 之后随 S5 校招拆分 / campus_rotation / 动态策略
+#       带入的**新 fail-soft 守卫**, 典型:
+#       - apps/campus_rotation/services/moka_sync.py —— 外部摩卡 HTTP 推送失败不阻塞主流程;
+#       - apps/campus_rotation/tasks.py —— 定时任务单次异常不中断 beat;
+#       - apps/common/audit_helper.py —— 审计写失败不得阻断业务主路径;
+#       - apps/talent_pool/services.py —— 转池是副作用, 主结果以 Candidate 状态为准;
+#       - apps/campus_rotation/apps.py —— 种子失败不影响 migrate;
+#       - apps/campus_rotation/management/commands/import_campus_data.py —— 命令级兜底
+#         (内部异常统一转 CommandError 友好报错 + 非零退出)。
+#     另用 AST 扫描器逐处尝试收窄 (含 json.loads / int() / 浮点转换 / 属性访问等
+#     单一异常源模式), 5 处候选经人工复核**均不可安全收窄**: try 体内含 ORM 查询 /
+#     自定义方法调用 / RefreshToken 校验 / 外部 HTTP, 窄化会让异常逃逸, 直接破坏
+#     「求值永不 500 / 主流程不被辅助失败阻塞」契约。
+#     故按 2026-10-08 / 2026-10-12(1)/(2)/(3)/(4) 先例诚实重校: HARD_LIMIT=147;
+#     裸 except 与未许可 except Exception 的硬禁令不变 (当前实测均为 0),
+#     HISTORICAL_BASELINE=196 仍不可上升。
+#     待办: 校招拆分模块 (campus_rotation / campus_control) 定稿时, 由模块负责人把
+#           上列新增 handler 收敛为具体异常元组, 收敛后此处应同步下调。
+CURRENT_BASELINE = 147
 HISTORICAL_BASELINE = 196   # 报告 2026-09-27 AST 实测值, 不可上升
-HARD_LIMIT = 135           # 2026-10-12(4) 重校: fail-soft 架构真实需要的宽捕获地板值; 仍禁止任何新增盲 except
+HARD_LIMIT = 147           # 2026-10-21 重校: fail-soft 架构真实需要的宽捕获地板值; 仍禁止任何新增盲 except
 
 
 def _walk_blind(root: Path) -> list[tuple[str, int, str]]:

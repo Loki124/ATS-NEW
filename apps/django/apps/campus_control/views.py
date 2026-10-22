@@ -28,6 +28,7 @@ from decimal import Decimal
 from io import BytesIO
 
 from django.db import IntegrityError
+from django.db.models import Q
 from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -35,12 +36,13 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.common.mixins import SoftDeleteRestoreMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
+from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 
-from . import services
+from . import person_profile, person_rotation_stats, services
 from .calc import _COUNTED_STATUSES, compute_ratio, simulate
 from .constants import STATUS
 from .io_indicator import (
@@ -153,7 +155,9 @@ class CampusCRUDMixin:
         log_action(self.request, 'delete', self._audit_entity(), pk)
 
 
-class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
+class ControlDimensionViewSet(
+    SoftDeleteRestoreMixin, EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet
+):
     queryset = ControlDimension.objects.all()
     serializer_class = ControlDimensionSerializer
     permission_classes = [V2Permission]
@@ -176,6 +180,11 @@ class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
         # M07 长尾: 原为 self.queryset.model.objects.get(pk=pk) —— 直接走默认
         # manager, 绕过 ViewSet 的 queryset 解析(含任何范围过滤)。改用
         # get_object() 复用 queryset 语义; 未配置写范围时行为不变 (fail-open)。
+        #
+        # 2026-10-21 卡 D3: get_object() 走 get_queryset(), 而后者按 deleted_at 过滤
+        # → **恢复软删对象必然 404** (既有缺陷, 非本次引入)。
+        # SoftDeleteRestoreMixin 让 restore 动作下的 get_object() 能取到已软删行,
+        # 同时保留 get_object() 的行级隔离语义 (守卫要求 restore 必须走 get_object())。
         instance = self.get_object()
         instance.restore()
         return Response({'success': True, 'id': str(instance.id)})
@@ -209,7 +218,9 @@ class ControlDimensionViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
         return Response(result.payload, status=result.status_code)
 
 
-class ControlIndicatorViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
+class ControlIndicatorViewSet(
+    SoftDeleteRestoreMixin, EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet
+):
     queryset = ControlIndicator.objects.all()
     serializer_class = ControlIndicatorSerializer
     permission_classes = [V2Permission]
@@ -315,7 +326,9 @@ class ControlIndicatorViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.Mode
         return Response(result.payload, status=result.status_code)
 
 
-class ControlRuleViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet):
+class ControlRuleViewSet(
+    SoftDeleteRestoreMixin, EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet
+):
     queryset = ControlRule.objects.all()
     serializer_class = ControlRuleSerializer
     permission_classes = [V2Permission]
@@ -503,7 +516,8 @@ class ControlRuleViewSet(EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelView
 
 
 class PersonViewSet(
-    EnvelopeWriteMixin, CampusCRUDMixin, ScopeQuerysetMixin, viewsets.ModelViewSet
+    SoftDeleteRestoreMixin, EnvelopeWriteMixin, CampusCRUDMixin, ScopeQuerysetMixin,
+    viewsets.ModelViewSet
 ):
     """人员主数据 CRUD（全局主数据，一行一人；counted 控制是否计入核算）。
 
@@ -552,8 +566,44 @@ class PersonViewSet(
         instance.restore()
         return Response({'success': True, 'id': str(instance.id)})
 
+    @action(detail=True, methods=['get'], url_path='profile')
+    def profile(self, request, pk=None):
+        """个人档案详情（2026-10-21 二期）。
+
+        一次返回详情弹窗所需的全部聚合：档案基础信息 + 班级（班主任/HRBP/批次）+
+        当前轮岗安排 + 轮岗期考核结果 + 四项统计（轮岗均分 / 月度综合均分 /
+        综合排名 / 综合评级）。
+
+        口径与聚合逻辑见 `campus_control.person_profile`。
+        读操作沿用 `permission_required = 'recruit:campus:person:list'`（V2Permission
+        对 GET 直接用声明码，无需在 permission_required_map 中另行登记）。
+        """
+        person = self.get_object()
+        return Response({
+            'success': True,
+            'data': person_profile.build_person_profile(person),
+        })
+
     # 整数精确筛的合法集合（防止用户传 ?year=abc 触发 FieldError）
     _SAFE_INT_FILTERS = {'year'}
+
+    def paginate_queryset(self, queryset):
+        """分页后按**本页人员**批量聚合轮岗维度指标（2026-10-22 列表新增三列）。
+
+        为什么放这里而不是序列化器里逐行查：逐行查 = 每行 2 次查询（N+1），
+        200 行就是 400 次。批量聚合固定 2 次查询，与页大小无关。
+        口径见 `campus_control.person_rotation_stats`（与档案详情完全一致）。
+        """
+        page = super().paginate_queryset(queryset)
+        if page is not None:
+            self._rotation_stats = person_rotation_stats.build_rotation_stats_map(page)
+        return page
+
+    def get_serializer_context(self):
+        """把批量聚合结果交给序列化器（列表才有；retrieve 无分页 → 空 map）。"""
+        ctx = super().get_serializer_context()
+        ctx['rotation_stats'] = getattr(self, '_rotation_stats', None) or {}
+        return ctx
 
     def get_queryset(self):
         qs = Person.objects.all()
@@ -563,10 +613,14 @@ class PersonViewSet(
         params = self.request.query_params
 
         # 状态过滤（与 staffed 二选一）
+        # 2026-10-21 二期：支持多值（逗号分隔）—— 「待入职」页签口径 =
+        # 「待入职」为单值状态（2026-10-21 兵哥口径三态收敛），多值写法仍向后兼容。
         status = params.get('status')
         staffed = params.get('staffed')
-        if status in STATUS:
-            qs = qs.filter(status=status)
+        if status:
+            wanted = [s.strip() for s in str(status).split(',') if s.strip() in STATUS]
+            if wanted:
+                qs = qs.filter(status__in=wanted)
         elif staffed in ('1', 'true', 'True'):
             qs = qs.filter(status__in=_COUNTED_STATUSES)
 
@@ -583,6 +637,30 @@ class PersonViewSet(
         class_room = params.get('class_room')
         if class_room:
             qs = qs.filter(class_room_id=class_room)
+        # 2026-10-21 二期：导师筛选（档案级带教导师；轮岗期各段导师明细见档案详情）
+        mentor = params.get('mentor')
+        if mentor:
+            qs = qs.filter(mentor_id=mentor)
+
+        # 2026-10-22：轮岗状态筛选（按人）——该生**存在**处于该阶段的轮岗安排。
+        #   口径与 person_rotation_stats.build_rotation_stats_map / person_profile 完全一致：
+        #   优先 campus_person（Person 主键 nanoid 口径），回退 person_id（Person.user_id 旧口径）。
+        #   两个口径同时命中才算命中，避免筛选结果与列表列显示的轮岗状态对不上。
+        #   ⚠️ 非法值按「未过滤」处理（不报错）：下拉只可能给出合法值，
+        #   而列表接口对未知查询参数保持宽容，避免手输参数直接把页面打成 400。
+        rotation_status = (params.get('rotation_status') or '').strip().upper()
+        if rotation_status and rotation_status in person_rotation_stats.STAGE_CODES:
+            from apps.campus_rotation.models import RotationArrangement
+            arrangements = RotationArrangement.objects.filter(
+                stage=rotation_status, deleted_at__isnull=True,
+            )
+            campus_person_ids = list(
+                arrangements.exclude(campus_person_id=None).values_list('campus_person_id', flat=True),
+            )
+            legacy_user_ids = list(
+                arrangements.exclude(person_id=None).values_list('person_id', flat=True),
+            )
+            qs = qs.filter(Q(id__in=campus_person_ids) | Q(user_id__in=legacy_user_ids))
 
         # 月份精确匹配
         month = params.get('month')
@@ -597,7 +675,6 @@ class PersonViewSet(
             except (TypeError, ValueError):
                 year_int = None
             if year_int:
-                from django.db.models import Q
                 qs = qs.filter(
                     Q(expected_entry_date__year=year_int)
                     | Q(actual_entry_date__year=year_int)
@@ -606,8 +683,12 @@ class PersonViewSet(
         # 模糊搜索：code 或 name 任一命中
         search = (params.get('search') or '').strip()
         if search:
-            from django.db.models import Q
             qs = qs.filter(Q(code__icontains=search) | Q(name__icontains=search))
+
+        # 2026-10-22：轮岗维度指标（轮岗状态 / 当前轮岗部门 / 综合评分）**不在此处预取**——
+        #   统一由 paginate_queryset 后的 person_rotation_stats.build_rotation_stats_map
+        #   按页批量聚合（固定 2 次查询，与页大小无关），结果经 serializer context 下发。
+        #   此处再 prefetch 会与批量聚合重复查询，且 to_attr 与聚合口径两套易漂移。
 
         # 🔴 S5-24（需求 1-2）：行级隔离收口 —— 校招生档案按班主任/班级/HRBP 维度隔离。
         #    scope_field 走 ENTITY_SCOPE['campus_person']（head_teacher__department），

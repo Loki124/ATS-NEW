@@ -20,7 +20,7 @@ from apps.campus_control.models import (
     ControlDimension,
     ControlIndicator,
     ControlRule,
-    Person,
+    Person,  # 仅 --force 分支使用（清空人员）
 )
 from apps.campus_control.sample_data import (
     DIMENSION_NAMES,
@@ -28,6 +28,7 @@ from apps.campus_control.sample_data import (
     SAMPLE_PERSONS,
     build_rules,
 )
+from apps.campus_control.seed_upsert import upsert_person_rows
 
 
 class Command(BaseCommand):
@@ -90,24 +91,11 @@ class Command(BaseCommand):
             rule_count += 1 if created else 0
         self.stdout.write(f'已写入 {rule_count} 条规则')
 
-        # 样例人员：按业务键 (name, bu, status) 幂等查重，code 由 save() 自动补号 C+8
-        p_count = 0
-        p_skip = 0
-        for p in SAMPLE_PERSONS:
-            _, created = Person.objects.get_or_create(
-                name=p['name'], bu=p['bu'], status=p['status'],
-                defaults={
-                    'school': p['school'], 'sex': p['sex'], 'major': p['major'],
-                    'month': p['month'], 'counted': p['counted'],
-                    'position': p['position'], 'level': p['level'],
-                    # code 不传 → Person.save() 自动补号
-                },
-            )
-            if created:
-                p_count += 1
-            else:
-                p_skip += 1
+        # 样例人员：按 (name | legacy_name) 幂等写入 —— 命中存量行则**原地更新**
+        # （改名 + 补工号/入职日期等字段），未命中才新建；全程不删任何数据。
+        # code 不传 → Person.save() 自动补号 C+8
+        p_created, p_updated = upsert_person_rows(SAMPLE_PERSONS)
         self.stdout.write(
-            f'样例人员：新建 {p_count} / 已存在 {p_skip}（按业务键跳过）'
+            f'样例人员：新建 {p_created} / 更新 {p_updated}（按姓名幂等，原地更新不产生重复行）'
         )
         self.stdout.write(self.style.SUCCESS('种子完成'))

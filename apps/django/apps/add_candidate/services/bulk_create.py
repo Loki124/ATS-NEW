@@ -19,9 +19,9 @@ from typing import List
 from django.db import transaction
 
 from apps.application.models import Application, ApplicationState
+from apps.candidate.audit import record_created, record_resume_parsed
 from apps.candidate.models import Candidate, CandidateState
 from apps.candidate.services import CandidateService
-from apps.candidate.audit import record_created, record_resume_parsed
 from apps.core.models import User
 
 # 2026-09-25: 简历解析结果结构化落 extra（供指标库派生指标对真实数据取值）

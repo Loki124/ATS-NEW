@@ -13,12 +13,14 @@ Person 的 position（职务）/ level（职级）用于命中指定范围。
 
 所有模型继承 FullAuditModel（审计）+ UUIDModel（nanoid 主键）；删除采用硬删。
 """
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 
 from apps.common.models import FullAuditModel, UUIDModel
 
 from .constants import (
+    DEGREES,
     DEPTS,
+    EDUCATIONS,
     LEVELS,
     MAJORS,
     POSITIONS,
@@ -38,7 +40,7 @@ class ControlDimension(FullAuditModel, UUIDModel):
     """维度（如 院校标签/专业标签/性别），可自由新增，可单独配置。"""
 
     name = models.CharField(max_length=16, unique=True, verbose_name='维度')
-    code = models.CharField(max_length=16, blank=True, default='', verbose_name='编码')
+    code = models.CharField(max_length=16, blank=True, default='', verbose_name='编码', db_index=True)
     is_active = models.BooleanField(default=True, verbose_name='启用')
 
     class Meta:
@@ -177,6 +179,12 @@ class Person(FullAuditModel, UUIDModel):
     bu = models.CharField(
         max_length=16, choices=[(d, d) for d in DEPTS], verbose_name='部门'
     )
+    # 2026-10-22：意向部门（校招生投递的意向 BU）——与「当前轮岗部门(bu)」区分：
+    #   bu  = 现在轮岗在哪个部门；intent_bu = 投递时意向去哪个部门。
+    intent_bu = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(d, d) for d in DEPTS], verbose_name='意向部门',
+    )
     school = models.CharField(
         max_length=16, choices=[(s, s) for s in SCHOOLS], verbose_name='院校标签'
     )
@@ -186,10 +194,21 @@ class Person(FullAuditModel, UUIDModel):
     major = models.CharField(
         max_length=16, choices=[(m, m) for m in MAJORS], verbose_name='专业标签'
     )
-    month = models.CharField(max_length=8, verbose_name='招聘月份')
+    # 2026-10-22：专业名称（如 生物技术）——「专业标签(工学/其他)」是管控维度的分类，
+    #   两者分列：标签参与比例计算，名称是教育经历里的真实专业。
+    major_name = models.CharField(
+        max_length=64, blank=True, default='', verbose_name='专业名称'
+    )
+    # 2026-10-22：招聘月份不再由表单录入（编辑弹窗已下线该字段）→ 改为可空。
+    #   核算月份优先取入职日期（待入职=预计入职日期 / 在职=实际入职日期），
+    #   本字段仅作历史数据兜底（calc._accounting_month 的 fallback）。
+    month = models.CharField(
+        max_length=8, blank=True, default='', verbose_name='招聘月份'
+    )
     status = models.CharField(
         max_length=16, choices=[(s, s) for s in STATUS],
-        default='在职', verbose_name='状态'
+        default='在职', verbose_name='状态',
+                   db_index=True,
     )
     # 日期字段：用于按「预计入职日期 / 实际入职日期」计入核算月份
     expected_entry_date = models.DateField(
@@ -230,6 +249,49 @@ class Person(FullAuditModel, UUIDModel):
         'campus_rotation.ClassRoom', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='persons', verbose_name='班级',
     )
+    # 2026-10-21 二期（校招生管理助手）：档案详情 + 人员管理筛选所需字段
+    #   mentor     带教导师：与 head_teacher 同为「人员管理」核心筛选条件；
+    #              轮岗期各段的导师明细见档案详情「轮岗期考核结果」（RotationStage.mentor）。
+    #   school_name 院校名称：school 存的是院校**标签**（985/211/双一流/其他），
+    #              详情页需要真实校名，故单独存一份。
+    #   education 学历 / phone 联系电话：档案详情「基本信息」展示项。
+    mentor = models.ForeignKey(
+        'core.User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='导师',
+    )
+    school_name = models.CharField(
+        max_length=64, blank=True, default='', verbose_name='院校名称'
+    )
+    education = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(e, e) for e in EDUCATIONS], verbose_name='学历',
+    )
+    # 2026-10-22：学位（与学历分列：学历=培养层次，学位=授予学位）
+    degree = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(d, d) for d in DEGREES], verbose_name='学位',
+    )
+    # 2026-10-22：HRBP（归属 HRBP）——轮岗安排里维护，档案侧只读展示
+    hrbp = models.ForeignKey(
+        'core.User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='HRBP',
+    )
+    # 2026-10-22：批次（如 2026秋招）——轮岗安排里维护，档案侧可编辑
+    batch = models.CharField(
+        max_length=32, blank=True, default='', verbose_name='批次'
+    )
+    phone = models.CharField(
+        max_length=20, blank=True, default='', verbose_name='联系电话'
+    )
+    # 2026-10-21：编号与「招聘系统 · 候选人管理」同源 ——
+    #   校招生档案是候选人的一种：关联候选人后，候选人编号（C+8）直接作为本档案编号，
+    #   校招侧不再另起一套独立序列（两套独立序列会让「C00000001」在两个系统里指两个人）。
+    #   跨 app 引用用字符串（与 class_room → campus_rotation.ClassRoom 同款，避免 import 环）。
+    candidate = models.ForeignKey(
+        'candidate.Candidate', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='campus_persons',
+        verbose_name='关联候选人',
+    )
 
     class Meta:
         verbose_name = '人员主数据'
@@ -257,27 +319,63 @@ class Person(FullAuditModel, UUIDModel):
         return f'{self.code}·{self.name}'
 
     def save(self, *args, **kwargs):
-        """自动补号：未设 code 时，事务内锁定末行取最大序号 +1，写入 C+8 位候选人编号。
+        """编号来源（2026-10-21）：与「招聘系统 · 候选人管理」同源。
+
+        - 关联了候选人 → 编号直接取该候选人的 code（两个系统同号，同号即同人）；
+        - 未关联 → 事务内锁定末行取最大序号 +1，写入 C+8 位候选人编号；
+          **取号时一并看招聘系统候选人表的最大序号**（两张表同用 C+8 序列），
+          避免校招侧领到招聘系统已用掉的编号。
 
         录入/编辑人员未传 code 时也自动拿到唯一 C 编号，避免撞 unique=True 约束导致 500。
         """
+        if self.candidate_id:
+            # 候选人编号即本档案编号（软删候选人也可取，FK 指向的行仍在）
+            cand = self.candidate
+            if cand is not None and cand.code:
+                self.code = cand.code
         if not self.code:
-            with transaction.atomic():
-                last = (
-                    Person.objects.select_for_update()
-                    .filter(code__startswith='C')
-                    .order_by('-code')
-                    .first()
-                )
-                seq = 0
-                if last and last.code and last.code.startswith('C'):
+            # 🔴 重试：并发新建时两个事务可能算出同一个序号（唯一索引兜底报错），
+            #   捕获 IntegrityError 后**新开事务**重算序号再试（快照随之刷新）。
+            for _attempt in range(3):
+                with transaction.atomic():
+                    # 🔴 取号必须看**含软删行**的全集：code 上的唯一索引覆盖软删行，
+                    #   而默认管理器过滤 deleted_at → 只看未删行会复用被删行占用的号，
+                    #   插入时直接撞唯一约束（400「数据库约束冲突」）。
+                    #   （实测：删掉 C00000057 后再建人，仍领到 C00000057 → 必撞。）
+                    last = (
+                        Person.all_objects.select_for_update()
+                        .filter(code__startswith='C')
+                        .order_by('-code')
+                        .first()
+                    )
+                    seq = 0
+                    if last and last.code and last.code.startswith('C'):
+                        try:
+                            seq = int(last.code[1:9])
+                        except (ValueError, IndexError):
+                            seq = 0
+                    # 招聘系统候选人表同用 C+8 序列 → 取两表最大，避免跨表撞号
+                    # （局部导入：candidate app 依赖 campus_control.constants，避免 app 间 import 环）
+                    from apps.candidate.models import Candidate
+                    cand_last = (
+                        Candidate.all_objects.filter(code__startswith='C')
+                        .order_by('-code').first()
+                    )
+                    if cand_last and cand_last.code and cand_last.code.startswith('C'):
+                        try:
+                            seq = max(seq, int(cand_last.code[1:9]))
+                        except (ValueError, IndexError):
+                            pass
+                    seq += 1
+                    self.code = f'C{seq:08d}'
                     try:
-                        seq = int(last.code[1:9])
-                    except (ValueError, IndexError):
-                        seq = 0
-                seq += 1
-                self.code = f'C{seq:08d}'
-                super().save(*args, **kwargs)
+                        super().save(*args, **kwargs)
+                    except IntegrityError:
+                        self.code = ''  # 置空 → 下一轮重新取号
+                        continue
+                    return
+            # 连续撞号 → 交由上层统一转成 400 提示
+            super().save(*args, **kwargs)
         else:
             super().save(*args, **kwargs)
 

@@ -25,6 +25,7 @@ from apps.core.models_permission_v2 import (
     RolePermissionV2,
     RoleV2,
 )
+from apps.data_permission.field_map import MODULE_ORDER
 from apps.data_permission.models import DataPermissionRule
 from apps.data_permission.role_scope_api import (
     UnsetWithWriteRowsError,
@@ -33,7 +34,10 @@ from apps.data_permission.role_scope_api import (
     validate_modules,
 )
 
-MODULE_KEYS = ['demand', 'process', 'position', 'candidate', 'talent']
+# 模块清单取后端唯一真源（field_map.MODULE_ORDER），不在测试里另抄一份 ——
+# 2026-10-21 S5-35 新增「校招生管理」卡后，本地硬编码列表会漏掉新模块，
+# 导致「全部模块都 unset」这类断言**假绿**（只覆盖了旧清单）。
+MODULE_KEYS = list(MODULE_ORDER)
 
 
 class RoleScopeUnsetTestCase(TestCase):
@@ -50,7 +54,7 @@ class RoleScopeUnsetTestCase(TestCase):
 
     # ---- 用例 1：无任何规则 -> unset（不是 all）----
     def test_no_rule_returns_unset_not_all(self):
-        """全新角色没有任何规则行时，5 模块全返回 mode='unset'。
+        """全新角色没有任何规则行时，全部模块都返回 mode='unset'。
 
         这是卡 1.2 的核心语义：'never configured' != 'configured as ALL'。
         若这里退回'all'，前端的「未配置」卡永远不出现，卡 1.2 整张白做。

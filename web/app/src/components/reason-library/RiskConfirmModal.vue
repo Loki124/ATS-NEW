@@ -80,7 +80,7 @@ function onNegativeClick() {
 .rl-risk-confirm__text {
   margin: 0;
   line-height: 1.6;
-  color: var(--ink-2, #1f2329);
+  color: var(--ink);
   font-size: 14px;
 }
 .rl-risk-confirm__ack {

@@ -26,6 +26,7 @@ def _raw_id_card(pk, model):
 @pytest.mark.django_db
 def test_reencrypt_pii_rotates_ciphertext():
     from django.core.management import call_command
+
     from apps.candidate.models import Candidate
 
     old_key = Fernet.generate_key().decode()
@@ -49,6 +50,7 @@ def test_reencrypt_pii_rotates_ciphertext():
 @pytest.mark.django_db
 def test_reencrypt_pii_dry_run_writes_nothing():
     from django.core.management import call_command
+
     from apps.candidate.models import Candidate
 
     old_key = Fernet.generate_key().decode()
@@ -68,6 +70,7 @@ def test_reencrypt_pii_dry_run_writes_nothing():
 def test_reencrypt_pii_fails_without_old_key():
     """只设新 key (漏旧 key) → 旧密文解不开 → 命令必须中断, 零写入。"""
     from django.core.management import call_command
+
     from apps.candidate.models import Candidate
 
     old_key = Fernet.generate_key().decode()

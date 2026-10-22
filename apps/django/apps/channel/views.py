@@ -4,7 +4,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.viewsets import EnvelopeAuditModelViewSet
-from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import V2Permission
 
 from .models import Channel, ChannelCost

@@ -80,6 +80,10 @@ class NotificationLog(TimestampedModel, SoftDeleteModel):
     sent_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name='发送时间')
     read_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name='已读时间')
     failed_reason = models.TextField(blank=True, verbose_name='失败原因')
+    # 2026-10-21 卡 F1: 发送抢占时间戳 —— 「先标记后发」的抢占位。
+    #   提醒任务在真正发信前先用条件 UPDATE 抢占本行 (sending_at), 抢到才发;
+    #   崩溃/超时未完成的抢占 (>5 分钟) 会被下一轮重新抢占 → 既不重复发, 也不漏发。
+    sending_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name='发送抢占时间')
 
     class Meta:
         db_table = 'notification_logs'

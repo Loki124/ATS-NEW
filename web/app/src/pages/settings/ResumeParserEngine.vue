@@ -320,7 +320,7 @@ onMounted(load)
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-hairline);
-  background: rgba(127, 127, 127, 0.06);
+  background: color-mix(in srgb, var(--ink-soft) 6%, transparent);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);

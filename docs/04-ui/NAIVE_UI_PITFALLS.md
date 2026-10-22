@@ -1,5 +1,5 @@
 # Naive UI 2.44.1 实战坑与 Vue 库联动反模式
-> 最后更新：2026-10-19（依据 git 最后提交 + TDesign 组件库研究同步）
+> 最后更新：2026-10-21（新增 §9 `n-menu` 折叠态浮出只对根级子菜单生效）
 
 > 适用：ATS-NEW 前端 Vue 3 + Naive UI 2.44.1 + @vicons/ionicons5 + vue-draggable-plus 0.6.x。
 > 收录范围：实战中翻车过的组件/API 错用、文档未明示但实际行为不符直觉的坑。
@@ -202,6 +202,90 @@ body > .v-binder-follower-container
 - 若目标元素也由 Vue 渲染，必须确保**先**挂载该元素，**再**挂载 Teleport。
 - 踩坑表现：attach 到某个动态生成节点时第一次打开正常、后续报目标不存在 / 样式错位。
 
+### 7.4 🔴 `scoped` 样式对 **列 `render` 里 `h()` 动态渲染的元素**不命中（2026-10-22 实测）
+
+**结论：表格列 `render: (row) => h('div', { class: 'xxx' }, ...)` 造出来的元素，`<style scoped>` 里的 `.xxx` 规则对它完全不生效。**
+
+- Vue 的 scoped 依赖**编译期给模板里的元素**注入 `data-v-xxx`；
+  `h()` 造的 VNode **没有这个属性** → 选择器 `.xxx[data-v-xxx]` 匹配不上。
+- 症状极具迷惑性：**源码规则完全正确、lint / 编译 / 单测全绿，渲染却是裸的**。
+- 2026-10-22 实测踩了三次：两行日期被排成两**列**（`grid-template-columns: auto auto` 是行优先填充）、
+  图标越出 hover 高亮块、日期在「/」处折行把图标甩到上一行 —— **连续三轮改 CSS 都没生效**，
+  根因是规则压根没命中（`getComputedStyle` 读出来是 `display: block`，而规则写的是 `display: flex`）。
+
+**修法**：
+1. 这类样式放**非 scoped** 的 `<style>` 块（类名要够独特，或挪进 `glass.css`）；
+2. 或改用 naive 组件自带的 class（自带样式，不依赖 scope）；
+3. 验证：`getComputedStyle(el).display` 是不是你以为的那个值。
+
+**扫描器**（已入库）：`web/app/scripts/check-h-render-scope.mjs`（`npm run check:render-scope`）
+→ 用 `@vue/compiler-sfc` 解析每个 SFC 的 style 块归属，列出「scoped 块里有、但元素只由 h() 渲染」的类。
+**当前基线：23 处失效**（设置中心若干页 + DemandList + GlobalSearch），均为既有遗留。
+
+> 与 §7.1 是同一族问题（scoped 打不中「不在自己模板里的节点」），只是触发方式不同：
+> §7.1 是 **Teleport**，这里是 **`h()` 动态渲染**。
+
+### 7.5 🔴 HTML 注释写在**组件标签的属性列表中间**会打断模板属性解析（2026-10-22 实测）
+
+- 在 `<n-modal ... :style="..." <!-- 注释 --> :content-style="...">` 这种写法里，
+  Vue 模板编译器会把注释当成属性解析的中断点 → **后面的属性被当成正文渲染**
+  （截图里弹窗内容直接显示 `:content-style="{ height: 'min(220px, ...)' }"` 这段源码文本）。
+- **注释一律放在标签之外**（`<n-modal>` 之前），别塞进属性列表中间。
+
+### 7.6 🔴 `h(组件, { class })` **同样不命中** scoped（2026-10-22 浏览器实测）
+
+§7.4 的结论对**原生标签**成立，对**组件**同样成立 —— 但这一条最初漏了，因为当时的
+扫描器正则只匹配 `h('小写标签', { class: 'x' })`，漏掉 `h(NTag, { class: 'x' })` 形态。
+
+**浏览器实测证据**（Chrome，`RotationResourcePanel.vue` 的 `.saturation-cell`）：
+
+| 检查项 | 实测值 |
+|---|---|
+| 编译后规则选择器 | `.saturation-cell[data-v-ba9f44de]` |
+| 元素实际属性 | **无任何 `data-v-*` 属性**（`h(NTag, ...)` 渲染的组件根元素也不带） |
+| 结论 | 选择器不匹配 → **scoped 规则根本不命中** |
+
+⚠️ **判据必须用「非继承属性」**——否则会得到假阳性：
+`.saturation-cell` 声明的是 `font-variant-numeric: tabular-nums`，
+computed 里看着「生效了」，其实是**父级 `.n-data-table-table` 继承来的**
+（实测 `parentTableFV = "tabular-nums"`）。若拿继承属性当判据，会误判成「规则命中」。
+
+> 结论：**任何在 `render` 里用 `h()` 造的元素，都拿不到父组件的 scope id**，
+> 无论它是原生标签还是组件。所以这类样式一律放非 scoped 块。
+
+### 7.7 🟡 静态门禁对「样式是否生效」**零信号**（2026-10-22 复盘）
+
+这是「同一个样式问题反复返工」的**根本原因**，不是某个 CSS 写法的错。
+
+| 门禁 | 能发现「规则没命中」吗 |
+|---|---|
+| `eslint` / `vue-tsc` / `stylelint` / `vitest` | ❌ 全绿 —— 它们只验证**源码**，不验证**渲染** |
+| 源码评审（读 CSS 语义） | ❌ 「规则写得对」≠「规则命中」 |
+
+所以会出现「**代码看着完全正确、lint/编译/单测全绿、渲染却是裸的**」。
+连续三轮改 CSS 都没生效，正是因为三轮都在调一个**从未生效的规则的数值**。
+
+**必须先判「命中」再调数值**：
+
+```js
+// ① 规则命中了吗？—— 不命中就别谈调数值
+getComputedStyle(el).display   // 写的 display:flex，读出来是 block → 规则压根没命中
+
+// ② 几何对吗？—— 用 getBoundingClientRect 量，别靠目测
+el.getBoundingClientRect()    // 实际 top/height/width
+```
+
+**门禁已入库**（见 §7.4 + 本节）：
+
+- `npm run check:render-scope` —— 扫「scoped 块里有、但元素只由 `h()` 渲染」的类；
+  已覆盖 `h('div', ...)` / `h(NTag, ...)` / `class` 数组三种形态。
+- 基线机制：`scripts/render-scope-baseline.txt` 登记存量（当前 32 处），
+  `--strict` **只拦新增**（与仓库既有「只许减少、不许新增」门禁同源思路）；
+  存量清完后基线清空即自动变严格门禁。
+- CI 已接独立 job `ui-render-scope`（硬门禁）。
+- 运行时自证：`npm run shot`（截图）+ `getComputedStyle` 量几何 —— 见
+  `web/app/e2e/README-shot.md`。
+
 ---
 
 ## 8. 🔴 内嵌媒体预览（iframe）被 `X-Frame-Options` 静默拦截（2026-10-21 实证，commit `1a43ee37`）
@@ -253,9 +337,60 @@ onBeforeUnmount(() => { if (resumeObjectUrl.value) URL.revokeObjectURL(resumeObj
 
 ---
 
-## 9. 关联文档
+## 9. 🔴 `n-menu` 折叠态浮出**只对根级子菜单生效**（2026-10-21 实证）
+
+**结论：菜单里若用 `type:'group'` 分组，组内的「可展开父项」在折叠态永远浮不出二级菜单 —— 不是样式问题，是 naive 的浮出载体只挂在根级子菜单上。**
+
+### 9.1 症状
+
+折叠成 64px 后，「公司信息管理 / 组织管理 / 权限管理 / 候选人信息 …」这些图标：
+
+- hover **不弹**二级菜单；
+- 点击也**没反应**（父项 key 不是路由，`handleMenuClick` 只处理 `/` 开头的 key）。
+
+现象上就是「一排死图标」。**同一套代码在主侧栏却是好的** —— 差别只在主侧栏没有分组层。
+
+### 9.2 根因（源码两行）
+
+```
+menu/src/utils.mjs   itemRenderer:  root: level === 0
+menu/src/Submenu.mjs render:        this.root ? h(NDropdown, …) : h('div', …)
+```
+
+- 浮出载体 `NDropdown`（`trigger:'hover'`）**只在 `root === true` 时才挂**；
+- `root` 由 `level === 0` 决定 —— 即**只有菜单根级的子菜单**才有浮出；
+- 分组（`type:'group'`）的子项 `level` 是 1 → `root === false` → 走普通 `div` 分支 → 没有浮出载体。
+
+另：`dropdownEnabled` 还要求 `mergedCollapsedRef`（菜单整体折叠）为真 —— 所以**只有折叠态**才有浮出，展开态是就地展开。
+
+### 9.3 修法
+
+**折叠态把分组打平**，组内条目提升为根级 → 父项回到 `level 0` → 原生浮出直接生效：
+
+```ts
+// 折叠态：分组打平 + 组间补 divider（保留视觉分组）
+const subMenuOptions = computed(() => {
+  const filtered = filterMenuByPermission(rawOptions, canAccess)
+  return collapsed.value ? buildCollapsedMenuOptions(filtered) : filtered
+})
+```
+
+- 展开态**保持分组结构不变**（分组标题往往是主要导航线索，不能丢）；
+- 组间用 `type:'divider'` 补分隔线（折叠态看不到组标题了）；
+- 兜底：折叠态点父级图标 → 展开侧栏 + 展开该分组及其祖先，避免仍是死路。
+
+本项目落点：`web/app/src/utils/settingsMenu.ts`（`buildCollapsedMenuOptions`）+ `pages/settings/SettingsLayout.vue`。
+
+> ⚠️ 别用「自己写 hover 浮层」去补：naive 的原生浮出已经够用，问题只在**层级**不在样式。
+> 同理，也别指望改 CSS 能救 —— 非根级分支根本没有 `NDropdown` 可挂。
+
+---
+
+## 10. 关联文档
 
 - 设置页滚动契约（`.page-body` 滚动链） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md`
+- **UI 改动的截图自证工具链**（系统 Chrome + 后端签发 token + 路由直截） → `web/app/e2e/README-shot.md`
+- 设置侧栏折叠态悬浮浮出（分组打平 → 父项回根级） → 本文 §9
 - 后端序列化器字段类型陷阱（同批实证） → `docs/06-runbook/ENGINEERING_RULES.md` §15
 - 表单弹窗遮罩关闭守卫（useCloseGuard 接法） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md` §6.1
 - 标准简历三层结构 + 拖拽 → `docs/04-ui/UI_STANDARD.md` 附录 B

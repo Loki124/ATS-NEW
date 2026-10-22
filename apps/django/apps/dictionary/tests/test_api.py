@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import pytest
 from django.contrib.auth import get_user_model
-from tests.fixtures_common import attach_super_admin
 from rest_framework.test import APIClient
 
 from apps.process.models import RecruitmentStage
 from apps.process.serializers import RecruitmentStageSerializer
+from tests.fixtures_common import attach_super_admin
 
 STAGE_TYPES_URL = '/api/v1/stages/stage-types/'
 EXPECTED_VALUES = {

@@ -98,14 +98,14 @@
     </div>
 
     <!-- ===================== 统一接入配置弹窗 ===================== -->
-    <n-modal
-      v-model:show="showModal"
-      preset="card"
-      :title="editingId ? t('pages.settings.ExternalSettings.s174', { name: form.name || '' }) : t('pages.settings.ExternalSettings.s175')"
-      :bordered="false"
-      style="width: 680px; max-width: 94vw"
-      :mask-closable="false"
-    >
+        <n-modal
+          v-model:show="showModal"
+          preset="card"
+          :title="editingId ? t('pages.settings.ExternalSettings.s174', { name: form.name || '' }) : t('pages.settings.ExternalSettings.s175')"
+          :bordered="false"
+          style="width: 680px; max-width: 94vw"
+          :mask-closable="false"
+        >
       <n-tabs v-model:value="activeTab" type="line" class="bc-tabs">
         <!-- Tab 1 基础信息 -->
         <n-tab-pane name="base" :tab="t('pages.settings.ExternalSettings.s14')">
@@ -230,194 +230,218 @@
           <n-button type="primary" class="gradient-btn" :loading="saving" @click="submit">{{ editingId ? t('pages.settings.ExternalSettings.s181') : t('pages.settings.ExternalSettings.s182') }}</n-button>
         </n-space>
       </template>
-    </n-modal>
+            </n-modal>
 
     <!-- ===================== 调用审计抽屉 ===================== -->
-    <n-drawer v-model:show="showAudit" :width="640" placement="right">
-      <n-drawer-content :title="t('pages.settings.ExternalSettings.s183', { name: auditSupplierName })" :native-scrollbar="false">
-        <div class="audit-summary">
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s51') }}</span>
-            <span class="kpi-value">{{ auditSummary.total }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s52') }}</span>
-            <span class="kpi-value kpi-value--ok">{{ auditSummary.ok }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s53') }}</span>
-            <span class="kpi-value kpi-value--warn">{{ auditSummary.fail }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s54') }}</span>
-            <span class="kpi-value">{{ auditSummary.avg }}ms</span>
-          </div>
+    <n-modal
+      v-model:show="showAudit"
+      preset="card"
+      :title="t('pages.settings.ExternalSettings.s183', { name: auditSupplierName })"
+      :style="{ width: '640px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+      :mask-closable="false"
+      :bordered="false"
+    >
+      <div class="audit-summary">
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s51') }}</span>
+          <span class="kpi-value">{{ auditSummary.total }}</span>
         </div>
-        <n-data-table
-          :columns="auditColumns"
-          :data="auditRows"
-          :pagination="false"
-          size="small"
-          :loading="auditLoading"
-          :scroll-x="560"
-        >
-          <template #empty>
-            <n-empty :description="t('pages.settings.ExternalSettings.s55')" />
-          </template>
-        </n-data-table>
-      </n-drawer-content>
-    </n-drawer>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s52') }}</span>
+          <span class="kpi-value kpi-value--ok">{{ auditSummary.ok }}</span>
+        </div>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s53') }}</span>
+          <span class="kpi-value kpi-value--warn">{{ auditSummary.fail }}</span>
+        </div>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s54') }}</span>
+          <span class="kpi-value">{{ auditSummary.avg }}ms</span>
+        </div>
+      </div>
+      <n-data-table
+        :columns="auditColumns"
+        :data="auditRows"
+        :pagination="false"
+        size="small"
+        :loading="auditLoading"
+        :scroll-x="560"
+      >
+        <template #empty>
+          <n-empty :description="t('pages.settings.ExternalSettings.s55')" />
+        </template>
+      </n-data-table>
+    </n-modal>
 
     <!-- ===================== 全局审计日志抽屉（跨所有供应商聚合） ===================== -->
-    <n-drawer v-model:show="showGlobalAudit" :width="800" placement="right">
-      <n-drawer-content :title="t('pages.settings.ExternalSettings.s56')" :native-scrollbar="false">
-        <div class="audit-summary">
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s57') }}</span>
-            <span class="kpi-value">{{ filteredGlobalAudit.length }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s58') }}</span>
-            <span class="kpi-value kpi-value--ok">{{ globalAuditSummary.ok }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s59') }}</span>
-            <span class="kpi-value kpi-value--warn">{{ globalAuditSummary.fail }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s60') }}</span>
-            <span class="kpi-value">{{ globalAuditSummary.avg }}ms</span>
-          </div>
+    <n-modal
+      v-model:show="showGlobalAudit"
+      preset="card"
+      :title="t('pages.settings.ExternalSettings.s56')"
+      :style="{ width: '800px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+      :mask-closable="false"
+      :bordered="false"
+    >
+      <div class="audit-summary">
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s57') }}</span>
+          <span class="kpi-value">{{ filteredGlobalAudit.length }}</span>
         </div>
-        <div class="toolbar es-toolbar-spacing">
-          <n-select
-            v-model:value="globalSupplier"
-            :options="globalSupplierOptions"
-            :placeholder="t('pages.settings.ExternalSettings.s61')"
-            class="es-input-search"
-          />
-          <n-select
-            v-model:value="globalDirection"
-            :options="globalDirectionOptions"
-            class="es-input-select"
-          />
-          <div class="spacer"></div>
-          <n-button quaternary @click="openGlobalAudit">
-            <template #icon><n-icon :component="RefreshOutline" /></template>
-            {{ t('pages.settings.ExternalSettings.s62') }}
-          </n-button>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s58') }}</span>
+          <span class="kpi-value kpi-value--ok">{{ globalAuditSummary.ok }}</span>
         </div>
-        <n-data-table
-          :columns="globalAuditColumns"
-          :data="filteredGlobalAudit"
-          :pagination="false"
-          size="small"
-          :loading="globalLoading"
-          :scroll-x="980"
-        >
-          <template #empty>
-            <n-empty :description="t('pages.settings.ExternalSettings.s63')" />
-          </template>
-        </n-data-table>
-      </n-drawer-content>
-    </n-drawer>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s59') }}</span>
+          <span class="kpi-value kpi-value--warn">{{ globalAuditSummary.fail }}</span>
+        </div>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s60') }}</span>
+          <span class="kpi-value">{{ globalAuditSummary.avg }}ms</span>
+        </div>
+      </div>
+      <div class="toolbar es-toolbar-spacing">
+        <n-select
+          v-model:value="globalSupplier"
+          :options="globalSupplierOptions"
+          :placeholder="t('pages.settings.ExternalSettings.s61')"
+          class="es-input-search"
+        />
+        <n-select
+          v-model:value="globalDirection"
+          :options="globalDirectionOptions"
+          class="es-input-select"
+        />
+        <div class="spacer"></div>
+        <n-button quaternary @click="openGlobalAudit">
+          <template #icon><n-icon :component="RefreshOutline" /></template>
+          {{ t('pages.settings.ExternalSettings.s62') }}
+        </n-button>
+      </div>
+      <n-data-table
+        :columns="globalAuditColumns"
+        :data="filteredGlobalAudit"
+        :pagination="false"
+        size="small"
+        :loading="globalLoading"
+        :scroll-x="980"
+      >
+        <template #empty>
+          <n-empty :description="t('pages.settings.ExternalSettings.s63')" />
+        </template>
+      </n-data-table>
+    </n-modal>
 
     <!-- ===================== 背调订单状态机抽屉（跨所有供应商聚合） ===================== -->
-    <n-drawer v-model:show="showOrders" :width="880" placement="right">
-      <n-drawer-content :title="t('pages.settings.ExternalSettings.s64')" :native-scrollbar="false">
-        <div class="audit-summary">
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s65') }}</span>
-            <span class="kpi-value">{{ orderRows.length }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s66') }}</span>
-            <span class="kpi-value kpi-value--ok">{{ orderSummary.completed }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s67') }}</span>
-            <span class="kpi-value kpi-value--warn">{{ orderSummary.inProgress }}</span>
-          </div>
-          <div class="audit-stat">
-            <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s68') }}</span>
-            <span class="kpi-value">{{ orderSummary.closed }}</span>
-          </div>
+    <n-modal
+      v-model:show="showOrders"
+      preset="card"
+      :title="t('pages.settings.ExternalSettings.s64')"
+      :style="{ width: '880px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+      :mask-closable="false"
+      :bordered="false"
+    >
+      <div class="audit-summary">
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s65') }}</span>
+          <span class="kpi-value">{{ orderRows.length }}</span>
         </div>
-        <div class="toolbar es-toolbar-spacing">
-          <n-select
-            v-model:value="orderSupplier"
-            :options="orderSupplierOptions"
-            :placeholder="t('pages.settings.ExternalSettings.s69')"
-            class="es-input-search"
-          />
-          <n-select
-            v-model:value="orderStatusFilter"
-            :options="orderStatusOptions"
-            :placeholder="t('pages.settings.ExternalSettings.s70')"
-            style="width: 180px"
-          />
-          <div class="spacer"></div>
-          <n-button quaternary @click="openOrders">
-            <template #icon><n-icon :component="RefreshOutline" /></template>
-            {{ t('pages.settings.ExternalSettings.s71') }}
-          </n-button>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s66') }}</span>
+          <span class="kpi-value kpi-value--ok">{{ orderSummary.completed }}</span>
         </div>
-        <n-data-table
-          :columns="orderColumns"
-          :data="filteredOrders"
-          :pagination="false"
-          size="small"
-          :loading="orderLoading"
-          :scroll-x="1040"
-        >
-          <template #empty>
-            <n-empty :description="t('pages.settings.ExternalSettings.s72')" />
-          </template>
-        </n-data-table>
-      </n-drawer-content>
-    </n-drawer>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s67') }}</span>
+          <span class="kpi-value kpi-value--warn">{{ orderSummary.inProgress }}</span>
+        </div>
+        <div class="audit-stat">
+          <span class="kpi-label">{{ t('pages.settings.ExternalSettings.s68') }}</span>
+          <span class="kpi-value">{{ orderSummary.closed }}</span>
+        </div>
+      </div>
+      <div class="toolbar es-toolbar-spacing">
+        <n-select
+          v-model:value="orderSupplier"
+          :options="orderSupplierOptions"
+          :placeholder="t('pages.settings.ExternalSettings.s69')"
+          class="es-input-search"
+        />
+        <n-select
+          v-model:value="orderStatusFilter"
+          :options="orderStatusOptions"
+          :placeholder="t('pages.settings.ExternalSettings.s70')"
+          style="width: 180px"
+        />
+        <div class="spacer"></div>
+        <n-button quaternary @click="openOrders">
+          <template #icon><n-icon :component="RefreshOutline" /></template>
+          {{ t('pages.settings.ExternalSettings.s71') }}
+        </n-button>
+      </div>
+      <n-data-table
+        :columns="orderColumns"
+        :data="filteredOrders"
+        :pagination="false"
+        size="small"
+        :loading="orderLoading"
+        :scroll-x="1040"
+      >
+        <template #empty>
+          <n-empty :description="t('pages.settings.ExternalSettings.s72')" />
+        </template>
+      </n-data-table>
+    </n-modal>
 
     <!-- ===================== 接口说明文档抽屉 ===================== -->
-    <n-drawer v-model:show="showDoc" :width="760" placement="right">
-      <n-drawer-content :title="t('pages.settings.ExternalSettings.s73')" :native-scrollbar="false">
-        <p class="doc-p">{{ t('pages.settings.ExternalSettings.s74') }}</p>
+    <n-modal
+      v-model:show="showDoc"
+      preset="card"
+      :title="t('pages.settings.ExternalSettings.s73')"
+      :style="{ width: '760px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+      :mask-closable="false"
+      :bordered="false"
+    >
+      <p class="doc-p">{{ t('pages.settings.ExternalSettings.s74') }}</p>
 
-        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s75') }}</h4>
-        <p class="doc-p">{{ t('pages.settings.ExternalSettings.s184') }}<code>X-App-Id</code> / <code>X-Timestamp</code> / <code>X-App-Sign</code>{{ t('pages.settings.ExternalSettings.s185') }}</p>
+      <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s75') }}</h4>
+      <p class="doc-p">{{ t('pages.settings.ExternalSettings.s184') }}<code>X-App-Id</code> / <code>X-Timestamp</code> / <code>X-App-Sign</code>{{ t('pages.settings.ExternalSettings.s185') }}</p>
 
-        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s76') }}</h4>
-        <pre class="doc-code">{ "code": 0, "message": "ok", "data": {}, "requestId": "req_xxx", "timestamp": 1690000000 }</pre>
+      <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s76') }}</h4>
+      <pre class="doc-code">{ "code": 0, "message": "ok", "data": {}, "requestId": "req_xxx", "timestamp": 1690000000 }</pre>
 
-        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s77') }}</h4>
-        <n-data-table :columns="docColumns" :data="docInterfaces" :pagination="false" size="small" :scroll-x="560" />
+      <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s77') }}</h4>
+      <n-data-table :columns="docColumns" :data="docInterfaces" :pagination="false" size="small" :scroll-x="560" />
 
-        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s78') }}</h4>
-        <n-space :size="6">
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s79') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s80') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s81') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s82') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s83') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s84') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s85') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s86') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s87') }}</n-tag>
-        </n-space>
+      <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s78') }}</h4>
+      <n-space :size="6">
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s79') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s80') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s81') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s82') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s83') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s84') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s85') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s86') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s87') }}</n-tag>
+      </n-space>
 
-        <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s88') }}</h4>
-        <n-space :size="6">
-          <n-tag size="small" type="success">{{ t('pages.settings.ExternalSettings.s89') }}</n-tag>
-          <n-tag size="small" type="warning">{{ t('pages.settings.ExternalSettings.s90') }}</n-tag>
-          <n-tag size="small" type="error">{{ t('pages.settings.ExternalSettings.s91') }}</n-tag>
-          <n-tag size="small">{{ t('pages.settings.ExternalSettings.s92') }}</n-tag>
-          <n-tag size="small" type="default">{{ t('pages.settings.ExternalSettings.s93') }}</n-tag>
-        </n-space>
+      <h4 class="doc-h">{{ t('pages.settings.ExternalSettings.s88') }}</h4>
+      <n-space :size="6">
+        <n-tag size="small" type="success">{{ t('pages.settings.ExternalSettings.s89') }}</n-tag>
+        <n-tag size="small" type="warning">{{ t('pages.settings.ExternalSettings.s90') }}</n-tag>
+        <n-tag size="small" type="error">{{ t('pages.settings.ExternalSettings.s91') }}</n-tag>
+        <n-tag size="small">{{ t('pages.settings.ExternalSettings.s92') }}</n-tag>
+        <n-tag size="small" type="default">{{ t('pages.settings.ExternalSettings.s93') }}</n-tag>
+      </n-space>
 
-        <n-alert type="info" :show-icon="true" style="margin-top: 16px">
-          {{ t('pages.settings.ExternalSettings.s186') }}<code>{{ t('pages.settings.ExternalSettings.s94') }}</code>{{ t('pages.settings.ExternalSettings.s187') }}<code>{{ t('pages.settings.ExternalSettings.s95') }}</code>{{ t('pages.settings.ExternalSettings.s188') }}
-        </n-alert>
-      </n-drawer-content>
-    </n-drawer>
+      <n-alert type="info" :show-icon="true" style="margin-top: 16px">
+        {{ t('pages.settings.ExternalSettings.s186') }}<code>{{ t('pages.settings.ExternalSettings.s94') }}</code>{{ t('pages.settings.ExternalSettings.s187') }}<code>{{ t('pages.settings.ExternalSettings.s95') }}</code>{{ t('pages.settings.ExternalSettings.s188') }}
+      </n-alert>
+    </n-modal>
   </div>
 </template>
 
@@ -436,8 +460,6 @@ import {
   NSwitch,
   NSpace,
   NModal,
-  NDrawer,
-  NDrawerContent,
   NForm,
   NFormItem,
   NTabPane,

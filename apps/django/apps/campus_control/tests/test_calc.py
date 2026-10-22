@@ -229,7 +229,7 @@ class TestComputeRolloverTarget:
           ✓ 在职 + 2026-03-15 入职 → 计入
           ✗ 在职 + 2026-09-01 入职（curMonth 当月）→ 不计入
           ✗ 在职 + 2025-12-31 入职（去年）→ 不计入
-          ✗ 在途Offer + 2026-05-01（status≠在职）→ 不计入
+          ✗ 待入职 + 2026-05-01（status≠在职）→ 不计入
           ✗ 在职 + 2026-06-01 但 bu='三到BG'（rule bu=能电BG，rule_matches 失败）→ 不计入
           ✗ 在职 + 2026-04-01 但 sex='女'（indicator 命中失败）→ 不计入
         期望 rollActual = 1。
@@ -246,7 +246,7 @@ class TestComputeRolloverTarget:
             {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在职',
              'actual_entry_date': '2025-12-31', 'expected_entry_date': None,
              'month': '12月'},
-            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '在途Offer',
+            {'bu': '能电BG', 'sex': '男', 'counted': True, 'status': '待入职',
              'actual_entry_date': None, 'expected_entry_date': '2026-05-01',
              'month': '5月'},
             {'bu': '三到BG', 'sex': '男', 'counted': True, 'status': '在职',
@@ -336,7 +336,7 @@ class TestPrdAssertions:
     def test_simulate_block_when_any_met(self):
         # v2.7：任意规则「本月实际 >= 本月目标」→ 阻断（配额已满，不可再加）。
         # SAMPLE 中 985 人员 status='在职'（在 _COUNTED_STATUSES），计入核算；
-        # 加上 tmp（status='在途待入职', school=985）一并计入 → actual = SAMPLE_985 + 1。
+        # 加上 tmp（status='待入职', school=985）一并计入 → actual = SAMPLE_985 + 1。
         # 自定义 985 规则 monthly=[1]*12 → actual(=SAMPLE_985+1) >= target=1 → MET → 阻断。
         # 占比不再参与 verdict；checks 不含 ratio/ratioStatus/strength。
         custom_rules = [{
@@ -434,7 +434,7 @@ class TestApiEndpoints:
         ifm = _data(api_client.post('/api/v1/campus/indicators/', {'dimension': dim_id, 'name': '女'}, format='json'))
         api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': im['id'], 'target': 0.6, 'strength': '硬约束'}, format='json')
         api_client.post('/api/v1/campus/rules/', {'bu': '能电BG', 'dimension': dim_id, 'indicator': ifm['id'], 'target': 0.4, 'strength': '软约束'}, format='json')
-        api_client.post('/api/v1/campus/persons/', {'code': 'A001', 'name': '甲', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在职', 'counted': True}, format='json')
+        api_client.post('/api/v1/campus/persons/', {'code': 'A001', 'name': '甲', 'bu': '能电BG', 'school': '985', 'sex': '男', 'major': '工学', 'month': '8月', 'status': '在职', 'counted': True, 'employee_id': '25080001', 'expected_entry_date': '2026-08-01', 'actual_entry_date': '2026-08-04'}, format='json')
 
     def test_ratio_endpoint(self, api_client):
         self._build_minimal_scheme(api_client)

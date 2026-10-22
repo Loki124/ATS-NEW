@@ -66,47 +66,53 @@
       </n-card>
 
       <!-- 专业详情抽屉（专业介绍全文 + 阳光高考链接） -->
-      <n-drawer v-model:show="detailVisible" :width="560" placement="right">
-        <n-drawer-content :title="detailRow?.name || t('pages.settings.MajorLibrary.s29')" closable>
-          <n-descriptions bordered :column="1" label-placement="left" size="small">
-            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s9')">{{ detailRow?.code || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s10')">{{ detailRow?.discipline || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s11')">{{ detailRow?.category || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s12')">{{ detailRow?.educationLevel || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s13')">{{ detailRow?.dataYear || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s14')">
-              {{ detailRow?.isCustomized ? t('pages.settings.MajorLibrary.s39') : t('pages.settings.MajorLibrary.s40') }}
-            </n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.MajorLibrary.s15')">
-              <div style="white-space: pre-wrap; line-height: 1.6">{{ detailRow?.intro || '-' }}</div>
-            </n-descriptions-item>
-          </n-descriptions>
-          <template #footer>
-            <n-space>
-              <n-button @click="detailVisible = false">{{ t('pages.settings.MajorLibrary.s16') }}</n-button>
-              <n-button
-                v-if="detailRow?.detailUrl"
-                tag="a"
-                :href="detailRow.detailUrl"
-                target="_blank"
-                rel="noopener"
-              >
-                {{ t('pages.settings.MajorLibrary.s17') }}
-              </n-button>
-              <n-button type="primary" @click="openEdit(detailRow!)">{{ t('pages.settings.MajorLibrary.s45') }}</n-button>
-            </n-space>
-          </template>
-        </n-drawer-content>
-      </n-drawer>
+      <n-modal
+        v-model:show="detailVisible"
+        preset="card"
+        :title="detailRow?.name || t('pages.settings.MajorLibrary.s29')"
+        :style="{ width: '560px', maxWidth: '95vw' }"
+        :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+        :mask-closable="false"
+        :bordered="false"
+      >
+        <n-descriptions bordered :column="1" label-placement="left" size="small">
+          <n-descriptions-item :label="t('pages.settings.MajorLibrary.s9')">{{ detailRow?.code || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.MajorLibrary.s10')">{{ detailRow?.discipline || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.MajorLibrary.s11')">{{ detailRow?.category || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.MajorLibrary.s12')">{{ detailRow?.educationLevel || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.MajorLibrary.s13')">{{ detailRow?.dataYear || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.MajorLibrary.s14')">
+            {{ detailRow?.isCustomized ? t('pages.settings.MajorLibrary.s39') : t('pages.settings.MajorLibrary.s40') }}
+          </n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.MajorLibrary.s15')">
+            <div style="white-space: pre-wrap; line-height: 1.6">{{ detailRow?.intro || '-' }}</div>
+          </n-descriptions-item>
+        </n-descriptions>
+        <template #footer>
+          <n-space>
+            <n-button @click="detailVisible = false">{{ t('pages.settings.MajorLibrary.s16') }}</n-button>
+            <n-button
+              v-if="detailRow?.detailUrl"
+              tag="a"
+              :href="detailRow.detailUrl"
+              target="_blank"
+              rel="noopener"
+            >
+              {{ t('pages.settings.MajorLibrary.s17') }}
+            </n-button>
+            <n-button type="primary" @click="openEdit(detailRow!)">{{ t('pages.settings.MajorLibrary.s45') }}</n-button>
+          </n-space>
+        </template>
+      </n-modal>
 
       <!-- 专业编辑弹窗 -->
-      <n-modal
-        v-model:show="editVisible"
-        preset="card"
-        :title="t('pages.settings.MajorLibrary.s18')"
-        style="width: 640px"
-        :mask-closable="false"
-      >
+            <n-modal
+              v-model:show="editVisible"
+              preset="card"
+              :title="t('pages.settings.MajorLibrary.s18')"
+              style="width: 640px"
+              :mask-closable="false"
+            >
         <n-form :model="editForm" label-placement="left" label-width="96">
           <n-form-item :label="t('pages.settings.MajorLibrary.s19')"><n-input v-model:value="editForm.name" /></n-form-item>
           <n-form-item :label="t('pages.settings.MajorLibrary.s20')"><n-input v-model:value="editForm.code" /></n-form-item>
@@ -127,7 +133,7 @@
             </n-button>
           </n-space>
         </template>
-      </n-modal>
+                  </n-modal>
     </div><!-- /.data-body -->
   </div>
 </template>

@@ -26,8 +26,14 @@
           <template #icon><n-icon :component="zoomed ? ContractOutline : ExpandOutline" /></template>
           {{ zoomed ? t('pages.candidate.CandidateDetail.s212') : t('pages.candidate.CandidateDetail.s211') }}
         </n-button>
-        <n-button size="small" quaternary class="header-close" @click="goBack">
-          <template #icon><n-icon :component="CloseOutline" /></template>
+        <n-button
+          size="small"
+          quaternary
+          class="header-close"
+          :aria-label="t('components.common.A11y.s1')"
+          @click="goBack"
+        >
+          <template #icon><n-icon :component="CloseOutline" aria-hidden="true" /></template>
         </n-button>
       </n-space>
     </div>
@@ -2167,8 +2173,8 @@ async function handleForward() {
 .history-toolbar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
 .history-timeline :deep(.n-timeline-item-content) { min-width: 0; }
 .history-card {
-  background: var(--surface-1, rgba(0, 0, 0, 0.02));
-  border: 1px solid var(--line-soft, rgba(0, 0, 0, 0.06));
+  background: var(color-mix(in srgb, var(--ink) 2%, transparent));
+  border: 1px solid var(--border-hairline);
   border-radius: var(--radius-2, 8px);
   padding: var(--space-3, 12px) var(--space-4, 16px);
 }
@@ -2188,16 +2194,16 @@ async function handleForward() {
   font-size: var(--fs-12);
   line-height: 1.55;
 }
-.diff-row + .diff-row { border-top: 1px dashed var(--line-soft, rgba(0, 0, 0, 0.05)); }
+.diff-row + .diff-row { border-top: 1px dashed var(--border-hairline); }
 .diff-label { color: var(--ink-soft); white-space: nowrap; }
 .diff-label::after { content: '：'; }
 .diff-old {
   color: var(--ink-faint, var(--ink-soft));
   text-decoration: line-through;
-  text-decoration-color: rgba(207, 68, 68, 0.45);
+  text-decoration-color: color-mix(in srgb, var(--c-error) 45%, transparent);
   word-break: break-all;
 }
-.diff-arrow { color: var(--brand, #4f6ef2); text-align: center; }
+.diff-arrow { color: var(--brand); text-align: center; }
 .diff-new { color: var(--ink); font-weight: 500; word-break: break-all; }
 .diff-toggle { align-self: flex-start; margin-top: 2px; }
 

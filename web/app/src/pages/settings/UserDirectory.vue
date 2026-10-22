@@ -1,6 +1,7 @@
 <template>
   <div class="page-container">
-<div class="page-body">
+    <!-- 模型 B（SETTINGS_PAGE_STRUCTURE.md §2.2）：header 为 .page-container 直接子元素，
+         header→内容间距由外壳 .settings-scroll :deep(.page-container) 的 gap 独家提供。 -->
     <div class="page-header">
       <div>
         <h1 class="page-title">{{ t('pages.settings.UserDirectory.s1') }}</h1>
@@ -8,70 +9,76 @@
       </div>
     </div>
 
-    <!-- 搜索 + 筛选行：对齐校招管控规则配置工具条（搜索框 + 筛选项 + spacer 推右按钮） -->
-    <div class="toolbar">
-      <n-input
-        v-model:value="searchText"
-        :placeholder="t('pages.settings.UserDirectory.s3')"
-        clearable
-        class="rule-filter-search"
-        @keyup.enter="() => {}"
-      >
-        <template #prefix><n-icon :component="SearchOutline" /></template>
-      </n-input>
-      <n-select
-        v-model:value="filterUserType"
-        :options="userTypeFilterOptions"
-        :placeholder="t('pages.settings.UserDirectory.s4')"
-        clearable
-        class="rule-filter-select"
-      />
-      <n-select
-        v-model:value="filterStatus"
-        :options="statusOptions"
-        :placeholder="t('pages.settings.UserDirectory.s5')"
-        clearable
-        class="rule-filter-select"
-      />
-      <!-- 需求5：直属上级筛选（用户维度，异步搜索用户下拉） -->
-      <n-select
-        v-model:value="filterDirectManager"
-        :options="managerOptions"
-        placeholder="直属上级"
-        clearable
-        filterable
-        remote
-        :on-search="onManagerSearch"
-        class="rule-filter-select"
-      />
-      <!-- 需求5：身份多选筛选（导师 / 班主任，?role= 并集） -->
-      <n-select
-        v-model:value="filterRoles"
-        :options="roleIdentityOptions"
-        placeholder="身份"
-        multiple
-        clearable
-        class="rule-filter-select"
-      />
-      <div class="spacer"></div>
-      <n-button type="primary" @click="openCreateModal">
-        <template #icon><n-icon :component="AddOutline" /></template>
-        {{ t('pages.settings.UserDirectory.s6') }}
-      </n-button>
-    </div>
+    <!-- 列表区：区域滚动（R-215）—— .data-body 自身不滚，滚动只发生在 .table-wrap 内的表格体，
+         页头 / 筛选工具条 / 分页器保持固定。外壳用全局 .panel-shell（8px 内衬 + 撑满高度）。 -->
+    <div class="data-body">
+      <div class="glass-panel panel-shell">
+        <!-- 搜索 + 筛选行：对齐校招管控规则配置工具条（搜索框 + 筛选项 + spacer 推右按钮） -->
+        <div class="toolbar">
+          <n-input
+            v-model:value="searchText"
+            :placeholder="t('pages.settings.UserDirectory.s3')"
+            clearable
+            class="rule-filter-search"
+            @keyup.enter="() => {}"
+          >
+            <template #prefix><n-icon :component="SearchOutline" /></template>
+          </n-input>
+          <n-select
+            v-model:value="filterUserType"
+            :options="userTypeFilterOptions"
+            :placeholder="t('pages.settings.UserDirectory.s4')"
+            clearable
+            class="rule-filter-select"
+          />
+          <n-select
+            v-model:value="filterStatus"
+            :options="statusOptions"
+            :placeholder="t('pages.settings.UserDirectory.s5')"
+            clearable
+            class="rule-filter-select"
+          />
+          <!-- 需求5：直属上级筛选（用户维度，异步搜索用户下拉） -->
+          <n-select
+            v-model:value="filterDirectManager"
+            :options="managerOptions"
+            placeholder="直属上级"
+            clearable
+            filterable
+            remote
+            :on-search="onManagerSearch"
+            class="rule-filter-select"
+          />
+          <!-- 需求5：身份多选筛选（导师 / 班主任，?role= 并集） -->
+          <n-select
+            v-model:value="filterRoles"
+            :options="roleIdentityOptions"
+            placeholder="身份"
+            multiple
+            clearable
+            class="rule-filter-select"
+          />
+          <div class="spacer"></div>
+          <n-button type="primary" @click="openCreateModal">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            {{ t('pages.settings.UserDirectory.s6') }}
+          </n-button>
+        </div>
 
-    <div class="table-wrap">
-      <n-data-table
-        :data="displayUsers"
-        :columns="columns"
-        :row-key="(row: User) => row.id"
-        :loading="loading"
-        :pagination="localPagination()"
-        :bordered="false"
-        flex-height
-      >
-        <template #empty><n-empty description="暂无用户" /></template>
-      </n-data-table>
+        <div class="table-wrap">
+          <n-data-table
+            :data="displayUsers"
+            :columns="columns"
+            :row-key="(row: User) => row.id"
+            :loading="loading"
+            :pagination="localPagination()"
+            :bordered="false"
+            flex-height
+          >
+            <template #empty><n-empty description="暂无用户" /></template>
+          </n-data-table>
+        </div>
+      </div>
     </div>
 
     <!-- 用户编辑弹窗 -->
@@ -79,7 +86,8 @@
       v-model:show="userModalVisible"
       preset="card"
       :title="editingUser ? '编辑用户' : '新建用户'"
-      :style="{ width: '600px' }"
+      :style="{ width: '860px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(620px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
     >
       <n-form :model="formState" label-placement="top">
@@ -190,8 +198,11 @@
               </n-form-item>
             </n-grid-item>
           </n-grid>
+          <!-- 身份配置 + 管理单元授权（2026-10-21）：同行两列，省一行纵向空间
+               粒度：管理单元授权为用户级统一 —— 该用户的全部身份共用同一份范围，
+               与后端 UserRoleV2.management_unit_ids 的写入口径一致（多身份取并集）。 -->
           <n-grid :cols="2" :x-gap="24">
-            <n-grid-item :span="2">
+            <n-grid-item>
               <n-form-item :label="t('pages.settings.UserDirectory.s26')">
                 <n-select
                   v-model:value="formState.roleIds"
@@ -203,7 +214,25 @@
                 />
               </n-form-item>
             </n-grid-item>
+            <n-grid-item>
+              <n-form-item :label="t('pages.settings.UserDirectory.s32')">
+                <n-tree-select
+                  v-model:value="formState.managementUnitIds"
+                  :options="mgmtUnitOptions"
+                  :loading="mgmtUnitLoading"
+                  :disabled="!!mgmtUnitError"
+                  multiple
+                  checkable
+                  clearable
+                  filterable
+                  :placeholder="t('pages.settings.UserDirectory.s33')"
+                />
+              </n-form-item>
+            </n-grid-item>
           </n-grid>
+          <p class="form-hint" :class="{ 'is-error': !!mgmtUnitError }">
+            {{ mgmtUnitError || t('pages.settings.UserDirectory.s34') }}
+          </p>
         </div>
       </n-form>
 
@@ -214,7 +243,6 @@
         </div>
       </template>
     </n-modal>
-    </div><!-- /.page-body -->
 </div>
 </template>
 <script setup lang="ts">
@@ -286,6 +314,8 @@ interface User {
   userType?: string;
   /** 该用户拥有的身份名称列表（后端 roleNames，由 role_code → RoleV2.role_name 批量派生） */
   roleNames?: string[];
+  /** 该用户被授权的管理单元名称列表（后端 managementUnitNames，用户级统一口径取并集） */
+  managementUnitNames?: string[];
   /** 直属上级（User 外键，可选，零 DDL 复用 core.User.direct_manager） */
   directManager?: string;
   /** 直属上级姓名（只读派生字段，见 03-技术方案 §3.1） */
@@ -298,6 +328,15 @@ interface Role {
   name: string;
   code: string;
   roleType?: string;
+}
+
+/** 管理单元树节点（后端 GET /api/v1/management-units/tree/，camelCase 输出） */
+interface MgmtUnitNode {
+  id: string | number;
+  unitName: string;
+  parentId?: string | number | null;
+  status?: number;
+  children?: MgmtUnitNode[];
 }
 
 // 状态
@@ -373,6 +412,34 @@ const formState = reactive({
   department: null as string | null,
   // 需求5：直属上级（写 directManager；directManagerName 由后端只读派生）
   directManager: null as string | null,
+  // 管理单元授权（用户级统一口径）：该用户全部身份共用这一份范围。
+  // 值为字符串（管理单元 id），与 n-tree-select 的 key 类型一致；提交时转回数字。
+  managementUnitIds: [] as string[],
+});
+
+// ===== 管理单元授权 =====
+// 管理单元树：授权范围选择器的数据源。加载失败（如账号缺 recruit:settings:mgmt_unit:list
+// 读码）时降级为「不可配置」并给出说明，而不是让授权项静默空白 ——
+// 「配了却没生效」是本项目最高频的静默缺陷（ui-interaction-constraints R-203）。
+const mgmtUnitTree = ref<MgmtUnitNode[]>([]);
+const mgmtUnitLoading = ref(false);
+const mgmtUnitError = ref('');
+
+// 身份 + 授权范围是否已成功回显。
+// 未成功回显时提交时**省略** managementUnitIds，让后端「缺省 = 不动已有范围」的语义生效
+// —— 否则一次 GET 抖动就会把管理员配好的授权范围静默清空（数据丢失，且无提示）。
+const roleScopeLoaded = ref(false);
+
+const mgmtUnitOptions = computed<any[]>(() => {
+  const build = (nodes: MgmtUnitNode[]): any[] =>
+    nodes.map((n) => ({
+      key: String(n.id),
+      label: n.unitName,
+      // 停用单元不可新授权（已授权的仍可回显并可移除）
+      disabled: n.status === 0,
+      children: n.children?.length ? build(n.children) : undefined,
+    }));
+  return build(mgmtUnitTree.value);
 });
 
 // 身份配置下拉选项（由 roles（RoleV2 列表）派生，value=RoleV2.id）
@@ -560,14 +627,43 @@ const loadRoles = async () => {
 };
 
 // 加载用户身份 → 填入编辑表单的身份配置多选（RoleV2.id 列表）
+// 同时回填管理单元授权范围：后端按用户级统一口径下发（各身份项携带同一份并集）。
 const loadUserRoles = async (userId: string) => {
   try {
     const res = await request(`/api/v1/permissions/users/${userId}/roles/`);
     if (res.ok && res.data?.success) {
-      formState.roleIds = res.data.data.map((ur: any) => ur.id);
+      const list = res.data.data || [];
+      formState.roleIds = list.map((ur: any) => ur.id);
+      const ids = new Set<string>();
+      list.forEach((ur: any) =>
+        (ur.managementUnitIds || []).forEach((v: any) => ids.add(String(v)))
+      );
+      formState.managementUnitIds = Array.from(ids);
+      roleScopeLoaded.value = true;
+    } else {
+      roleScopeLoaded.value = false;
     }
   } catch (error) {
+    roleScopeLoaded.value = false;
     message.error(extractApiError(error, '加载用户角色失败'));
+  }
+};
+
+// 加载管理单元树（授权范围选择器的数据源）
+const loadMgmtUnits = async () => {
+  mgmtUnitLoading.value = true;
+  mgmtUnitError.value = '';
+  try {
+    const res = await request('/api/v1/management-units/tree/');
+    if (res.ok && res.data?.success) {
+      mgmtUnitTree.value = res.data.data || [];
+    } else {
+      mgmtUnitError.value = res.data?.message || t('pages.settings.UserDirectory.s35');
+    }
+  } catch (error) {
+    mgmtUnitError.value = extractApiError(error, t('pages.settings.UserDirectory.s35'));
+  } finally {
+    mgmtUnitLoading.value = false;
   }
 };
 
@@ -585,8 +681,10 @@ const openCreateModal = () => {
     userType: 'INTERNAL',
     status: 'PENDING',
     department: null,
-    directManager: null
+    directManager: null,
+    managementUnitIds: []
   });
+  roleScopeLoaded.value = false;
   userModalVisible.value = true;
 };
 
@@ -605,8 +703,10 @@ const closeUserModal = () => {
     userType: 'INTERNAL',
     status: 'PENDING',
     department: null,
-    directManager: null
+    directManager: null,
+    managementUnitIds: []
   });
+  roleScopeLoaded.value = false;
 };
 
 // 创建用户（含工号；身份配置在创建成功后单独保存）
@@ -663,13 +763,22 @@ const handleUpdateUser = async () => {
   }
 };
 
-// 保存用户身份配置（复用原「分配角色」端点：POST /api/v1/permissions/users/{id}/roles/）
+// 保存用户身份配置 + 管理单元授权（端点：POST /api/v1/permissions/users/{id}/roles/）
 // 界面文案统一为「身份配置」，后端端点与字段名仍为 role / roleIds，此处不做重命名。
+// managementUnitIds 一并提交：用户级统一口径，后端把同一份范围写到该用户全部身份行。
 const saveUserRoles = async (userId: string, roleIds: string[]) => {
   try {
+    const payload: Record<string, any> = { roleIds };
+    // 只有成功回显过授权范围才提交它：未回显时省略该字段 → 后端按「缺省 = 保留」处理，
+    // 避免一次加载失败就把已有授权范围清空。
+    if (roleScopeLoaded.value) {
+      payload.managementUnitIds = formState.managementUnitIds
+        .map((v) => Number(v))
+        .filter((n) => Number.isFinite(n));
+    }
     const res = await request(`/api/v1/permissions/users/${userId}/roles/`, {
       method: 'POST',
-      body: JSON.stringify({ roleIds })
+      body: JSON.stringify(payload)
     });
     if (res.ok) {
       message.success('身份配置已保存');
@@ -683,6 +792,12 @@ const saveUserRoles = async (userId: string, roleIds: string[]) => {
 
 // 提交用户表单
 const handleUserSubmit = () => {
+  // 授权范围挂在「用户 × 身份」上（UserRoleV2.management_unit_ids），
+  // 没有身份就没有可挂载的授权行 —— 此时拦下并说明，而不是静默丢弃配置。
+  if (formState.managementUnitIds.length && !formState.roleIds.length) {
+    message.warning('请先选择身份，再配置管理单元授权');
+    return;
+  }
   if (editingUser.value) {
     handleUpdateUser();
   } else {
@@ -755,6 +870,31 @@ const ownedRolesColumn = {
   }
 };
 
+// 管理单元范围：展示该用户被授权的管理单元（用户级统一口径，多身份取并集）。
+// 与「拥有身份」列同款展示规范：默认展示前 2 个名称，超出折叠为「+N」，
+// 折叠时挂 tooltip 给出完整列表（R-110：截断必须提供查看完整信息的途径）。
+const MGMT_UNIT_VISIBLE = 2;
+const mgmtUnitsColumn = {
+  title: '管理单元范围',
+  key: 'managementUnitNames',
+  width: 180,
+  render: (row: User) => {
+    const names = (row.managementUnitNames || []).filter(Boolean);
+    if (!names.length) return h('span', { class: 'cell-muted' }, '-');
+    const shown = names.slice(0, MGMT_UNIT_VISIBLE);
+    const rest = names.length - shown.length;
+    const body = h('span', { class: 'mgmt-tags' }, [
+      ...shown.map((n) => h(NTag, { size: 'small', bordered: false, type: 'info' }, { default: () => n })),
+      rest > 0 ? h('span', { class: 'role-more' }, `+${rest}`) : null,
+    ]);
+    if (rest <= 0) return body;
+    return h(NTooltip, null, {
+      trigger: () => body,
+      default: () => h('span', { class: 'role-tip' }, names.join('、')),
+    });
+  }
+};
+
 const actionsColumn = {
   title: '操作',
   key: 'actions',
@@ -780,8 +920,10 @@ const actionsColumn = {
               userType: row.userType || 'INTERNAL',
               status: row.status,
               department: row.department != null ? String(row.department) : null,
-              directManager: row.directManager != null ? String(row.directManager) : null
+              directManager: row.directManager != null ? String(row.directManager) : null,
+              managementUnitIds: []
             });
+            roleScopeLoaded.value = false;
             // 预填直属上级下拉选项（列表已返回 directManagerName，避免弹窗显示裸 id）
             if (row.directManager != null) {
               const idStr = String(row.directManager);
@@ -848,6 +990,7 @@ const columns = [
   column(userTypeColumn, 'short'),
   column(statusColumn, 'short'),
   column(ownedRolesColumn, 'short'),
+  column(mgmtUnitsColumn, 'short'),
   column(actionsColumn, 'control'),
 ];
 
@@ -855,6 +998,7 @@ const columns = [
 onMounted(() => {
   loadUsers();
   loadRoles();
+  loadMgmtUnits();
   deptStore.loadDepartments();
 });
 </script>
@@ -862,10 +1006,16 @@ onMounted(() => {
 
 <style scoped>
 
-/* === page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* === 数据列表页标准结构（SETTINGS_PAGE_STRUCTURE.md §2.2 + AGENTS.md R-215）
+   模型 B：.page-container > .page-header + .data-body > .glass-panel.panel-shell
+                              > .toolbar + .table-wrap > n-data-table[flex-height]
+   - .page-container：高度受限的 flex 列（高度由 SettingsLayout :deep 强制）
+   - .page-header：flex-shrink:0 固定（间距由外壳 .page-container 的 gap 独家提供）
+   - .data-body：滚动容器用 .data-body 而非 .page-body ——
+     后者被 SettingsLayout :deep(.page-body){overflow-y:auto!important} 强制整页滚动，
+     会与表格体的内部滚动叠成双滚动条（规范 §2.2 的「致命陷阱」）
+   - .panel-shell / .table-wrap / .toolbar：全部复用 glass.css 全局类，不私有重写
+   - n-data-table 必须带 flex-height，否则表高为 0 或被内容撑开 */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -876,10 +1026,10 @@ onMounted(() => {
 .page-header {
   flex-shrink: 0;
 }
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
@@ -888,8 +1038,8 @@ onMounted(() => {
 
 /* 搜索 / 筛选行：复用全局 .toolbar / .rule-filter-search / .rule-filter-select / .spacer
    （glass.css 全局工具类，与校招管控规则配置工具条一致）。
-   列表区：.table-wrap 直接作为 .page-body(flex 列) 子元素，flex:1 撑满，
-   对齐校招管控规则配置页结构（toolbar + 裸 table-wrap，不包 n-card）。 */
+   列表区：.glass-panel.panel-shell(全局) 内为 toolbar + .table-wrap(全局)，
+   .table-wrap flex:1 撑满，只让表体滚动（R-215 区域滚动）。 */
 
 /* 编辑弹窗：基础信息 / 任职信息 / 权限信息 三模块分组
    - 模块标题用 3px 品牌强调条（token，随主题切换，不硬编码 hex），与 scope-block 标题层次一致
@@ -933,8 +1083,9 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-/* 拥有身份：单行排列，超出列宽的标签由容器裁掉（完整列表走 tooltip） */
-.role-tags {
+/* 拥有身份 / 管理单元范围：单行排列，超出列宽的标签由容器裁掉（完整列表走 tooltip） */
+.role-tags,
+.mgmt-tags {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
@@ -955,5 +1106,16 @@ onMounted(() => {
 }
 .cell-muted {
   color: var(--ink-faint);
+}
+
+/* 表单说明行：授权口径提示 / 加载失败降级说明（错误态用 --c-error-deep 保证对比度达标） */
+.form-hint {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+.form-hint.is-error {
+  color: var(--c-error-deep);
 }
 </style>

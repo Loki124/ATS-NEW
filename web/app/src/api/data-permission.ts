@@ -169,7 +169,6 @@ export interface ActionPreset {
 }
 
 export interface RoleDataPermPayload {
-  roleId: string;
   /**
    * 每模块配置。**write 必须整段提交**（2026-10-14 P0-1）。
    *

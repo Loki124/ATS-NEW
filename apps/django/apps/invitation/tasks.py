@@ -4,13 +4,13 @@ from datetime import timedelta
 from typing import Dict
 
 from celery import shared_task
-from django.db import DatabaseError
+from django.db import DatabaseError, OperationalError
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='apps.invitation.tasks.cleanup_expired')
+@shared_task(name='apps.invitation.tasks.cleanup_expired', max_retries=3, default_retry_delay=5, autoretry_for=(OperationalError,))
 def cleanup_expired() -> Dict:
     """清理已超期且未响应的邀约（每小时）"""
     from .models import Invitation, InvitationState
@@ -36,7 +36,7 @@ def cleanup_expired() -> Dict:
     }
 
 
-@shared_task(name='apps.invitation.tasks.send_invitation_reminders')
+@shared_task(name='apps.invitation.tasks.send_invitation_reminders', max_retries=3, default_retry_delay=5, autoretry_for=(OperationalError,))
 def send_invitation_reminders() -> Dict:
     """给快过期的邀约发送提醒（每 6 小时）"""
     from apps.notification.services import NotificationService

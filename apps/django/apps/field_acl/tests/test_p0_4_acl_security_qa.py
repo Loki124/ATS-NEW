@@ -98,7 +98,7 @@ def _get(client, url):
     r = client.get(url, HTTP_AUTHORIZATION=client._qa_token)
     try:
         return r.status_code, r.json()
-    except Exception:  # pragma: no cover
+    except ValueError:  # pragma: no cover - r.json() 非 JSON 时抛 JSONDecodeError(ValueError 子类)
         return r.status_code, {'_raw': r.content[:300].decode('utf-8', 'replace')}
 
 

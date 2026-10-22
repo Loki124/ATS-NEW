@@ -9,6 +9,16 @@
 post_migrate 信号统一注入（dictionary 模块零改动）。
 角色种子因涉及写库，挂在 campus_rotation 自身的 post_migrate 回调，避免在 makemigrations
 等表未就绪阶段误写（与 data_permission/apps.py 同款容错范式）。
+
+⚠️ 2026-10-22 兵哥指令「直播间 + 客服部门整合为轮岗资源」后，以下字典**已不再绑定任何模型字段**
+（字段随需求下线，字典本身保留为可运营维护的目录，不会删历史数据）：
+  · BRAND（品牌）           → 原客服部门 / 直播间的 brand 字段已下线
+  · CS_TYPE（客服类型）     → 原客服部门的 cs_type 字段已下线
+  · WORKSTATION_TYPE（工位类型）→ 原客服部门的 workstation_type 字段已下线
+  · LOCATION（地点）        → 轮岗资源的 location 已改为**自由文本**，不再查字典
+保留它们而非删除，是因为字典是**运营可维护的目录**（运营可能已在字典页增改过条目），
+删种子只会让新环境缺目录、却不会清理老环境的历史数据 —— 两头不讨好。
+真正生效的只有 LIVE_ROOM_PLATFORM（轮岗资源的 platform 字段）。
 """
 from apps.dictionary.seeds import _seed_type
 

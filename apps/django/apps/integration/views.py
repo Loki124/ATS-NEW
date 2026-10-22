@@ -13,9 +13,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import V2Permission
 from apps.common.viewsets import EnvelopeAuditModelViewSet, EnvelopeModelViewSet
-from apps.core.permissions import IsHROrAbove, IsSuperAdmin
+from apps.core.permissions import IsSuperAdmin
+from apps.core.permissions_v2 import V2Permission
 
 from .models import (
     BackgroundCheckOrder,

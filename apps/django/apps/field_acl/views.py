@@ -292,7 +292,6 @@ class FieldACLViewSet(EnvelopeAuditModelViewSet):
         will_create = 0
         will_update = 0
         for ent, fld, rc in targets:
-            perm = item_map[fld]
             if FieldACL.objects.filter(entity=ent, field=fld, role_code=rc).exists():
                 will_update += 1
             else:

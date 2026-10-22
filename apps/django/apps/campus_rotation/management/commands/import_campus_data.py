@@ -4,7 +4,7 @@
 --------
 - 不预置任何真实部门 / 人员 / 导师 / 平台实例（OQ-2）。本脚本是「后续真实数据接入
   通道」，默认无待迁移数据，运行即打印空报告、退出码 0。
-- 幂等：`LiveRoom`/`ClassRoom` 按业务唯一键 `room_no` / `code` 走 `update_or_create`；
+- 幂等：`RotationResource`/`ClassRoom` 按业务唯一键 `resource_no` / `code` 走 `update_or_create`；
   `RotationArrangement` 按 `person_id + stage` 定位（先查后更或新建）。重复执行安全。
 - 部门匹配：读入原型部门名 → 按 `Department.name` 精确匹配 ATS 部门；匹配不到**不新建
   假部门**，写入报告 `unmatched_depts[]` 由运营在 UI 手工建（OQ-2）。
@@ -146,33 +146,46 @@ class Command(BaseCommand):
     # ---- 数据加载 ----
     def load_source(self, path):
         if not path:
-            return {'live_rooms': [], 'class_rooms': [], 'rotation_arrangements': []}
+            return {'resources': [], 'class_rooms': [], 'rotation_arrangements': []}
         try:
             with open(path, 'r', encoding='utf-8') as fh:
                 data = json.load(fh)
         except (OSError, json.JSONDecodeError) as exc:
             raise CommandError(f'读取数据源失败: {exc}')
         if not isinstance(data, dict):
-            raise CommandError('数据源顶层必须是 JSON 对象（含 live_rooms/class_rooms/rotation_arrangements）。')
-        data.setdefault('live_rooms', [])
+            raise CommandError('数据源顶层必须是 JSON 对象（含 resources/class_rooms/rotation_arrangements）。')
+        data.setdefault('resources', [])
         data.setdefault('class_rooms', [])
         data.setdefault('rotation_arrangements', [])
         return data
 
     # ---- 单模型 upsert ----
-    def upsert_live_room(self, resolver, item, stats, dry_run):
-        from apps.campus_rotation.models import LiveRoom
+    def upsert_resource(self, resolver, item, stats, dry_run):
+        from apps.campus_rotation.io_rotation_resource import (
+            RESOURCE_TYPE_BY_LABEL,
+            RESOURCE_TYPE_LABEL,
+        )
+        from apps.campus_rotation.models import RotationResource
 
-        room_no = (item.get('room_no') or '').strip()
-        if not room_no:
-            raise CommandError(f'LiveRoom 缺少业务唯一键 room_no: {item!r}')
+        resource_no = (item.get('resource_no') or '').strip()
+        if not resource_no:
+            raise CommandError(f'RotationResource 缺少业务唯一键 resource_no: {item!r}')
+
+        # 资源类型（直播间 / 客服部门 / 其他）—— 决定编号前缀与「平台」是否必填
+        raw_type = (item.get('resource_type') or '').strip()
+        resource_type = RESOURCE_TYPE_BY_LABEL.get(raw_type, raw_type)
+        if resource_type not in RESOURCE_TYPE_LABEL:
+            raise CommandError(
+                f'RotationResource.resource_type 非法（须为 直播间 / 客服部门 / 其他）: {item!r}'
+            )
 
         defaults = {
             'name': item.get('name', ''),
+            'resource_type': resource_type,
             'department': resolver.resolve_department(item.get('department')),
             'bu': resolver.resolve_department(item.get('bu')),
             'mentor': resolver.resolve_user(item.get('mentor')),
-            'platform': item.get('platform', ''),
+            'platform': (item.get('platform') or '').strip() if resource_type == 'LIVE_ROOM' else '',
             'location': item.get('location', ''),
             'capacity': item.get('capacity'),
             'social_count': item.get('social_count', 0),
@@ -181,18 +194,20 @@ class Command(BaseCommand):
         }
         if dry_run:
             # 预览：看是否已存在
-            exists = LiveRoom.objects.filter(room_no=room_no).exists()
-            stats['live_rooms']['would_update' if exists else 'would_create'] += 1
+            exists = RotationResource.objects.filter(resource_no=resource_no).exists()
+            stats['resources']['would_update' if exists else 'would_create'] += 1
             stats['preview'].append({
-                'model': 'LiveRoom', 'key': room_no,
+                'model': 'RotationResource', 'key': resource_no,
                 'action': 'update' if exists else 'create',
             })
             return
-        obj, created = LiveRoom.objects.update_or_create(room_no=room_no, defaults=defaults)
+        obj, created = RotationResource.objects.update_or_create(
+            resource_no=resource_no, defaults=defaults,
+        )
         if created:
-            stats['live_rooms']['created'] += 1
+            stats['resources']['created'] += 1
         else:
-            stats['live_rooms']['updated'] += 1
+            stats['resources']['updated'] += 1
 
     def upsert_class_room(self, resolver, item, stats, dry_run):
         from apps.campus_rotation.models import ClassRoom
@@ -241,6 +256,7 @@ class Command(BaseCommand):
             'mentor': resolver.resolve_user(item.get('mentor')),
             'direct_manager': resolver.resolve_user(item.get('direct_manager')),
             'class_room': self._resolve_class_room(resolver, item.get('class_room')),
+            'resource': self._resolve_resource(resolver, item.get('resource')),
             'employee_status': item.get('employee_status', ''),
             'rotation_start': item.get('rotation_start'),
             'rotation_end': item.get('rotation_end'),
@@ -278,17 +294,28 @@ class Command(BaseCommand):
             return None
         return ClassRoom.objects.filter(code=code).first()
 
+    def _resolve_resource(self, resolver, value):
+        """按「资源编号」解析轮岗资源（直播间 / 客服部门 / 其他合一后的具体位置）。"""
+        from apps.campus_rotation.models import RotationResource
+
+        if value is None or value == '':
+            return None
+        no = value if isinstance(value, str) else (value.get('resource_no') or '').strip()
+        if not no:
+            return None
+        return RotationResource.objects.filter(resource_no=no).first()
+
     # ---- 报告 ----
     def build_report(self, data, resolver, stats, dry_run):
         total_in = (
-            len(data['live_rooms']) + len(data['class_rooms'])
+            len(data['resources']) + len(data['class_rooms'])
             + len(data['rotation_arrangements'])
         )
         return {
             'mode': 'dry-run (no DB write)' if dry_run else 'apply',
             'source': 'inline-empty' if not getattr(self, 'source_path', None) else self.source_path,
             'input_rows': total_in,
-            'live_rooms': stats['live_rooms'],
+            'resources': stats['resources'],
             'class_rooms': stats['class_rooms'],
             'rotation_arrangements': stats['rotation_arrangements'],
             'unmatched_depts': resolver.unmatched_depts,
@@ -302,11 +329,11 @@ class Command(BaseCommand):
         self.stdout.write(f"数据源: {report['source']}")
         self.stdout.write(f"待处理行数: {report['input_rows']}")
         self.stdout.write(
-            'LiveRoom:        '
-            f"created={report['live_rooms'].get('created', 0)} "
-            f"updated={report['live_rooms'].get('updated', 0)} "
-            f"would_create={report['live_rooms'].get('would_create', 0)} "
-            f"would_update={report['live_rooms'].get('would_update', 0)}"
+            'RotationResource: '
+            f"created={report['resources'].get('created', 0)} "
+            f"updated={report['resources'].get('updated', 0)} "
+            f"would_create={report['resources'].get('would_create', 0)} "
+            f"would_update={report['resources'].get('would_update', 0)}"
         )
         self.stdout.write(
             'ClassRoom:       '
@@ -352,12 +379,12 @@ class Command(BaseCommand):
         resolver = ReferenceResolver()
 
         stats = {
-            'live_rooms': {},
+            'resources': {},
             'class_rooms': {},
             'rotation_arrangements': {},
             'preview': [],
         }
-        for bucket in ('live_rooms', 'class_rooms', 'rotation_arrangements'):
+        for bucket in ('resources', 'class_rooms', 'rotation_arrangements'):
             stats[bucket] = {'created': 0, 'updated': 0, 'would_create': 0, 'would_update': 0}
 
         # 默认（无 --source）即为 dry 安全态：即便 dry_run 为假，也无数据可写。
@@ -368,23 +395,23 @@ class Command(BaseCommand):
 
         try:
             if effective_dry:
-                for item in data['live_rooms']:
-                    self.upsert_live_room(resolver, item, stats, dry_run=True)
+                for item in data['resources']:
+                    self.upsert_resource(resolver, item, stats, dry_run=True)
                 for item in data['class_rooms']:
                     self.upsert_class_room(resolver, item, stats, dry_run=True)
                 for item in data['rotation_arrangements']:
                     self.upsert_rotation_arrangement(resolver, item, stats, dry_run=True)
             else:
                 with transaction.atomic():
-                    for item in data['live_rooms']:
-                        self.upsert_live_room(resolver, item, stats, dry_run=False)
+                    for item in data['resources']:
+                        self.upsert_resource(resolver, item, stats, dry_run=False)
                     for item in data['class_rooms']:
                         self.upsert_class_room(resolver, item, stats, dry_run=False)
                     for item in data['rotation_arrangements']:
                         self.upsert_rotation_arrangement(resolver, item, stats, dry_run=False)
         except CommandError:
             raise
-        except Exception as exc:  # 兜底：把内部异常转成友好错误 + 非零退出
+        except Exception as exc:  # noqa: BLE001 导入命令兜底: 内部异常统一转友好报错 + 非零退出
             raise CommandError(f'迁移处理异常: {exc}')
 
         report = self.build_report(data, resolver, stats, dry_run=effective_dry)
@@ -406,14 +433,15 @@ class Command(BaseCommand):
 # ---------------------------------------------------------------------------
 SAMPLE_DATA = '''
 {
-  "live_rooms": [
+  "resources": [
     {
-      "room_no": "LR000001",
+      "resource_no": "LR0001",
       "name": "深圳直播间A",
+      "resource_type": "直播间",          // 或 客服部门 / 其他
       "department": "腾讯云研发部",        // 按 Department.name 精确匹配
       "bu": "云与智慧产业事业群",          // 按 Department.name 精确匹配
       "mentor": {"employee_id": "12345"},  // 或 {"username": "zhangsan"}
-      "platform": "TENCENT_MEETING",
+      "platform": "TENCENT_MEETING",      // 仅直播间填
       "location": "SHENZHEN",
       "capacity": 50,
       "is_active": true
@@ -421,7 +449,7 @@ SAMPLE_DATA = '''
   ],
   "class_rooms": [
     {
-      "code": "CL000001",
+      "code": "CL001",
       "name": "2026校招一班",
       "head_teacher": {"username": "lisi"},
       "hrbp": {"username": "wangwu"},
@@ -439,7 +467,8 @@ SAMPLE_DATA = '''
       "current_dept": "腾讯云研发部",
       "mentor": {"employee_id": "12345"},
       "direct_manager": {"username": "zhaoliu"},
-      "class_room": "CL000001",
+      "class_room": "CL001",
+      "resource": "LR0001",             // 按资源编号匹配（具体位置）
       "employee_status": "PROBATION"
     }
   ]

@@ -70,4 +70,9 @@ def test_gdpr_update_envelope(auth_client):
     )
     assert resp.status_code == 200, resp.content
     assert resp.data['success'] is True
-    assert resp.data['data']['submitted_email'] == 'gdpr-env-updated@example.com'
+    # 2026-10-21 卡 C1: 读接口不再回吐提交邮箱明文, 只给脱敏值
+    assert resp.data['data']['submitted_email_masked'] == 'g***@example.com'
+    assert 'submitted_email' not in resp.data['data']
+    # 写入仍生效 (明文落库, 只是不外露)
+    req.refresh_from_db()
+    assert req.submitted_email == 'gdpr-env-updated@example.com'

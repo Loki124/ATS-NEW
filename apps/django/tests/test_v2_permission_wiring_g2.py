@@ -158,13 +158,53 @@ def test_template_codes_all_exist_in_resources():
         assert not missing, f'{tpl["code"]} 引用了未定义资源码: {missing}'
 
 
-def test_declared_permission_codes_all_registered():
-    """视图书写里 permission_required / map 用到的码都必须在 RESOURCES 里。
+def _known_disabled_codes() -> set:
+    """库内**有意停用**的资源码集合（跨迁移汇总）。
 
-    缺失时 _derive 会回退并打警告日志，等于该端点对非超管恒 403。
+    停用码的语义是「功能已下线」：has_perm 对 status=0 的码一律拒绝
+    （apps/core/permission_check.py:57-58），所以视图声明停用码是
+    **有意关闭该端点**，不是「忘记注册」的缺口 —— 不应报为守卫失败。
+
+    来源:
+      - 0033.KNOWN_DISABLED_CODES = 0026.DISABLED_CODES + 0029.ORPHAN_CODES
+        + 0029.ZOMBIE_BUTTON_CODES（28 条）
+      - 0030.MOU_CODES（5 条）—— mou 整族停用，但未并入 0033 清单（0030 早于 0033）
+      - 0050.USER_GROUPS_CODES（1 条）—— 用户组管理功能整体下线（2026-10-21）
     """
     import importlib.util
     import pathlib
+
+    def _load(name, rel):
+        p = pathlib.Path(__file__).resolve().parents[1] / rel
+        spec = importlib.util.spec_from_file_location(name, p)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    m30 = _load('m30_disabled_probe', 'apps/core/migrations/0030_split_campus_resource_codes.py')
+    m33 = _load('m33_disabled_probe', 'apps/core/migrations/0033_mark_disabled_resources.py')
+    m50 = _load('m50_disabled_probe', 'apps/core/migrations/0050_disable_user_groups_resource.py')
+    return (
+        set(m33.KNOWN_DISABLED_CODES)
+        | set(m30.MOU_CODES)
+        | set(m50.USER_GROUPS_CODES)
+    )
+
+
+def test_declared_permission_codes_all_registered():
+    """视图书写里 permission_required / map 用到的码都必须在 RESOURCES 里。
+
+    2026-10-21（卡 A3）扩展两处：
+      ① 排除**有意停用**的码族（mou 等）—— 停用码由 has_perm 恒拒，是「有意关闭」
+         而非「忘记注册」，不应报为缺口。
+      ② **派生码**也必须已注册 —— 旧版只校验显式声明的码，于是
+         「声明 :list + 派生 :edit 未注册」这类缺口能溜过去：
+         _derive 走 fallback 把写操作回退到读码校验 = 持列表码即可写（权限提升）。
+         现在单码声明的视图，其 create/update/destroy 派生码一并校验。
+    """
+    import importlib.util
+    import pathlib
+
     from django.urls import get_resolver
     seed_path = pathlib.Path(__file__).resolve().parents[1] / (
         'apps/core/management/commands/seed_v2_init.py'
@@ -173,8 +213,9 @@ def test_declared_permission_codes_all_registered():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     registered = {code for code, _n, _t, _m in mod.RESOURCES}
+    disabled = _known_disabled_codes()
 
-    from apps.core.permissions_v2 import CUSTOM_ACTION_SUFFIX  # noqa: F401
+    from apps.core.permissions_v2 import ACTION_SUFFIX, CUSTOM_ACTION_SUFFIX
 
     missing: set[str] = set()
     seen: set[int] = set()
@@ -198,8 +239,43 @@ def test_declared_permission_codes_all_registered():
             for v in mapping.values():
                 values += list(v) if isinstance(v, (list, tuple)) else [v]
             for code in values:
+                if code in disabled:
+                    continue  # 有意停用的码族 = 端点有意关闭
                 if code not in registered:
                     missing.add(f'{cls.__module__}.{cls.__name__}: {code}')
+
+            # ② 派生码校验：单码声明时, 实际会执行的写方法派生码必须已注册
+            #    判定口径与 V2Permission.has_permission 严格对齐：
+            #      ViewSet → view.action = 动作名（create/update/partial_update/destroy + 自定义 @action）
+            #      APIView → view.action 恒为 None，map 按 HTTP method 小写匹配，
+            #                未命中 map 的写方法一律派生 base + ':edit'（CUSTOM_ACTION_SUFFIX）
+            if isinstance(declared, str) and declared and declared not in disabled:
+                base = declared.rsplit(':', 1)[0] if ':' in declared else declared
+                is_viewset = hasattr(cls, 'get_extra_actions')
+                if is_viewset:
+                    candidates = [
+                        a for a in ('create', 'update', 'partial_update', 'destroy')
+                        if hasattr(cls, a)
+                    ]
+                    for extra in cls.get_extra_actions():
+                        if {m.upper() for m in extra.mapping} - {'GET', 'HEAD', 'OPTIONS'}:
+                            candidates.append(extra.__name__)
+                else:
+                    candidates = [
+                        m for m in ('post', 'put', 'patch', 'delete')
+                        if hasattr(cls, m)
+                    ]
+                for act in candidates:
+                    if act in mapping:
+                        continue  # map 显式覆盖, 不派生
+                    suffix = ACTION_SUFFIX.get(act if is_viewset else '', CUSTOM_ACTION_SUFFIX)
+                    derived = f'{base}:{suffix}'
+                    if derived == declared or derived in disabled:
+                        continue
+                    if derived not in registered:
+                        missing.add(
+                            f'{cls.__module__}.{cls.__name__}: {declared} → 派生 {derived} 未注册'
+                        )
 
     walk(get_resolver().url_patterns)
     assert not missing, '视图声明了未注册的资源码（非超管将恒 403）:\n  ' + '\n  '.join(sorted(missing))

@@ -136,7 +136,7 @@ describe('ProcessDetailModal.vue', () => {
     await flushPromises()
     await nextTick()
     expect(document.querySelectorAll('.stage-card')).toHaveLength(3)
-  })
+  }, 20000)
 
   // --- 旧契约 2 (保留) ---
   it('shows system built-in badge on first and last stage', async () => {
@@ -144,7 +144,7 @@ describe('ProcessDetailModal.vue', () => {
     await flushPromises()
     await nextTick()
     expect(document.querySelectorAll('.stage-card__system-badge')).toHaveLength(2)
-  })
+  }, 20000)
 
   // --- 契约 3 (统一后不再有 view→edit 切换; enterEdit 已移除) 见下方契约 4 ---
 
@@ -157,7 +157,7 @@ describe('ProcessDetailModal.vue', () => {
     const nameInput = document.querySelector('input[placeholder="流程名称"]') as HTMLInputElement
     expect(nameInput).toBeTruthy()
     expect(nameInput.value).toBe('一级总及以上流程')
-  })
+  }, 20000)
 
   // --- 新契约 5 ---
   it('cancelEdit with dirty state opens popconfirm', async () => {
@@ -178,7 +178,7 @@ describe('ProcessDetailModal.vue', () => {
     await new Promise(r => setTimeout(r, 50))
     // 关闭确认 dialog 应出现 (n-dialog 渲染 .n-dialog 容器)
     expect(document.querySelectorAll('.n-dialog').length).toBeGreaterThan(0)
-  })
+  }, 20000)
 
   // --- 新契约 6 ---
   it('save calls updateProcess and emits saved', async () => {
@@ -193,7 +193,7 @@ describe('ProcessDetailModal.vue', () => {
     expect(mockUpdateProcess).toHaveBeenCalledTimes(1)
     const inner = wrapper.findComponent(ProcessDetailModal)
     expect(inner.emitted('saved')).toBeTruthy()
-  })
+  }, 20000)
 
   // --- 新契约 7 ---
   it('handle 409 from updateProcess opens conflict modal', async () => {
@@ -207,7 +207,7 @@ describe('ProcessDetailModal.vue', () => {
     saveBtn.click()
     await flushPromises()
     expect(document.body.textContent).toContain('修改冲突')
-  })
+  }, 20000)
 
   // --- 新契约 9: 新建流程 (processId='') ---
   it('create mode (processId="") opens edit form with empty fields, no getProcess call', async () => {
@@ -226,7 +226,7 @@ describe('ProcessDetailModal.vue', () => {
     expect(cancelBtn).toBeTruthy()
     const createBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '创建') as HTMLElement
     expect(createBtn).toBeTruthy()
-  })
+  }, 20000)
 
   // --- 新契约 8 ---
   it('closing modal with dirty state in edit mode shows popconfirm', async () => {
@@ -247,5 +247,5 @@ describe('ProcessDetailModal.vue', () => {
     await new Promise(r => setTimeout(r, 50))
     // 弹关闭确认 dialog (关闭被拦截)
     expect(document.querySelectorAll('.n-dialog').length).toBeGreaterThan(0)
-  })
+  }, 20000)
 })

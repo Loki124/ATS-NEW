@@ -1,7 +1,7 @@
 """Field ACL 服务测试 (PRD v4 §4.4 G43)"""
-import pytest
 from types import SimpleNamespace
 
+import pytest
 from django.test import override_settings
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory

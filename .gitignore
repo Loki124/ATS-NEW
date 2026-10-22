@@ -94,3 +94,13 @@ web/app/test-*.mjs
 # ─── dev 服务运行时产物 (launchd 托管: scripts/install_dev_launchd.sh) ───
 .run-pids/
 .run-logs/
+
+# ─── 本地临时工具 (卡 A7: 原硬编码数据库口令, 已改为 env 驱动, 但仍不入库) ───
+apps/django/run_expr_guard_in_window.py
+
+# ─── 运行时核对截图 (浏览器实拍, 验证产物不入库) ───
+web/app/.tmp_verify/
+
+# ─── 一次性调试探针 (只打印栈、不做断言的临时脚本, 不入库) ───
+apps/django/tests/zz_seed_probe_tmp.py
+apps/django/tests/zz_*_probe*.py

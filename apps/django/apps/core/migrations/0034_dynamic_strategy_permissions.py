@@ -11,7 +11,6 @@
 """
 from django.db import migrations
 
-
 SYSTEM = 'recruit'
 
 CODES = [

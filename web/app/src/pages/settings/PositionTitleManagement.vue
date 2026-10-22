@@ -7,7 +7,7 @@
       </div>
     </div>
 
-    <div class="page-body">
+    <div class="data-body">
       <div class="glass-panel panel-shell">
         <div class="toolbar">
           <n-input
@@ -706,10 +706,10 @@ onMounted(() => {
   padding: 0;
 }
 /* .page-header 的 flex-shrink:0 与 .spacer 的 flex:1 已由 glass.css 全局提供，此处不私有重写 */
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;

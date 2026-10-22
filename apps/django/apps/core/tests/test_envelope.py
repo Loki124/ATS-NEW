@@ -18,12 +18,12 @@ FE 安全性 (零改动依据):
 
 core/tests 是真实 package (__init__.py 存在), 本文件名不会触发跨 app 同名 test_envelope 收集冲突.
 """
-from apps.common.tests.envelope_contract import assert_envelope
 import uuid
 
 import pytest
 from django.contrib.auth import get_user_model
 
+from apps.common.tests.envelope_contract import assert_envelope
 from apps.core.models_permission_v2 import RoleV2, UserRoleV2
 
 User = get_user_model()

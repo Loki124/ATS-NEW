@@ -1,6 +1,8 @@
 """GDPR Serializers (PRD v4 §4.4)"""
 from rest_framework import serializers
 
+from apps.common.masking import mask_email
+
 from .models import (
     VERIFICATION_CODE_LENGTH,
     GDPRRequest,
@@ -8,7 +10,13 @@ from .models import (
 
 
 class GDPRRequestSerializer(serializers.ModelSerializer):
-    """GDPR 请求详情 (2026-08-03 S2: 移除 verification_code 字段, 加 attempts/expires_at/verified_at)"""
+    """GDPR 请求详情 (2026-08-03 S2: 移除 verification_code 字段, 加 attempts/expires_at/verified_at)
+
+    2026-10-21 卡 C1 收窄: 读接口不再原样吐出候选人 PII ——
+    - `result` 只存摘要 (改造前是含 name/phone/email/id_card_no 明文的导出串);
+    - `submitted_email` 仍可写 (create/update 行为不变), 但**读**时改为输出
+      `submitted_email_masked` (a***@example.com), 原始邮箱不出现在响应里。
+    """
     request_type_display = serializers.CharField(source='get_request_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     candidate_name = serializers.CharField(source='candidate.name', read_only=True, default='')
@@ -35,6 +43,13 @@ class GDPRRequestSerializer(serializers.ModelSerializer):
             'verification_code_expires_at', 'verification_code_attempts',
             'verified_at',
         ]
+
+    def to_representation(self, instance):
+        """读表示: 提交邮箱脱敏, 原始值不出响应。"""
+        data = super().to_representation(instance)
+        raw_email = data.pop('submitted_email', '') or ''
+        data['submitted_email_masked'] = mask_email(raw_email)
+        return data
 
 
 class GDPRRequestCreateSerializer(serializers.ModelSerializer):

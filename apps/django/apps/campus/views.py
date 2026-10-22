@@ -19,6 +19,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.mixins import SoftDeleteRestoreMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 from apps.reason_library.models import RecruitType
@@ -87,7 +88,9 @@ class CampusModelViewSetMixin(ScopeQuerysetMixin):
         instance.soft_delete()
 
 
-class CampusAmbassadorViewSet(CampusModelViewSetMixin, viewsets.ModelViewSet):
+class CampusAmbassadorViewSet(
+    SoftDeleteRestoreMixin, CampusModelViewSetMixin, viewsets.ModelViewSet
+):
     queryset = CampusAmbassador.objects.all()
     serializer_class = CampusAmbassadorSerializer
 
@@ -102,7 +105,9 @@ class CampusAmbassadorViewSet(CampusModelViewSetMixin, viewsets.ModelViewSet):
         return Response({'success': True, 'id': str(instance.id)})
 
 
-class CampusSessionViewSet(CampusModelViewSetMixin, viewsets.ModelViewSet):
+class CampusSessionViewSet(
+    SoftDeleteRestoreMixin, CampusModelViewSetMixin, viewsets.ModelViewSet
+):
     queryset = CampusSession.objects.all()
     serializer_class = CampusSessionSerializer
 

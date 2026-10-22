@@ -28,8 +28,17 @@ class CapacityExceeded(APIException):
 
 
 def is_bu_depth(dept):
-    """BU = 二级部门：parent IS NOT NULL AND parent__parent IS NULL（根=0、事业群=1、BU=2）。"""
-    return bool(dept and dept.parent_id is not None and dept.parent.parent_id is None)
+    """BU = 二级部门（0 基层级 depth==2：根=0、事业群=1、BU=2、三级部门=3）。
+
+    判定口径已收敛到 `apps/core/dept_depth.py`（全仓唯一真相源），与前端
+    `web/app/src/utils/campus.ts` 的 `deptLevelMap`+`buOptions(level===2)` 严格对齐。
+
+    ⚠️ 历史实现写成「parent 存在且 parent.parent 为空」= 第 1 级（事业群），
+    与前端差一级 → 下拉里选得出的 BU 一提交就 400，而后端认可的 事业群 前端选不到。
+    本函数保留此名仅为兼容既有调用方，实现已改为委托共享口径。
+    """
+    from apps.core.dept_depth import is_bu_depth as _is_bu_depth
+    return _is_bu_depth(dept)
 
 
 def user_has_campus_role(user_id, role_code):

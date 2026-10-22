@@ -9,7 +9,6 @@ import inspect
 
 import pytest
 
-
 # 同会话内按“最坏顺序”加载双方，触发潜在循环依赖。
 _CANDIDATE_APP_MODULES = [
     'apps.candidate.models',

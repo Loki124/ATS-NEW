@@ -17,6 +17,11 @@ from typing import List, Tuple
 
 from django.core.cache import cache
 
+# 2026-10-21 卡 A4：本模块的 except (OperationalError, ProgrammingError) 分支
+# （enforcement.py:246）此前从未 import 这两个名字 —— 异常处理器自身会抛 NameError，
+# 把原始的数据库错误掩盖掉，且该分支落在动态策略权限裁剪路径上。
+from django.db.utils import OperationalError, ProgrammingError
+
 from apps.data_permission.expr_compiler import compile_scope_q
 from apps.data_permission.models import (
     DataPermissionRule,
@@ -344,7 +349,7 @@ def write_scope_q(user, entity: str, action: str | None = None):
                         {'expr': sc.get('expr') or '', 'groups': sc.get('groups') or []},
                         entity, user=user,
                     )
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001 scope 表达式编译失败不阻断, 该配置降级为 no-op
                     logger.warning('动态策略 scope 编译失败, 该配置 no-op: %s', e)
                     compiled = None
                 if compiled is not None and compiled.children:

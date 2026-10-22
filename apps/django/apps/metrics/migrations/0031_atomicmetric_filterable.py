@@ -15,8 +15,8 @@
 """
 import importlib
 
-from django.db import migrations, models
 from django.core.exceptions import FieldDoesNotExist
+from django.db import migrations, models
 
 # 与 data_permission.attribute_fields._ENTITY_MODEL_PATHS 同源 (迁移内自包含,
 # 不 import 业务模块的配置常量, 避免其未来变更 silently 改变迁移语义).

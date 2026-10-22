@@ -33,8 +33,11 @@ from apps.common.exceptions import (
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.viewsets import EnvelopeAuditModelViewSet, EnvelopeModelViewSet
-from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.data_permission.enforcement import (  # M07 写范围守卫
+    ensure_writable,
+    is_writable,
+)
 
 # T01.2 (2026-08-04 寇豆码): HasProcessPermission / V2Permission 自身已校验登录, 显式
 # 移除裸 IsAuthenticated, 避免被全局 deny-by-default 拦截.
@@ -72,10 +75,6 @@ from .services.versioning import (
     copy_process_as_new,
     is_process_referenced,
     list_process_versions,
-)
-from apps.data_permission.enforcement import (  # M07 写范围守卫
-    ensure_writable,
-    is_writable,
 )
 
 logger = logging.getLogger(__name__)

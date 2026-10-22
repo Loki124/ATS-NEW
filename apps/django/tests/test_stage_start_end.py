@@ -9,6 +9,7 @@
 - 新创建的 stage 默认 is_start=false is_end=false
 """
 from django.test import TestCase
+
 from apps.process.models import RecruitmentStage, StageStatus, StageType
 
 

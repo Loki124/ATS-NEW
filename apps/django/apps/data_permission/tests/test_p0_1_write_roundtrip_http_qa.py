@@ -76,7 +76,7 @@ def _post(client, role, modules):
     )
     try:
         body = resp.json()
-    except Exception:  # pragma: no cover - 仅在非 JSON 响应时
+    except ValueError:  # pragma: no cover - resp.json() 非 JSON 时抛 JSONDecodeError(ValueError 子类)
         body = {'_raw': resp.content[:200].decode('utf-8', 'replace')}
     return resp.status_code, body
 

@@ -112,7 +112,7 @@ class DynamicField(TimestampedModel, SoftDeleteModel):
         'FieldGroup', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='fields', help_text='字段分组(可配置)',
     )
-    status = models.CharField(max_length=32, default='active')
+    status = models.CharField(max_length=32, default='active', db_index=True)
     options = models.JSONField(default=list, blank=True, help_text='选项列表 [{value, label}]')
     # 2026-09-15 选项来源 (兵哥): 下拉/列表型字段除手动维护选项外, 可指定数据源动态解析
     # 结构: {"type": "custom"|"dictionary"|"library"|"code_table", "key": "..."}
@@ -296,7 +296,7 @@ class FieldModule(TimestampedModel, SoftDeleteModel):
 
     id = models.CharField(max_length=32, primary_key=True, editable=False, help_text='唯一标识')
     resource = models.CharField(max_length=128, db_index=True, help_text='资源类型 (Candidate/Position/...)')
-    code = models.CharField(max_length=128, help_text='模块 code (snake_case)')
+    code = models.CharField(max_length=128, help_text='模块 code (snake_case)', db_index=True)
     name = models.CharField(max_length=256, help_text='模块显示名称')
     description = models.CharField(max_length=512, blank=True, default='')
     order_index = models.IntegerField(default=0)
@@ -321,7 +321,7 @@ class FieldGroup(TimestampedModel, SoftDeleteModel):
 
     id = models.CharField(max_length=32, primary_key=True, editable=False, help_text='唯一标识')
     module = models.ForeignKey(FieldModule, on_delete=models.CASCADE, related_name='groups')
-    code = models.CharField(max_length=128, help_text='分组 code (snake_case)')
+    code = models.CharField(max_length=128, help_text='分组 code (snake_case)', db_index=True)
     name = models.CharField(max_length=256, help_text='分组显示名称')
     order_index = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)

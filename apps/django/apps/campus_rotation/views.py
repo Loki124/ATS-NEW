@@ -16,41 +16,46 @@
     会**完全绕过行级隔离** —— 带教导师只要猜到 id 就能改别人的轮岗安排，属越权。
     需求 1-2「各个角色数据相互隔离」要求读写同源，故此处一律不提前返回。
 """
-from rest_framework import viewsets
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from django.db import transaction
+from zipfile import BadZipFile
+
+from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django_fsm import TransitionNotAllowed
+from openpyxl.utils.exceptions import InvalidFileException
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from apps.campus_control.models import Person
+from apps.common.excel import build_export_response
 from apps.common.pagination import StandardResultsSetPagination
+from apps.core.dept_depth import bg_ancestor, bu_ancestor
 from apps.core.models import Department
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 from apps.core.scope_resolver import scope_filter_q
 from apps.core.views_permission_v2 import EnvelopeWriteMixin
-from django.db import IntegrityError
+from apps.demand.models import Demand
 
-from rest_framework.exceptions import ValidationError as DRFValidationError
-
+from . import io_rotation_resource
 from .models import (
     ClassRoom,
     ConcurrentPostRecord,
-    LiveRoom,
     RotationApproval,
     RotationArrangement,
+    RotationResource,
     RotationStage,
-    ServiceDept,
 )
 from .serializers import (
     ClassRoomSerializer,
     ConcurrentPostRecordSerializer,
-    LiveRoomSerializer,
     RotationApprovalSerializer,
     RotationArrangementSerializer,
+    RotationResourceSerializer,
     RotationStageSerializer,
-    ServiceDeptSerializer,
 )
+from .services import stats_overview
 from .validators import user_has_campus_role
 
 
@@ -142,15 +147,20 @@ class RotationArrangementViewSet(
         class_room = params.get('class_room')
         if class_room:
             qs = qs.filter(class_room_id=class_room)
-        service_dept = params.get('service_dept')
-        if service_dept:
-            qs = qs.filter(service_dept_id=service_dept)
+        resource = params.get('resource')
+        if resource:
+            qs = qs.filter(resource_id=resource)
         direct_manager = params.get('direct_manager')
         if direct_manager:
             qs = qs.filter(direct_manager_id=direct_manager)
         person_id = params.get('person_id')
         if person_id:
             qs = qs.filter(person_id=person_id)
+        # 2026-10-22：人员级关联筛选（校招生档案主键 nanoid）。
+        #   与旧口径 person_id（账号 id）并存：前者是可靠口径，后者仅兼容历史数据。
+        campus_person = params.get('campus_person')
+        if campus_person:
+            qs = qs.filter(campus_person_id=campus_person)
         search = params.get('search')
         if search:
             qs = qs.filter(note__icontains=search)
@@ -161,15 +171,16 @@ class RotationArrangementViewSet(
     def restore(self, request, pk=None):
         """恢复已软删的轮岗安排。
 
-        软删后 get_queryset() 已过滤 deleted_at，故直接走默认 manager 取对象（含已删），
-        否则对软删记录 restore 会 404（对齐 campus_control 原实现意图）。
+        取对象必须走**含软删行**的 manager（2026-10-21 卡 D3: 默认 manager 已过滤
+        deleted_at，改用 ``all_objects``），否则对软删记录 restore 会 404
+        （对齐 campus_control 原实现意图）。
 
         🔴 S5-03：取对象必须**重新套一遍行级隔离**。原实现直接
         `self.queryset.model.objects.filter(pk=pk)` 完全绕开 get_queryset()，
         意味着任何有 restore 权限的账号都能凭 id 恢复（复活）他人部门下的
         软删记录 —— 行级隔离对 restore 形同虚设。此处复用 scope_queryset。
         """
-        qs = self.scope_queryset(self.queryset.model.objects.filter(pk=pk))
+        qs = self.scope_queryset(self.queryset.model.all_objects.filter(pk=pk))
         instance = qs.first()
         if instance is None:
             return Response({'success': False, 'message': '轮岗安排不存在'}, status=404)
@@ -186,7 +197,7 @@ class RotationArrangementViewSet(
 
         字段白名单（规格 §6.3）：
           current_dept / head_teacher / mentor / direct_manager /
-          rotation_start / rotation_end / service_dept
+          rotation_start / rotation_end / resource
         🔴 `stage` **不在白名单**：阶段是 FSM 流程态，必须走 /transition/ 端点。
 
         🔴 mentor / direct_manager 走**审批**（需求 5-5）：本端点不直改这两个字段，
@@ -213,7 +224,7 @@ class RotationArrangementViewSet(
         # ── ① 字段白名单 ──
         allowed_fields = {
             'current_dept', 'head_teacher', 'mentor', 'direct_manager',
-            'rotation_start', 'rotation_end', 'service_dept',
+            'rotation_start', 'rotation_end', 'resource',
         }
         payload_fields = {k: v for k, v in data.items() if k in allowed_fields}
         unknown_fields = [
@@ -274,9 +285,9 @@ class RotationArrangementViewSet(
         re_ = payload_fields.get('rotation_end')
         if rs and re_ and str(re_) < str(rs):
             field_errors.append({'field': 'rotation_end', 'reason': '轮岗结束不能早于轮岗开始'})
-        # FK 存在性（current_dept / service_dept）
+        # FK 存在性（current_dept / resource）
         fk_instances = {}
-        for fk_field, model in (('current_dept', Department), ('service_dept', ServiceDept)):
+        for fk_field, model in (('current_dept', Department), ('resource', RotationResource)):
             if fk_field in payload_fields and payload_fields[fk_field] is not None:
                 inst = model.objects.filter(pk=payload_fields[fk_field]).first()
                 if inst is None:
@@ -462,6 +473,8 @@ class RotationStageViewSet(
         """
         from apps.campus_rotation.services.assessment import (
             can_mark_assessed,
+        )
+        from apps.campus_rotation.services.assessment import (
             mark_assessed as do_mark_assessed,
         )
 
@@ -549,7 +562,9 @@ class ConcurrentPostRecordViewSet(
         from apps.campus_rotation.services.moka_sync import sync_concurrent_post
 
         instance = self.get_object()
-        ok = sync_concurrent_post(instance)
+        # 返回值不用：响应体以落库后的 instance.sync_status 为准（更可靠，
+        # 失败也落库），不取 sync_concurrent_post 的 bool 返回。
+        sync_concurrent_post(instance)
         instance.refresh_from_db()
         from apps.common.audit_helper import log_action
         log_action(
@@ -660,7 +675,8 @@ class RotationApprovalViewSet(
     @action(detail=True, methods=['post'], url_path='approve')
     def approve(self, request, pk=None):
         """审批通过：落业务字段 + 同事务写两条 AuditLog。"""
-        from apps.campus_rotation.services.approval import ApprovalError, approve as do_approve
+        from apps.campus_rotation.services.approval import ApprovalError
+        from apps.campus_rotation.services.approval import approve as do_approve
 
         instance = self.get_object()
         try:
@@ -679,7 +695,8 @@ class RotationApprovalViewSet(
     @action(detail=True, methods=['post'], url_path='reject')
     def reject(self, request, pk=None):
         """审批驳回：仅记录，不落业务字段。"""
-        from apps.campus_rotation.services.approval import ApprovalError, reject as do_reject
+        from apps.campus_rotation.services.approval import ApprovalError
+        from apps.campus_rotation.services.approval import reject as do_reject
 
         instance = self.get_object()
         data = request.data or {}
@@ -701,13 +718,22 @@ class RotationApprovalViewSet(
 
 
 # ---------------------------------------------------------------------------
-# LiveRoom
+# RotationResource（轮岗资源）
 # ---------------------------------------------------------------------------
-class LiveRoomViewSet(
+class RotationResourceViewSet(
     EnvelopeWriteMixin, CampusCRUDMixin, ScopeQuerysetMixin, viewsets.ModelViewSet
 ):
-    queryset = LiveRoom.objects.all()
-    serializer_class = LiveRoomSerializer
+    """轮岗资源 CRUD（2026-10-22 兵哥指令：直播间 + 客服部门整合为一张表）。
+
+    · 一张 `RotationResource` 表承载三种形态：`resource_type` 区分
+      直播间 / 客服部门 / 其他；
+    · 权限码沿用原「直播间 + 客服部门」共用的 `recruit:campus:resource:*`；
+    · 行级隔离 `scope_field='bu'`、`data_perm_entity='campus_resource'` 与旧两表一致
+      （见 core/entity_scope.py 的 ENTITY_SCOPE['campus_resource']）。
+    """
+
+    queryset = RotationResource.objects.all()
+    serializer_class = RotationResourceSerializer
     permission_classes = [V2Permission]
     permission_required = 'recruit:campus:resource:list'
     permission_required_map = {
@@ -716,22 +742,35 @@ class LiveRoomViewSet(
         'partial_update': 'recruit:campus:resource:edit',
         'destroy': 'recruit:campus:resource:delete',
         'restore': 'recruit:campus:resource:edit',
+        # 2026-10-22：轮岗资源导入/导出（Excel）。键是 **action 方法名**（不是 url_path），
+        # 见 apps/core/permissions_v2.py:128-131（V2Permission 显式 action 覆盖表）。
+        'export_resources': 'recruit:campus:resource:list',
+        'template_resources': 'recruit:campus:resource:list',
+        'import_resources': 'recruit:campus:resource:create',
     }
     pagination_class = StandardResultsSetPagination
     # 行级隔离配置（与 core/entity_scope.py 的 ENTITY_SCOPE['campus_resource'] 对应）
     scope_field = 'bu'
     scope_creator_field = 'created_by'
     data_perm_entity = 'campus_resource'
+    audit_entity = 'RotationResource'
 
     def get_queryset(self):
-        qs = LiveRoom.objects.filter(deleted_at__isnull=True)
+        qs = RotationResource.objects.filter(deleted_at__isnull=True)
         params = self.request.query_params
         department = params.get('department')
         if department:
-            qs = qs.filter(department_id=department)
+            # 2026-10-22：支持**多选**部门（部门树筛选组件回传逗号分隔的 id 列表）。
+            #   单个 id 仍按原语义过滤（向后兼容，不影响既有调用方）。
+            dept_ids = [d.strip() for d in str(department).split(',') if d.strip()]
+            if dept_ids:
+                qs = qs.filter(department_id__in=dept_ids)
         bu = params.get('bu')
         if bu:
             qs = qs.filter(bu_id=bu)
+        resource_type = params.get('resource_type')
+        if resource_type:
+            qs = qs.filter(resource_type=resource_type)
         platform = params.get('platform')
         if platform:
             qs = qs.filter(platform=platform)
@@ -746,83 +785,114 @@ class LiveRoomViewSet(
 
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
-        """恢复已软删的直播间。
+        """恢复已软删的轮岗资源。
 
         🔴 S5-03：取对象必须重新套行级隔离（否则凭 id 复活他人部门资源）。
         """
-        qs = self.scope_queryset(self.queryset.model.objects.filter(pk=pk))
+        qs = self.scope_queryset(self.queryset.model.all_objects.filter(pk=pk))
         instance = qs.first()
         if instance is None:
-            return Response({'success': False, 'message': '直播间不存在'}, status=404)
+            return Response({'success': False, 'message': '轮岗资源不存在'}, status=404)
         instance.restore()
         from apps.common.audit_helper import log_action
-        log_action(self.request, 'restore', 'LiveRoom', instance.pk)
+        log_action(self.request, 'restore', 'RotationResource', instance.pk)
         return Response({'success': True, 'id': str(instance.id)})
 
+    # ------------------------------------------------------------------
+    # 导入 / 导出（2026-10-22 兵哥指令：轮岗资源导入导出，Excel 格式）
+    # ------------------------------------------------------------------
+    @action(detail=False, methods=['get'], url_path='export')
+    def export_resources(self, request):
+        """导出轮岗资源（xlsx）。
 
-# ---------------------------------------------------------------------------
-# ServiceDept
-# ---------------------------------------------------------------------------
-class ServiceDeptViewSet(
-    EnvelopeWriteMixin, CampusCRUDMixin, ScopeQuerysetMixin, viewsets.ModelViewSet
-):
-    """客服部门（轮岗资源）。
+        GET /api/v1/campus-rotation/resources/export/?file_format=xlsx
 
-    与直播间同域（campus_resource）：复用 recruit:campus:resource:* 权限码，
-    行级隔离 scope_field='bu'，data_perm_entity='campus_resource'（与直播间一致）。
-    """
-
-    queryset = ServiceDept.objects.all()
-    serializer_class = ServiceDeptSerializer
-    permission_classes = [V2Permission]
-    permission_required = 'recruit:campus:resource:list'
-    permission_required_map = {
-        'create': 'recruit:campus:resource:create',
-        'update': 'recruit:campus:resource:edit',
-        'partial_update': 'recruit:campus:resource:edit',
-        'destroy': 'recruit:campus:resource:delete',
-        'restore': 'recruit:campus:resource:edit',
-    }
-    pagination_class = StandardResultsSetPagination
-    # 与直播间同域：归属 BU 作行级隔离字段（见 entity_scope.py campus_resource）
-    scope_field = 'bu'
-    scope_creator_field = 'created_by'
-    data_perm_entity = 'campus_resource'
-    audit_entity = 'ServiceDept'
-
-    def get_queryset(self):
-        qs = ServiceDept.objects.filter(deleted_at__isnull=True)
-        params = self.request.query_params
-        department = params.get('department')
-        if department:
-            qs = qs.filter(department_id=department)
-        bu = params.get('bu')
-        if bu:
-            qs = qs.filter(bu_id=bu)
-        is_active = params.get('is_active')
-        if is_active is not None:
-            qs = qs.filter(is_active=(is_active == 'true' or is_active == '1'))
-        search = params.get('search')
-        if search:
-            qs = qs.filter(name__icontains=search)
-        # 行级隔离收口：不分 action，读写同源（见模块 docstring 🔴 说明）
-        return self.scope_queryset(qs)
-
-    @action(detail=True, methods=['post'], url_path='restore')
-    def restore(self, request, pk=None):
-        """恢复已软删的客服部门。
-
-        🔴 S5-03：取对象必须重新套行级隔离（否则凭 id 复活他人部门资源）。
+        · 数据范围 = 当前用户**可见范围**（行级隔离，与列表同源）；
+        · 资源类型 / 平台写**中文名**、地点为自由文本原样输出、状态写 启用/停用、
+          导师写显示名；
+        · 校招人数为**一次性聚合**（不做逐行 count，避免 N+1）。
         """
-        qs = self.scope_queryset(self.queryset.model.objects.filter(pk=pk))
-        instance = qs.first()
-        if instance is None:
-            return Response({'success': False, 'message': '客服部门不存在'}, status=404)
-        instance.restore()
+        qs = self.scope_queryset(RotationResource.objects.filter(deleted_at__isnull=True))
+        rows = io_rotation_resource.build_export_rows(qs)
+        wb = io_rotation_resource.build_export_workbook(rows)
         from apps.common.audit_helper import log_action
-        log_action(self.request, 'restore', 'ServiceDept', instance.pk)
-        return Response({'success': True, 'id': str(instance.id)})
+        log_action(
+            self.request, 'EXPORT', 'RotationResource',
+            new_value=f'导出轮岗资源 {len(rows)} 条（xlsx）',
+        )
+        return build_export_response(wb, 'rotation_resources_export.xlsx')
 
+    @action(detail=False, methods=['get'], url_path='template')
+    def template_resources(self, request):
+        """下载轮岗资源导入模板（xlsx：说明区 + 表头 + 1 行示例）。
+
+        GET /api/v1/campus-rotation/resources/template/?file_format=xlsx
+        """
+        wb, _header_row = io_rotation_resource.build_template_workbook()
+        from apps.common.audit_helper import log_action
+        log_action(self.request, 'EXPORT', 'RotationResource', new_value='下载轮岗资源导入模板（xlsx）')
+        return build_export_response(wb, 'rotation_resources_template.xlsx')
+
+    @action(detail=False, methods=['post'], url_path='import')
+    def import_resources(self, request):
+        """批量导入轮岗资源（xlsx）。
+
+        POST /api/v1/campus-rotation/resources/import/   （multipart，字段名 file）
+
+        · 按「资源编号」upsert：编号留空 = 新建（服务端按资源类型自动补 LR+4 / SD+4 / OT+4）；
+        · 单行失败只跳过该行并记录原因，不中断整批；
+        · 一行都没成功且存在错误行 → 400（data 内仍带 errors 与 errorFile）。
+        """
+        f = request.FILES.get('file')
+        if not f:
+            return Response(
+                {'success': False, 'detail': '缺少 file 文件字段'}, status=400,
+            )
+        try:
+            rows, errors, original_rows, errors_by_line = (
+                io_rotation_resource.parse_import_workbook(f)
+            )
+        except (InvalidFileException, BadZipFile, OSError, ValueError, KeyError) as exc:
+            return Response(
+                {'success': False, 'detail': f'文件解析失败：{exc}'}, status=400,
+            )
+
+        created, updated, upsert_errors, upsert_errors_by_line = (
+            io_rotation_resource.import_resources(
+                rows, self.request.user,
+                scope_qs=lambda qs: self.scope_queryset(qs),
+            )
+        )
+        errors = list(errors) + list(upsert_errors)
+        errors_by_line = {**errors_by_line, **upsert_errors_by_line}
+        error_file = io_rotation_resource.build_error_report_base64(
+            original_rows, errors_by_line,
+        )
+
+        # 未导入的行数 = 校验失败行 + scope 外 / 已删除跳过行（每行恰好一条错误消息）
+        skipped = len(errors_by_line)
+        if not rows and not errors:
+            errors = ['文件中未解析到任何有效轮岗资源行']
+        data = {
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'failed': len(errors),
+            'errors': errors,
+            'error_file': error_file,
+        }
+        from apps.common.audit_helper import log_action
+        log_action(
+            self.request, 'IMPORT', 'RotationResource',
+            new_value=(
+                f'导入轮岗资源：新建 {created} / 更新 {updated} / 跳过 {skipped} / 失败 {len(errors)}'
+            ),
+        )
+        ok = (created + updated) > 0
+        return Response(
+            {'success': ok, 'data': data},
+            status=200 if ok else 400,
+        )
 
 # ---------------------------------------------------------------------------
 # ClassRoom
@@ -853,6 +923,10 @@ class ClassRoomViewSet(
         head_teacher = params.get('head_teacher')
         if head_teacher:
             qs = qs.filter(head_teacher_id=head_teacher)
+        # 2026-10-22：班长筛选（班级管理页新增）
+        class_monitor = params.get('class_monitor')
+        if class_monitor:
+            qs = qs.filter(class_monitor_id=class_monitor)
         batch = params.get('batch')
         if batch:
             qs = qs.filter(batch=batch)
@@ -868,7 +942,7 @@ class ClassRoomViewSet(
 
         🔴 S5-03：取对象必须重新套行级隔离（否则凭 id 复活他人班级）。
         """
-        qs = self.scope_queryset(self.queryset.model.objects.filter(pk=pk))
+        qs = self.scope_queryset(self.queryset.model.all_objects.filter(pk=pk))
         instance = qs.first()
         if instance is None:
             return Response({'success': False, 'message': '班级不存在'}, status=404)
@@ -891,24 +965,97 @@ class ClassRoomViewSet(
         data = PersonSerializer(qs, many=True).data
         return Response({'success': True, 'data': data})
 
+    # 阶段分布三态（2026-10-22）：班级列表「阶段分布」列的下钻口径
+    STAGE_MEMBERS_STAGES = {
+        'PENDING': '待分配',
+        'ONGOING': '轮岗中',
+        'DONE': '已完成',
+    }
+
+    @action(detail=True, methods=['get'], url_path='stage-members')
+    def stage_members(self, request, pk=None):
+        """班级 × 阶段的轮岗安排明细（阶段分布列的下钻）。
+
+        GET /api/v1/campus-rotation/class-rooms/{id}/stage-members/?stage=ONGOING
+
+        · stage 必填，取值 PENDING(待分配) / ONGOING(轮岗中) / DONE(已完成)；
+        · 返回该班级该阶段的轮岗安排（含校招生姓名/工号，解析不到时留空）。
+        """
+        instance = self.get_object()
+        stage = (request.query_params.get('stage') or '').strip().upper()
+        if stage not in self.STAGE_MEMBERS_STAGES:
+            return Response(
+                {'success': False, 'message': 'stage 只能是 PENDING / ONGOING / DONE'},
+                status=400,
+            )
+        qs = RotationArrangement.objects.filter(
+            class_room_id=instance.id, stage=stage, deleted_at__isnull=True,
+        ).select_related('current_dept', 'mentor')
+        arrangements = list(qs)
+
+        # 校招生姓名/工号：优先 campus_person（人员级 nanoid），回退 person_id → Person.user_id
+        # （一次批量解析，N+1 纪律；两套口径的键统一用 str，避免 int/str 混用取不到）
+        from apps.campus_control.models import Person
+        person_map = {}
+        campus_person_ids = [a.campus_person_id for a in arrangements if a.campus_person_id]
+        if campus_person_ids:
+            for p in Person.objects.filter(id__in=campus_person_ids, deleted_at__isnull=True):
+                person_map.setdefault(str(p.id), p)
+        legacy_user_ids = [
+            a.person_id for a in arrangements if a.person_id and not a.campus_person_id
+        ]
+        if legacy_user_ids:
+            for p in Person.objects.filter(user_id__in=legacy_user_ids, deleted_at__isnull=True):
+                person_map.setdefault(str(p.user_id), p)
+
+        items = []
+        for a in arrangements:
+            person = person_map.get(str(a.campus_person_id or a.person_id))
+            items.append({
+                'arrangementId': str(a.id),
+                'personId': str(person.id) if person else '',
+                'personName': person.name if person else '',
+                'employeeId': person.employee_id if person else '',
+                'currentDept': a.current_dept.name if a.current_dept_id else '',
+                'mentor': a.mentor.full_name if a.mentor_id else '',
+                'rotationStart': a.rotation_start.isoformat() if a.rotation_start else '',
+                'rotationEnd': a.rotation_end.isoformat() if a.rotation_end else '',
+            })
+        return Response({
+            'success': True,
+            'data': {
+                'stage': stage,
+                'stageLabel': self.STAGE_MEMBERS_STAGES[stage],
+                'classRoomId': str(instance.id),
+                'classRoomName': instance.name,
+                'total': len(items),
+                'items': items,
+            },
+        })
+
 
 # ---------------------------------------------------------------------------
-# BU 汇总（需求 4-1，S5-14）：直播 / 客服 / 总数据 三段式
+# BU 汇总（需求 4-1，S5-14）：直播 / 客服 / 其他 / 总数据 四段式
 # ---------------------------------------------------------------------------
 class ResourceBuSummaryView(APIView):
-    """轮岗资源按 BU 拆分的三段式汇总。
+    """轮岗资源按 BU 拆分的分段式汇总。
 
     端点：GET /api/v1/campus-rotation/resources/bu-summary/
-    分段：live（直播主播占用）/ service（客服占用）/ total（总数据）。
+    分段：live（直播间占用）/ service（客服部门占用）/ other（其他类型占用）/ total（总数据）。
 
-    性能纪律（MEMORY.md N+1）：占用数用两条 values().annotate(Count()) 分组查询，
+    ⚠️ 2026-10-22 兵哥指令「直播间 + 客服部门整合为轮岗资源」后，本端点从
+    「扫两张表」改为「扫一张表 + 按 resource_type 分段」：
+      - 数据源统一为 `RotationResource`（原来分别是 LiveRoom / ServiceDept）；
+      - 占用口径统一为**资源级**（`RotationArrangement.resource_id` + ONGOING），
+        原来直播间按「归属部门」统计、客服部门按「资源」统计，两套口径混用；
+      - 新增 `other` 段（OTHER 类型资源），避免非直播间/客服部门的资源在汇总里消失。
+
+    性能纪律（MEMORY.md N+1）：占用数用一条 values().annotate(Count()) 分组查询，
     严禁逐 BU / 逐资源循环查询。
 
     口径：
-      - anchorCount：该 BU 下 LiveRoom 的 ONGOING 占用（复用 LiveRoomSerializer.campusCount
-        的 `RotationArrangement.stage='ONGOING' AND current_dept_id=直播间.department_id`）。
-      - csCount：该 BU 下 ServiceDept 的 ONGOING 占用（RotationArrangement.service_dept_id）。
-      - capacity：资源 capacity 合计（空值按 0）。
+      - count：该 BU 下**该类型**资源的 ONGOING 占用合计。
+      - capacity：该 BU 下**该类型**资源的 capacity 合计（空值按 0）。
       - usedRate：count / capacity；capacity 为 0 → null（防除零）。
 
     行级隔离：复用 scope_filter_q(scope_field='bu', entity='campus_resource')，
@@ -920,60 +1067,45 @@ class ResourceBuSummaryView(APIView):
     data_perm_entity = 'campus_resource'
     scope_field = 'bu'
 
+    # 分段定义：(资源类型, 段键, 段内计数字段名)
+    SEGMENTS = (
+        ('LIVE_ROOM', 'live', 'anchorCount'),
+        ('SERVICE_DEPT', 'service', 'csCount'),
+        ('OTHER', 'other', 'otherCount'),
+    )
+
     def get(self, request):
         user = request.user
 
         # 1) 可见资源（已套行级隔离）
-        live_rooms = list(
-            LiveRoom.objects.filter(
+        resources = list(
+            RotationResource.objects.filter(
                 scope_filter_q(user, scope_field='bu', entity='campus_resource')
-            ).values('id', 'department_id', 'bu_id', 'capacity')
-        )
-        service_depts = list(
-            ServiceDept.objects.filter(
-                scope_filter_q(user, scope_field='bu', entity='campus_resource')
-            ).values('id', 'bu_id', 'capacity')
+            ).values('id', 'bu_id', 'capacity', 'resource_type')
         )
 
-        live_dept_ids = [lr['department_id'] for lr in live_rooms if lr['department_id']]
-        sd_ids = [sd['id'] for sd in service_depts]
-
-        # 2) ONGOING 占用分组（两条聚合查询，禁 N+1）
-        live_occ = {}
-        if live_dept_ids:
-            live_occ = dict(
-                RotationArrangement.objects.filter(
-                    stage='ONGOING', current_dept_id__in=live_dept_ids
-                ).values_list('current_dept_id').annotate(cnt=Count('id'))
+        # 2) ONGOING 占用分组（一条聚合查询，禁 N+1）
+        occ = dict(
+            RotationArrangement.objects.filter(
+                stage='ONGOING', deleted_at__isnull=True,
             )
-        sd_occ = {}
-        if sd_ids:
-            sd_occ = dict(
-                RotationArrangement.objects.filter(
-                    stage='ONGOING', service_dept_id__in=sd_ids
-                ).values_list('service_dept_id').annotate(cnt=Count('id'))
-            )
+            .exclude(resource_id__isnull=True)
+            .values_list('resource_id')
+            .annotate(cnt=Count('id'))
+        )
 
-        # 3) 按 BU 聚合
+        # 3) 按 BU × 资源类型 聚合
+        #    结构：{bu_id: {type: {'count': n, 'capacity': n}}}
         bu_agg: dict = {}
-        for lr in live_rooms:
-            a = bu_agg.setdefault(
-                lr['bu_id'],
-                {'anchorCount': 0, 'liveCapacity': 0, 'csCount': 0, 'serviceCapacity': 0},
-            )
-            a['liveCapacity'] += lr['capacity'] or 0
-            a['anchorCount'] += live_occ.get(lr['department_id'], 0)
-        for sd in service_depts:
-            a = bu_agg.setdefault(
-                sd['bu_id'],
-                {'anchorCount': 0, 'liveCapacity': 0, 'csCount': 0, 'serviceCapacity': 0},
-            )
-            a['serviceCapacity'] += sd['capacity'] or 0
-            a['csCount'] += sd_occ.get(sd['id'], 0)
+        for r in resources:
+            slot = bu_agg.setdefault(r['bu_id'], {})
+            cell = slot.setdefault(r['resource_type'], {'count': 0, 'capacity': 0})
+            cell['count'] += occ.get(r['id'], 0)
+            cell['capacity'] += r['capacity'] or 0
 
         # 4) BU 名称
         named_bu_ids = [b for b in bu_agg if b]
-        bus = (
+        buses = (
             {d.id: d.name for d in Department.objects.filter(id__in=named_bu_ids)}
             if named_bu_ids else {}
         )
@@ -981,42 +1113,162 @@ class ResourceBuSummaryView(APIView):
         def rate(count: int, capacity: int):
             return (count / capacity) if capacity else None
 
-        def build(bu_id):
-            name = bus.get(bu_id, '') if bu_id else '未分配'
-            return bu_id, name
+        segments: dict = {}
+        for resource_type, seg_key, count_field in self.SEGMENTS:
+            rows = []
+            for bu_id, slot in bu_agg.items():
+                cell = slot.get(resource_type)
+                if not cell:
+                    continue
+                name = buses.get(bu_id, '') if bu_id else '未分配'
+                rows.append({
+                    'buId': bu_id,
+                    'buName': name,
+                    count_field: cell['count'],
+                    'capacity': cell['capacity'],
+                    'usedRate': rate(cell['count'], cell['capacity']),
+                })
+            rows.sort(key=lambda x: (x['buId'] is None, x['buName']))
+            segments[seg_key] = rows
 
-        live, service, bu_list = [], [], []
-        for bu_id, a in bu_agg.items():
-            name = bus.get(bu_id, '') if bu_id else '未分配'
-            bu_list.append({'buId': bu_id, 'buName': name})
-            live.append({
-                'buId': bu_id, 'buName': name,
-                'anchorCount': a['anchorCount'],
-                'capacity': a['liveCapacity'],
-                'usedRate': rate(a['anchorCount'], a['liveCapacity']),
-            })
-            service.append({
-                'buId': bu_id, 'buName': name,
-                'csCount': a['csCount'],
-                'capacity': a['serviceCapacity'],
-                'usedRate': rate(a['csCount'], a['serviceCapacity']),
-            })
-
-        live.sort(key=lambda x: (x['buId'] is None, x['buName']))
-        service.sort(key=lambda x: (x['buId'] is None, x['buName']))
+        # 5) 总数据 + 涉及 BU 清单
+        bu_list = [
+            {'buId': bu_id, 'buName': (buses.get(bu_id, '') if bu_id else '未分配')}
+            for bu_id in bu_agg
+        ]
         bu_list.sort(key=lambda x: (x['buId'] is None, x['buName']))
 
-        live_anchor_total = sum(a['anchorCount'] for a in bu_agg.values())
-        service_total = sum(a['csCount'] for a in bu_agg.values())
+        totals = {}
+        for resource_type, seg_key, count_field in self.SEGMENTS:
+            totals[seg_key] = sum(r[count_field] for r in segments[seg_key])
 
         data = {
-            'live': live,
-            'service': service,
+            'live': segments['live'],
+            'service': segments['service'],
+            'other': segments['other'],
             'total': {
-                'liveAnchorTotal': live_anchor_total,
-                'serviceTotal': service_total,
-                'grandTotal': live_anchor_total + service_total,
+                'liveAnchorTotal': totals['live'],
+                'serviceTotal': totals['service'],
+                'otherTotal': totals['other'],
+                'grandTotal': totals['live'] + totals['service'] + totals['other'],
                 'buList': bu_list,
             },
         }
+        return Response({'success': True, 'data': data})
+
+
+# ---------------------------------------------------------------------------
+# 统计概览（需求 4-x）：BG × 当前BU 的多维测算表
+# ---------------------------------------------------------------------------
+def _dept_org_names(dept):
+    """把一个部门解析成 (BG 名, BU 名)。
+
+    口径（与 `apps.core.dept_depth` 一致，0 基层级）：
+    - BU  = 部门自身或其深度 2 祖先（`bu_ancestor`）
+    - BG  = 部门自身或其深度 1 祖先（事业群层）
+
+    ⚠️ 返回的 BG/BU 名来自**部门树**命名空间，而统计概览的行粒度取自
+    **校招生档案**（`Person.bu` / `Person.intent_bu`）命名空间 —— 两者是
+    两套名字（部门树是「能良 / 醒市」，档案是「能电BG / 三到BG」），
+    按名字 join 不上。故需求侧按「BU 名 → BG 名 → 未分配」三级兜底归集，
+    归不上的落到「未分配」行并在响应里回报数量，**不静默丢弃**。
+    """
+    if dept is None:
+        return '', ''
+    bu = bu_ancestor(dept)
+    bg = bg_ancestor(dept)
+    return (bg.name if bg else ''), (bu.name if bu else dept.name)
+
+
+class ResourceStatsOverviewView(APIView):
+    """轮岗资源 · 统计概览（BG × 当前BU 多维测算表）。
+
+    端点：GET /api/v1/campus-rotation/resources/stats-overview/
+
+    返回：{'rows': [...], 'totals': {...}, 'unassignedDemand': int}
+    逐列口径见 `apps.campus_rotation.services.stats_overview` 模块头。
+
+    行级隔离：三个数据源各按自己的实体口径过滤（人员 campus_person /
+    轮岗安排 campus_arrangement / 需求 demand），任一未配置规则 → fail-open。
+    """
+
+    permission_classes = [V2Permission]
+    permission_required = 'recruit:campus:resource:list'
+    data_perm_entity = 'campus_resource'
+    scope_field = 'bu'
+
+    def get(self, request):
+        user = request.user
+
+        # ── 1) 校招生档案（行粒度与人员类指标）──
+        person_q = scope_filter_q(user, scope_field='head_teacher__department', entity='campus_person')
+        persons_qs = Person.objects.all()
+        if person_q is not None:
+            persons_qs = persons_qs.filter(person_q)
+        persons = [
+            {
+                'bg': p['bu'] or '',
+                'bu': p['intent_bu'] or '',
+                'sex': p['sex'] or '',
+                'status': p['status'] or '',
+                'onboarded': p['actual_entry_date'] is not None,
+            }
+            for p in persons_qs.values(
+                'bu', 'intent_bu', 'sex', 'status', 'actual_entry_date'
+            )
+        ]
+
+        # ── 2) 轮岗安排（已定岗 / 定岗流失 / 资源类型分布）──
+        #    person_id 是 Person.user_id 口径（Person 主键是 nanoid），
+        #    故按 user_id 批量取一次状态，避免逐条查（N+1）。
+        uid_status = {
+            p['user_id']: p['status']
+            for p in Person.objects.filter(user_id__isnull=False).values('user_id', 'status')
+        }
+
+        arr_q = scope_filter_q(user, scope_field='current_dept', entity='campus_arrangement')
+        arrangements_qs = RotationArrangement.objects.filter(deleted_at__isnull=True)
+        if arr_q is not None:
+            arrangements_qs = arrangements_qs.filter(arr_q)
+        arrangement_rows = []
+        for a in arrangements_qs.select_related('resource', 'campus_person').values(
+            'intent_bu', 'final_dept', 'person_id',
+            'resource__resource_type',
+            'campus_person__status', 'campus_person__bu', 'campus_person__intent_bu',
+        ):
+            linked_status = a['campus_person__status'] or uid_status.get(a['person_id']) or ''
+            # 组织维度跟人走（与行粒度同源）；人取不到时退回安排自身的意向 BU
+            arrangement_rows.append({
+                'bg': a['campus_person__bu'] or '',
+                'bu': a['campus_person__intent_bu'] or a['intent_bu'] or '',
+                'resource_type': a['resource__resource_type'] or '',
+                'person_status': linked_status,
+                'fixed': bool(a['final_dept']),
+            })
+
+        # ── 3) 校招需求（业务需求）──
+        demand_q = scope_filter_q(user, scope_field='department', entity='demand')
+        demands_qs = Demand.objects.filter(recruit_type='campus')
+        if demand_q is not None:
+            demands_qs = demands_qs.filter(demand_q)
+        demand_rows = []
+        dept_cache: dict = {}
+        for d in demands_qs.values('department_id', 'headcount'):
+            if d['department_id'] not in dept_cache:
+                dept_cache[d['department_id']] = (
+                    Department.objects.filter(id=d['department_id']).first()
+                    if d['department_id'] else None
+                )
+            bg_name, bu_name = _dept_org_names(dept_cache[d['department_id']])
+            demand_rows.append({
+                'bg': bg_name,
+                'bu': bu_name,
+                'headcount': d['headcount'] or 0,
+            })
+
+        data = stats_overview.build_stats_overview(
+            persons=persons,
+            arrangements=arrangement_rows,
+            demands=demand_rows,
+        )
         return Response({'success': True, 'data': data})

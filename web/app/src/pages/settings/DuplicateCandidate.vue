@@ -175,18 +175,18 @@
     </div>
 
     <!-- ============ 新建 / 编辑 查重规则 抽屉 ============ -->
-    <n-drawer
+    <!-- 2026-10-21 (整改卡 E2 · AGENTS.md R-224): 抽屉回改居中弹窗。
+         底部操作区用 modal 的 #footer 插槽承载; 内容区固定高度 + 仅内容区滚动;
+         mask-closable=false (表单未保存时不因误点遮罩丢失)。 -->
+    <n-modal
       v-model:show="drawerShow"
-      :width="560"
-      placement="right"
-      :mask-closable="true"
-      :auto-focus="false"
+      preset="card"
+      :title="editingRule ? t('pages.settings.DuplicateCandidate.s76') : t('pages.settings.DuplicateCandidate.s77')"
+      :style="{ width: '560px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+      :mask-closable="false"
+      :bordered="false"
     >
-      <n-drawer-content
-        :title="editingRule ? t('pages.settings.DuplicateCandidate.s76') : t('pages.settings.DuplicateCandidate.s77')"
-        :native-scrollbar="false"
-        closable
-      >
         <div class="dc-drawer-body">
           <div class="dc-field">
             <label class="dc-field-label">{{ t('pages.settings.DuplicateCandidate.s84') }} <span class="dc-req">*</span></label>
@@ -275,8 +275,7 @@
             <n-button type="primary" :loading="savingRule" @click="saveRule">{{ t('pages.settings.DuplicateCandidate.s35') }}</n-button>
           </div>
         </template>
-      </n-drawer-content>
-    </n-drawer>
+    </n-modal>
   </div>
 </template>
 
@@ -285,7 +284,7 @@ import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, h, onMounted, type VNode } from 'vue'
 import {
   NButton, NIcon, NSpin, NSwitch, NSelect, NInput, NInputNumber,
-  NRadio, NRadioGroup, NCheckbox, NTag, NDrawer, NDrawerContent,
+  NRadio, NRadioGroup, NCheckbox, NTag,
   NTooltip, NDataTable, NSpace, useMessage, useDialog,
   type DataTableColumns,
 } from 'naive-ui'

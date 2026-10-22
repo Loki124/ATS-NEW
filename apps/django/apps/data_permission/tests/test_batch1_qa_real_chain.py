@@ -18,9 +18,8 @@ test_scope_v2_union.py 6 例 + test_role_scope_unset.py 15 例），而是补上
 import json
 
 import pytest
-from django.test import Client
-
 from django.contrib.auth import get_user_model
+from django.test import Client
 
 from apps.core.models import Department
 from apps.core.models_permission_v2 import (
@@ -36,7 +35,11 @@ from apps.data_permission.models import DataPermissionRule
 CUSTOM_SCOPE_FIELD = 'referrer__department'
 CUSTOM_CREATOR_FIELD = 'created_by'
 
-MODULE_KEYS = ['demand', 'process', 'position', 'candidate', 'talent']
+# 模块清单取后端唯一真源（field_map.MODULE_ORDER）——2026-10-21 S5-35 新增
+# 「校招生管理」卡后，本地硬编码列表会漏项，导致「全部模块置 unset」类用例漏覆盖。
+from apps.data_permission.field_map import MODULE_ORDER
+
+MODULE_KEYS = list(MODULE_ORDER)
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +80,7 @@ def _http_post(client, role, modules):
     )
     try:
         body = resp.json()
-    except Exception:  # pragma: no cover - 非 JSON 响应兜底
+    except ValueError:  # pragma: no cover - resp.json() 非 JSON 时抛 JSONDecodeError(ValueError 子类)
         body = {'_raw': resp.content[:300].decode('utf-8', 'replace')}
     return resp.status_code, body
 

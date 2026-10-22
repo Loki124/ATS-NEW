@@ -1,6 +1,6 @@
 <template>
   <div class="page-container rl-rules-page">
-    <div class="page-body">
+    <div class="data-body">
       <!-- toolbar -->
       <div class="toolbar glass-card">
         <n-space align="center" :wrap="false" :wrap-item="false">
@@ -529,5 +529,19 @@ onMounted(() => {
   font-size: var(--fs-12);
   font-weight: 400;
   margin-left: 2px;
+}
+
+/* 2026-10-21 (整改卡 E6 · R-215): 滚动容器由 .page-body 迁到 .data-body ——
+   数据列表页用区域滚动：外层不滚（overflow:hidden），真实滚动只在 .table-wrap 内的
+   表格体（flex-height），标题/工具条/分页器固定。原依赖 SettingsLayout 对
+   .page-body 的 overflow-y:auto 强制滚动，与表格体自滚形成双滚动条。 */
+.data-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 </style>

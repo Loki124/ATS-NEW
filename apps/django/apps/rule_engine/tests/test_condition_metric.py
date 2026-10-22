@@ -7,8 +7,9 @@
 4. FIELD 存量条件行为不变（双读兼容：默认 value_type=FIELD + metric_template NULL）。
 5. FIELD + METRIC 混合规则 expression 组合正确。
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from apps.rule_engine.models import (
     Condition,

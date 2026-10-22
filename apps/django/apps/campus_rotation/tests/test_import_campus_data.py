@@ -13,8 +13,8 @@ from django.core.management import call_command
 
 from apps.campus_rotation.models import (
     ClassRoom,
-    LiveRoom,
     RotationArrangement,
+    RotationResource,
 )
 
 
@@ -25,7 +25,7 @@ def test_dry_run_empty_exits_zero_and_writes_nothing():
     call_command('import_campus_data', dry_run=True, stdout=out)
 
     assert 'DRY-RUN 完成' in out.getvalue()
-    assert LiveRoom.objects.count() == 0
+    assert RotationResource.objects.count() == 0
     assert ClassRoom.objects.count() == 0
     assert RotationArrangement.objects.count() == 0
 
@@ -34,8 +34,9 @@ def test_dry_run_empty_exits_zero_and_writes_nothing():
 def test_dry_run_reports_unmatched_and_writes_nothing(tmp_path):
     """含未匹配引用的 dry-run：报告 unmatched_depts / unmatched_users，且不落库。"""
     payload = {
-        'live_rooms': [
-            {'room_no': 'LR000001', 'name': 'x', 'department': '不存在的部门XYZ',
+        'resources': [
+            {'resource_no': 'LR000001', 'name': 'x', 'resource_type': '直播间',
+             'department': '不存在的部门XYZ',
              'bu': '不存在的BU', 'mentor': {'employee_id': 'ghost_1'}},
         ],
         'class_rooms': [
@@ -59,17 +60,18 @@ def test_dry_run_reports_unmatched_and_writes_nothing(tmp_path):
     assert '不存在的部门XYZ' in report
     assert 'ghost_1' in report
     # 不落库
-    assert LiveRoom.objects.count() == 0
+    assert RotationResource.objects.count() == 0
     assert ClassRoom.objects.count() == 0
     assert RotationArrangement.objects.count() == 0
 
 
 @pytest.mark.django_db
 def test_apply_is_idempotent_by_business_key(tmp_path):
-    """apply 幂等：同一 room_no 重复执行只产生一行（update_or_create）。"""
+    """apply 幂等：同一 resource_no 重复执行只产生一行（update_or_create）。"""
     payload = {
-        'live_rooms': [
-            {'room_no': 'LR000010', 'name': '幂等测试间', 'platform': 'TENCENT_MEETING'},
+        'resources': [
+            {'resource_no': 'LR000010', 'name': '幂等测试间',
+             'resource_type': '直播间', 'platform': 'TENCENT_MEETING'},
         ],
         'class_rooms': [],
         'rotation_arrangements': [],
@@ -83,11 +85,11 @@ def test_apply_is_idempotent_by_business_key(tmp_path):
         return out.getvalue()
 
     apply_once()
-    assert LiveRoom.objects.filter(room_no='LR000010').count() == 1
+    assert RotationResource.objects.filter(resource_no='LR000010').count() == 1
 
     # 第二次执行：默认值不变，应走 update 而非 create（apply 模式报告 created=0）
     report2 = apply_once()
     assert 'created=0' in report2
-    assert LiveRoom.objects.filter(room_no='LR000010').count() == 1
+    assert RotationResource.objects.filter(resource_no='LR000010').count() == 1
     # 再次确认更新链路未新增行
-    assert LiveRoom.objects.count() == 1
+    assert RotationResource.objects.count() == 1

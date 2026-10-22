@@ -205,8 +205,9 @@ class TestSeedResourceConvention:
         # 反向：清单自身不得重复（dict 天然去重，此处防未来改成 list/重复键语义漂移）
         # 2026-10-21（0047）：待入职并入候选人详情页「录用信息」页签，+3 条 onboarding 操作
         # 2026-10-21（0048）：申请=候选人每次应聘记录，+2 条 application 操作（应聘记录）
-        assert len(mod.RESOURCE_SUB_MODULES) == 15, \
-            f'RESOURCE_SUB_MODULES 应恰为 15 条（候选人管理 6 基础 + 4 offer + 3 录用信息 + 2 应聘记录），' \
+        # 2026-10-21（卡 A2）：补派生写码 → onboarding +1（delete）/ application +3（create/edit/delete）
+        assert len(mod.RESOURCE_SUB_MODULES) == 19, \
+            f'RESOURCE_SUB_MODULES 应恰为 19 条（候选人管理 6 基础 + 4 offer + 4 录用信息 + 5 应聘记录），' \
             f'实际 {len(mod.RESOURCE_SUB_MODULES)} 条'
 
     def test_r10_seed_has_no_disabled_names(self):
@@ -462,7 +463,9 @@ class TestDisabledResourceAuthorization:
 
     def _grant(self, user, code, status, role_code='TEST_ROLE_X'):
         from apps.core.models_permission_v2 import (
-            PermissionResource, RolePermissionV2, UserRoleV2,
+            PermissionResource,
+            RolePermissionV2,
+            UserRoleV2,
         )
         PermissionResource.objects.create(
             system_code='recruit', resource_code=code,
@@ -478,7 +481,8 @@ class TestDisabledResourceAuthorization:
 
     def test_disabled_resource_rejected_even_with_grant(self):
         from apps.core.permission_check import (
-            has_perm, invalidate_disabled_codes,
+            has_perm,
+            invalidate_disabled_codes,
         )
         user = self._make_user()
         self._grant(user, 'recruit:settings:perm_disable_test:disabled', status=0)
@@ -489,7 +493,8 @@ class TestDisabledResourceAuthorization:
 
     def test_enabled_resource_granted_ok(self):
         from apps.core.permission_check import (
-            has_perm, invalidate_disabled_codes,
+            has_perm,
+            invalidate_disabled_codes,
         )
         user = self._make_user()
         self._grant(user, 'recruit:settings:perm_disable_test:enabled', status=1)
@@ -501,7 +506,8 @@ class TestDisabledResourceAuthorization:
     def test_unknown_code_not_blocked_by_disabled_check(self):
         """未注册码（如 action 派生回退码）不受禁用检查拦截，交由既有逻辑判定。"""
         from apps.core.permission_check import (
-            has_perm, invalidate_disabled_codes,
+            has_perm,
+            invalidate_disabled_codes,
         )
         user = self._make_user()
         invalidate_disabled_codes()

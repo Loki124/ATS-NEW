@@ -177,7 +177,11 @@ def _backwards(apps, schema_editor):
 
     # 只回滚自动生成的记录，手工种子（auto_generated=False）原样保留
     auto_metrics = AtomicMetric.objects.filter(auto_generated=True)
-    paths = list(auto_metrics.values_list('source_path', flat=True))
+    # noqa 说明: paths 是回滚前 source_path 的快照（历史留痕）。迁移已应用,
+    # 保留不删; ruff F841 卡 A6。注意 list() 会真实求值一次 queryset,
+    # 但紧接着 auto_metrics.delete() 会再查一次 —— 删掉 paths 只省一次查询,
+    # 不改数据结果, 收益小于「改动已应用迁移」的风险。
+    paths = list(auto_metrics.values_list('source_path', flat=True))  # noqa: F841
     n_tpl = MetricTemplate.objects.filter(atomic_metric__auto_generated=True).delete()[0]
     n_metric = auto_metrics.delete()[0]
     print(f'  回滚自动生成指标: 模板 {n_tpl} 条 / 指标 {n_metric} 条')

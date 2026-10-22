@@ -41,6 +41,9 @@ logger = logging.getLogger(__name__)
 
 CSV_REQUIRED_COLUMNS = ['name']  # en_name / tip / type / enabled 可选
 CSV_ALLOWED_TYPES = {'custom'}    # system 不可 CSV 灌入
+#: ReasonTag.name 的列宽（apps/reason_library/models.py:93 max_length=32）——
+#: 导入时据此校验，避免超长值直落 MySQL 触发 1406 DataError → 整个导入 500。
+TAG_NAME_MAX_LEN = ReasonTag._meta.get_field('name').max_length
 
 # 导入模板 MIME / 文件名的格式白名单 (默认 xlsx)
 TEMPLATE_FORMAT_XLSX = 'xlsx'
@@ -219,6 +222,14 @@ class ReasonTagViewSet(viewsets.ModelViewSet):
             name = (row.get('name') or '').strip()
             if not name:
                 errors.append({'row': row_no, 'error': 'name 为空'})
+                continue
+            # 2026-10-21 卡 B5：name 长度必须先校验。ReasonTag.name 是 max_length=32，
+            # 而 en_name/tip 早就做了截断，唯独 name 漏了 → 超长 name 直落 MySQL 触发
+            # 1406 DataError → 整个导入 500（QA 探针 test_qa_name_exceeding_max_length
+            # 早就记录了这个 500）。按「逐行报错」既有口径处理：超长行记错误并跳过，
+            # 全部行失败时统一 400（见下方 errors and created == 0 分支）。
+            if len(name) > TAG_NAME_MAX_LEN:
+                errors.append({'row': row_no, 'name': name, 'error': f'name 超长 ({TAG_NAME_MAX_LEN})'})
                 continue
             t = (row.get('type') or 'custom').strip().lower()
             if t not in CSV_ALLOWED_TYPES:

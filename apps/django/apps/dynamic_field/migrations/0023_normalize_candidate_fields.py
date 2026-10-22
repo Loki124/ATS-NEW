@@ -238,17 +238,29 @@ def _backwards(apps, schema_editor):
 
     改名还原必须以「旧 key 当前未被任何行占用」为前提：正向改名对被占用而跳过的
     字段是 no-op，若无条件改回会与占位行撞 (resource, field_key) 唯一约束。
+
+    2026-10-21 卡 B5：占用判定改到 **Python 侧**做。
+    原来用 ``filter(field_key=old_key).exists()`` 在 DB 侧判定 —— 测试库是 MySQL，
+    ``utf8mb4_unicode_ci`` 排序规则**大小写不敏感** → 查 'Name' 会命中改名后的
+    'name' 行 → 判定为「旧 key 被占用」→ **改名还原被整段跳过**（反向迁移在 MySQL 上
+    实际失效）。SQLite 时代大小写敏感，才没暴露。
     """
     FieldModule = apps.get_model('dynamic_field', 'FieldModule')
     DynamicField = apps.get_model('dynamic_field', 'DynamicField')
 
     # 1. 先还原 key（此时软删行仍占位，能正确识别出「正向跳过改名」的字段）
+    #    占用集合在 Python 侧构建 —— 与正向迁移的 `taken` 口径一致（大小写敏感）。
+    taken = set(
+        DynamicField.objects.filter(resource='Candidate').values_list('field_key', flat=True)
+    )
     for old_key, new_key in KEY_MAP.items():
-        if DynamicField.objects.filter(resource='Candidate', field_key=old_key).exists():
+        if old_key in taken:
             continue
         DynamicField.objects.filter(
             resource='Candidate', field_key=new_key, deleted_at__isnull=True,
         ).update(field_key=old_key)
+        taken.discard(new_key)
+        taken.add(old_key)
 
     # 2. 清空补全的 field_type
     for old_key in TYPE_MAP:
@@ -260,7 +272,10 @@ def _backwards(apps, schema_editor):
     DynamicField.objects.filter(resource='Candidate').update(module=None)
 
     # 4. 恢复软删（须在改名之后：先让位再复活，否则活过来的行会挡住改名）
-    DynamicField.objects.filter(
+    #    2026-10-21 卡 D3: 必须用 _base_manager —— Django 的 ModelState 会把默认
+    #    manager 的**类**复制成 shim 给历史模型, 故迁移里的 `objects` 也成了
+    #    SoftDeleteManager（过滤软删行）→ 用 objects 永远匹配不到要复活的软删行。
+    DynamicField._base_manager.filter(
         resource='Candidate', field_key__in=DEPRECATE_KEYS,
     ).update(deleted_at=None)
 

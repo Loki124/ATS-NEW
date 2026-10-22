@@ -1,5 +1,6 @@
 
 """Analytics Views (DRF) - PRD v4 §14.9"""
+from django.core.exceptions import FieldError
 from django.db import DatabaseError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
@@ -10,7 +11,7 @@ from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.viewsets import EnvelopeAuditModelViewSet
-from apps.core.permissions import IsHROrAbove
+from apps.core.entity_scope import scoped_queryset
 from apps.core.permissions_v2 import V2Permission
 
 from .models import ExportTask, ReportSnapshot
@@ -81,7 +82,16 @@ class ExportTaskViewSet(EnvelopeAuditModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='dashboard-summary')
     def dashboard_summary(self, request):
-        """HR 个人看板汇总数据（简版）"""
+        """HR 个人看板汇总数据（简版）
+
+        2026-10-21 卡 D1: 计数接**行级 scope**。
+        此前是 `Model.objects.filter(deleted_at__isnull=True).count()` 全表计数 ——
+        任何持 `recruit:settings:data_dashboard:list` 的账号都能读到全组织总数,
+        与「HR **个人**看板」的语义矛盾, 也与列表接口口径不一致
+        (列表被 scope 裁剪, 看板不被裁剪 → 同一页面两套数字)。
+        现统一走 `apps.core.entity_scope.scoped_queryset` (ENTITY_SCOPE 单一真相源),
+        与各实体 ViewSet 的列表口径逐字段对齐。
+        """
         from django.db.models import Count
 
         from apps.application.models import Application
@@ -89,16 +99,24 @@ class ExportTaskViewSet(EnvelopeAuditModelViewSet):
         from apps.demand.models import Demand
         from apps.position.models import Position
 
+        candidates = scoped_queryset(
+            request, Candidate.objects.filter(deleted_at__isnull=True), 'candidate')
+        applications = scoped_queryset(
+            request, Application.objects.filter(deleted_at__isnull=True), 'application')
+        demands = scoped_queryset(
+            request, Demand.objects.filter(deleted_at__isnull=True), 'demand')
+        positions = scoped_queryset(
+            request, Position.objects.filter(deleted_at__isnull=True), 'position')
+
         return Response({
             'success': True,
             'data': {
-                'candidates_total': Candidate.objects.filter(deleted_at__isnull=True).count(),
-                'applications_total': Application.objects.filter(deleted_at__isnull=True).count(),
-                'demands_total': Demand.objects.filter(deleted_at__isnull=True).count(),
-                'positions_open': Position.objects.filter(deleted_at__isnull=True, state='RECRUITING').count(),
+                'candidates_total': candidates.count(),
+                'applications_total': applications.count(),
+                'demands_total': demands.count(),
+                'positions_open': positions.filter(state='RECRUITING').count(),
                 'applications_by_state': dict(
-                    Application.objects.filter(deleted_at__isnull=True)
-                    .values_list('state').annotate(count=Count('id'))
+                    applications.values_list('state').annotate(count=Count('id'))
                 ),
             }
         })
@@ -115,6 +133,10 @@ class KpiViewSet(viewsets.ViewSet):
 
     字段定义来自 web/app/src/api/data.ts:DashboardKpi interface.
     全部包 try/except (含 queryset 构造): 任何 model 字段名漂移都不会 500, 顶多返 0.
+
+    2026-10-21 卡 D1: 六个计数全部接**行级 scope** (此前是全表 count() ——
+    任何持 `recruit:settings:data_dashboard:list` 的账号都能读到全组织总数,
+    与「HR 个人看板」语义矛盾, 且与列表接口两套数字)。
     """
     permission_classes = [V2Permission]
 
@@ -125,38 +147,62 @@ class KpiViewSet(viewsets.ViewSet):
             """builder: 无参 callable, 返回 QuerySet; 在 callable 内做 .filter() 让异常落入 try."""
             try:
                 return builder().count()
-            except DatabaseError:  # 分析 builder count() 失败返 0 (前端不影响展示, 后续表无数据兜底)
+            except (DatabaseError, FieldError):  # 分析 builder count() 失败返 0 (前端不影响展示, 后续表无数据兜底)
                 return 0
 
         # 延迟 import: 任一 model 字段漂移都不会 500 (因为在 builder 内)
+        # scope 口径: apps.core.entity_scope.scoped_queryset (ENTITY_SCOPE 单一真相源),
+        # 与 candidate/application/demand/position/interview/offer/onboarding 各 ViewSet
+        # 列表接口逐字段对齐。entity 未登记 → KeyError (显式报错, 不静默放行全表)。
         def _candidate_total():
             from apps.candidate.models import Candidate
-            return Candidate.objects.filter(deleted_at__isnull=True)
+            return scoped_queryset(
+                request, Candidate.objects.filter(deleted_at__isnull=True), 'candidate')
 
         def _active_demands():
             from apps.demand.models import Demand
             # Demand.state 枚举 (apps/demand/models.py:13): DRAFT/PENDING/REJECTED/APPROVED/RECRUITING/PAUSED/COMPLETED/CANCELLED
-            return Demand.objects.filter(deleted_at__isnull=True, state__in=('RECRUITING', 'APPROVED'))
+            return scoped_queryset(
+                request,
+                Demand.objects.filter(deleted_at__isnull=True, state__in=('RECRUITING', 'APPROVED')),
+                'demand',
+            )
 
         def _open_positions():
             from apps.position.models import Position
             # Position.state: DRAFT/PENDING_PUBLISH/PUBLISHED/RECRUITING/PAUSED/UNPUBLISHED/CLOSED
-            return Position.objects.filter(deleted_at__isnull=True, state__in=('RECRUITING', 'PUBLISHED'))
+            return scoped_queryset(
+                request,
+                Position.objects.filter(deleted_at__isnull=True, state__in=('RECRUITING', 'PUBLISHED')),
+                'position',
+            )
 
         def _ongoing_interviews():
             from apps.interview.models import Interview
             # Interview.status: SCHEDULED/IN_PROGRESS/COMPLETED/CANCELLED/NO_SHOW
-            return Interview.objects.filter(deleted_at__isnull=True, status__in=('SCHEDULED', 'IN_PROGRESS'))
+            return scoped_queryset(
+                request,
+                Interview.objects.filter(deleted_at__isnull=True, status__in=('SCHEDULED', 'IN_PROGRESS')),
+                'interview',
+            )
 
         def _sent_offers():
             from apps.offer.models import Offer
             # Offer.state: DRAFT/PENDING_APPROVAL/REJECTED/PENDING_SEND/SENT/NEGOTIATING/ACCEPTED/REJECTED_BY_CANDIDATE/WITHDRAWN/PENDING_ONBOARDING
-            return Offer.objects.filter(deleted_at__isnull=True, state__in=('SENT', 'NEGOTIATING', 'ACCEPTED', 'PENDING_ONBOARDING'))
+            return scoped_queryset(
+                request,
+                Offer.objects.filter(deleted_at__isnull=True, state__in=('SENT', 'NEGOTIATING', 'ACCEPTED', 'PENDING_ONBOARDING')),
+                'offer',
+            )
 
         def _pending_onboardings():
             from apps.onboarding.models import Onboarding
             # Onboarding.state: PENDING/PREPARING/DELAYED/COMPLETED/PROBATION/REGULARIZED/RESIGNED_DURING_PROBATION
-            return Onboarding.objects.filter(deleted_at__isnull=True, state__in=('PENDING', 'PREPARING', 'DELAYED'))
+            return scoped_queryset(
+                request,
+                Onboarding.objects.filter(deleted_at__isnull=True, state__in=('PENDING', 'PREPARING', 'DELAYED')),
+                'onboarding',
+            )
 
         return Response({
             'success': True,

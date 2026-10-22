@@ -23,11 +23,21 @@ from django.db import IntegrityError, connection
 
 
 def _column_names(table):
-    """取表的物理列名集合（测试库统一 MySQL，走 information_schema）。"""
+    """取表的物理列名集合（测试库统一 MySQL，走 information_schema）。
+
+    2026-10-21 卡 B5：**必须按 schema 过滤**。
+    本机 MySQL 上同时存在 ats / ats_dev / ats_test / ats_pro / ats_0030_probe /
+    test_ats_ft / test_ats_t03_ci / test_ats_test 多个 database，而
+    information_schema 是**实例级**视图 —— 不带 table_schema 过滤时会把
+    其它库的同名表列一并捞进来。其中 ``ats_0030_probe.roles`` 仍是 V1 结构
+    （code / name / is_active / is_builtin 四列），于是本用例在**全新测试库**上
+    也会误报「V1 列仍在 roles 表里」（实测 fresh DB 仍失败）。
+    故按当前连接的 database 精确限定。
+    """
     with connection.cursor() as c:
         c.execute(
             "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name=%s",
+            "WHERE table_schema = DATABASE() AND table_name = %s",
             [table],
         )
         return {r[0] for r in c.fetchall()}
@@ -35,7 +45,10 @@ def _column_names(table):
 
 def _table_names():
     with connection.cursor() as c:
-        c.execute("SELECT table_name FROM information_schema.tables")
+        c.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = DATABASE()"
+        )
         return {r[0] for r in c.fetchall()}
 
 
@@ -132,8 +145,9 @@ def test_role_v2_create_with_v2_columns_succeeds():
 @pytest.mark.v2_permission
 def test_user_role_v2_create_with_v2_columns_succeeds():
     """RT-2 (续): UserRoleV2 真入库 + granted_by_id 等 V2 字段全 OK."""
-    from apps.core.models_permission_v2 import RoleV2, UserRoleV2
     from django.contrib.auth import get_user_model
+
+    from apps.core.models_permission_v2 import RoleV2, UserRoleV2
 
     # RK-3: user_id 已改为真 FK，必须指向真实存在的用户（否则 IntegrityError）。
     User = get_user_model()

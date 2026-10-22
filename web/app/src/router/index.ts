@@ -161,7 +161,6 @@ const routes: RouteRecordRaw[] = [
           { path: 'company/meeting-rooms', name: 'CompanyMeetingRooms', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '公司会议室', description: '配置会议室资源、容量及面试可用时段' } },
           { path: 'company/resume-mailbox', name: 'CompanyResumeMailbox', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '接收简历邮箱', description: '设置各业务线简历投递邮箱及自动分派规则' } },
           { path: 'company/brand', name: 'CompanyBrand', component: () => import(/* webpackChunkName: "settings-brand" */ '../pages/settings/CompanyBrand.vue'), meta: { title: '品牌信息管理', description: '维护雇主品牌文案、Logo 及招聘门户展示信息' } },
-          { path: 'user-groups', name: 'UserGroups', component: () => import(/* webpackChunkName: "settings-placeholder" */ '../pages/settings/Placeholder.vue'), meta: { title: '用户组管理', description: '按岗位、项目或权限维度划分用户组' } },
           { path: 'external', name: 'ExternalSettings', component: () => import(/* webpackChunkName: "settings-external" */ '../pages/settings/ExternalSettings.vue') },
           { path: 'field-acl', name: 'FieldAclSettings', component: () => import(/* webpackChunkName: "settings-field-acl" */ '../pages/settings/FieldAclSettings.vue'), meta: { roles: [...ROLE_GROUPS.SUPER_ADMIN_ONLY] } },
           // ===== V2 权限管理 (2026-09-18 拆分: 身份管理主页面 + 资源管理独立页) =====
@@ -221,20 +220,17 @@ const routes: RouteRecordRaw[] = [
         component: () => import(/* webpackChunkName: "campus-rotation-arrangement" */ '../pages/campus/RotationArrangement.vue')
       },
       {
-        path: 'campus/live-room',
-        name: 'CampusLiveRoom',
-        component: () => import(/* webpackChunkName: "campus-live-room" */ '../pages/campus/LiveRoom.vue')
+        path: 'campus/rotation-resource',
+        name: 'CampusRotationResource',
+        component: () => import(/* webpackChunkName: "campus-rotation-resource" */ '../pages/campus/RotationResource.vue')
       },
-      {
-        path: 'campus/service-dept',
-        name: 'CampusServiceDept',
-        component: () => import(/* webpackChunkName: "campus-service-dept" */ '../pages/campus/ServiceDept.vue')
-      },
-      {
-        path: 'campus/resource-summary',
-        name: 'CampusResourceSummary',
-        component: () => import(/* webpackChunkName: "campus-resource-summary" */ '../pages/campus/ResourceSummary.vue')
-      },
+      // 2026-10-21 兵哥：轮岗资源合并为单入口页签（统计概览 / 资源测算 / 轮岗资源）。
+      // 旧三路径保留重定向，深链（旧书签、他人分享）落到对应页签，不 404。
+      // ⚠️ 2026-10-22 兵哥指令：直播间 + 客服部门整合为「轮岗资源」一个页签 →
+      //   两条旧深链都落到 tab=resource（原来分别指向 live / service 两个页签）。
+      { path: 'campus/live-room', redirect: { path: '/campus/rotation-resource', query: { tab: 'resource' } } },
+      { path: 'campus/service-dept', redirect: { path: '/campus/rotation-resource', query: { tab: 'resource' } } },
+      { path: 'campus/resource-summary', redirect: { path: '/campus/rotation-resource', query: { tab: 'bu' } } },
       {
         path: 'campus/class-room',
         name: 'CampusClassRoom',
@@ -244,7 +240,8 @@ const routes: RouteRecordRaw[] = [
         path: 'campus/person',
         name: 'CampusPersonManagement',
         component: () => import(/* webpackChunkName: "campus-person" */ '../pages/campus/CampusPerson.vue'),
-        meta: { title: '校招生档案' }
+        // 2026-10-21 兵哥：菜单名由「校招生档案」更名为「人员管理」（面包屑/文档标题同步）
+        meta: { title: '人员管理' }
       },
       // 2026-10-19 兵哥：编制管控从 settings 嵌套布局迁到 campus 一级页面路由（菜单 key 同步改 /campus/control）
       {

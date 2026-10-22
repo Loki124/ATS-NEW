@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import pytest
 from django.contrib.auth import get_user_model
-from tests.fixtures_common import attach_super_admin
 from rest_framework.test import APIClient
 
 from apps.job_level.models import JobLevelCategory
+from tests.fixtures_common import attach_super_admin
 
 JOB_LEVEL_LIST = '/api/v1/job-levels/'
 JOB_LEVEL_CATEGORY_LIST = '/api/v1/job-level-categories/'

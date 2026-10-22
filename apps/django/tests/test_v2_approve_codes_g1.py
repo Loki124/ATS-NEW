@@ -22,12 +22,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.core.models_permission_v2 import RolePermissionV2
 from apps.core.permission_check import has_perm
-from tests.fixtures_common import _attach_role, _create_role_v2
-
 from apps.demand.models import Demand, DemandState
 from apps.demand.services import DemandCreateData, DemandService
 from apps.demand.views import DemandViewSet
 from apps.offer.views import OfferViewSet
+from tests.fixtures_common import _attach_role, _create_role_v2
 
 
 def _make_scoped_user(department, username: str, codes: tuple[str, ...]):

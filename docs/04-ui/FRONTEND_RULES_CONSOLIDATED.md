@@ -1,6 +1,6 @@
 # ATS-NEW 前端规范与约定汇总（Frontend Rules Catalog）
 
-> 生成时间：2026-10-15
+> 生成时间：2026-10-15（2026-10-21 增补 X-20 卡片禁止左侧边框线）
 > 适用范围：`web/app`（Vue 3 + TypeScript + Vite 5 + Naive UI 2.44.1 + UnoCSS）
 > 文档性质：**规则索引与归纳**，不做逐文件源码讲解；每条给出要求、来源路径、关键正反例。
 > 编写方式：全仓配置 + 规范文档 + 实际代码三方交叉验证；无配置的类目显式标注「未配置」。
@@ -18,9 +18,9 @@
 | 1 | [技术栈与依赖管理](#1-技术栈与依赖管理) | 8 | `package.json` |
 | 2 | [目录结构与文件命名](#2-目录结构与文件命名) | 12 | `src/` 实况 |
 | 3 | [代码风格与格式](#3-代码风格与格式) | 7 | `eslint.config.js` |
-| 4 | [Lint 与质量门禁](#4-lint-与质量门禁) | 9 | `.stylelintrc.json`、CI |
+| 4 | [Lint 与质量门禁](#4-lint-与质量门禁) | 10 | `.stylelintrc.json`、CI |
 | 5 | [类型与类型检查](#5-类型与类型检查) | 7 | `tsconfig.json` |
-| 6 | [组件编写规范](#6-组件编写规范) | 14 | `AGENTS.md` R-101~R-223 |
+| 6 | [组件编写规范](#6-组件编写规范) | 17 | `AGENTS.md` R-101~R-223 |
 | 8 | [状态管理](#8-状态管理) | 6 | Pinia 实践 |
 | 9 | [路由与权限守卫](#9-路由与权限守卫) | 8 | `router/index.ts` |
 | 10 | [API 与数据层](#10-api-与数据层) | 9 | `utils/request.ts` |
@@ -113,13 +113,14 @@ src/
 |------|------|------|
 | 4.1 | `npm run lint` = `eslint . --fix`（本地自修）；`npm run lint:ci` = `eslint . --max-warnings=0`（CI 硬门禁，零容忍 warning）。 | `package.json:18-19` |
 | 4.2 | `npm run lint:style` / `lint:style:ci` = `stylelint "src/**/*.{vue,css}"`。 | `package.json:22-23` |
-| 4.3 | Stylelint 仅启用**自研**规则 `strict-color/strict-color-value`（插件 `stylelint-plugin-strict-color.cjs`），禁止裸像素颜色值。 | `.stylelintrc.json:2,10` |
+| 4.3 | Stylelint 启用两条**自研**规则：`strict-color/strict-color-value`（禁止裸像素颜色值）与 `no-left-border/no-left-border`（禁止卡片左侧边框线，X-20）。 | `.stylelintrc.json:2,11` |
 | 4.4 | Stylelint 忽略 `dist` / `node_modules` / `brand-tokens.css` / `src/styles/tokens.css`（生成物豁免）。 | `.stylelintrc.json:12` |
 | 4.5 | Stylelint `defaultSeverity: warning` —— 当前 **warn-only，不阻断合并**；`reportNeedlessDisables: false`。 | `.stylelintrc.json:13-14`、CI 注释 |
 | 4.6 | `AGENTS.md` §6.2 建议的 `stylelint-declaration-strict-value`（强制 margin/padding/color/font-size 走令牌）**未实际安装**，属规范建议而非现状。 | `AGENTS.md:642-659` vs `package.json` |
 | 4.7 | 品牌色门禁：`npm run tokens` / `npm run tokens:report`，CI 独立 job `brand-tokens` 跑 `node brand-tokens.mjs --brand "${BRAND_COLOR:-#6366F1}" --ci --out src/styles/brand-tokens.css`，退出码非 0 即阻断。 | `package.json:25-26`、`ci.yml` |
 | 4.8 | i18n 审计：`npm run locale:audit`（检查 key 缺失/未翻译/空值/格式/key 前缀冲突/术语一致性）；`npm run locale:fix` 自动修。 | `package.json:20-21`、`scripts/locale-audit.mjs` |
 | 4.9 | 可访问性门禁：`npm run audit:a11y` = `node e2e/a11y-smoke.mjs`（axe-core 运行时扫描）。 | `package.json:24` |
+| 4.10 | **X-20 硬门禁**：`no-left-border/no-left-border` 显式 `severity=error`，命中 `border-left` / `border-left-width` / `border-left-color` / `border-left-style` 即阻断 CI；非卡片场景须在插件 `web/app/stylelint-plugin-no-left-border.cjs` 的 `ALLOWLIST` 登记 `{ file, selector, reason }`（fail-closed 白名单）。 | `.stylelintrc.json:11`、`stylelint-plugin-no-left-border.cjs` |
 
 > ⚠️ `AGENTS.md` §6 明确禁止用 grep 做验证（正则子串匹配会漏报，如 `margin:140px` 因含 `40px` 逃逸），要求 AST/渲染工具。
 
@@ -236,6 +237,14 @@ if (hasSensitiveField(values)) return
 | 6.5.6 | 图标与文字间距 4–8px；同组图标视觉重量需平衡。 | `UI_STANDARD.md` §7.9 |
 | 6.5.7 | **禁止 emoji 当功能图标**（X-02）。 | X-02、`frontend-README.md:128` |
 | 6.5.8 | 每屏恰好 1 个 primary action（实心按钮），其余降级为 ghost/text；危险操作与主操作保持 ≥32px 距离。 | R-202 |
+
+### 6.6 卡片与面板
+
+| 编号 | 要求 | 来源 |
+|------|------|------|
+| 6.6.1 | 卡片（`card` / `card-item` / `panel` / `n-card`）**禁止 `border-left` 状态色条 / 强调条**；只保留 1px 统一描边（`var(--glass-border)` / `var(--border-hairline)`）。 | X-20 |
+| 6.6.2 | 卡片状态 MUST 由「标签 / 徽标 / 图标 + 文字」表达，且满足 R-109 双通道（颜色 + 图标/文字），MUST NOT 仅靠颜色。 | X-20、R-109 |
+| 6.6.3 | 非卡片场景的左侧线（树形引导线 / 行内分栏 hairline / 引用块 / 提示块 / 表格单元状态条 / 分组分隔线 / 标题强调条）可豁免，但 MUST 在门禁插件 `ALLOWLIST` 登记原因。 | X-20、`.stylelintrc.json` |
 
 ## 8. 状态管理
 

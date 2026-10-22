@@ -154,11 +154,16 @@ def _referral_queryset() -> QuerySet[Referral]:
 
 
 def _candidate_filter(q: str) -> Q:
-    return (
-        Q(name__icontains=q)
-        | Q(phone__icontains=q)
-        | Q(email__icontains=q)
-        | Q(current_position__icontains=q)
+    """候选人搜索 —— 手机号/邮箱走 hash **精确**匹配 (2026-10-21 卡 C4)。
+
+    phone/email 改 Fernet 加密后, `icontains` 必然落空且静默 → 搜索「查不到人」。
+    改为: 名称/职位等仍走 LIKE/FULLTEXT 模糊匹配, 手机号/邮箱走盲索引列**精确**匹配
+    (粘贴完整手机号/邮箱仍可搜到; 部分号码的模糊搜索不再支持)。
+    """
+    from apps.candidate.services import candidate_keyword_q
+
+    return candidate_keyword_q(
+        q, 'name', 'current_position', model=Candidate, backend='like',
     )
 
 

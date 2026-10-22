@@ -83,7 +83,7 @@ class Command(BaseCommand):
         if only_role:
             roles = roles.filter(role_code=only_role)
 
-        backfilled = skipped_configured = skipped_no_codes = granted_roles = 0
+        skipped_configured = skipped_no_codes = granted_roles = 0
         missing_template: list[str] = []
         unknown_codes: set[str] = set()
         created_rows = 0

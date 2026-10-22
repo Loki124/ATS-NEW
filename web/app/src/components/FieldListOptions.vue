@@ -92,10 +92,10 @@ function isSelected(value: string) {
   flex: 0 1 auto;
 }
 .flo-item:hover:not(:disabled) {
-  border-color: var(--primary-color, #2080f0);
+  border-color: var(--brand);
 }
 .flo-item.is-selected {
-  border-color: var(--primary-color, #2080f0);
+  border-color: var(--brand);
   background: color-mix(in srgb, var(--primary-color, #2080f0) 10%, #ffffff);
   box-shadow: 0 0 0 1px var(--primary-color, #2080f0) inset;
 }
@@ -121,7 +121,7 @@ function isSelected(value: string) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--primary-color, #2080f0);
+  background: var(--brand);
 }
 .flo-indicator.is-multi .flo-dot {
   border-radius: 2px;

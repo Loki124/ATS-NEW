@@ -10,6 +10,7 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.core.permissions_v2 import V2Permission
 from apps.core.viewsets import BaseModelViewSet
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 from .models import Position
 from .serializers import (
@@ -18,7 +19,6 @@ from .serializers import (
     PositionListSerializer,
     PositionTransitionSerializer,
 )
-from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 
 class PositionViewSet(BaseModelViewSet):

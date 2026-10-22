@@ -1,6 +1,7 @@
 """QA-4: R8 DEPT / DEPT_AND_SUB 数据范围功能验证 (含 path 前缀误匹配边界)."""
 import pytest
-from apps.core.scope_resolver import _own_dept_ids, _dept_and_sub_ids
+
+from apps.core.scope_resolver import _dept_and_sub_ids, _own_dept_ids
 
 
 class _U:

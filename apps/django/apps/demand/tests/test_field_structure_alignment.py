@@ -9,11 +9,12 @@
 """
 import pytest
 
+from apps.demand.serializers import (
+    DemandCreateSerializer,
+    DemandDetailSerializer,
+)
 from apps.dynamic_field.models import DynamicField
 from apps.dynamic_field.system_fields import DEMAND_SPEC_FIELD_KEYS
-from apps.demand.serializers import (
-    DemandCreateSerializer, DemandDetailSerializer,
-)
 
 
 def _demand_field_map():

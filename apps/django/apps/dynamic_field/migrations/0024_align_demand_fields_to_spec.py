@@ -20,8 +20,8 @@ from django.db import migrations
 from nanoid import generate as nanoid_generate
 
 from apps.dynamic_field.system_fields import (
-    DEMAND_SYSTEM_FIELDS,
     DEMAND_FIELD_CATEGORIES,
+    DEMAND_SYSTEM_FIELDS,
 )
 
 #: 学历要求选项(自定义字段, 常见值)

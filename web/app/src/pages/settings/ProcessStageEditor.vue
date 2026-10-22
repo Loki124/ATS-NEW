@@ -40,7 +40,10 @@
                   <span class="stage-code">{{ element.stage.code }}</span>
                   <span class="stage-name">{{ element.customName || element.stage.name }}</span>
                   <span v-if="element.stage.isBuiltin ?? element.stage.isSystem" class="sys-tag">{{ t('pages.settings.ProcessStageEditor.s8') }}</span>
-                  <span v-if="element.stageLimit" class="stage-limit">⏱ {{ element.stageLimit }}h</span>
+                  <span v-if="element.stageLimit" class="stage-limit">
+                    <n-icon :component="TimeOutline" :size="12" aria-hidden="true" />
+                    {{ element.stageLimit }}h
+                  </span>
                 </div>
                 <div class="stage-actions">
                   <n-button text size="small" type="primary" @click="goRules(element)">{{ t('pages.settings.ProcessStageEditor.s9') }}</n-button>
@@ -145,7 +148,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
 import { useMessage, NButton, NTag, NPopconfirm, NIcon, NSpace, NInput, NInputNumber, NForm, NFormItem, NModal, NDataTable, NAlert, NEmpty, NSpin, NCard } from 'naive-ui'
-import { AddOutline, ArrowBackOutline } from '@vicons/ionicons5'
+import { AddOutline, ArrowBackOutline, TimeOutline } from '@vicons/ionicons5'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { localPagination } from '@/composables/useTablePagination'

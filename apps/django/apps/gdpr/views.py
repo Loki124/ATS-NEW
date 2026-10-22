@@ -14,6 +14,7 @@
   - POST /api/v1/gdpr/requests/{id}/verify/ - 候选人验证
   - POST /api/v1/gdpr/requests/{id}/process/ - 超管处理 (approve_forget/approve_export/reject)
 """
+from django.urls import reverse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status as drf_status
 from rest_framework import viewsets
@@ -21,6 +22,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from apps.common.audit_helper import log_action
 from apps.common.mixins import AuditMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
@@ -35,6 +37,9 @@ from .serializers import (
     GDPRVerifySerializer,
 )
 from .services import GdprService, send_verification_code
+
+# API 路由命名空间 (config/urls.py: path('api/v1/', include((api_v1_patterns, 'v1'))))
+API_NAMESPACE = 'v1'
 
 
 class GDPRRequestViewSet(AuditMixin, EnvelopeReadOnlyMixin, viewsets.ModelViewSet):
@@ -139,4 +144,37 @@ class GDPRRequestViewSet(AuditMixin, EnvelopeReadOnlyMixin, viewsets.ModelViewSe
             )
 
         out = GDPRRequestSerializer(req, context={'request': request}).data
+
+        # 2026-10-21 卡 C1: 导出件的 token 只在本次响应里给一次, 明文绝不进响应体。
+        # 下载动作走独立端点 /gdpr/requests/{id}/export/?token=... (超管 + 一次性 token)。
+        artifact = getattr(req, '_export_artifact', None)
+        if artifact is not None:
+            path = reverse(
+                f'{API_NAMESPACE}:gdpr-request-export', kwargs={'pk': instance.id},
+            )
+            out['export'] = {
+                'download_url': f'{path}?token={artifact.token}',
+                'expires_at': artifact.expires_at,
+                'one_time': True,
+            }
         return Response({'success': True, 'data': out})
+
+    @action(detail=True, methods=['get'], url_path='export')
+    def export(self, request, pk=None):
+        """一次性下载 GDPR 导出件 (2026-10-21 卡 C1).
+
+        访问控制三重叠加:
+        1. ViewSet 默认 `IsSuperAdmin` —— 必须是超管登录态;
+        2. 一次性 token —— 对应具体导出件, 下载后立即失效并擦除密文;
+        3. 有效期 —— 过期即拒。
+
+        审计: 下载动作写 `AuditLog` (只记 id, 不记 PII)。审计失败不阻断下载
+        (复用 `apps.common.audit_helper.log_action` 的 fail-open 语义)。
+        """
+        token = request.query_params.get('token') or request.headers.get('X-Export-Token', '')
+        data = GdprService.consume_export_artifact(pk, token)
+        log_action(
+            request, 'EXPORT', 'GDPRRequest', str(pk),
+            'export', '', '一次性导出件已下载',
+        )
+        return Response({'success': True, 'data': data})

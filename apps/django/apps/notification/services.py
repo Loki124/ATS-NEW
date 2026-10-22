@@ -12,10 +12,14 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any, Dict, List
 
 from django.db import OperationalError, transaction
+from django.db.models import Q
 from django.utils import timezone
+from kombu.exceptions import OperationalError as BrokerOperationalError
+from redis.exceptions import RedisError
 
 from apps.common.exceptions import NotFound
 from apps.core.models import User
@@ -23,6 +27,9 @@ from apps.core.models import User
 from .models import NotificationLog, NotificationTemplate
 
 logger = logging.getLogger(__name__)
+
+#: 通知抢占超时（分钟）—— 超过即视为上一轮进程崩溃, 允许重新抢占
+DELIVER_CLAIM_TTL_MINUTES = 5
 
 
 # ============================================================
@@ -162,7 +169,7 @@ class NotificationDispatcher:
 
     @staticmethod
     def dispatch(log: NotificationLog) -> bool:
-        """根据 channel 分发"""
+        """根据 channel 分发（同步投递，不做抢占）"""
         handler = {
             'IN_APP': NotificationDispatcher.send_in_app,
             'EMAIL': NotificationDispatcher.send_email,
@@ -175,10 +182,83 @@ class NotificationDispatcher:
             return False
         return handler(log)
 
+    @staticmethod
+    def deliver_log(log: NotificationLog) -> str:
+        """投递单条通知 —— **抢占 → 发送 → 落状态**（2026-10-21 卡 F1/F3 共用）。
+
+        与 `dispatch` 的区别：这里先抢占（条件 UPDATE 把 `sending_at` 由 NULL 置 now），
+        抢到才发。这样两条投递路径（请求路径入队的即时任务、每小时的重试任务）
+        不会对同一条通知重复发送。
+
+        Returns:
+            'sent'    发送成功
+            'failed'  发送失败（已落 failed_reason, 下一轮可重试）
+            'skipped' 未抢到（别人正在发 / 已发过 / 上一轮抢占未超时）
+        """
+        claimed = NotificationLog.objects.filter(
+            pk=log.pk,
+            sent_at__isnull=True,
+            failed_reason='',
+        ).filter(
+            Q(sending_at__isnull=True)
+            | Q(sending_at__lt=timezone.now() - timedelta(minutes=DELIVER_CLAIM_TTL_MINUTES))
+        ).update(sending_at=timezone.now())
+        if not claimed:
+            return 'skipped'
+
+        try:
+            handler = {
+                'IN_APP': NotificationDispatcher.send_in_app,
+                'EMAIL': NotificationDispatcher.send_email,
+                'SMS': NotificationDispatcher.send_sms,
+                'WECOM': NotificationDispatcher.send_wecom,
+            }.get(log.channel)
+            if handler is None:
+                success = False
+            else:
+                success = handler(log)
+        except (OperationalError, ValueError, TypeError) as e:
+            # Celery 批量重试: ORM 落库失败 + 参数错误窄集。
+            # 第三方 IO 异常由 integration 层 swallow 返 False, 不再此层重复捕获。
+            logger.exception(f'Notification {log.id} retry failed: {e}')
+            log.failed_reason = str(e)
+            log.sending_at = None
+            log.save(update_fields=['failed_reason', 'sending_at'])
+            return 'failed'
+
+        if success:
+            log.sent_at = timezone.now()
+            log.sending_at = None
+            log.save(update_fields=['sent_at', 'sending_at'])
+            return 'sent'
+        log.failed_reason = '发送失败'
+        log.sending_at = None
+        log.save(update_fields=['failed_reason', 'sending_at'])
+        return 'failed'
+
 
 # ============================================================
 # 通知服务
 # ============================================================
+def _enqueue_notification(log_id: str) -> None:
+    """把通知投递任务入队；broker 不可用时回退同步投递（不丢通知）。
+
+    2026-10-21 卡 F3。异常集刻意收窄（kombu / redis / socket），不新增宽捕获。
+    """
+    from .tasks import send_notification_log_task
+
+    try:
+        send_notification_log_task.delay(log_id)
+        return
+    except (BrokerOperationalError, RedisError, OSError) as e:
+        logger.warning('通知入队失败, 回退同步投递 log=%s err=%s', log_id, e)
+
+    log = NotificationLog.objects.filter(id=log_id, deleted_at__isnull=True).first()
+    if log is None:
+        return
+    NotificationDispatcher.deliver_log(log)
+
+
 class NotificationService:
     """通知服务"""
 
@@ -228,13 +308,21 @@ class NotificationService:
             },
         )
 
-        # 分发
-        success = NotificationDispatcher.dispatch(log)
+        # 2026-10-21 卡 F3: **外部通道调用移出请求路径**。
+        #   此前是同步 dispatch —— 邮件/短信/企微各 timeout=10, 外部慢就把 API 请求拖住
+        #   (Offer 审批 / 面试安排 / 公告推送 / 自动化规则执行都在请求路径上)。
+        #   现改为: 落库后**入队**由 Celery 任务投递, 请求立即返回。
+        #   · on_commit: 必须等事务提交后再入队, 否则 worker 抢在提交前读不到本行;
+        #   · 兜底 1: broker 不可用(开发机没起 worker) → 同步投递, 不丢通知;
+        #   · 兜底 2: 每小时 `send_pending_reminders` 会捡走仍未送达的日志。
+        transaction.on_commit(lambda: _enqueue_notification(log.id))
         return {
             'log_id': log.id,
             'channel': log.channel,
-            'sent': success,
-            'sent_at': log.sent_at.isoformat() if log.sent_at else None,
+            # 语义: True = 已受理(已入队待投递), 不代表第三方已收到
+            'sent': True,
+            'queued': True,
+            'sent_at': None,
         }
 
     @staticmethod

@@ -41,12 +41,11 @@ from rest_framework.response import Response
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import V2Permission
 from apps.common.response import success_response
 from apps.common.search import keyword_q
 from apps.common.views import EnvelopeWriteMixin
-from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 from .models import Application
 from .serializers import (
@@ -73,7 +72,6 @@ from .services import (
 )
 from .services.grab import GrabService, InvitationService
 from .services.soft_reject import SoftRejectService
-from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 logger = logging.getLogger(__name__)
 
@@ -590,14 +588,23 @@ class GrabPoolViewSet(viewsets.GenericViewSet):
     serializer_class = ApplicationListSerializer
 
     def list(self, request):
-        """抢单池列表"""
+        """抢单池列表
+
+        2026-10-21 卡 D2 两处修复:
+        1. **接行级 scope** —— 此前抢单池不过滤 scope, 全公司申请池对所有登录用户可见
+           (applications 列表被 scope 裁剪, 抢单池不裁剪 → 换个接口就能看到别人的申请)。
+        2. **先分页后截断** —— 此前 `limit` 在分页前就把 queryset 砍成 ≤50 条,
+           `pagination.total` 报的是截断后的条数而非真实池总量。现在:
+           queryset 完整交给分页器 (total = 真实总量), 再按 limit 裁剪**当页**返回。
+        """
         serializer = GrabPoolQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         v = serializer.validated_data
+        scope_q = self._grab_scope_q(request)
         apps = GrabService.get_pool(
             stage_id=v.get('stage_id') or None,
             position_id=v.get('position_id') or None,
-            limit=v.get('limit', 50),
+            scope_q=scope_q,
         )
         # 2026-08-07 寇豆码: 改用 self.get_serializer(...) 取代裸 ApplicationListSerializer(...)。
         # 根因: 裸实例化不带 context，get_candidate_phone 取不到 request.user 直接走脱敏分支，
@@ -606,14 +613,30 @@ class GrabPoolViewSet(viewsets.GenericViewSet):
         # （DRF ListModelMixin 走 self.get_serializer）完全一致，从根本上保证两边行为统一。
         page = self.paginate_queryset(apps)
         if page is not None:
+            limit = v.get('limit', 50)
+            if limit and len(page) > limit:
+                page = page[:limit]
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         return Response(self.get_serializer(apps, many=True).data)
 
+    @staticmethod
+    def _grab_scope_q(request):
+        """抢单池的行级 scope Q (ENTITY_SCOPE 单一真相源, 与 ApplicationViewSet 列表同口径)。
+
+        用 `entity_scope_q` 而非各 ViewSet 的 `scope_queryset` —— 后者是 ViewSet 内部方法,
+        而抢单池走的是 `GrabService` (非 ViewSet 取数入口), 与导出/批量入口一样
+        应统一走 `apps.core.entity_scope`。
+        """
+        from apps.core.entity_scope import entity_scope_q
+        return entity_scope_q(request, 'application', model=Application)
+
     @action(detail=False, methods=['get'], url_path='summary')
     def summary(self, request):
         """抢单池汇总"""
-        return Response(GrabService.get_grab_pool_summary())
+        return Response(
+            GrabService.get_grab_pool_summary(scope_q=self._grab_scope_q(request))
+        )
 
     @action(detail=False, methods=['post'], url_path='reassign')
     def reassign(self, request):

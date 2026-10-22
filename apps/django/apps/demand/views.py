@@ -4,7 +4,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,6 +12,8 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permission_check import has_perm
 from apps.core.permissions_v2 import V2Permission
 from apps.core.viewsets import BaseModelViewSet
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
+from apps.dynamic_field.views import save_entity_field_values  # 复用动态字段值落库语义
 from apps.process.models import RecruitmentProcess
 
 from .models import Demand, DemandApproval, DemandSetting
@@ -26,8 +27,6 @@ from .serializers import (
     DemandUpgradeProcessSerializer,
 )
 from .services import DemandCreateData, DemandService
-from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
-from apps.dynamic_field.views import save_entity_field_values  # 复用动态字段值落库语义
 
 
 class DemandViewSet(BaseModelViewSet):

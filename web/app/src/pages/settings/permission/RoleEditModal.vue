@@ -247,6 +247,9 @@ const MODULE_META: Record<string, { label: string }> = {
   position: { label: '招聘职位' },
   candidate: { label: '候选人管理' },
   talent: { label: '人才库' },
+  // 2026-10-21 S5-35：校招生管理卡（后端 entity = campus_arrangement）。
+  // 与 useRoleDataPerm.MODULE_KEYS 同源 —— 缺了它 options 接口失败时该卡会退化成裸 key。
+  campus_arrangement: { label: '校招生管理' },
 }
 
 function moduleView(key: string) {
@@ -887,12 +890,12 @@ async function onSubmit() {
 }
 .sub-name {
   font-weight: 500;
-  color: var(--n-text-color, #333);
+  color: var(--ink);
 }
 .sub-count,
 .sub-selected {
   font-size: 12px;
-  color: var(--n-500, #999);
+  color: var(--n-500);
   font-variant-numeric: tabular-nums;
 }
 .sub-all {

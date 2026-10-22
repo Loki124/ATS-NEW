@@ -35,9 +35,9 @@ def _clear_seed_before_tests(django_db_setup, django_db_blocker):
     这里显式补 migrate 该 app, 已应用则跳过 (幂等)。
     """
     with django_db_blocker.unblock():
+        from django.core.management import call_command
         from django.db import connection
         from django.db.migrations.loader import MigrationLoader
-        from django.core.management import call_command
         loader = MigrationLoader(connection)
         if ("reason_library", "0016_alter_sceneruleversion_change_kind") not in loader.applied_migrations:
             call_command("migrate", "reason_library", verbosity=0)

@@ -21,7 +21,6 @@ from rest_framework.response import Response
 from apps.candidate.models import Candidate
 from apps.common.exceptions import NotFound
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import V2Permission
 from apps.process.models import ProcessStageLink
 

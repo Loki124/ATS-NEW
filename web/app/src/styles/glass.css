@@ -594,6 +594,160 @@ body.dark .n-modal-mask {
   border: 0 !important;
 }
 
+/* === 紧凑型下拉变体：系统切换器（2026-10-21 兵哥反馈「浮层过大、圆角阴影过重」）===
+ *
+ * 标准下拉（L2/L3）面向「表单里选一个值」；系统切换器是常驻侧栏顶部的**工具型入口**，
+ * 浮层一重就会压住下方菜单、切换系统时整页跟着抖（兵哥原话：「不好用，而且导致页面波动」）。
+ * 这里提供**显式变体**：组件用 menu-props.class 挂 .sys-switch-dropdown 启用，
+ * 只收紧这一个下拉，不动全局标准（避免波及其它 dropdown / select）。
+ *
+ *   · 圆角   --radius-lg (20) → --radius-sm (6)，与菜单项一致，去掉「圆鼓鼓」感
+ *   · 阴影   --shadow-elevated（三层重投影）→ --shadow-float（单层轻投影）
+ *   · 内边距 --space-2 (8) → --space-1 (4)，面板更矮
+ *   · 行高 / 字号 32px / 13px 由组件的 theme-overrides 给（--n-option-height / --n-font-size）
+ *
+ * ⚠️ 这些值必须落在本文件（L2/L3 用 !important 锁死标准值，组件内覆盖会被压掉）——
+ *    「下拉视觉单一真源」见 docs/04-ui/DROPDOWN_POPOVER_SPEC.md §2.6。 */
+.n-dropdown-menu.sys-switch-dropdown {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-float) !important;
+  padding: var(--space-1) 0 !important;
+  min-width: 150px;
+}
+/* 行内右侧不留 naive 的 suffix 空槽（默认 min-width 14px + padding 0 8px = 30px）：
+   否则「当前系统」的勾离右边太远，右侧留白突兀。 */
+.n-dropdown-menu.sys-switch-dropdown .n-dropdown-option-body__suffix {
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+/* === 用户菜单下拉（头像 · 个人中心/设置/语言/菜单布局/退出登录）===
+ * 2026-10-22：按 DROPDOWN_POPOVER_SPEC §2.6「下拉视觉单一真源」落到本文件
+ * （此前写在 pages/Layout.vue 的局部 <style> 里，SFC 样式 HMR 偶发不生效 → 页面跑旧样式）。
+ *
+ * 结构要点：naive 的 prefix 图标列宽会随「同组兄弟有没有图标」在 14/16/32px 间跳变，
+ * 留着它各行左缘天然对不齐（用户反馈「歪歪扭扭」）⇒ 图标 / 文字 / 右侧控件全部自绘，
+ * naive 的 prefix 槽归零，列宽由下面的网格固定。
+ * 尺寸实测（本地夹具量得）：图标左缘 = 背景带左缘 = 33px；文字列左缘 = 61px；
+ * 语言开关 / 布局勾的右缘 = 背景带右缘 = 217px。 */
+.user-menu-dropdown.n-dropdown-menu,
+.user-menu-dropdown .n-dropdown-menu {
+  /* 面板宽度：给「文字 | 右侧控件」两列留出稳定空间；上限 260px 防止超宽 */
+  min-width: 200px;
+  max-width: 260px;
+  padding: var(--space-2) 0;
+}
+
+/* 行高对齐标准 medium（36px）；水平 padding 由全局 L3 锁死，这里不重复覆盖 */
+.user-menu-dropdown .n-dropdown-option-body {
+  min-height: 36px;
+  /* ⚠️ 2026-10-22 兵哥报障「hover 时样式很奇怪」：这里**必须** align-items:center。
+   *   行内容是**自绘**的（.user-menu-row，实测高 20px），而本行高 36px；
+   *   不居中的话内容顶部对齐、底部空出 16px，hover 高亮层（::before 铺满整行）
+   *   就会在文字下方多出一大块空白 —— 看着像多了一个空行。
+   *   居中后高亮块与内容高度贴合，与全站其它下拉一致。 */
+  align-items: center;
+}
+
+/* naive 的 prefix 图标槽归零：图标/文字全部自绘（见上方说明） */
+.user-menu-dropdown .n-dropdown-option-body__prefix {
+  display: none !important;
+}
+
+/* 标签列占满剩余宽度：min-width:0 才能收缩，否则面板被内容撑开 */
+.user-menu-dropdown .n-dropdown-option-body__label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 右侧不留 naive 的空 suffix 槽（同 sys-switch-dropdown 处理） */
+.user-menu-dropdown .n-dropdown-option-body__suffix {
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+/* 高亮层：沿用全局标准 inset（6px），**不覆盖** ——
+   改用「行内容同样内缩 6px」来对齐（见下方 .user-menu-row 的 padding）。
+   这样即使这条覆盖被压掉/丢失，背景带与内容仍然重合（不依赖谁赢）。 */
+
+/* 分组标题行：不可点、压扁、上下留白收紧；标题不是禁用控件 → 不吃 naive 的 disabled 透明度 */
+.user-menu-dropdown .n-dropdown-option-body.n-dropdown-option-body--disabled {
+  background: transparent !important;
+  cursor: default;
+  min-height: 22px;
+  padding-top: var(--space-2);
+  padding-bottom: 0;
+  opacity: 1;
+}
+
+/* 分组标题文案：左缘对齐到常规项的**文字列**
+   （行内缩 6px + 图标列 20px + 间距 8px）。 */
+.user-menu-section-label {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+  text-align: left;
+  line-height: 1.4;
+  padding-left: calc(var(--space-1) + 20px + 8px);
+}
+
+/* 行内容：网格三列 = 图标(20) | 文字(自适应) | 右侧控件(自适应，靠右)
+   ⇒ 所有行的图标左缘、文字左缘、控件右缘都严格对齐。
+   padding 与高亮层的 inset 同为 --space-1(6px) ⇒ 背景带左右缘 = 内容左右缘。 */
+.user-menu-row {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0 var(--space-1);
+}
+
+.user-menu-row-icon {
+  color: var(--ink-soft);
+  justify-self: start;
+}
+
+.user-menu-row-label {
+  font-size: var(--fs-14);
+  line-height: 1.4;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 右侧控件列（语言开关 / 布局勾选）：统一贴到行右缘 */
+.user-menu-row-control {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+}
+
+/* 勾选标记：品牌色，尺寸与行内文字相称 */
+.user-menu-check {
+  flex-shrink: 0;
+  color: var(--brand-fg);
+}
+
+/* 语言开关：由网格第三列统一靠右 */
+.user-menu-language-row .n-switch {
+  flex-shrink: 0;
+}
+
+/* 退出登录：危险色文案 + 同款「层叠圆角」浅红底（不再整块铺满） */
+.user-menu-logout .user-menu-row-icon,
+.user-menu-logout .user-menu-row-label {
+  color: var(--c-error-deep);
+}
+.user-menu-logout .n-dropdown-option-body::before {
+  background-color: transparent !important;
+}
+.user-menu-logout:hover .n-dropdown-option-body::before {
+  background-color: var(--c-error-soft) !important;
+}
+
 /* === 滚动条统一颜色 Token（液态玻璃 v2 · 单源）===
  * 单一来源：所有滚动条（Naive n-scrollbar 内置 rail / 原生 webkit thumb / Firefox scrollbar-color）
  * 都用这一个 brand 紫系列，统一全项目视觉。
@@ -999,6 +1153,12 @@ body.dark .kpi-card.kpi-card--accent {
 .settings-scroll .page-body > .page-header {
   margin-bottom: 0;
 }
+/* 2026-10-21 (整改卡 E6 · AGENTS.md R-215): 数据列表页把滚动容器从 .page-body
+   迁到 .data-body（区域滚动：外层不滚，仅表格体滚）→ 本规则需同时覆盖新容器名，
+   否则这类页的页头会多出全局 margin-bottom。 */
+.settings-scroll .data-body > .page-header {
+  margin-bottom: 0;
+}
 /* === 模型 B 页头→内容间距：容器 gap 单一来源（2026-09-30 修订）===
  * 原「.page-container > .page-header + * { margin-top:16px }」相邻兄弟补偿已废弃：
  *   它对「首块是滚动容器（flex:1，如 .ws-body / .data-body）」也会注入 margin-top，
@@ -1294,6 +1454,19 @@ body.dark .n-tag.n-tag--info-type    { color: var(--c-info-deep);    background:
 .settings-scroll .n-data-table-td > *,
 .table-wrap .n-data-table-td > * {
   line-height: var(--text-body);
+}
+
+/* === 居中档 td 的块级 flex 子容器补居中（2026-10-22）===
+ * 症状：表头居中、正文不居中（操作列的「编辑」按钮贴着单元格左边）。
+ * 根因：n-data-table 的 td 居中靠行内 `text-align:center`，而 text-align **只对行内级内容生效**。
+ *       列定义里用 `h(NSpace, ...)` 渲染的单元格内容是**块级** flex（display:flex），
+ *       其子项按 justify-content 排列（naive 默认 start）→ 整组内容贴左，text-align 失效。
+ * 范围：n-switch / n-button / n-tag 的根元素都是 inline-flex（行内级）→ 居中本就正常，
+ *       故本规则**只针对 n-space** 补一次居中，一次性修好全仓 43 处操作/控件列。
+ * ⚠️ naive 把 justify-content 写成行内样式 → 需 !important 才能覆盖。
+ *    只命中「居中档」的 td（--center-align），显式左对齐的列不受影响。 */
+.n-data-table-td--center-align > .n-space {
+  justify-content: center !important;
 }
 
 /* ⚠️ 长文本列豁免：D 档列由 useTableColumns 声明 align:'left'，

@@ -111,6 +111,7 @@ class TestR5R6RealEndpointsNotFakeSuccess:
         """2026-10-18 兵哥：自助注册下线。本用例改为验证「待激活账号经邮箱验证码
         登录后真被激活并拿到真 access token」，而非假成功。"""
         import re
+
         from django.contrib.auth import get_user_model
         from django.core import mail
 

@@ -8,6 +8,7 @@ from apps.common.exceptions import ValidationError
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions_v2 import V2Permission
 from apps.core.viewsets import BaseModelViewSet
+from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 from .models import Invitation
 from .serializers import (
@@ -16,7 +17,6 @@ from .serializers import (
     InvitationListSerializer,
     InvitationTransitionSerializer,
 )
-from apps.data_permission.enforcement import ensure_writable  # M07 写范围守卫
 
 
 class InvitationViewSet(BaseModelViewSet):

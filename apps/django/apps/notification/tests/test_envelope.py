@@ -4,9 +4,9 @@ NotificationTemplate 此前为裸 DRF 默认(ModelViewSet 无自定义 create/up
 返回裸 serializer.data; 本次套 EnvelopeWriteMixin 收口. list 由 StandardResultsSetPagination 信封.
 无 FE 消费方(纯后端), 仅校验契约.
 """
-from apps.common.tests.envelope_contract import assert_envelope
 import pytest
 
+from apps.common.tests.envelope_contract import assert_envelope
 from apps.notification.models import NotificationTemplate
 
 

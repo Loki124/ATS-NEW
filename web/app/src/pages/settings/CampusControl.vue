@@ -11,29 +11,66 @@
       <n-tabs v-model:value="activeTab" type="line" class="cc-tabs" @update:value="onTabChange">
         <!-- ===================== 实时看板（含人数规划） ===================== -->
         <n-tab-pane name="ratio" :tab="t('pages.settings.CampusControl.s7')">
-          <div class="kpi-row">
-            <div class="kpi-card"><span class="kpi-label">{{ t('pages.settings.CampusControl.s3') }}</span><span class="kpi-value">{{ ratioData.total }}</span></div>
-            <div class="kpi-card"><span class="kpi-label">{{ t('pages.settings.CampusControl.s4') }}</span><span class="kpi-value">{{ ratioData.rows.length }}</span></div>
-            <div class="kpi-card danger"><span class="kpi-label">{{ t('pages.settings.CampusControl.s5') }}</span><span class="kpi-value">{{ ratioKpi.hard }}</span></div>
-            <div class="kpi-card warn"><span class="kpi-label">{{ t('pages.settings.CampusControl.s6') }}</span><span class="kpi-value">{{ ratioKpi.soft }}</span></div>
+          <!-- 筛选条结构对齐「规则配置」页签：同一 .toolbar 容器 + 同宽下拉（字段名以 placeholder 呈现）
+               + 右侧操作按钮；另配隐藏 label 保证读屏有可读名称。纯前端过滤，不触发重新拉取 -->
+          <div class="toolbar ratio-filter-bar">
+            <label class="visually-hidden" for="ratio-filter-scope">{{ t('pages.settings.CampusControl.s230') }}</label>
+            <n-select
+              v-model:value="ratioFilterScope"
+              :options="ratioScopeOptions"
+              :placeholder="t('pages.settings.CampusControl.s230')"
+              :input-props="{ id: 'ratio-filter-scope', 'aria-label': t('pages.settings.CampusControl.s230') }"
+              clearable
+              filterable
+              class="rule-filter-select"
+            />
+            <label class="visually-hidden" for="ratio-filter-dimension">{{ t('pages.settings.CampusControl.s124') }}</label>
+            <n-select
+              v-model:value="ratioFilterDimension"
+              :options="ratioDimensionOptions"
+              :placeholder="t('pages.settings.CampusControl.s124')"
+              :input-props="{ id: 'ratio-filter-dimension', 'aria-label': t('pages.settings.CampusControl.s124') }"
+              clearable
+              class="rule-filter-select"
+            />
+            <label class="visually-hidden" for="ratio-filter-indicator">{{ t('pages.settings.CampusControl.s125') }}</label>
+            <n-select
+              v-model:value="ratioFilterIndicator"
+              :options="ratioIndicatorOptions"
+              :placeholder="t('pages.settings.CampusControl.s125')"
+              :input-props="{ id: 'ratio-filter-indicator', 'aria-label': t('pages.settings.CampusControl.s125') }"
+              clearable
+              filterable
+              class="rule-filter-select"
+            />
+            <label class="visually-hidden" for="ratio-filter-rate">{{ t('pages.settings.CampusControl.s128') }}</label>
+            <n-select
+              v-model:value="ratioFilterRate"
+              :options="ratioRateOptions"
+              :placeholder="t('pages.settings.CampusControl.s128')"
+              :input-props="{ id: 'ratio-filter-rate', 'aria-label': t('pages.settings.CampusControl.s272') }"
+              clearable
+              filterable
+              class="rule-filter-select"
+            />
+            <div class="spacer"></div>
+            <n-button :disabled="!ratioFilterActive" @click="resetRatioFilters">
+              {{ t('pages.settings.CampusControl.s271') }}
+            </n-button>
           </div>
+
           <div class="table-wrap">
             <n-data-table
               :columns="ratioColumns"
-              :data="ratioData.rows"
+              :data="filteredRatioRows"
               :loading="loading.ratio"
               :row-key="(r: any) => [r.bu, r.position, r.level, r.dimension, r.indicator].join('|')"
               :pagination="false"
               flex-height
             >
-              <template #empty><n-empty :description="t('pages.settings.CampusControl.s188')" /></template>
+              <template #empty><n-empty :description="ratioEmptyText" /></template>
             </n-data-table>
           </div>
-
-          <n-alert type="info" :show-icon="true" style="margin-top: var(--space-4); flex-shrink: 0">
-            {{ t('pages.settings.CampusControl.s189') }}<strong>{{ t('pages.settings.CampusControl.s8') }}</strong>{{ t('pages.settings.CampusControl.s190') }}
-            {{ t('pages.settings.CampusControl.s9') }}
-          </n-alert>
         </n-tab-pane>
 
         <!-- ===================== 规则配置（扁平列表：每条规则一行） ===================== -->
@@ -193,7 +230,7 @@
               class="rule-filter-search"
               @keyup.enter="loadPersons()"
             />
-            <!-- 状态筛：搜索框右侧第一个（仅 全部/在职/在途Offer/在途待入职） -->
+            <!-- 状态筛：搜索框右侧第一个（仅 全部/在职/待入职） -->
             <n-select
               v-model:value="personFilterStatus"
               :options="personStatusOptions"
@@ -476,6 +513,7 @@ import { ref, reactive, computed, h, onMounted, watch } from 'vue'
 import {
   NTag, NButton, NSwitch, NCheckbox, NDivider, NSpace,
   NInputNumber, NSelect, NInput, NEmpty, NAlert, NDatePicker, NTooltip, NIcon,
+  NForm, NFormItem,
   useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
 import { extractApiError } from '../../api/dynamic-field'
@@ -548,14 +586,14 @@ const indicators = ref<ControlIndicator[]>([])
 const rules = ref<ControlRule[]>([])
 const persons = ref<Person[]>([])
 
-// 人员数据：状态筛选（仅 4 项：全部/在职/在途Offer/在途待入职）。
-// 「候选池」「占编」已从列表筛选项移除（候选池不占编，默认展示全部人员）。
-const personFilterStatus = ref<'all' | '在职' | '在途Offer' | '在途待入职'>('all')
+// 人员数据：状态筛选（仅 3 项：全部/在职/待入职）。
+// 2026-10-21 兵哥口径：状态收敛为三态 —— 「在途Offer」「在途待入职」「候选池」
+// 合并为「待入职」，「在途待入职」更名为「待入职」；「离职」不占编，故不入筛选项。
+const personFilterStatus = ref<'all' | '在职' | '待入职'>('all')
 const personStatusOptions = [
   { label: t('pages.settings.CampusControl.s104'), value: 'all' as const },
   { label: t('pages.settings.CampusControl.s105'), value: '在职' as const },
-  { label: t('pages.settings.CampusControl.s106'), value: '在途Offer' as const },
-  { label: t('pages.settings.CampusControl.s107'), value: '在途待入职' as const },
+  { label: t('pages.settings.CampusControl.s107'), value: '待入职' as const },
 ]
 
 // 人员数据：8 项精确筛 + 1 项模糊搜（候选人编号/姓名 icontains）。
@@ -668,12 +706,105 @@ watch(ruleFilterDimension, () => {
 
 /* ============================ 实时看板 ============================ */
 const ratioData = ref<RatioResult>({ total: 0, rows: [] })
-const ratioKpi = computed(() => {
-  const rows = ratioData.value.rows
-  const annualGap = (r: any) => (r.annualTarget || 0) > 0 && (r.annualAchieved || 0) < (r.annualTarget || 0)
-  return {
-    hard: rows.filter((r) => r.strength === '硬约束' && annualGap(r)).length,
-    soft: rows.filter((r) => r.strength !== '硬约束' && annualGap(r)).length,
+
+/* ============================ 实时看板筛选 ============================
+ * 4 个筛选项：适用范围 / 维度 / 指标 / 年度达成率（10% 分档下拉）
+ * 纯前端过滤：看板行内 dimension/indicator 已是「名称」（后端 _rule_to_dict 转换），
+ * 故选项与匹配均按名称进行，不依赖 rules 列表，避免多一次请求。
+ * 适用范围按 (部门·职务·职级) 组合，与表格首列口径一致。
+ */
+const ratioFilterScope = ref<string | null>(null)
+const ratioFilterDimension = ref<string | null>(null)
+const ratioFilterIndicator = ref<string | null>(null)
+/** 年度达成率分档：步长 10%，档位 [lo, hi)，末档 200% 以上为开区间；'all' = 不限 */
+const RATIO_RATE_STEP = 10
+const RATIO_RATE_CAP = 200
+const ratioFilterRate = ref<string | null>('all')
+
+const ratioScopeOptions = computed(() => {
+  const map = new Map<string, string>()
+  for (const r of ratioData.value.rows) {
+    const key = scopeKeyOf(r.bu, r.position, r.level)
+    if (!map.has(key)) map.set(key, scopeText(r.bu, r.position, r.level))
+  }
+  return Array.from(map, ([value, label]) => ({ label, value }))
+})
+const ratioDimensionOptions = computed(() => {
+  const set = new Set<string>()
+  for (const r of ratioData.value.rows) if (r.dimension) set.add(r.dimension)
+  return Array.from(set, (value) => ({ label: value, value }))
+})
+const ratioIndicatorOptions = computed(() => {
+  const set = new Set<string>()
+  for (const r of ratioData.value.rows) {
+    if (ratioFilterDimension.value && r.dimension !== ratioFilterDimension.value) continue
+    if (r.indicator) set.add(r.indicator)
+  }
+  return Array.from(set, (value) => ({ label: value, value }))
+})
+// 年度达成率下拉：全部 + 每 10% 一档（0%–10% … 190%–200%）+ 200% 以上
+const ratioRateOptions = computed(() => {
+  const opts: { label: string; value: string }[] = [
+    { label: t('pages.settings.CampusControl.s104'), value: 'all' },
+  ]
+  for (let lo = 0; lo < RATIO_RATE_CAP; lo += RATIO_RATE_STEP) {
+    const hi = lo + RATIO_RATE_STEP
+    opts.push({ label: `${lo}%–${hi}%`, value: `${lo}-${hi}` })
+  }
+  opts.push({ label: `${RATIO_RATE_CAP}% 以上`, value: `${RATIO_RATE_CAP}+` })
+  return opts
+})
+// 档位筛选生效判定：'all' / 清空 → 不限；其余按分档过滤
+const ratioRateFilterActive = computed(
+  () => !!ratioFilterRate.value && ratioFilterRate.value !== 'all',
+)
+const ratioFilterActive = computed(
+  () =>
+    !!ratioFilterScope.value ||
+    !!ratioFilterDimension.value ||
+    !!ratioFilterIndicator.value ||
+    ratioRateFilterActive.value,
+)
+const filteredRatioRows = computed(() => {
+  const bucket = ratioFilterRate.value
+  const rateOn = ratioRateFilterActive.value
+  // 末档 '200+' 为开区间；其余档位 [lo, hi)
+  const [lo, hi] = rateOn && bucket !== `${RATIO_RATE_CAP}+`
+    ? bucket!.split('-').map(Number)
+    : [0, 0]
+  return ratioData.value.rows.filter((r) => {
+    if (ratioFilterScope.value && scopeKeyOf(r.bu, r.position, r.level) !== ratioFilterScope.value) return false
+    if (ratioFilterDimension.value && r.dimension !== ratioFilterDimension.value) return false
+    if (ratioFilterIndicator.value && r.indicator !== ratioFilterIndicator.value) return false
+    if (rateOn) {
+      // 未设年度目标（annualRate 为 null）的行无法判定区间，筛选生效时不参与
+      if (r.annualRate == null) return false
+      const p = r.annualRate * 100
+      if (bucket === `${RATIO_RATE_CAP}+`) {
+        if (p < RATIO_RATE_CAP - 1e-6) return false
+      } else {
+        if (p < lo - 1e-6 || p >= hi - 1e-6) return false
+      }
+    }
+    return true
+  })
+})
+// 空态区分「本来就没有数据」与「被筛选条件滤空」
+const ratioEmptyText = computed(() =>
+  ratioData.value.rows.length === 0 || filteredRatioRows.value.length > 0
+    ? t('pages.settings.CampusControl.s188')
+    : t('pages.settings.CampusControl.s270'),
+)
+function resetRatioFilters() {
+  ratioFilterScope.value = null
+  ratioFilterDimension.value = null
+  ratioFilterIndicator.value = null
+  ratioFilterRate.value = 'all'
+}
+// 维度切换时清掉不兼容的指标筛选（避免筛出空集）
+watch(ratioFilterDimension, () => {
+  if (ratioFilterIndicator.value && !ratioIndicatorOptions.value.some((o) => o.value === ratioFilterIndicator.value)) {
+    ratioFilterIndicator.value = null
   }
 })
 
@@ -1565,6 +1696,22 @@ onMounted(async () => {
 .toolbar--filters .rule-filter-search {
   width: 282px;
   flex-shrink: 0;
+}
+
+/* ===================== 实时看板筛选条 =====================
+ * 结构对齐「规则配置」页签：直接复用全局 .toolbar + .rule-filter-select（同宽 130px 下拉），
+ * 右侧按钮由 .spacer 推到最右 —— 本页不再自绘筛选条布局。
+ * .visually-hidden：视觉隐藏但保留在无障碍树中，供 <label for> 与读屏软件使用。 */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* 极光由 SettingsLayout 外壳统一注入（.settings-aurora），本页不再自绘 */

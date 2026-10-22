@@ -668,9 +668,10 @@
                   quaternary
                   type="error"
                   size="small"
+                  :aria-label="t('components.common.A11y.s2')"
                   @click="removeLinkageCondition(idx)"
                 >
-                  <template #icon><n-icon :component="TrashOutline" /></template>
+                  <template #icon><n-icon :component="TrashOutline" aria-hidden="true" /></template>
                 </n-button>
               </div>
               <n-button text type="primary" @click="addLinkageCondition">
@@ -723,9 +724,10 @@
                   quaternary
                   type="error"
                   size="small"
+                  :aria-label="t('components.common.A11y.s2')"
                   @click="removeLinkageAction(idx)"
                 >
-                  <template #icon><n-icon :component="TrashOutline" /></template>
+                  <template #icon><n-icon :component="TrashOutline" aria-hidden="true" /></template>
                 </n-button>
               </div>
               <n-button text type="primary" @click="addLinkageAction">

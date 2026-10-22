@@ -305,9 +305,9 @@ def test_custom_rule_is_soft_deleted(auth_client):
     resp = auth_client.delete(f'{RULES_URL}{rule.id}/')
     assert resp.status_code == 200
 
-    # 本项目 .objects 是默认管理器（不自动过滤软删），故显式按 deleted_at 断言
+    # 2026-10-21 卡 D3: 默认 manager 已过滤软删行, 读"行仍在"要用 all_objects
     assert DuplicateRule.objects.filter(pk=rule.pk, deleted_at__isnull=True).count() == 0
-    raw = DuplicateRule.objects.get(pk=rule.pk)
+    raw = DuplicateRule.all_objects.get(pk=rule.pk)
     assert raw.deleted_at is not None, '必须是软删，不能物理删除'
 
 
@@ -362,7 +362,7 @@ def test_reset_drops_custom_rules_and_restores_defaults(auth_client):
     # 默认停用的那条保持停用（与截图一致）
     assert alive.get(name='基于工作经历（系统）').is_enabled is False
     # 自定义规则是软删，不是物理删
-    assert DuplicateRule.objects.filter(name='自定义规则 X').count() == 1
+    assert DuplicateRule.all_objects.filter(name='自定义规则 X').count() == 1
 
 
 # ============================================================

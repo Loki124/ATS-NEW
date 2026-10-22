@@ -30,7 +30,6 @@ from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -44,7 +43,6 @@ from apps.common.exceptions import StateTransitionError
 from apps.common.mixins import SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
-from apps.common.search import keyword_q
 
 # ============================================================
 # 权限 v2（2026-10-13）：FSM action_name -> 写动作 key 映射
@@ -60,12 +58,30 @@ FSM_ACTION_TO_WRITE_ACTION = {
     'move_to_talent_pool': 'talent_pool_add',   # 放入人才库
     'mark_process_failed': 'eliminate',         # 淘汰（同时直接入淘汰库，见 transition 分支）
 }
-from apps.candidate.operation_guard import ensure_operable, operable_q  # 动态操作权守卫（锁定人主体）
+from apps.candidate.operation_guard import (  # 动态操作权守卫（锁定人主体）
+    ensure_operable,
+    operable_q,
+)
 from apps.common.views import EnvelopeReadOnlyMixin
-from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
-from apps.data_permission.enforcement import ensure_writable, filter_writable  # M07 写范围守卫 / v2 批量写范围
+from apps.data_permission.enforcement import (  # M07 写范围守卫 / v2 批量写范围
+    ensure_writable,
+    filter_writable,
+)
 
+from .audit import (
+    CANDIDATE_UPDATABLE_FIELDS,
+    RESUME_FILE_FIELDS,
+    compute_row_hash,
+    diff_fields,
+    jsonable,
+    norm_empty,
+    record_follow_change,
+    record_forward,
+    record_info_update,
+    record_resume_fields_update,
+    record_resume_uploaded,
+)
 from .models import (
     Candidate,
     CandidateFieldValue,
@@ -87,21 +103,7 @@ from .serializers import (
     CandidateTagSerializer,
     CandidateUpdateSerializer,
 )
-from .services import CandidateService
-from .models import Candidate
-from .audit import (
-    CANDIDATE_UPDATABLE_FIELDS,
-    RESUME_FILE_FIELDS,
-    compute_row_hash,
-    diff_fields,
-    jsonable,
-    norm_empty,
-    record_follow_change,
-    record_forward,
-    record_info_update,
-    record_resume_fields_update,
-    record_resume_uploaded,
-)
+from .services import CandidateService, candidate_keyword_q
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +173,9 @@ class CandidateViewSet(EnvelopeReadOnlyMixin, ScopeQuerysetMixin, SoftDeleteView
         # 关键词
         keyword = self.request.query_params.get('keyword')
         if keyword:
-            qs = qs.filter(keyword_q(keyword, 'name', 'phone', 'email', 'current_company', model=Candidate))
+            qs = qs.filter(candidate_keyword_q(
+                keyword, 'name', 'current_company', model=Candidate,
+            ))
         # 2026-09-25: 候选人 ID 白名单（逗号分隔）—— 供指标库「按规则筛选」结果集回传。
         # 规则含派生指标（需计算，无法 SQL 化），故由 metrics 侧先算得 passedIds，
         # 再由本参数收敛结果集，保证分页与总数正确。
@@ -1211,7 +1215,7 @@ class CandidateBatchExportView(APIView):
                 qs = qs.filter(current_state=filter_['state'])
             kw = filter_.get('keyword')
             if kw:
-                qs = qs.filter(keyword_q(kw, 'name', 'phone', model=Candidate))
+                qs = qs.filter(candidate_keyword_q(kw, 'name', model=Candidate))
         qs = qs.select_related('recruiter')[:2000]
 
         buf = io.StringIO()

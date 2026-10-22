@@ -1,5 +1,36 @@
 """测试环境配置"""
+from urllib.parse import unquote, urlsplit
+
 from .base import *  # noqa
+
+
+def _resolve_db_password() -> str:
+    """解析测试库口令 —— **源码内不保留任何真实凭据**。
+
+    2026-10-21 卡 A7：此前此处硬编码了本地 MySQL 明文口令（已随仓库分发），
+    改为按优先级从环境取：
+      ① DB_PASSWORD 环境变量（CI 与容器部署用）
+      ② MYSQL_PASSWORD 环境变量
+      ③ .env 的 DATABASE_URL 解析（base.py:48-51 已把 .env 读进 os.environ，
+         而 .env 本身被 .gitignore 覆盖，属本地未跟踪文件）
+
+    取不到时返回空串并由 MySQL 驱动报「Access denied」—— 报错信息可读，
+    好过在源码里留一个能被人直接拿去用的口令。
+    """
+    for key in ('DB_PASSWORD', 'MYSQL_PASSWORD'):
+        val = os.environ.get(key)
+        if val:
+            return val
+    url = os.environ.get('DATABASE_URL', '')
+    if url:
+        try:
+            parts = urlsplit(url)
+        except ValueError:
+            return ''
+        if parts.password:
+            return unquote(parts.password)
+    return ''
+
 
 DEBUG = True
 
@@ -18,7 +49,7 @@ DATABASES = {
         # 本地默认复用 dev 库同款账号 (apps/django/.env), pytest 开箱即用;
         # CI 用 mysql:8.0 service 的 root + 密钥覆盖。
         'USER': os.environ.get('DB_USER', 'ats_dev'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'AtsDev2026!'),
+        'PASSWORD': _resolve_db_password(),
         'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
         'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {'charset': 'utf8mb4'},
@@ -89,3 +120,12 @@ LOGGING['loggers']['apps']['level'] = 'WARNING'
 # ⚠️ 这个 key 不能在生产用, 仅供测试
 ENCRYPTION_KEY = 'EgnPPJWZCoGgt-GALcXYPuKhaJHx8s5297wmzS_ykK8='
 INTEGRATION_FERNET_KEY = ENCRYPTION_KEY
+
+# 2026-10-21 卡 C4: 测试环境显式注入**测试专用** PII hash salt。
+#   此前 base.py 默认空串 → 回落到源码内置的历史 salt 'ats-pii'（公开 → 手机号可离线反查）。
+#   CI 的 .env 模板里该项留空 → 之前 CI 一直在用公开 salt。
+#   这里给测试专用默认值（.env / 环境变量有值时仍以其为准），
+#   让 CI 也走 v2 哈希路径（与生产同构），而不是悄悄用公开 salt。
+#   ⚠️ 仅供测试的**假数据**使用；生产必须由部署环境注入随机 salt
+#      （config/settings/prod.py 对空值会直接拒绝启动）。
+PII_HASH_SALT = env('PII_HASH_SALT', default='ats-test-only-salt-2026-not-for-prod')

@@ -138,81 +138,87 @@
     </div>
 
     <!-- 简历详情抽屉 -->
-    <n-drawer v-model:show="detailVisible" :width="600" placement="right">
-      <n-drawer-content :title="currentResume?.candidate?.name" closable>
-        <template v-if="currentResume">
-          <n-descriptions :title="t('pages.resume.ResumeList.s18')" :column="2">
-            <n-descriptions-item :label="t('pages.resume.ResumeList.s19')">{{ currentResume.candidate?.name }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.resume.ResumeList.s20')">{{ currentResume.candidate?.phone }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.resume.ResumeList.s21')">{{ currentResume.candidate?.email }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.resume.ResumeList.s22')">{{ currentResume.source }}</n-descriptions-item>
-          </n-descriptions>
+    <n-modal
+      v-model:show="detailVisible"
+      preset="card"
+      :title="currentResume?.candidate?.name"
+      :style="{ width: '600px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+      :mask-closable="false"
+      :bordered="false"
+    >
+      <template v-if="currentResume">
+        <n-descriptions :title="t('pages.resume.ResumeList.s18')" :column="2">
+          <n-descriptions-item :label="t('pages.resume.ResumeList.s19')">{{ currentResume.candidate?.name }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.resume.ResumeList.s20')">{{ currentResume.candidate?.phone }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.resume.ResumeList.s21')">{{ currentResume.candidate?.email }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.resume.ResumeList.s22')">{{ currentResume.source }}</n-descriptions-item>
+        </n-descriptions>
 
-          <n-divider />
+        <n-divider />
 
-          <!-- 锁定人信息 -->
-          <div class="locker-section">
-            <h4><n-icon :component="LockClosedOutline" />{{ t('pages.resume.ResumeList.s23') }}</h4>
-            <n-space vertical style="width: 100%">
-              <n-alert
-                v-if="currentResume.formalLockerId"
-                type="success"
-                :title="`正式锁定人: ${getFormalLockerName(currentResume)}`"
-                show-icon
-              />
-              <n-alert
-                v-if="currentResume.tempLockerId && isTempLockerValid(currentResume)"
-                type="info"
-                :title="`临时锁定人: ${getTempLockerName(currentResume)} (剩余: ${getTempLockerRemaining(currentResume)})`"
-                show-icon
-              />
-            </n-space>
-          </div>
-
-          <n-divider />
-
-          <!-- 操作按钮 -->
+        <!-- 锁定人信息 -->
+        <div class="locker-section">
+          <h4><n-icon :component="LockClosedOutline" />{{ t('pages.resume.ResumeList.s23') }}</h4>
           <n-space vertical style="width: 100%">
-            <n-button
-              v-if="canAssign(currentResume)"
-              type="primary"
-              block
-              :disabled="currentResume.resumeSubStatus === 'SCORING'"
-              @click="handleAssign(currentResume)"
-            >
-              {{ t('pages.resume.ResumeList.s24') }}
-            </n-button>
-            <n-button
-              v-if="canArchive(currentResume)"
-              block
-              @click="handleArchive(currentResume)"
-            >
-              {{ t('pages.resume.ResumeList.s25') }}
-            </n-button>
-            <n-button
-              v-if="canActivate(currentResume)"
-              type="primary"
-              block
-              @click="handleActivate(currentResume)"
-            >
-              {{ t('pages.resume.ResumeList.s26') }}
-            </n-button>
+            <n-alert
+              v-if="currentResume.formalLockerId"
+              type="success"
+              :title="`正式锁定人: ${getFormalLockerName(currentResume)}`"
+              show-icon
+            />
+            <n-alert
+              v-if="currentResume.tempLockerId && isTempLockerValid(currentResume)"
+              type="info"
+              :title="`临时锁定人: ${getTempLockerName(currentResume)} (剩余: ${getTempLockerRemaining(currentResume)})`"
+              show-icon
+            />
           </n-space>
+        </div>
 
-          <n-divider />
+        <n-divider />
 
-          <!-- 流转日志 -->
-          <h4><n-icon :component="TimeOutline" />{{ t('pages.resume.ResumeList.s27') }}</h4>
-          <n-timeline>
-            <n-timeline-item v-for="log in flowLogs" :key="log.id">
-              <p><strong>{{ getActionText(log.action) }}</strong></p>
-              <p v-if="log.operatorName">{{ log.operatorName }}</p>
-              <p class="log-time">{{ formatDate(log.createdAt) }}</p>
-            </n-timeline-item>
-          </n-timeline>
-        </template>
-      </n-drawer-content>
-    </n-drawer>
+        <!-- 操作按钮 -->
+        <n-space vertical style="width: 100%">
+          <n-button
+            v-if="canAssign(currentResume)"
+            type="primary"
+            block
+            :disabled="currentResume.resumeSubStatus === 'SCORING'"
+            @click="handleAssign(currentResume)"
+          >
+            {{ t('pages.resume.ResumeList.s24') }}
+          </n-button>
+          <n-button
+            v-if="canArchive(currentResume)"
+            block
+            @click="handleArchive(currentResume)"
+          >
+            {{ t('pages.resume.ResumeList.s25') }}
+          </n-button>
+          <n-button
+            v-if="canActivate(currentResume)"
+            type="primary"
+            block
+            @click="handleActivate(currentResume)"
+          >
+            {{ t('pages.resume.ResumeList.s26') }}
+          </n-button>
+        </n-space>
+
+        <n-divider />
+
+        <!-- 流转日志 -->
+        <h4><n-icon :component="TimeOutline" />{{ t('pages.resume.ResumeList.s27') }}</h4>
+        <n-timeline>
+          <n-timeline-item v-for="log in flowLogs" :key="log.id">
+            <p><strong>{{ getActionText(log.action) }}</strong></p>
+            <p v-if="log.operatorName">{{ log.operatorName }}</p>
+            <p class="log-time">{{ formatDate(log.createdAt) }}</p>
+          </n-timeline-item>
+        </n-timeline>
+      </template>
+    </n-modal>
 
     <!-- 分配弹窗 -->
     <n-modal
@@ -241,7 +247,7 @@
           <n-checkbox v-model:checked="assignForm.skipScoring">{{ t('pages.resume.ResumeList.s34') }}</n-checkbox>
         </n-form-item>
       </n-form>
-    </n-modal>
+        </n-modal>
   </div>
 </template>
 
@@ -263,8 +269,22 @@ import { get, post } from '../../api/auth'
 import { useI18n } from 'vue-i18n'
 
 import { extractApiError } from '../../api/dynamic-field'
+import { useUserStore } from '../../stores/user'
 const message = useMessage()
 const { t } = useI18n()
+const userStore = useUserStore()
+
+/**
+ * 当前登录用户 id（统一成字符串；未登录返回 ''）。
+ * ⚠️ 权威来源 = pinia user store（stores/user.ts）。**localStorage 里从来没有 'userId' 这个键**
+ *    （全仓只写过 accessToken/refreshToken/user/uiSettings/rememberMe/locale 等），
+ *    所以历史上的 `localStorage.getItem('userId')` 恒为 null：
+ *    operatorId 发 null + 锁定人判断恒 false。
+ */
+function currentUserId(): string {
+  const id = userStore.user?.id
+  return id === undefined || id === null || id === '' ? '' : String(id)
+}
 
 // 状态
 const activeTab = ref('PENDING_ASSIGN')
@@ -399,12 +419,17 @@ const handleAssignConfirm = async () => {
     message.warning('请选择职位')
     return false
   }
+  const myId = currentUserId()
+  if (!myId) {
+    message.error('当前用户未登录，无法分配')
+    return false
+  }
 
   assignLoading.value = true
   try {
     const res = await post(`/resume/${assignForm.resumeId}/assign`, {
       positionId: assignForm.positionId,
-      operatorId: localStorage.getItem('userId'),
+      operatorId: myId,
       skipScoring: assignForm.skipScoring
     })
 
@@ -424,9 +449,14 @@ const handleAssignConfirm = async () => {
 
 // 归档简历
 const handleArchive = async (resume: any) => {
+  const myId = currentUserId()
+  if (!myId) {
+    message.error('当前用户未登录，无法归档')
+    return
+  }
   try {
     await post(`/resume/${resume.id}/archive`, {
-      operatorId: localStorage.getItem('userId'),
+      operatorId: myId,
       archiveType: 'MANUAL',
       archiveToPool: 'GENERAL'
     })
@@ -439,9 +469,14 @@ const handleArchive = async (resume: any) => {
 
 // 激活简历
 const handleActivate = async (resume: any) => {
+  const myId = currentUserId()
+  if (!myId) {
+    message.error('当前用户未登录，无法激活')
+    return
+  }
   try {
     await post(`/resume/${resume.id}/activate`, {
-      operatorId: localStorage.getItem('userId')
+      operatorId: myId
     })
     message.success('激活成功')
     loadResumes()
@@ -452,9 +487,13 @@ const handleActivate = async (resume: any) => {
 
 // 权限判断
 const canAssign = (resume: any) => {
+  const myId = currentUserId()
+  if (!myId) return false
+  // ⚠️ lockerId 来自接口 JSON，可能是数字也可能是字符串 → 必须统一转字符串再比，
+  //    否则数字 id 与字符串 id 不相等，锁定人判断仍然恒 false。
   return resume.resumeStatus === 'PENDING_ASSIGN' &&
-    (resume.formalLockerId === localStorage.getItem('userId') ||
-      resume.tempLockerId === localStorage.getItem('userId'))
+    (String(resume.formalLockerId ?? '') === myId ||
+      String(resume.tempLockerId ?? '') === myId)
 }
 
 const canArchive = (resume: any) => {

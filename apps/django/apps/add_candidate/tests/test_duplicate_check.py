@@ -35,7 +35,7 @@ def candidate_with_active_app(db, published_position, hr_user):
         position=published_position,
         process=published_position.process,
         workflow_version=published_position.process.current_version,
-        code=f'APP-ACTIVE-{cand.id}',
+        code=f'APP-A-{cand.id[-10:]}',
         state=ApplicationState.ACTIVE,
     )
     return cand
@@ -58,7 +58,7 @@ def candidate_archived_only(db, published_position, hr_user):
         position=published_position,
         process=published_position.process,
         workflow_version=published_position.process.current_version,
-        code=f'APP-REJ-{cand.id}',
+        code=f'APP-R-{cand.id[-10:]}',
         state=ApplicationState.REJECTED,  # 终态
     )
     return cand

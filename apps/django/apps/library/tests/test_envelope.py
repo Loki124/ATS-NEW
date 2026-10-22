@@ -12,11 +12,11 @@ destroy 经 admin 删除动作调用, 加 code 对 res.data.data 回退读取无
 
 权限: V2Permission, auth_client=super_user 经 is_super_admin 短路.
 """
-from apps.common.tests.envelope_contract import assert_envelope
 import uuid
 
 import pytest
 
+from apps.common.tests.envelope_contract import assert_envelope
 from apps.library.models import Major, School
 
 pytestmark = pytest.mark.django_db

@@ -185,16 +185,20 @@ class TestAddCandidateReadSemantics:
 
 @pytest.mark.django_db
 class TestParserConfigIsScopedToSettingsResource:
-    """解析引擎配置属「标准简历设置」资源, 候选人码不得越权读写。"""
+    """解析引擎配置属「简历解析引擎」资源, 候选人码不得越权读写。"""
 
     def test_candidate_create_cannot_read_parser_config(self, department):
         u = _user_with_codes(department, 'ac_cfg_cross', ('recruit:candidate:create',))
         assert _client_for(u).get(PARSER_CONFIG).status_code == 403
 
-    def test_standard_resume_menu_code_can_read_config(self, department):
+    def test_resume_parser_engine_menu_code_can_read_config(self, department):
+        # 2026-10-21 卡 B5：资源码口径更新 —— core.0030（2026-10-18）把简历解析引擎
+        # 从 standard_resume **拆码**为 resume_parser_engine，ResumeParserConfigView 的
+        # 守卫也随之改指 resume_parser_engine（apps/add_candidate/views.py:487）。
+        # 本用例仍持旧的 standard_resume 码 → 403，属**陈旧测试**（不是权限回归）。
         u = _user_with_codes(
             department, 'ac_cfg_read',
-            ('recruit:settings:standard_resume:menu:view',),
+            ('recruit:settings:resume_parser_engine:menu:view',),
         )
         assert _client_for(u).get(PARSER_CONFIG).status_code == 200
 
@@ -202,7 +206,7 @@ class TestParserConfigIsScopedToSettingsResource:
         """只读菜单码不能改配置: POST/PUT 必须落到 :edit。"""
         u = _user_with_codes(
             department, 'ac_cfg_write_denied',
-            ('recruit:settings:standard_resume:menu:view',),
+            ('recruit:settings:resume_parser_engine:menu:view',),
         )
         resp = _client_for(u).post(PARSER_CONFIG, {'backend': 'career_core'}, format='json')
         assert resp.status_code == 403

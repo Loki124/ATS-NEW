@@ -62,7 +62,7 @@ class IntegrationSyncLog(TimestampedModel, SoftDeleteModel):
         related_name='sync_logs', verbose_name='配置',
     )
     sync_type = models.CharField(max_length=32, verbose_name='同步类型', help_text='USER_PULL/USER_PUSH/RESUME_PUSH/...')
-    status = models.CharField(max_length=16, verbose_name='状态', help_text='SUCCESS/PARTIAL/FAILED')
+    status = models.CharField(max_length=16, verbose_name='状态', help_text='SUCCESS/PARTIAL/FAILED', db_index=True)
     total_count = models.IntegerField(default=0, verbose_name='总数')
     success_count = models.IntegerField(default=0, verbose_name='成功数')
     failed_count = models.IntegerField(default=0, verbose_name='失败数')

@@ -9,7 +9,7 @@
       </div>
     </div>
 
-    <div class="page-body">
+    <div class="data-body">
       <n-alert type="info" :show-icon="false" class="stage-tip">
         {{ t('pages.settings.RecruitmentStage.s23') }}<strong>{{ t('pages.settings.RecruitmentStage.s3') }}</strong>{{ t('pages.settings.RecruitmentStage.s17') }}「{{ t('pages.settings.RecruitmentStage.s18') }}」「{{ t('pages.settings.RecruitmentStage.s19') }}」{{ t('pages.settings.RecruitmentStage.s20') }}「{{ t('pages.settings.RecruitmentStage.s21') }}」{{ t('pages.settings.RecruitmentStage.s22') }}
       </n-alert>
@@ -49,7 +49,7 @@
           </n-data-table>
         </div>
       </div>
-    </div><!-- /.page-body -->
+    </div><!-- /.data-body -->
 
     <!-- 新增/编辑阶段弹窗（遵循「弹窗模板 · 卡片式编辑弹窗」）
          宽度取 640px 档（4 字段 + 4 checkbox + textarea）+ max-width 92vw 兜底窄屏（原 600px 非标档）
@@ -537,13 +537,13 @@ onMounted(async () => {
 .page-header {
   flex-shrink: 0;
   /* 顶部/底部间距由全局 .settings-scroll .page-header（glass.css）统一提供：
-     margin-top:0、padding-top:0，底部走 .page-body 的 gap（全局 .page-body>.page-header{margin-bottom:0} 兜底）。
+     margin-top:0、padding-top:0，底部走 .data-body 的 gap（全局 .data-body>.page-header{margin-bottom:0} 兜底）。
      scoped 不再写 padding/margin，避免与全局叠加造成跨页顶部留白不一致（2026-09-30）。 */
 }
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
@@ -583,7 +583,7 @@ onMounted(async () => {
   gap: var(--space-3) var(--space-4);
 }
 
-/* 2026-10-18 UI 模板试点：顶部提示条的下边距交给 .page-body 的 gap（8px）统一管控，
+/* 2026-10-18 UI 模板试点：顶部提示条的下边距交给 .data-body 的 gap（8px）统一管控，
    替换原行内 style="margin-bottom: 8px"（禁行内间距，8px 间距硬规则） */
 .stage-tip {
   margin: 0;

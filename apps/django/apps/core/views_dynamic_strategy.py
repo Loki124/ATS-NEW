@@ -16,7 +16,6 @@
 """
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
@@ -24,6 +23,7 @@ from apps.data_permission.models import (
     DataPermissionAction,
     DataPermissionActionPreset,
 )
+
 # 动态策略的「配置写范围」弹窗（RuleConfigModal）按模块取维度/属性字段下拉，
 # 与角色数据权限同源、角色无关 —— 直接复用 role_scope_api.options_payload 的
 # 「模块 × 维度 × 属性字段」矩阵，避免两处各算一份（维度隐藏/文案/属性场景易漂移）。
@@ -59,12 +59,16 @@ SYSTEM_CODE = 'recruit'
 #     settings 下有 123 条启用 BUTTON，不过滤会灌爆候选区。
 # candidate 扩到 interview / application / talent_pool 是兵哥清单把「安排面试 / 推进流程 /
 # 放入人才库」都归在候选人管理下的结果（见 core.0041 docstring）。
+# S8-01（2026-10-20 D7）再并入 invitation：兵哥清单把「标记邀约失败」
+# (recruit:invitation:reject) 与「编辑邀约」(recruit:invitation:edit) 归在候选人管理
+# 策略卡下，两条码的 module=invitation，不并入则它们进不了 candidate 候选区
+# （勾不到 = 策略管不了这两个功能）。前端镜像同步属 T04 前端批次，本轮后端先行。
 # ---------------------------------------------------------------------------
 STRATEGY_MODULE_RESOURCE_MODULES: dict[str, set] = {
     'demand': {'demand'},
     'process': {'settings'},
     'position': {'position'},
-    'candidate': {'candidate', 'interview', 'application', 'talent_pool'},
+    'candidate': {'candidate', 'interview', 'application', 'talent_pool', 'invitation'},
     # talent 策略模块当前无受管控资源（talent_pool:create 已并入 candidate）；
     # 保留 key 占位，_governed_resources 里 .get('talent') or set() 自然得到空候选区。
     'talent': set(),

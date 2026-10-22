@@ -330,7 +330,7 @@ const badgeText = computed(() => t(badge.value.key, { n: badge.value.n }))
    2026-10-18 兵哥要求精简垂直空间：卡内边距与各区块间距整体收紧一档。 */
 .action-card {
   background: var(--surface);
-  border: 1px solid var(--border-hairline, #e2e8f0);
+  border: 1px solid var(--border-hairline);
   border-radius: 12px;
   padding: var(--space-2) 16px 12px;
   box-shadow: var(--shadow-xs);
@@ -351,19 +351,19 @@ const badgeText = computed(() => t(badge.value.key, { n: badge.value.n }))
 .ac-title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--ink, #1e293b);
+  color: var(--ink);
 }
 .ac-lock { font-weight: 600; }
 .ac-badge { font-weight: 600; }
 .ac-toggle {
   margin-left: auto;
   font-size: 12px;
-  color: var(--ink-soft, #64748b);
+  color: var(--ink-soft);
 }
 .ac-desc {
   margin: var(--space-1) 0 0;
   font-size: 12px;
-  color: var(--ink-soft, #64748b);
+  color: var(--ink-soft);
   line-height: 1.5;
 }
 
@@ -420,7 +420,7 @@ const badgeText = computed(() => t(badge.value.key, { n: badge.value.n }))
 }
 .preset-label {
   font-size: 12px;
-  color: var(--ink-faint, #94a3b8);
+  color: var(--ink-faint);
 }
 
 /* ===== 动作墙：常规 / 危险 两组分层 ===== */
@@ -434,13 +434,13 @@ const badgeText = computed(() => t(badge.value.key, { n: badge.value.n }))
 .group-name {
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink-soft, #64748b);
+  color: var(--ink-soft);
 }
 .group-name.danger-name {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--c-error-deep, #b91c1c);
+  color: var(--c-error-deep);
 }
 .group-op { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 
@@ -449,9 +449,9 @@ const badgeText = computed(() => t(badge.value.key, { n: badge.value.n }))
   flex-wrap: wrap;
   gap: 4px 16px;
   padding-left: var(--space-2);
-  border-left: 2px solid var(--border-hairline, #e2e8f0);
+  border-left: 2px solid var(--border-hairline);
 }
-.danger-group .action-checks { border-left-color: var(--c-error, #ef4444); }
+.danger-group .action-checks { border-left-color: var(--c-error); }
 .action-check { margin: 2px 0; }
 .destructive-tag { font-weight: 600; }
 

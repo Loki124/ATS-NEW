@@ -108,6 +108,7 @@ class AtomicMetric(FullAuditModel, UUIDModel):
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',
+                   db_index=True,
     )
     # 自动生成标记：由动态字段新增触发（区别于人工录入），便于追溯与隔离
     auto_generated = models.BooleanField(default=False, verbose_name='自动生成')
@@ -186,6 +187,7 @@ class DerivedMetric(FullAuditModel, UUIDModel):
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',
+                   db_index=True,
     )
 
     class Meta:
@@ -278,6 +280,7 @@ class MetricTemplate(FullAuditModel, UUIDModel):
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',
+                   db_index=True,
     )
     description = models.CharField(
         max_length=255, blank=True, default='', verbose_name='说明',
@@ -465,6 +468,7 @@ class MetricRule(FullAuditModel, UUIDModel):
     status = models.CharField(
         max_length=16, choices=MetricStatus.choices,
         default=MetricStatus.ENABLED, verbose_name='状态',
+                   db_index=True,
     )
     enabled = models.BooleanField(default=True, verbose_name='启用开关', db_index=True)
     action_type = models.CharField(

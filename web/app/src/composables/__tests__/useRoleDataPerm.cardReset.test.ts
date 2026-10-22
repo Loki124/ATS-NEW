@@ -73,6 +73,22 @@ function setup(modules: ModulePerm[]) {
   return dp
 }
 
+/**
+ * 首个条件的首个取值。
+ *
+ * PermCondition.values 在类型上是可选的（后端可能不返回），但本文件的夹具
+ * deptCond() 恒带 values —— 直接 `values[0]` 会触发 TS2532（Object is possibly
+ * 'undefined'），让 `npm run build`（含 vue-tsc）在 CI 上红。
+ *
+ * 这里不用可选链糊过去：可选链会把断言悄悄变成「取不到也算过」，
+ * 取不到时显式抛错，测试失败信息直接指向夹具问题。
+ */
+function firstValue(mod: ModulePerm) {
+  const v = mod.groups[0]?.conditions[0]?.values?.[0]
+  if (!v) throw new Error('夹具缺少首个取值（deptCond 应恒带 values）')
+  return v
+}
+
 beforeEach(() => {
   h0.getRoleDataPerm.mockReset()
   h0.getRoleDataPermOptions.mockReset()
@@ -149,7 +165,7 @@ describe('resetModule：卡内「重置」只还原本模块读范围', () => {
     dp.resetModule('demand')
     expect(dp.draft.value[0].mode).toBe('scope')
     expect(dp.draft.value[0].groups).toHaveLength(1)
-    expect(dp.draft.value[0].groups[0].conditions[0].values[0].label).toBe('技术部')
+    expect(firstValue(dp.draft.value[0]).label).toBe('技术部')
     expect(dp.readDirty.value).toBe(false)
   })
 
@@ -171,8 +187,8 @@ describe('resetModule：卡内「重置」只还原本模块读范围', () => {
     const dp = setup([module()])
     dp.setMode('demand', 'unset') // 切走即清
     dp.resetModule('demand')
-    dp.draft.value[0].groups[0].conditions[0].values[0].label = '产品部'
-    expect(dp.saved.value[0].groups[0].conditions[0].values[0].label).toBe('技术部')
+    firstValue(dp.draft.value[0]).label = '产品部'
+    expect(firstValue(dp.saved.value[0]).label).toBe('技术部')
   })
 
   it('清掉该模块的校验错误（不清会出现「按钮已重置、红字仍在」的罗生门）', () => {

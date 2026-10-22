@@ -4,9 +4,9 @@ list 由 StandardResultsSetPagination 信封 (data 为 list + pagination).
 使用 auth_hrbp_client: MOUVIEWSetPermission 要求 HRBP+(HRBP_TIER 含 HRBP/SUPER_ADMIN),
 HRBP 同时落入 HR_TIER 故安全方法也可达.
 """
-from apps.common.tests.envelope_contract import assert_envelope
 import pytest
 
+from apps.common.tests.envelope_contract import assert_envelope
 from apps.mou.models import MouAgreement, MouContainer, MouRule, MutualExclusionGroup
 
 

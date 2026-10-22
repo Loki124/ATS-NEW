@@ -3,8 +3,13 @@
     <!-- 左侧分类树 -->
     <aside class="ann-kb__side">
       <div class="ann-kb__side-header">
-        <n-button text class="ann-kb__back" @click="router.push('/dashboard')">
-          <n-icon :component="ChevronBackOutline" :size="20" />
+        <n-button
+          text
+          class="ann-kb__back"
+          :aria-label="t('components.common.A11y.s3')"
+          @click="router.push('/dashboard')"
+        >
+          <n-icon :component="ChevronBackOutline" :size="20" aria-hidden="true" />
         </n-button>
         <span>{{ t('pages.announcement.AnnouncementList.s1') }}</span>
       </div>
@@ -82,7 +87,13 @@
                       </div>
                       <div class="ann-kb__doc-info">
                         <span class="ann-kb__doc-title" :title="item.title">{{ item.title }}</span>
-                        <span v-if="item.attachments?.length" class="ann-kb__doc-attach" :title="t('pages.announcement.AnnouncementList.s8')">📎</span>
+                        <span
+                          v-if="item.attachments?.length"
+                          class="ann-kb__doc-attach"
+                          :title="t('pages.announcement.AnnouncementList.s8')"
+                        >
+                          <n-icon :component="AttachOutline" :size="12" aria-hidden="true" />
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -119,6 +130,7 @@ import { useI18n } from 'vue-i18n'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  AttachOutline,
   ChevronBackOutline,
   DocumentTextOutline,
   FolderOpenOutline,

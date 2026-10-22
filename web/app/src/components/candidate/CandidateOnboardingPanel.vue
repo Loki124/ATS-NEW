@@ -339,6 +339,6 @@ defineExpose({ reload: loadOnboardings })
 .todo-list { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 4px; }
 .todo-list li { display: flex; align-items: center; gap: 6px; font-size: var(--fs-13); color: var(--ink-soft); }
 .todo-list li.done { color: var(--ink-faint); text-decoration: line-through; }
-.todo-check { color: var(--c-success, #18a058); }
+.todo-check { color: var(--c-success); }
 .todo-check.todo-pending { color: var(--ink-faint); }
 </style>

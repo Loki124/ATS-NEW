@@ -189,11 +189,32 @@ def test_permission_required_map_takes_priority(user, granted):
 
 @pytest.mark.django_db
 @pytest.mark.v2_permission
-def test_missing_derived_code_falls_back_to_declared(user, granted):
-    """资源只定义了 :list 时 (种子滞后), 回退校验原码, 不把合法写操作锁死。"""
+def test_missing_derived_code_is_rejected_fail_closed(user, granted):
+    """资源只定义了 :list 时 (派生写码未注册), **拒绝该写操作**。
+
+    2026-10-21（卡 A1）行为变更：旧实现回退校验 :list —— 等于「持列表码即可写」，
+    是 P0 权限提升面。现改为 fail-closed：派生码未注册 → 不校验任何码 → 拒绝。
+    """
     granted['codes'] = {'recruit:invitation:list'}
     view = _View(action='update', permission_required='recruit:invitation:list')
     # _known_codes 里没有 recruit:invitation:edit
+
+    assert _check('put', view, user) is False
+    # 关键：不得拿 :list 去放行写操作
+    assert 'recruit:invitation:list' not in granted['asked']
+
+
+@pytest.mark.django_db
+@pytest.mark.v2_permission
+def test_missing_derived_code_degrades_when_schema_not_ready(user, granted, monkeypatch):
+    """V2 资源表未就绪（迁移未应用）→ 降级回退读码, 不阻断初始化窗口。
+
+    这是 fail-closed 的唯一例外：环境未就绪时无法判定派生码是否真缺失,
+    此时阻断会把合法的初始化/迁移操作全部锁死。
+    """
+    granted['codes'] = {'recruit:invitation:list'}
+    view = _View(action='update', permission_required='recruit:invitation:list')
+    monkeypatch.setattr(pv2, 'resource_codes_ready', lambda: False)
 
     assert _check('put', view, user) is True
     assert granted['asked'] == ['recruit:invitation:list']

@@ -10,9 +10,9 @@
 import pytest
 from django.utils import timezone
 
-from apps.candidate.models import Candidate, CandidateHistory
-from apps.application.models import Application, ApplicationState, ApplicationStageRecord
+from apps.application.models import Application, ApplicationStageRecord, ApplicationState
 from apps.application.services import ApplicationService
+from apps.candidate.models import Candidate, CandidateHistory
 from apps.position.models import Position, PositionState
 from apps.process.models import ProcessStageLink, RecruitmentProcess, RecruitmentStage, StageType
 
@@ -36,8 +36,14 @@ class TestCandidateAuditBehavior:
         assert h is not None, '基本信息更新应写入 INFO_UPDATED'
         changes = {ch['field']: ch for ch in h.detail.get('changes', [])}
         assert 'email' in changes, 'email 变更应被字段级记录'
-        assert changes['email']['old'] == 'old@x.com'
-        assert changes['email']['new'] == 'new@x.com'
+        # 2026-10-21 (整改卡 C3): 审计写入端不再落 PII 原值 —— 邮箱掩码, 不落明文。
+        # 审计链 detail 在 row_hash 的哈希输入里, 行不可篡改 → PII 一旦落进去就清不掉,
+        # 所以必须在**写入端**治本, 而不是等被遗忘权时才清。
+        assert changes['email']['old'] != 'old@x.com'
+        assert changes['email']['new'] != 'new@x.com'
+        assert 'x.com' in changes['email']['old']       # 域名保留(仍是可辨认的业务事实)
+        assert changes['email']['old'] == 'o***@x.com'
+        assert changes['email']['new'] == 'n***@x.com'
 
     def test_update_records_resume_uploaded(self, auth_client):
         c = Candidate.objects.create(name='审计B', phone='13800007002', recruit_type='social')
@@ -48,7 +54,11 @@ class TestCandidateAuditBehavior:
         h = CandidateHistory.objects.filter(candidate=c, action='RESUME_UPLOADED').first()
         assert h is not None, '简历文件替换应写入 RESUME_UPLOADED'
         changes = {ch['field']: ch for ch in h.detail.get('changes', [])}
-        assert changes.get('resume_file_url', {}).get('new') == 'https://x.com/r.pdf'
+        # 2026-10-21 (整改卡 C3): 简历文件 URL 指向**含 PII 的简历文件本身**, 属整体隐去字段
+        # (与简历正文同口径)。变更事实(字段名/标签)仍被记录, 只是值不再外泄。
+        assert 'resume_file_url' in changes, '简历文件变更应被字段级记录'
+        assert changes['resume_file_url']['new'] != 'https://x.com/r.pdf'
+        assert '简历文件' == changes['resume_file_url']['label']
 
     def test_update_accepts_relative_resume_url(self, auth_client):
         """2026-10-21 回归：本地/SECURE_MEDIA_DOWNLOAD 回传的是站内相对路径

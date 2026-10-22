@@ -242,7 +242,9 @@ def test_soft_delete_demotes_is_latest_and_frees_the_slot() -> None:
     old.soft_delete()
 
     # 关键：从 DB 重读，证明 is_latest=False 真的落了库，而不是只改了内存对象
-    old_from_db = RecruitmentProcess.objects.get(id=old.id)
+    # 2026-10-21 卡 D3: 用 all_objects —— 默认 manager 已过滤软删行, 而本用例
+    # 正是要读回**刚软删**的那一行。
+    old_from_db = RecruitmentProcess.all_objects.get(id=old.id)
     assert old_from_db.is_latest is False
     assert old_from_db.deleted_at is not None
 
@@ -272,8 +274,11 @@ def test_bypassed_soft_delete_leaves_stale_latest_but_flip_self_heals() -> None:
         RecruitmentProcess.objects.filter(id=new.id).update(is_latest=True)
 
     # ② T2 翻转语句自愈（不过滤软删，连软删行一起降）
+    #    2026-10-21 卡 D3: 用 all_objects —— 默认 manager 已过滤软删行,
+    #    过滤掉 stale 行就腾不出槽位 → new.save(is_latest=True) 撞唯一约束。
+    #    生产侧同款修正在 apps/process/services/versioning.py 的翻转语句。
     with transaction.atomic():
-        RecruitmentProcess.objects.filter(code='W907').exclude(id=new.id).update(is_latest=False)
+        RecruitmentProcess.all_objects.filter(code='W907').exclude(id=new.id).update(is_latest=False)
         new.is_latest = True
         new.save(update_fields=['is_latest'])
 

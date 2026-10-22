@@ -87,7 +87,6 @@ def _is_sensitive_key(field_key: str, label: str = None) -> bool:
 
 def _block_reason(instance) -> str:
     """返回不可同步的原因；可同步时返回空字符串（用于 warning 归因与排查）。"""
-    resource = getattr(instance, 'resource', None)
     field_key = (getattr(instance, 'field_key', None) or '').strip()
     field_type = (getattr(instance, 'field_type', None) or '').strip()
 

@@ -32,7 +32,12 @@
     "tokens:report": "node brand-tokens.mjs --brand \"${BRAND_COLOR:-#6366F1}\" --report",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "shot": "node e2e/shot.mjs",
+    "check:render-scope": "node scripts/check-h-render-scope.mjs",
+    "check:render-scope:strict": "node scripts/check-h-render-scope.mjs --strict",
+    "check:render-scope:baseline": "node scripts/check-h-render-scope.mjs --baseline",
+    "build:dist": "vite build && cd ../../apps/django && .venv/bin/python manage.py collectstatic --noinput"
   },
   "dependencies": {
     "@vicons/ionicons5": "^0.13.0",

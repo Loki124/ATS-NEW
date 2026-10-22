@@ -86,10 +86,12 @@ class Command(BaseCommand):
         for proc in processes:
             # 注意: 唯一约束 (process_id, stage_id) 在 DB 层不考虑软删,
             # 故「缺」须同时排除「软删的旧 link 占槽」——有软删行则复活而非新建。
-            start_link = ProcessStageLink.objects.filter(
+            # 2026-10-21 卡 D3: 必须用 all_objects 查 —— 默认 manager 已过滤软删行,
+            # 用 objects 查不到软删旧行 → 误判为「缺」→ 走新建 → 撞唯一约束 IntegrityError。
+            start_link = ProcessStageLink.all_objects.filter(
                 process=proc, stage=start_stage,
             ).first()
-            end_link = ProcessStageLink.objects.filter(
+            end_link = ProcessStageLink.all_objects.filter(
                 process=proc, stage=end_stage,
             ).first()
 

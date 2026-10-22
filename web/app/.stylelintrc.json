@@ -1,5 +1,5 @@
 {
-  "plugins": ["./stylelint-plugin-strict-color.cjs"],
+  "plugins": ["./stylelint-plugin-strict-color.cjs", "./stylelint-plugin-no-left-border.cjs"],
   "overrides": [
     {
       "files": ["**/*.vue"],
@@ -7,9 +7,10 @@
     }
   ],
   "rules": {
-    "strict-color/strict-color-value": true
+    "strict-color/strict-color-value": true,
+    "no-left-border/no-left-border": ["error", { "severity": "error" }]
   },
   "ignoreFiles": ["**/dist/**", "**/node_modules/**", "**/brand-tokens.css", "src/styles/tokens.css"],
-  "defaultSeverity": "warning",
+  "defaultSeverity": "error",
   "reportNeedlessDisables": false
 }

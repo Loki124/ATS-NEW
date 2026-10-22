@@ -33,7 +33,10 @@ from apps.application.models import Application
 from apps.candidate.models import Candidate
 from apps.core.models import Department
 from apps.core.models_permission_v2 import (
-    PermissionResource, RolePermissionV2, RoleV2, UserRoleV2,
+    PermissionResource,
+    RolePermissionV2,
+    RoleV2,
+    UserRoleV2,
 )
 from apps.data_permission.enforcement import is_writable, write_scope_q
 from apps.data_permission.models import DataPermissionRule, RowScopeAccess, RowScopeType

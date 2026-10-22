@@ -121,7 +121,7 @@ def test_delete_endpoint_actually_soft_deletes(auth_client) -> None:
         'DELETE 返回了 204，规则却没有被标记删除 —— 这正是 hasattr 守卫吞掉字段'
         '缺失后造成的"假成功"'
     )
-    assert TimeLimitRule.objects.filter(id=rule.id).exists(), \
+    assert TimeLimitRule.all_objects.filter(id=rule.id).exists(), \
         '软删不得真删，行必须保留以供审计'
 
 

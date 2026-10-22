@@ -41,9 +41,10 @@
               :model="formAccount"
               :rules="accountRules"
               size="large"
+              label-placement="top"
               @submit.prevent="onAccountFinish"
             >
-              <n-form-item path="username">
+              <n-form-item path="username" :label="t('pages.Login.s3')">
                 <n-input
                   v-model:value="formAccount.username"
                   :placeholder="t('pages.Login.s3')"
@@ -56,7 +57,7 @@
                 </n-input>
               </n-form-item>
 
-              <n-form-item path="password">
+              <n-form-item path="password" :label="t('pages.Login.s6')">
                 <n-input
                   v-model:value="formAccount.password"
                   type="password"
@@ -95,8 +96,8 @@
 
           <!-- 邮箱验证码登录（免密） -->
           <n-tab-pane name="email" :tab="t('pages.Login.s5')">
-            <n-form :model="formEmail" size="large" @submit.prevent="onEmailFinish">
-              <n-form-item>
+            <n-form :model="formEmail" size="large" label-placement="top" @submit.prevent="onEmailFinish">
+              <n-form-item :label="t('pages.Login.s13')">
                 <n-input
                   v-model:value="formEmail.email"
                   :placeholder="t('pages.Login.s10')"
@@ -109,7 +110,7 @@
                 </n-input>
               </n-form-item>
 
-              <n-form-item>
+              <n-form-item :label="t('pages.Login.s11')">
                 <div class="code-input-wrapper">
                   <n-input
                     v-model:value="formEmail.code"

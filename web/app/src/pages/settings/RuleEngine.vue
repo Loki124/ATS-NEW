@@ -11,7 +11,7 @@
     </div>
 
     <!-- ========== KPI row ========== -->
-    <div class="page-body">
+    <div class="data-body">
       <div class="kpi-row">
         <div v-for="kpi in kpiCards" :key="kpi.key" class="glass-card kpi-card">
           <div class="kpi-label">{{ kpi.label }}</div>
@@ -387,9 +387,10 @@ onMounted(loadList)
 /* 仅保留全局 .kpi-* 未覆盖的脚注行；其余（.page-header/.page-title/.page-subtitle/.kpi-row/.kpi-card/.toolbar/.table-wrap）
    统一复用 glass.css 全局类，禁止私有重定义（SETTINGS_PAGE_STRUCTURE.md §0 / §4） */
 /* 8px 合规：flex 链 page-container(flex col h100) → page-body(flex:1) → panel-shell(flex:1) → table-wrap(flex:1) */
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
+  overflow-y: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);

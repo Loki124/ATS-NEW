@@ -7,7 +7,7 @@
       </div>
     </div>
 
-    <div class="page-body">
+    <div class="data-body">
       <!-- ===== 列表（常驻；新建/编辑统一走弹窗，2026-10-19 兵哥拍板）===== -->
       <div class="glass-panel panel-shell">
         <div class="toolbar">
@@ -56,7 +56,7 @@
       preset="card"
       :title="editingCode ? t('pages.settings.DynamicStrategy.s3') : t('pages.settings.DynamicStrategy.s2')"
       :style="{ width: '1080px', maxWidth: '95vw' }"
-      :content-style="{ maxHeight: 'min(68vh, 720px)', overflowY: 'auto', padding: '16px 20px' }"
+      :content-style="{ height: 'min(68vh, 720px)', overflowY: 'auto', padding: '16px 20px' }"
       :mask-closable="false"
       @update:show="(v: boolean) => { if (!v && mode === 'edit') goList() }"
     >
@@ -614,7 +614,11 @@ onMounted(loadList)
 </script>
 
 <style scoped>
-/* 页面布局三件套（与 DepartmentManagement 同款）：页头固定 + 内容区自滚 */
+/* 页面布局三件套（数据列表页标准结构，见 SETTINGS_PAGE_STRUCTURE.md §2.2）：
+   模型 B → .page-container > .page-header + .data-body > .glass-panel.panel-shell
+                              > .toolbar + .table-wrap > n-data-table[flex-height]
+   .page-title / .page-subtitle 的字号与配色由 glass.css 全局提供（.page-title 带 !important），
+   本页不再私有覆写，避免两处口径打架。 */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -629,21 +633,10 @@ onMounted(loadList)
   justify-content: space-between;
   gap: var(--space-3);
 }
-.page-title {
-  margin: 0;
-  font-size: var(--fs-18, 18px);
-  font-weight: 600;
-  color: var(--ink);
-}
-.page-subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--ink-faint);
-}
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
@@ -714,7 +707,7 @@ onMounted(loadList)
   justify-content: space-between;
   gap: var(--space-3);
   background: var(--surface);
-  border: 1px solid var(--border-hairline, #e2e8f0);
+  border: 1px solid var(--border-hairline);
   border-radius: 12px;
   padding: 12px 16px;
 }

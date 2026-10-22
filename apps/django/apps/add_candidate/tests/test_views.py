@@ -6,6 +6,24 @@ Task 2 覆盖 UploadAndParseView 的 3 个分支：
 3. 未登录请求 → 401/403
 """
 import json
+
+
+def _by_phone(phone: str):
+    """按手机号取候选人 —— 走 phone_hash 盲索引列 (2026-10-21 卡 C4: phone 已加密,
+    明文 = 匹配必然落空)。"""
+    from apps.candidate.models import Candidate
+    from apps.common.encryption import encrypted_field_eq_q
+
+    return Candidate.objects.get(encrypted_field_eq_q('phone_hash', phone))
+
+
+def _by_phone_q(phone: str):
+    """按手机号过滤候选人 —— 同 _by_phone, 走 phone_hash 盲索引列。"""
+    from apps.candidate.models import Candidate
+    from apps.common.encryption import encrypted_field_eq_q
+
+    return Candidate.objects.filter(encrypted_field_eq_q('phone_hash', phone))
+
 from unittest.mock import patch
 
 import pytest
@@ -384,7 +402,7 @@ class TestBulkCreateRecruitTypePassthrough:
             format='json', HTTP_X_RECRUIT_TYPE='campus',
         )
         assert resp.status_code == 200
-        cand = Candidate.objects.get(phone='13800138051')
+        cand = _by_phone('13800138051')
         # 核心回归: recruit_type 须随请求上下文落 campus, 而非模型默认 social
         assert cand.recruit_type == 'campus'
 
@@ -463,7 +481,7 @@ class TestBulkCreateCreatedByVisibility:
             format='json',
         )
         assert resp.status_code == 200
-        cand = Candidate.objects.get(phone='13800138061')
+        cand = _by_phone('13800138061')
         # 核心回归: created_by 须为创建者(此前漏设→NULL→SELF 列表全空)
         assert cand.created_by_id == hr_user.id
         assert cand.recruit_type == 'social'
@@ -572,7 +590,7 @@ class TestManualCreateAndOverride:
         )
         assert response.status_code == 200
         from apps.candidate.models import Candidate
-        cand = Candidate.objects.get(phone='13912345678')
+        cand = _by_phone('13912345678')
         assert cand.name == '手动张三'      # 关键：手动值落库，未被清空
         assert cand.email == 'manual@x.com'
 
@@ -600,7 +618,7 @@ class TestManualCreateAndOverride:
         )
         assert response.status_code == 200
         from apps.candidate.models import Candidate
-        cand = Candidate.objects.get(phone='13800138099')
+        cand = _by_phone('13800138099')
         assert cand.name == '改后王五'   # 覆盖生效，证明 edited 链路穿透到 DB
 
 

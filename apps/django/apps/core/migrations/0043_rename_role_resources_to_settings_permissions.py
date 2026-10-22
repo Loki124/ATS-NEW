@@ -43,7 +43,6 @@
 """
 from django.db import migrations
 
-
 # 旧码 → (新码, 新中文名, 新类型, 新 module)
 # 🔴 新码第 2 段 == module=settings（R2），第 1 段恒为 system_code=recruit（R4）；
 #    子模块 permissions（权限管理）嵌套 roles（身份管理/角色），动作段为末段。

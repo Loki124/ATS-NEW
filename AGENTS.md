@@ -477,6 +477,23 @@ Web 端按钮 MUST 按小(28–32px) / 中(36–40px) / 大(44–48px) 三档使
 <n-drawer :show="show" placement="right" :width="720">…</n-drawer>
 ```
 
+### R-225 [P0][S/R] 样式改动 MUST 有「运行时自证」，MUST NOT 只靠静态推理
+
+**背景（2026-10-22 实测，连续三轮改 CSS 都没生效）**：Vue 的 `scoped` 样式依赖**编译期给模板元素**注入 `data-v-xxx`；而 `render` 里用 `h()` 造的 VNode **不带该属性** → scoped 规则**完全不命中**。症状极具迷惑性：**源码规则完全正确、lint / 编译 / 单测全绿，渲染却是裸的**。
+
+实测证据（Chrome）：规则选择器 `.saturation-cell[data-v-ba9f44de]`，元素上**无任何 `data-v-*` 属性** → 规则不命中。`h(NTag, {class})` 等组件形态**同样不命中**。
+
+- **MUST** 改样式前先判「规则命中了吗」：`getComputedStyle(el)` 读**非继承属性**（font-weight / color / display / align-items）；继承属性（如 `font-variant-numeric`）会因父级继承给出**假阳性**。
+- **MUST** 用 `getBoundingClientRect()` 量几何，MUST NOT 靠目测判断对齐/溢出。
+- **MUST** 按 **「先判命中 → 再判几何 → 最后才调数值」** 的顺序。顺序反了就会出现「改了 N 遍都没生效」。
+- **MUST** 验收用**用户实际视口**：`:8000` 托管的是 `web/app/dist` **构建产物**（MUST 先 `npm run build:dist`，含 `collectstatic`），`:5212` 是 dev 源码 —— **两者不是同一份东西**。
+- **工具链**（已入库，MUST 使用而非自造）：
+  - `npm run shot -- <路由> [--click/--hover/--measure/--full]` —— 截图 + 量几何；`--measure` 会自动标出「无 data-v 属性 → scoped 规则不命中」。
+  - `npm run check:render-scope --strict` —— 扫「样式写在 scoped 块、但元素只由 `h()` 渲染」的类，**只拦新增**（存量登记在 `scripts/render-scope-baseline.txt`）。CI 已接硬门禁 job `ui-render-scope`。
+  - 详见 `web/app/e2e/README-shot.md` 与 `docs/04-ui/NAIVE_UI_PITFALLS.md` §7.4 / §7.6 / §7.7。
+
+> 静态门禁（eslint / vue-tsc / stylelint / vitest）对「样式是否生效」**零信号** —— 它们只验证源码，不验证渲染。全绿 ≠ 渲染正确。
+
 ## 4. 品牌色系统（Brand Color）
 
 品牌色是唯一必须由外部输入的令牌，其余颜色由它推导或与之解耦。
@@ -688,6 +705,7 @@ Agent 行为：生成或改动品牌色后 MUST 执行 --ci，MUST 依据退出�
 | X-17 | 同一视图混用不同来源/风格的图标 | 统一图标库与线性/面性风格（R-216） |
 | X-18 | 无文字图标无 aria-label / title / tooltip | 提供可理解含义的替代文本（R-217） |
 | X-19 | 同一界面图标尺寸超过 4 个等级 | 控制在 14–16 / 18–20 / 24 / 32+ 四档内（R-219） |
+| X-20 | 卡片添加左侧边框线（border-left 状态色条 / 强调条） | 状态用「标签 / 徽标 / 图标 + 文字」表达，卡片只保留 1px 统一描边 |
 
 ### X-01 品牌渐变例外（Liquid Glass v2 设计语言）
 
@@ -699,6 +717,35 @@ X-01 的「紫蓝渐变 + 发光阴影的 CTA」针对的是廉价 glow-button �
 4. **阴影范围**：`box-shadow` 仅允许用于玻璃浮层（`.glass-panel` / 弹窗 / 下拉 / Toast 的 `--shadow-card` / `--shadow-panel`）；静态卡片与 CTA 自身 MUST NOT 带发光阴影（同时受 X-03 约束）。
 
 > 判定口诀：品牌渐变**填充**合法（须令牌化 + 对比度达标）；**发光阴影**非法（X-01/X-03 双禁）。二者不能叠加。
+
+### X-20 卡片禁止左侧边框线
+
+卡片（有背景 + 圆角 + 描边的容器：`card` / `card-item` / `panel` / `n-card` 等）MUST NOT 用 `border-left` 画状态色条或强调条。
+
+**为什么禁**：
+
+1. **颜色不是语义通道**：左侧色条把「颜色」变成唯一状态线索，违反 R-109（状态 / 错误 MUST NOT 仅靠颜色表达）——色觉障碍用户与深色模式下均可能失效。
+2. **同视图两种卡片语言**：带条卡片与不带条卡片并排时，左侧描边粗细不同，内外边距、圆角观感随之分裂，违反 R-208 视觉层级一致性。
+3. **重复表达**：需求流程状态、简历占用状态、评分结果在卡片内部已有文字载体（状态标签 / 流程下拉 / 结果文字），左侧条是冗余装饰。
+4. **X-03 的伪装形态**：X-03 已要求静态卡片用 1px 边框、阴影仅给浮层；3–4px 左侧色条是「粗重描边」反模式的另一种写法。
+
+**替代方案**（MUST 满足 R-109 双通道：颜色 + 图标/文字，至少两种）：
+
+- 状态标签 / 徽标：`<n-tag>`、`<StatusTag>`（圆点 + 文字）
+- 图标 + 文字：`<n-icon>` + 文案；纯装饰图标 MUST 设 `aria-hidden="true"`
+- 卡片内已有的文字行：流程状态标签、当前值、结果说明
+
+**豁免**（不是卡片描边；MUST 在 `web/app/stylelint-plugin-no-left-border.cjs` 的 `ALLOWLIST` 登记 `{ file, selector, reason }`）：
+
+| 场景 | 示例 | 说明 |
+|---|---|---|
+| 树形层级引导线 | `.tree-item` | 表达父子关系 |
+| 行内分栏 hairline | `.row-mid` / `.row-right` | 列与列之间，非卡片左缘 |
+| 引用块 / 提示块 | `blockquote`、`.tpl-inherit` | 强调块本身不是卡片 |
+| 表格单元状态条 | `.rc-rollover-cell` | 单元格内部指示 |
+| 分组分隔线 / 标题强调条 | `.action-checks`、`.sub-title` | 子项分组与标题层级 |
+
+> 判定口诀：左侧线若表达的是「这张卡片的某条边」→ 卡片描边，违规（X-20）；若表达的是「内容之间的关系」（层级 / 分组 / 引用 / 分栏）→ 可豁免，但须登记原因。
 
 ## 6. 自动化验证
 
@@ -796,6 +843,25 @@ const hits = walk('src').flatMap(f =>
 
 if (hits.length) { console.error('X-02 违规：', hits); process.exit(1); }
 
+### 6.7 stylelint — 卡片左侧边框门禁（X-20）
+
+X-20 是**硬门禁**（severity=error），命中即阻断 CI；与 §6.2 的 warn-only 规则不同。
+
+```jsonc
+// web/app/.stylelintrc.json
+{
+  "plugins": ["./stylelint-plugin-strict-color.cjs", "./stylelint-plugin-no-left-border.cjs"],
+  "rules": {
+    "no-left-border/no-left-border": ["error", { "severity": "error" }]
+  }
+}
+```
+
+- 规则实现：`web/app/stylelint-plugin-no-left-border.cjs`（纯正则，兼容 stylelint 15/16）
+- 判定范围：`border-left` / `border-left-width` / `border-left-color` / `border-left-style` 全部命中
+- 豁免机制：**fail-closed 白名单** —— 新增左侧线 MUST 先在插件 `ALLOWLIST` 登记 `{ file, selector, reason }`，PR 可评审；临时豁免可用原生注释 `/* stylelint-disable-next-line no-left-border/no-left-border -- 原因 */`
+- 命令：`npm run lint:style`（CI 步骤「Style lint (X-04/X-05/X-13 warn-only, X-20 hard gate)」）
+
 ## 7. 交付前自检（Self-Check）
 
 完成 UI 代码后 MUST 逐条自检并在交付说明中输出自检结果表。任何 P0 项未通过 MUST NOT 交付。
@@ -846,6 +912,9 @@ if (hits.length) { console.error('X-02 违规：', hits); process.exit(1); }
 - [S-32 P1] 表单错误提示靠近对应字段，且图标 + 文字双通道？（R-221）
 - [S-33 P0] 所有弹窗默认居中弹窗（n-modal），无书面说明未使用抽屉？（R-224）
 - [S-34 P1] 重复性提示已收敛（同一文案不逐卡/逐行重复），必要说明用 icon + hover 而非常驻文字块？
+- [S-35 P1] 卡片无 border-left 状态色条，状态由「标签 / 图标 + 文字」表达？（X-20）
+- [S-36 P0] `npm run check:render-scope --strict` 退出码为 0？（R-225：无新增 scoped→h() 失效样式）
+- [S-37 P0] 由 `h()` 渲染的元素，其样式**不在** `<style scoped>` 块内？（R-225）
 
 ### 7.3 运行时项 [R] — agent MUST 输出"未验证"
 
@@ -858,6 +927,8 @@ if (hits.length) { console.error('X-02 违规：', hits); process.exit(1); }
 - [R-07 P1] 慢速 3G / 断网 下反馈正确
 - [R-08 P1] 换肤后对比度重算仍达标
 - [R-09 P1] 动效实际时长符合分场景标准
+- [R-10 P0] 本次改动涉及的样式**确实生效**（截图 + `getComputedStyle` 实测，非源码推理）？（R-225）
+- [R-11 P1] 验收视口 = 用户实际视口（:8000 托管 dist 时，须 `npm run build:dist` 后再验）？（R-225）
 
 ### 7.4 人工项 [H] — agent MUST 输出"需人工确认"
 

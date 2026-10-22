@@ -15,7 +15,7 @@ class MouAgreement(SoftDeleteModel):
     signed_at = models.DateField(null=True, blank=True)
     effective_at = models.DateField(null=True, blank=True)
     expire_at = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=20, default='DRAFT', help_text='DRAFT/ACTIVE/EXPIRED/TERMINATED')
+    status = models.CharField(max_length=20, default='DRAFT', help_text='DRAFT/ACTIVE/EXPIRED/TERMINATED', db_index=True)
     owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='mou_agreements')
     description = models.TextField(blank=True, default='', help_text='描述 (FE 字段, 兼容 terms)')  # 2026-07-01
     terms = models.TextField(blank=True, default='', help_text='MOU 条款')
@@ -39,7 +39,7 @@ class MouContainer(SoftDeleteModel):
     """MOU 容器 (招聘需求 + 配额)"""
     id = models.CharField(max_length=32, primary_key=True)
     mou = models.ForeignKey(MouAgreement, on_delete=models.CASCADE, related_name='containers')
-    code = models.CharField(max_length=50)
+    code = models.CharField(max_length=50, db_index=True)
     position_title = models.CharField(max_length=200)
     # 2026-07-02: 加 G36 stub model 缺的字段, 配合前端表单
     type = models.CharField(max_length=50, blank=True, default='', help_text='容器类型: PROJECT/DEPARTMENT/...')  # FE 字段

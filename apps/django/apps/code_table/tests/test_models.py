@@ -7,16 +7,16 @@ Meta.ordering。导入命令的幂等性见 test_import_idempotent.py。
 import pytest
 
 from apps.code_table.models import (
+    INDUSTRY_LEVEL_DIVISION,
+    INDUSTRY_LEVEL_SECTION,
+    LEVEL_CITY,
+    LEVEL_PROVINCE,
     Country,
     Currency,
     Ethnicity,
     Industry,
     Language,
     Region,
-    INDUSTRY_LEVEL_DIVISION,
-    INDUSTRY_LEVEL_SECTION,
-    LEVEL_CITY,
-    LEVEL_PROVINCE,
 )
 
 pytestmark = pytest.mark.django_db

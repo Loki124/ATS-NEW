@@ -62,7 +62,11 @@ class PermissionResourceViewSet(
     # 写口子的守卫：按 action 精确声明，**不能**用类级 permission_required
     # （那会让 list/retrieve 也要 dynamic_strategy:edit，打断既有只读消费方）。
     # 语义上「谁能配动态策略，谁才能决定哪些资源受策略管控」，故复用动态策略编辑码。
+    # 'update'(PUT) 一并声明：该 action 被显式 405 拒绝（见下方 update 方法），但权限校验
+    # 在方法体之前执行 —— 不声明的话 PUT 会返回 403 而非设计意图的 405。声明后：
+    # 有权者 → 进方法体 → 405；无权者 → 403。两层语义都正确。
     permission_required_map = {
+        'update': 'recruit:settings:dynamic_strategy:edit',
         'partial_update': 'recruit:settings:dynamic_strategy:edit',
     }
 
@@ -324,7 +328,9 @@ class RoleViewSet(viewsets.ModelViewSet):
             with transaction.atomic():
                 role = self.get_object()
                 from apps.data_permission.role_scope_api import (
-                    UnsetWithWriteRowsError, upsert_modules, validate_modules,
+                    UnsetWithWriteRowsError,
+                    upsert_modules,
+                    validate_modules,
                 )
                 modules = request.data.get('modules')
                 reason = validate_modules(modules)

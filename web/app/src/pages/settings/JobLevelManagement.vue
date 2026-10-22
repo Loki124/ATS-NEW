@@ -7,7 +7,7 @@
       </div>
     </div>
 
-    <div class="page-body">
+    <div class="data-body">
       <div class="glass-panel panel-shell">
         <div class="toolbar">
           <n-input
@@ -643,10 +643,10 @@ onMounted(() => {
   min-height: 0;
   padding: 0;
 }
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;

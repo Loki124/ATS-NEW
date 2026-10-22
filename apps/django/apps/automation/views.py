@@ -10,7 +10,6 @@ from apps.common.pagination import StandardResultsSetPagination
 from apps.common.response import success_response
 from apps.common.views import EnvelopeReadOnlyMixin
 from apps.common.viewsets import EnvelopeAuditModelViewSet
-from apps.core.permissions import HasProcessPermission
 from apps.core.permissions_v2 import V2Permission
 
 from .models import AutomationLog, AutomationRule

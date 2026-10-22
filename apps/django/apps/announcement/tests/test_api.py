@@ -76,7 +76,8 @@ class TestAnnouncementAPI:
         del_resp = auth_hr_client.delete(f'{URL}{obj.id}/')
         assert del_resp.status_code == 204
         # 软删：DB 行仍在，但列表过滤 deleted_at__isnull 排除
-        assert Announcement.objects.filter(id=obj.id).exists()
+        # (2026-10-21 卡 D3: 默认 manager 已过滤软删行, 读"行仍在"要用 all_objects)
+        assert Announcement.all_objects.filter(id=obj.id).exists()
         assert Announcement.objects.filter(id=obj.id, deleted_at__isnull=True).exists() is False
         titles = [d['title'] for d in auth_hr_client.get(URL).json()['data']]
         assert '待删' not in titles

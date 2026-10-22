@@ -245,6 +245,7 @@ def test_rehash_command_requires_salt():
 @pytest.mark.django_db
 def test_rehash_command_backfills_v1_to_v2():
     from django.core.management import call_command
+
     from apps.candidate.models import Candidate
 
     with override_settings(PII_HASH_SALT=''):
@@ -273,6 +274,7 @@ def test_rehash_command_backfills_v1_to_v2():
 @pytest.mark.django_db
 def test_rehash_command_dry_run_writes_nothing():
     from django.core.management import call_command
+
     from apps.candidate.models import Candidate
 
     with override_settings(PII_HASH_SALT=''):
@@ -297,6 +299,7 @@ def test_rehash_round_trip_is_reversible():
     部署回滚路径的必要一环, 不是可选的锦上添花。
     """
     from django.core.management import call_command
+
     from apps.candidate.models import Candidate
 
     with override_settings(PII_HASH_SALT=''):

@@ -50,7 +50,16 @@ class Candidate(FSMModelMixin, FullAuditModel):
 
     # 基本信息
     name = models.CharField(max_length=50, db_index=True, verbose_name='姓名')
-    phone = models.CharField(max_length=20, db_index=True, verbose_name='手机号')
+    # 2026-10-21 卡 C4: phone / email 改字段级加密（与 id_card_no 同构）。
+    #   · Fernet 是**非确定性**加密（每次密文不同）→ 明文 `=` / `icontains` 匹配必然落空，
+    #     故**按手机号/邮箱查候选人必须走 hash 盲索引列**（phone_hash / email_hash），
+    #     口径与 id_card_no 完全一致（见下方 save() 与 apps/candidate/services.py 的查重）。
+    #   · 去掉 db_index：密文索引无意义（每次写入都不同），且 512 字符列建索引徒增存储；
+    #     真正的按值查询走 phone_hash / email_hash（两者仍带 db_index）。
+    #   · max_length=512：Fernet 密文约 140-160 字符（明文 11 位手机号 / 邮箱），
+    #     与 id_card_no 的 512 保持一致；**明文长度限制仍在序列化器层**
+    #     （phone max_length=20 / email EmailField 格式校验）。
+    phone = EncryptedCharField(max_length=512, verbose_name='手机号')
     phone_hash = models.CharField(
         # 2026-09-27 P0-2: 64 → 80。sha256 hex 恰好 64 字符, 而启用外部 salt 后
         #   哈希带 'v2_' 前缀 = 67 字符, 64 装不下会被截断/报错, 导致查重静默失效。
@@ -60,7 +69,10 @@ class Candidate(FSMModelMixin, FullAuditModel):
         verbose_name='手机号 hash (sha256, 用于查重/匿名查询)',
         help_text='hash_for_search(phone) 写入, 同明文 → 同 hash',
     )
-    email = models.EmailField(max_length=100, db_index=True, null=True, blank=True, verbose_name='邮箱')
+    email = EncryptedCharField(
+        max_length=512, null=True, blank=True, verbose_name='邮箱',
+        help_text='Fernet 加密存储; 查重走 email_hash 列',
+    )
     email_hash = models.CharField(
         # 2026-09-27 P0-2: 64 → 80。sha256 hex 恰好 64 字符, 而启用外部 salt 后
         #   哈希带 'v2_' 前缀 = 67 字符, 64 装不下会被截断/报错, 导致查重静默失效。
@@ -68,6 +80,7 @@ class Candidate(FSMModelMixin, FullAuditModel):
         #   由 tests/test_encryption_hardening.py 断言本值 >= 该常量, 防止漂移)。
         max_length=80, blank=True, db_index=True,
         verbose_name='邮箱 hash (sha256, 用于查重/匿名查询)',
+        help_text='hash_for_search(email) 写入, 同明文 → 同 hash',
     )
     gender = models.CharField(max_length=8, blank=True, verbose_name='性别')
     # 院校标签 / 专业标签：用于全维度 Offer 钩子命中（决策①：性别 + 院校标签 + 专业标签）。
@@ -218,7 +231,9 @@ class Candidate(FSMModelMixin, FullAuditModel):
         verbose_name = '候选人'
         verbose_name_plural = verbose_name
         indexes = [
-            models.Index(fields=['name', 'phone']),
+            # 2026-10-21 卡 C4: 原 Index(['name','phone']) 已撤 —— phone 变密文后
+            #   该索引的 phone 部分永远匹配不上（Fernet 每次密文不同），只剩 name 前缀的用处，
+            #   而 name 本身已有 db_index。复合索引建在密文列上纯属浪费写入性能。
             models.Index(fields=['source_channel', 'created_at']),
         ]
 

@@ -4,14 +4,20 @@
 fixtures（auth_client / auth_hr_client / department / super_user 等）来自
 tests/fixtures_common（经顶层 conftest.py 以 plugin 身份全局加载）。
 
-关于 BU 深度：is_bu_depth(dept) = `dept.parent_id IS NOT NULL AND
-dept.parent.parent_id IS NULL`。即「parent 存在、且 parent 的 parent 不存在」的节点，
-对应 0 索引树 root(0) -> bu_valid(1) -> bu_deep(2)。故命中校验的是 bu_valid
-（其 parent=root，root 无 parent），bu_deep 因 grandparent 存在而不命中。
+关于 BU 深度：口径为 **0 基层级**（根=0、事业群=1、BU=2、三级部门=3），
+判定实现收敛在 `apps/core/dept_depth.py`，与前端 `web/app/src/utils/campus.ts`
+的 `deptLevelMap`(根=0) + `buOptions(level===2)` 严格对齐。
+即命中校验的是 0 基 depth==2 的节点（root 的孙子），深度更大的三级部门不命中。
+
+⚠️ 历史实现按「parent 存在且 parent.parent 为空」判定 = 第 1 级（事业群），
+与前端差一级 → 前端下拉里选得出的 BU 一提交就 400。已修正，回归见
+`TestBuDepthValidation` 与 `apps/core/tests/test_dept_depth.py`。
 
 入参统一用 snake_case（camel-case 解析器对下划线字段透传），断言只看状态码 /
 success 信封 / id（单字字段不分词）。
 """
+import re
+
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -41,20 +47,23 @@ def _seed_campus_data(db):
 
 @pytest.fixture
 def bu_hierarchy(db):
-    """构建部门树：root(0) -> bu_valid(1, 二级部门) -> bu_deep(2, 三级部门)。
+    """构建部门树（0 基层级）：root(0) -> grp(1, 事业群) -> bu_valid(2, BU) -> bu_deep(3, 三级部门)。
 
-    bu_valid 命中 is_bu_depth（parent 存在、parent.parent 为 None）；bu_deep 因
-    grandparent 存在而不命中。
+    口径：根=0、事业群=1、BU=2、三级部门=3（PRD §6.1 / `apps/core/dept_depth.py`）。
+    bu_valid 命中 is_bu_depth（0 基 depth==2）；bu_deep 是三级部门，不命中。
     """
     root = Department.objects.create(id='dept-root', name='集团', code='ROOT', path='/集团')
+    grp = Department.objects.create(
+        id='dept-grp', name='技术事业群', code='GRP', parent=root, path='/集团/技术事业群',
+    )
     bu_valid = Department.objects.create(
-        id='dept-bu', name='技术BU', code='BU', parent=root, path='/集团/技术BU',
+        id='dept-bu', name='技术BU', code='BU', parent=grp, path='/集团/技术事业群/技术BU',
     )
     bu_deep = Department.objects.create(
         id='dept-deep', name='技术BU-子', code='DEEP', parent=bu_valid,
-        path='/集团/技术BU/子',
+        path='/集团/技术事业群/技术BU/子',
     )
-    return {'root': root, 'bu_valid': bu_valid, 'bu_deep': bu_deep}
+    return {'root': root, 'grp': grp, 'bu_valid': bu_valid, 'bu_deep': bu_deep}
 
 
 def _attach_campus_role(user, role_code):
@@ -83,16 +92,30 @@ def _client_for(user):
 
 
 # --------------------------------------------------------------------------- #
-# LiveRoom
+# RotationResource（轮岗资源：直播间 / 客服部门 / 其他 合一）
 # --------------------------------------------------------------------------- #
 @pytest.mark.django_db
-class TestLiveRoomCRUD:
+class TestRotationResourceCRUD:
+    def test_create_requires_resource_type(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """🔴 资源类型是本次整合新增的核心区分字段 → 必填（漏传 → 400）。"""
+        bu = bu_hierarchy['bu_valid']
+        resp = auth_client.post(
+            f'{BASE}/resources/',
+            {'name': '资源A', 'platform': 'VIDEO_ACCOUNT', 'bu': bu.id},
+            format='json',
+        )
+        assert resp.status_code == 400
+        assert 'resourceType' in str(resp.json())
+
     def test_create_requires_platform_dict(self, auth_client, bu_hierarchy, _seed_campus_data):
         bu = bu_hierarchy['bu_valid']
         # platform 必须是启用字典项，非法值应被校验拒绝
         resp = auth_client.post(
-            f'{BASE}/live-rooms/',
-            {'name': '直播间A', 'platform': 'NOT_A_PLATFORM', 'bu': bu.id},
+            f'{BASE}/resources/',
+            {
+                'name': '直播间A', 'resource_type': 'LIVE_ROOM',
+                'platform': 'NOT_A_PLATFORM', 'bu': bu.id,
+            },
             format='json',
         )
         assert resp.status_code == 400
@@ -100,62 +123,108 @@ class TestLiveRoomCRUD:
     def test_create_and_retrieve(self, auth_client, bu_hierarchy, _seed_campus_data):
         bu = bu_hierarchy['bu_valid']
         resp = auth_client.post(
-            f'{BASE}/live-rooms/',
-            {'name': '直播间A', 'platform': 'VIDEO_ACCOUNT', 'location': 'BEIJING', 'bu': bu.id},
+            f'{BASE}/resources/',
+            {
+                'name': '直播间A', 'resource_type': 'LIVE_ROOM', 'platform': 'VIDEO_ACCOUNT',
+                'location': 'BEIJING', 'bu': bu.id,
+            },
             format='json',
         )
         assert resp.status_code == 201, resp.content
         body = resp.json()
         assert body['success'] is True
-        lid = body['data']['id']
-        assert body['data'].get('roomNo')  # 自动补号 LRxxxxxx
+        rid = body['data']['id']
+        assert body['data'].get('resourceNo')  # 自动补号（直播间 → LR+4 位）
+        assert re.fullmatch(r'LR\d{4,}', body['data']['resourceNo']), body['data']['resourceNo']
+        assert body['data']['resourceType'] == 'LIVE_ROOM'
         assert 'campusCount' in body['data']  # 只读聚合字段
 
         # 详情
-        resp = auth_client.get(f'{BASE}/live-rooms/{lid}/')
+        resp = auth_client.get(f'{BASE}/resources/{rid}/')
         assert resp.status_code == 200
-        assert resp.json()['data']['id'] == lid
+        assert resp.json()['data']['id'] == rid
+
+    def test_create_service_dept_resource(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """客服部门形态：平台可空，编号走 SD 序列。"""
+        bu = bu_hierarchy['bu_valid']
+        resp = auth_client.post(
+            f'{BASE}/resources/',
+            {'name': '客服部A', 'resource_type': 'SERVICE_DEPT', 'bu': bu.id},
+            format='json',
+        )
+        assert resp.status_code == 201, resp.content
+        data = resp.json()['data']
+        assert re.fullmatch(r'SD\d{4,}', data['resourceNo']), data['resourceNo']
+        assert data['resourceType'] == 'SERVICE_DEPT'
 
     def test_list_and_filter(self, auth_client, bu_hierarchy, _seed_campus_data):
         bu = bu_hierarchy['bu_valid']
         auth_client.post(
-            f'{BASE}/live-rooms/',
-            {'name': '直播间B', 'platform': 'TENCENT_MEETING', 'bu': bu.id},
+            f'{BASE}/resources/',
+            {
+                'name': '直播间B', 'resource_type': 'LIVE_ROOM',
+                'platform': 'TENCENT_MEETING', 'bu': bu.id,
+            },
             format='json',
         )
-        resp = auth_client.get(f'{BASE}/live-rooms/', {'bu': bu.id})
+        resp = auth_client.get(f'{BASE}/resources/', {'bu': bu.id})
         assert resp.status_code == 200
         # 列表经信封包裹：{success, data:[...], ...}
         assert 'data' in resp.json()
         assert isinstance(resp.json()['data'], list)
 
+    def test_filter_by_resource_type(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """按资源类型过滤（合并后单一端点靠 resource_type 区分形态）。"""
+        bu = bu_hierarchy['bu_valid']
+        auth_client.post(
+            f'{BASE}/resources/',
+            {
+                'name': '直播间X', 'resource_type': 'LIVE_ROOM',
+                'platform': 'VIDEO_ACCOUNT', 'bu': bu.id,
+            },
+            format='json',
+        )
+        auth_client.post(
+            f'{BASE}/resources/',
+            {'name': '客服部X', 'resource_type': 'SERVICE_DEPT', 'bu': bu.id},
+            format='json',
+        )
+        resp = auth_client.get(f'{BASE}/resources/', {'resource_type': 'SERVICE_DEPT'})
+        assert resp.status_code == 200
+        rows = resp.json()['data']
+        assert len(rows) == 1
+        assert rows[0]['resourceType'] == 'SERVICE_DEPT'
+
     def test_update_and_soft_delete_restore(self, auth_client, bu_hierarchy, _seed_campus_data):
         bu = bu_hierarchy['bu_valid']
         resp = auth_client.post(
-            f'{BASE}/live-rooms/',
-            {'name': '直播间C', 'platform': 'WECHAT_WORK_LIVE', 'bu': bu.id},
+            f'{BASE}/resources/',
+            {
+                'name': '直播间C', 'resource_type': 'LIVE_ROOM',
+                'platform': 'WECHAT_WORK_LIVE', 'bu': bu.id,
+            },
             format='json',
         )
-        lid = resp.json()['data']['id']
+        rid = resp.json()['data']['id']
 
-        resp = auth_client.patch(f'{BASE}/live-rooms/{lid}/', {'name': '直播间C改'}, format='json')
+        resp = auth_client.patch(f'{BASE}/resources/{rid}/', {'name': '直播间C改'}, format='json')
         assert resp.status_code == 200
         assert resp.json()['data']['name'] == '直播间C改'
 
-        resp = auth_client.delete(f'{BASE}/live-rooms/{lid}/')
+        resp = auth_client.delete(f'{BASE}/resources/{rid}/')
         assert resp.status_code == 200
 
         # 软删后列表不出现
-        resp = auth_client.get(f'{BASE}/live-rooms/', {'search': '直播间C改'})
+        resp = auth_client.get(f'{BASE}/resources/', {'search': '直播间C改'})
         assert resp.json()['data'] == []
 
         # 恢复（restore 须能定位软删对象）
-        resp = auth_client.post(f'{BASE}/live-rooms/{lid}/restore/')
+        resp = auth_client.post(f'{BASE}/resources/{rid}/restore/')
         assert resp.status_code == 200
         assert resp.json()['success'] is True
 
         # 恢复后列表可见
-        resp = auth_client.get(f'{BASE}/live-rooms/', {'search': '直播间C改'})
+        resp = auth_client.get(f'{BASE}/resources/', {'search': '直播间C改'})
         assert len(resp.json()['data']) == 1
 
 
@@ -184,7 +253,9 @@ class TestClassRoomCRUD:
         body = resp.json()
         assert body['success'] is True
         cid = body['data']['id']
-        assert body['data'].get('code')  # 自动补号 CLxxxxxx
+        assert body['data'].get('code')  # 自动补号（格式细则见 test_classroom_code.py）
+        # 2026-10-22 兵哥指令：班级编号 CL+3 位 —— 经真实 HTTP 端点校验格式
+        assert re.fullmatch(r'CL\d{3,}', body['data']['code']), body['data']['code']
         assert 'studentCount' in body['data']
 
         resp = auth_client.get(f'{BASE}/class-rooms/{cid}/')
@@ -274,21 +345,39 @@ class TestRotationArrangementCRUD:
 @pytest.mark.django_db
 class TestBuDepthValidation:
     def test_bu_must_be_second_level(self, auth_client, bu_hierarchy, _seed_campus_data):
-        bu_valid = bu_hierarchy['bu_valid']   # 命中 is_bu_depth -> 合法
-        bu_deep = bu_hierarchy['bu_deep']     # grandparent 存在 -> 非法
+        bu_valid = bu_hierarchy['bu_valid']   # 0 基 depth==2 (BU) -> 合法
+        bu_deep = bu_hierarchy['bu_deep']     # 0 基 depth==3 (三级部门) -> 非法
+        bu_grp = bu_hierarchy['grp']          # 0 基 depth==1 (事业群) -> 非法
 
         # 非法：三级部门作 BU
         resp = auth_client.post(
-            f'{BASE}/live-rooms/',
-            {'name': '违规直播间', 'platform': 'VIDEO_ACCOUNT', 'bu': bu_deep.id},
+            f'{BASE}/resources/',
+            {
+                'name': '违规直播间', 'resource_type': 'LIVE_ROOM',
+                'platform': 'VIDEO_ACCOUNT', 'bu': bu_deep.id,
+            },
             format='json',
         )
         assert resp.status_code == 400
 
-        # 合法：二级部门作 BU
+        # 非法：事业群（第 1 级）作 BU —— 层级不够深，同样拒绝
         resp = auth_client.post(
-            f'{BASE}/live-rooms/',
-            {'name': '合规直播间', 'platform': 'VIDEO_ACCOUNT', 'bu': bu_valid.id},
+            f'{BASE}/resources/',
+            {
+                'name': '违规直播间2', 'resource_type': 'LIVE_ROOM',
+                'platform': 'VIDEO_ACCOUNT', 'bu': bu_grp.id,
+            },
+            format='json',
+        )
+        assert resp.status_code == 400
+
+        # 合法：二级部门（BU, 0 基 depth==2）作 BU —— 与前端下拉 level===2 同源
+        resp = auth_client.post(
+            f'{BASE}/resources/',
+            {
+                'name': '合规直播间', 'resource_type': 'LIVE_ROOM',
+                'platform': 'VIDEO_ACCOUNT', 'bu': bu_valid.id,
+            },
             format='json',
         )
         assert resp.status_code == 201, resp.content
@@ -322,11 +411,11 @@ class TestV2PermissionWiring:
     def test_plain_user_denied(self, db, _seed_campus_data):
         plain = User.objects.create_user(username='plain_rot', password='x', employee_id='PR')
         client = _client_for(plain)
-        resp = client.get(f'{BASE}/live-rooms/')
+        resp = client.get(f'{BASE}/resources/')
         assert resp.status_code == 403
 
     def test_hr_user_allowed(self, auth_hr_client, _seed_campus_data):
-        resp = auth_hr_client.get(f'{BASE}/live-rooms/')
+        resp = auth_hr_client.get(f'{BASE}/resources/')
         assert resp.status_code == 200
 
 

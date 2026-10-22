@@ -8,9 +8,9 @@ scopes 动作 (apps/mou/urls.py 的 MouAgreementViewSetWithScopes) 自带 {succe
 """
 
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import V2Permission
 from apps.common.viewsets import EnvelopeModelViewSet
 from apps.core.permissions import MOUVIEWSetPermission  # noqa: F401
+from apps.core.permissions_v2 import V2Permission
 
 from .models import MouAgreement, MouContainer, MouRule, MutualExclusionGroup
 from .serializers import (

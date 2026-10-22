@@ -1,4 +1,6 @@
 """Demand Serializers (PRD v4 §14.1)"""
+import logging
+
 from rest_framework import serializers
 
 from apps.core.models import User
@@ -6,6 +8,7 @@ from apps.dynamic_field.models import DynamicFieldValue
 
 from .models import Demand, DemandApproval
 
+logger = logging.getLogger(__name__)
 
 # 列表卡片需展示、但存于动态字段（Demand 资源）的键：
 #   - 责任人三件套（PERSON 类型，value = 用户 id）
@@ -118,7 +121,8 @@ class DemandListSerializer(serializers.ModelSerializer):
             rep['applicant_count'] = (
                 Application.objects.filter(position_id__in=pos_ids).count() if pos_ids else 0
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 统计失败不阻断列表渲染, 记 warning 后按 0 计
+            logger.warning('需求列表「应聘人数」统计失败, 按 0 计', exc_info=True)
             rep['applicant_count'] = 0
 
         return rep

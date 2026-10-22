@@ -7,21 +7,27 @@
   <!-- P4 整改：跳转链接（a11y WCAG 2.4.1） -->
   <a class="skip-link" href="#main">{{ t('pages.Layout.s1') }}</a>
 
-  <n-layout has-sider class="app-layout" :class="{ 'app-layout--top': menuLayout === 'top' }">
-    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 默认折叠 + hover 浮层展开） [T6.2] -->
+  <n-layout
+    has-sider
+    class="app-layout"
+    :class="{
+      'app-layout--top': menuLayout === 'top',
+      'app-layout--pinned': menuLayout === 'side' && !isMobile && siderPinned,
+    }"
+  >
+    <!-- 侧边栏（左侧竖排模式 · v2 玻璃化 · 固定/折叠双态 + hover 浮层展开） [T6.2] -->
     <!--
       {{ t('pages.Layout.s10') }}
       {{ t('pages.Layout.s11') }}
       {{ t('pages.Layout.s12') }}
       - n-menu :collapsed=!effectiveExpanded 控制内部菜单项图标/文字显示
+      - 2026-10-21：固定态（siderPinned）占位 240px；折叠态 64px 仅图标，hover 浮层展开
     -->
     <n-layout-sider
       v-if="menuLayout === 'side' && !isMobile"
-      :width="64"
+      :width="siderWidth"
       :native-scrollbar="false"
-      :class="['glass-sidebar', 'app-sider', { 'app-sider--floating': effectiveExpanded }]"
-      @mouseenter="hoverExpanded = true"
-      @mouseleave="hoverExpanded = false"
+      :class="['glass-sidebar', 'app-sider', { 'app-sider--pinned': siderPinned }]"
     >
       <div class="logo-container">
         <div class="logo">
@@ -42,6 +48,7 @@
       </div>
 
       <n-menu
+        :key="`sider-menu-${systemStore.current}`"
         :collapsed="!effectiveExpanded"
         :collapsed-width="64"
         :collapsed-icon-size="22"
@@ -49,36 +56,59 @@
         :value="selectedKey"
         :expanded-keys="expandedKeys"
         :theme-overrides="menuThemeOverrides"
-        class="glass-sidebar sider-menu"
+        :class="['glass-sidebar', 'sider-menu', { 'sider-menu--switching': systemSwitched }]"
         @update:value="handleMenuClick"
         @update:expanded-keys="onExpandedKeysChange"
       />
 
-      <!-- 底部 footer: 「设置」永久贴底(mt:auto 推到最底, hover 展开状态才显示文字) -->
-      <div
-        class="sider-footer"
-        :class="{ 'sider-footer--collapsed': !effectiveExpanded, 'sider-footer--active': isOnSettingsRoute }"
-        role="button"
-        tabindex="0"
-        :aria-label="t('pages.Layout.s5')"
-        @click="router.push('/settings/account')"
-        @keydown.enter="router.push('/settings/account')"
-      >
-        <div class="sider-footer-icon">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-            <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41L9.25 5.35C8.66 5.59 8.12 5.92 7.63 6.29L5.24 5.33c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
-          </svg>
+      <!-- 底部一行：「设置」+ 「固定/折叠」图标按钮（2026-10-21 兵哥指令）
+           固定 = 常驻 240px 并占位（主区右移）；折叠 = 64px 只显示菜单 icon。
+           ⚠️ 两个要点：① 切换控件必须**放在侧栏内部**（早前做成悬浮在右缘的把手会被主区面板盖住 → 点不到）；
+           ② 与「设置」同处一行、**只显示图标不带文字**（折叠态 64px 放不下文字）。 -->
+      <div class="sider-footer-row" :class="{ 'sider-footer-row--collapsed': !effectiveExpanded }">
+        <!-- 「设置」永久贴底(mt:auto 由外层 row 承担) -->
+        <div
+          class="sider-footer"
+          :class="{ 'sider-footer--collapsed': !effectiveExpanded, 'sider-footer--active': isOnSettingsRoute }"
+          role="button"
+          tabindex="0"
+          :aria-label="t('pages.Layout.s5')"
+          @click="router.push('/settings/account')"
+          @keydown.enter="router.push('/settings/account')"
+        >
+          <div class="sider-footer-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+              <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41L9.25 5.35C8.66 5.59 8.12 5.92 7.63 6.29L5.24 5.33c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+            </svg>
+          </div>
+          <span v-if="effectiveExpanded" class="sider-footer-label">{{ t('pages.Layout.s2') }}</span>
         </div>
-        <span v-if="effectiveExpanded" class="sider-footer-label">{{ t('pages.Layout.s2') }}</span>
+
+        <!-- 固定 / 折叠 切换：只显示图标（文字在 title / aria-label 里） -->
+        <button
+          class="sider-toggle"
+          type="button"
+          :aria-label="siderPinned ? t('pages.Layout.sider.collapse') : t('pages.Layout.sider.pin')"
+          :title="siderPinned ? t('pages.Layout.sider.collapse') : t('pages.Layout.sider.pin')"
+          @click.stop="toggleSiderPinned"
+        >
+          <n-icon :component="siderPinned ? PinOutline : Pin" :size="18" />
+        </button>
       </div>
     </n-layout-sider>
 
-    <!-- 移动端侧栏抽屉 [T6.2] -->
-    <n-drawer
+    <!-- 2026-10-21 (整改卡 E2 · AGENTS.md R-224): 移动端侧栏回改居中弹窗。
+         原为 placement="left" 的侧滑抽屉 (响应式导航 [T6.2]); 按「默认 = 居中,
+         例外 = 抽屉」统一回改, 菜单内容 / 选中 / 展开交互保持不变,
+         内容区零内边距沿用原视觉 (见 .mobile-sidebar-drawer 样式)。 -->
+    <n-modal
       v-if="menuLayout === 'side'"
       v-model:show="mobileMenuOpen"
-      :width="280"
-      placement="left"
+      preset="card"
+      :style="{ width: '280px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(520px, calc(88vh - 180px))', overflowY: 'auto', padding: '0' }"
+      :mask-closable="false"
+      :bordered="false"
       class="mobile-sidebar-drawer"
     >
       <n-menu
@@ -89,7 +119,7 @@
         @update:value="onDrawerMenu"
         @update:expanded-keys="onExpandedKeysChange"
       />
-    </n-drawer>
+    </n-modal>
 
     <!-- 主体 -->
     <n-layout class="main-area">
@@ -124,11 +154,12 @@
           <!-- 顶部横排：水平菜单 -->
           <n-menu
             v-if="menuLayout === 'top'"
+            :key="`top-menu-${systemStore.current}`"
             mode="horizontal"
             :options="menuOptions"
             :value="selectedKey"
             :theme-overrides="topMenuThemeOverrides"
-            class="top-menu flex-1 min-w-0"
+            :class="['top-menu', 'flex-1', 'min-w-0', { 'sider-menu--switching': systemSwitched }]"
             @update:value="handleMenuClick"
           />
 
@@ -233,6 +264,8 @@ import {
   SwapVerticalOutline,
   LanguageOutline,
   ClipboardOutline,
+  Pin,
+  PinOutline,
   // SettingsOutline, // 已迁移到 sider 底部 footer（不再用于 n-menu 菜单项）
 } from '@vicons/ionicons5'
 import { MenuOutline as Menu, CheckmarkOutline as Check } from '@vicons/ionicons5'
@@ -256,9 +289,23 @@ useShortcuts()
 const message = useMessage()
 
 const collapsed = ref(true)
-const hoverExpanded = ref(false)
-// T11.x 主侧栏 hover-expand: 鼠标悬浮临时展开, 离开立即折叠
-const effectiveExpanded = computed(() => !collapsed.value || hoverExpanded.value)
+// 2026-10-21 兵哥指令：侧栏「固定 / 折叠」双态
+//   - 固定（pinned）：侧栏常驻 240px 并占位，主区整体右移；
+//   - 折叠（默认）：64px 只显示一级菜单 icon，**悬停分组图标 → 右侧浮出该组二级菜单**
+//     （naive-ui 原生 dropdown：菜单 collapsed 时 Submenu 自动启用浮出，VS Code 式）。
+//   ⚠️ 原先的「鼠标悬停整个侧栏就整体展开」（peek）已下线：它会让菜单进入展开态，
+//      正好顶掉上面的原生浮出能力 —— 折叠态就永远看不到二级菜单了（兵哥反馈）。
+// 状态存 userStore.uiSettings.siderPinned（跟账号走，刷新/换设备保持）。
+const siderPinned = computed(() => userStore.uiSettings?.siderPinned === true)
+const SIDER_WIDTH_EXPANDED = 240
+const SIDER_WIDTH_COLLAPSED = 64
+const siderWidth = computed(() => (siderPinned.value ? SIDER_WIDTH_EXPANDED : SIDER_WIDTH_COLLAPSED))
+/** 菜单项内容（icon + 文字）是否展开显示：只有固定态才展开，折叠态交给原生浮出 */
+const effectiveExpanded = computed(() => siderPinned.value)
+
+function toggleSiderPinned() {
+  userStore.setUiSettings({ siderPinned: !siderPinned.value })
+}
 // 「设置」footer 路由高亮: 位于 /settings/* 任意路径时点亮底色
 const isOnSettingsRoute = computed(() => route.path.startsWith('/settings'))
 
@@ -369,7 +416,7 @@ const menuLayout = computed<'side' | 'top'>(() =>
 )
 
 // G-2026-09-23（2026-10-19 兵哥调整）：菜单按系统差异（双系统）。社招/校招共享主功能菜单；校招模式额外追加
-// 两个一级入口：「校招生管理」分组（轮岗安排/轮岗资源/客服部门/班级管理/校招生档案）+「编制管控」叶子菜单。
+// 两个一级入口：「校招生管理」分组（轮岗安排/轮岗资源/客服部门/班级管理/人员管理）+「编制管控」叶子菜单。
 // 原「校园招聘」分组壳已拆散；「校园大使/宣讲会」迁移到系统设置「雇主品牌」分组。切换系统时菜单实时刷新（computed 依赖 systemStore）。
 const systemStore = useSystemStore()
 const { canAccess } = usePermission()
@@ -416,11 +463,11 @@ const menuOptions = computed(() => {
       icon: renderIcon(PeopleOutline),
       children: [
         { key: '/campus/rotation-arrangement', label: '轮岗安排' },
-        { key: '/campus/live-room', label: '轮岗资源' },
-        { key: '/campus/service-dept', label: '客服部门' },
-        { key: '/campus/resource-summary', label: '资源汇总' },
+        // 2026-10-21 兵哥：轮岗资源合并为单入口，页签承载 BU汇总 / 直播间 / 客服部门
+        { key: '/campus/rotation-resource', label: '轮岗资源' },
         { key: '/campus/class-room', label: '班级管理' },
-        { key: '/campus/person', label: '校招生档案' },
+        // 2026-10-21 兵哥：菜单名由「校招生档案」更名为「人员管理」
+        { key: '/campus/person', label: '人员管理' },
       ],
     })
     // 编制管控（原「校招管控」，2026-10-19 更名）：campus 模式下的一级叶子菜单（路由 /campus/control，已脱离 settings）
@@ -434,6 +481,20 @@ const menuOptions = computed(() => {
   return filterMenuByPermission(base as MenuOption[], canAccess) as any[]
 })
 
+// 2026-10-21 兵哥反馈「系统切换导致页面波动」：
+// 社招 ↔ 校招 切换时侧栏菜单会整组增删（「校招生管理」分组 + 「编制管控」），
+// 条目逐个弹出 / 消失会造成明显跳动。这里在**切换之后**给菜单加一次性淡入动画，
+// 让整块菜单作为一个整体重绘 —— 视觉上只剩「淡入」，而不是「抖」。
+// ⚠️ 实现要点：n-menu 上用 :key="systemStore.current" 强制重建节点，
+//    Vue 在新节点插入 DOM 时会重放 CSS animation（首次挂载不播，靠 systemSwitched 兜住）。
+const systemSwitched = ref(false)
+watch(
+  () => systemStore.current,
+  () => {
+    systemSwitched.value = true
+  },
+)
+
 // header 固定定位后宽度需跟随布局模式（2026-08-24 21:31 改范式后 sider 不再影响 header：
 // - hover 展开走 position: fixed 浮层，不占 flex 流，header 不再变化
 // - 始终按默认折叠态 64px 偏移计算 header 位置）
@@ -444,10 +505,11 @@ const headerStyle = computed(() => {
   if (isMobile.value) {
     return { left: '0px', width: '100vw' }
   }
-  // side 模式（桌面）: sider 折叠态 64px 偏移，hover 展开走浮层不占位
+  // side 模式（桌面）: 折叠态 64px 偏移；固定态 240px 偏移（主区整体右移）
+  const offset = siderPinned.value ? SIDER_WIDTH_EXPANDED : SIDER_WIDTH_COLLAPSED
   return {
-    left: '64px',
-    width: 'calc(100vw - 64px)',
+    left: `${offset}px`,
+    width: `calc(100vw - ${offset}px)`,
   }
 })
 
@@ -455,39 +517,51 @@ function renderIcon(icon: any) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
 
+
+/**
+ * 下拉行：图标 + 文字 + 右侧控件（**全部自绘**）。
+ * 为什么不用 naive 的 icon prop：naive 的 prefix 图标列宽会随「同组兄弟有没有图标」变化
+ * （有图标 32px / 无图标半宽 / 无图标的普通项 14px）⇒ 行与行左缘天然对不齐，
+ * 表现就是「歪歪扭扭」。这里把 naive 的 prefix 槽归零、图标文字自绘，
+ * 与系统切换器（sys-switch-dropdown 紧凑变体）同一套路，列宽由网格固定。
+ */
+const userMenuRow = (icon: any, labelText: string, control?: any) =>
+  h('div', { class: 'user-menu-row' }, [
+    h(NIcon, { size: 18, class: 'user-menu-row-icon' }, { default: () => h(icon) }),
+    h('span', { class: 'user-menu-row-label' }, labelText),
+    control ? h('span', { class: 'user-menu-row-control' }, [control]) : null,
+  ])
+
 const userMenuOptions = computed(() => {
   const current = menuLayout.value
   return [
     // 账户
-    { key: 'profile', label: t('pages.Layout.userMenu.profile'), icon: renderIcon(PersonOutline) },
+    { key: 'profile', label: () => userMenuRow(PersonOutline, t('pages.Layout.userMenu.profile')) },
     /* ⚠️ 22:45 统一范式 + 设置按钮可见性修复：
        - top 模式没有 sider（v-if 不渲染），原 .sider-footer（设置按钮）在 main-area 里位置错乱
        - 把设置入口集成到 dropdown menu（与个人中心/账号设置等菜单项统一范式）
        - 路由跳转 /settings/account（设置主页），保留账号设置（个人中心）独立入口
        - 2026-08-25：移除「账号设置」冗余入口（与上方「设置」重复且未配置路由功能） */
-    { key: '/settings/account', label: t('pages.Layout.userMenu.settings'), icon: renderIcon(CogOutline) },
+    { key: '/settings/account', label: () => userMenuRow(CogOutline, t('pages.Layout.userMenu.settings')) },
     {
       key: 'language',
       label: () =>
-        h(
-          'div',
-          { class: 'user-menu-row user-menu-language-row' },
-          [
-            h('span', { class: 'user-menu-row-label' }, t('pages.Layout.userMenu.language')),
-            h(NSwitch, {
-              value: currentLocale.value === 'en-US',
-              uncheckedValue: false,
-              checkedValue: true,
-              'onUpdate:value': (v: boolean) => {
-                currentLocale.value = v ? 'en-US' : 'zh-CN'
-              },
-            }, {
-              unchecked: () => t('pages.Layout.s16'),
-              checked: () => 'EN',
-            }),
-          ],
+        userMenuRow(
+          LanguageOutline,
+          t('pages.Layout.userMenu.language'),
+          h(NSwitch, {
+            value: currentLocale.value === 'en-US',
+            uncheckedValue: false,
+            checkedValue: true,
+            size: 'small',
+            'onUpdate:value': (v: boolean) => {
+              currentLocale.value = v ? 'en-US' : 'zh-CN'
+            },
+          }, {
+            unchecked: () => t('pages.Layout.s16'),
+            checked: () => 'EN',
+          }),
         ),
-      icon: renderIcon(LanguageOutline),
     },
     { type: 'divider', key: 'd1' },
     // 视图
@@ -499,36 +573,28 @@ const userMenuOptions = computed(() => {
     {
       key: 'menu-side',
       label: () =>
-        h(
-          'div',
-          { class: 'user-menu-row' },
-          [
-            h('span', { class: 'user-menu-row-label' }, t('pages.Layout.userMenu.menuSide')),
-            current === 'side'
-              ? h(NIcon, { size: 16, class: 'user-menu-check' }, { default: () => h(Check) })
-              : null,
-          ],
+        userMenuRow(
+          MenuOutline,
+          t('pages.Layout.userMenu.menuSide'),
+          current === 'side'
+            ? h(NIcon, { size: 16, class: 'user-menu-check' }, { default: () => h(Check) })
+            : null,
         ),
-      icon: renderIcon(MenuOutline),
     },
     {
       key: 'menu-top',
       label: () =>
-        h(
-          'div',
-          { class: 'user-menu-row' },
-          [
-            h('span', { class: 'user-menu-row-label' }, t('pages.Layout.userMenu.menuTop')),
-            current === 'top'
-              ? h(NIcon, { size: 16, class: 'user-menu-check' }, { default: () => h(Check) })
-              : null,
-          ],
+        userMenuRow(
+          SwapVerticalOutline,
+          t('pages.Layout.userMenu.menuTop'),
+          current === 'top'
+            ? h(NIcon, { size: 16, class: 'user-menu-check' }, { default: () => h(Check) })
+            : null,
         ),
-      icon: renderIcon(SwapVerticalOutline),
     },
     { type: 'divider', key: 'd2' },
     // 会话
-    { key: 'logout', label: t('pages.Layout.userMenu.logout'), icon: renderIcon(LogOutOutline), props: { class: 'user-menu-logout' } },
+    { key: 'logout', label: () => userMenuRow(LogOutOutline, t('pages.Layout.userMenu.logout')), props: { class: 'user-menu-logout' } },
   ]
 })
 
@@ -599,6 +665,20 @@ function handleMenuClick(key: string) {
       optimisticKey.value = ''
     }, 1000)
     router.push(key)
+    return
+  }
+  // 分组项（折叠态点分组图标）：naive 折叠态下 Submenu 只走 doSelect（不 toggleExpand），
+  // 这里接管 → 固定侧栏并展开该组，让「折叠态点图标」有明确出口（不点也能悬停浮出）。
+  if (typeof key === 'string' && key && !effectiveExpanded.value) {
+    openGroup(key)
+  }
+}
+
+/** 固定侧栏 + 展开指定分组（折叠态点击分组图标时用）。 */
+function openGroup(key: string) {
+  if (!siderPinned.value) userStore.setUiSettings({ siderPinned: true })
+  if (!expandedKeys.value.includes(key)) {
+    expandedKeys.value = [...expandedKeys.value, key]
   }
 }
 
@@ -829,34 +909,77 @@ function handleUserMenu(key: string) {
   grid-template-columns: 64px calc(100vw - 64px) !important;
   width: 100% !important;
 }
+/* 固定态（2026-10-21）：侧栏常驻 240px 并**占位**（第 1 列 240px），主区整体右移；
+   折叠态仍是 64px 仅图标 + hover 浮层展开（不占位）。 */
+.app-layout.app-layout--pinned:not(.app-layout--top) > :deep(.n-layout-scroll-container) {
+  grid-template-columns: 240px calc(100vw - 240px) !important;
+}
 /* top 模式单列布局（无 sider，main-area 占满全宽，避免左侧 64px 空白） */
 .app-layout.app-layout--top > :deep(.n-layout-scroll-container) {
   display: block !important;
   width: 100% !important;
 }
-/* 侧边栏: 2026-08-24 21:31 兵哥反馈改范式 —— 默认充满全高 + hover 浮层不压缩主页面
-   - 默认（折叠）: height: 100dvh !important 充满全视口（替换原 height: auto 内容驱动）
-   - hover 展开（.app-sider--floating）: position: fixed 脱离 grid 流，浮层显示 240px 宽（box-shadow 投影），
-     main-area 仍占 grid 第 2 列固定 1376px 宽不变 */
+/* 侧边栏: 2026-08-24 21:31 兵哥反馈改范式 —— 默认充满全高
+   - 折叠（默认）: height: 100dvh !important 充满全视口（替换原 height: auto 内容驱动）+ 64px 仅一级 icon
+   - 固定（.app-sider--pinned）: 240px 常驻、在文档流内占位，主区随之右移
+   ⚠️ 2026-10-21：原「hover 浮层展开」（.app-sider--floating）已下线 —— 它会把菜单置为展开态，
+      正好顶掉 naive-ui 原生的「折叠态悬停分组图标 → 右侧浮出二级菜单」，导致折叠态看不到子菜单。 */
 .app-sider {
   height: 100dvh !important;
   flex-shrink: 0;
-  overflow: visible !important; /* 让 n-menu hover 展开文字不被 sider 容器裁剪 */
-  transition: none !important; /* 关闭 width 过渡, hover 瞬切避免视觉抖动 */
+  overflow: visible !important; /* 让 n-menu 折叠态的二级菜单浮层不被 sider 容器裁剪 */
+  transition: none !important; /* 关闭 width 过渡, 状态切换瞬切避免视觉抖动 */
+  position: relative;
 }
-.app-sider.app-sider--floating {
-  position: fixed !important;
-  left: 0 !important;
-  top: 0 !important;
-  /* n-layout-sider inline style 写 max-width: 64px 限制 width 上限，必须一起覆盖 */
+/* 固定态（2026-10-21 兵哥指令）：常驻 240px、**在文档流内占位**（不是浮层），
+   主区随之右移；固定态下 hover 不再触发浮层（本来就是展开的）。 */
+.app-sider.app-sider--pinned {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
   width: 240px !important;
   max-width: 240px !important;
-  height: 100dvh !important;
-  z-index: 1000;
-  /* ⚠️ 22:09 兵哥反馈"去掉边框"：浮层不要 box-shadow 投影（视觉边界）和 border-right（白色实线） */
-  box-shadow: none !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur-panel));
-  backdrop-filter: blur(var(--glass-blur-panel));
+  z-index: auto;
+}
+/* 底部一行：「设置」+「固定/折叠」图标按钮（同一行；切换按钮只显示图标，不带文字）。
+   ⚠️ 不能做成悬浮在侧栏右缘的把手 —— 主区面板会盖住它，鼠标点到的是面板（兵哥实测点不到）。
+   贴底由 .app-sider .sider-footer-row 的绝对定位承担（absolute 元素 auto margin 无效）。 */
+.sider-footer-row {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+}
+/* 折叠态 64px 放不下「设置文字 + 图标文字」→ 只留两个图标，压缩横向内边距 */
+.sider-footer-row--collapsed {
+  gap: 0;
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+.sider-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.sider-toggle:hover {
+  color: var(--brand);
+  background: var(--surface);
+}
+.sider-toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 /* === v2 主侧栏：去掉背景色（兵哥反馈"背景色太突兀"）
    -------------------------------------------------------------
@@ -953,7 +1076,9 @@ function handleUserMenu(key: string) {
 .hamburger-btn:hover {
   background: var(--brand-soft);
 }
-.mobile-sidebar-drawer :deep(.n-drawer-body-content-wrapper) {
+/* 2026-10-21 (整改卡 E2): 侧栏已由 n-drawer 回改为居中弹窗, 原
+   `.n-drawer-body-content-wrapper` 选择器失效 → 改挂弹窗内容区, 保持"菜单贴边零内边距"。*/
+.mobile-sidebar-drawer :deep(.n-card__content) {
   padding: 0;
 }
 
@@ -987,20 +1112,49 @@ function handleUserMenu(key: string) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
-/* footer 绝对定位到 .app-sider 最底，绕开 n-scrollbar 高度约束 */
-.app-sider :deep(.sider-footer) {
+/* 系统切换时菜单整体淡入（2026-10-21 兵哥：切换系统导致页面波动）
+   - 只动 opacity / transform（R-206），220ms 属「元素出现」档（200–300ms）
+   - 首次挂载不播（systemSwitched 只在真正切换过一次后为 true）
+   - prefers-reduced-motion 下关闭 */
+@keyframes sider-menu-switch-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.sider-menu--switching {
+  animation: sider-menu-switch-in 220ms var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sider-menu--switching {
+    animation-duration: 0.01ms;
+  }
+}
+/* 底部行（「设置」+ 固定/折叠图标）绝对定位到 .app-sider 最底，绕开 n-scrollbar 高度约束。
+   ⚠️ 2026-10-21 修正：原先是把 **.sider-footer（设置）单独**绝对定位，
+   于是「设置」脱离 flex 流 → 同一行的图钉被挤到行首、设置仍浮在底部（兵哥截图）。
+   现在绝对定位的是**整行**，设置与图钉作为同一行的两个 flex 子项并排。 */
+.app-sider .sider-footer-row {
   position: absolute !important;
   bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  z-index: 2 !important; /* 在 menu 之上（如果内容超出，footer 浮在底部） */
+  z-index: 2 !important; /* 在 menu 之上（内容超出时底部行浮在底部） */
 }
 .sider-footer {
-  margin-top: auto;
+  /* ⚠️ 贴底由外层 .sider-footer-row 的绝对定位承担；
+     设置本身必须留在行内（普通 flex 子项），一旦被绝对定位就会脱离 flex 流。 */
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) 0; /* 横向内边距交给外层 row */
   /* ⚠️ 22:14 兵哥反馈"多个容器边线"：去掉 footer 顶部横线（var(--border-hairline)） */
   border-top: none !important;
   color: var(--ink-soft);
@@ -1035,7 +1189,9 @@ function handleUserMenu(key: string) {
 }
 .sider-footer--collapsed {
   justify-content: center;
-  padding: var(--space-3) var(--space-2);
+  /* 折叠态横向内边距归零：外层 row 还要给右侧的固定/折叠图标按钮留位，
+     64px = 4(row) + 28(设置区) + 28(图标按钮) + 4(row) */
+  padding: var(--space-2) 0;
 }
 .sider-footer--collapsed .sider-footer-label {
   display: none;
@@ -1048,113 +1204,16 @@ function handleUserMenu(key: string) {
 </style>
 
 <style>
-/* === 头像下拉菜单视觉整理（menu 通过 teleport 挂到 body，需全局样式） === */
-.user-menu-dropdown.n-dropdown-menu,
-.user-menu-dropdown .n-dropdown-menu {
-  padding: 8px 0;
-  border-radius: var(--radius-lg, 12px);
-}
+/* === 头像下拉菜单视觉（menu 通过 teleport 挂到 body，需全局样式） ===
+ *
+ * 遵循 docs/04-ui/DROPDOWN_POPOVER_SPEC.md：
+ *   §2.2 面板圆角 / 玻璃底 / 阴影 / 上下 8px padding → 全局 L2（glass.css）负责，**不在这里重复定义**
+ *   §2.3 行高 36px / 水平 padding 12px / prefix 列宽用 naive token / hover 高亮「层叠圆角」→ 全局 L3 负责
+ *   §2.4 分割线 1px + --border-hairline + 上下 8px + 水平缩进 8px → 全局 L3 负责
+ *
+ * 本块只做「标准之外」的差异项：面板宽度、分组标题、语言行、布局勾选、退出登录。
+ * 2026-10-22 优化：此前本地给 hover 铺了整块方角底 + 把图标文字染成品牌色，
+ *   与全局「层叠圆角」高亮叠加 → 出现截图里那块方角浅紫；已改为完全交回全局标准。
+ */
 
-.user-menu-dropdown .n-dropdown-option-body {
-  min-height: 40px;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.user-menu-dropdown .n-dropdown-option-body__prefix {
-  width: 22px;
-  min-width: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 10px;
-  color: var(--ink-soft);
-  transition: color 0.15s ease;
-}
-
-.user-menu-dropdown .n-dropdown-option-body__label {
-  flex: 1;
-  min-width: 0;
-}
-
-.user-menu-dropdown .n-dropdown-option-body:not(.n-dropdown-option-body--disabled):hover {
-  background: var(--brand-tint);
-}
-
-.user-menu-dropdown .n-dropdown-option-body:not(.n-dropdown-option-body--disabled):hover .n-dropdown-option-body__prefix,
-.user-menu-dropdown .n-dropdown-option-body:not(.n-dropdown-option-body--disabled):hover .user-menu-row-label {
-  color: var(--brand-fg);
-}
-
-/* 分组标题 */
-.user-menu-dropdown .n-dropdown-option-body.n-dropdown-option-body--disabled {
-  background: transparent !important;
-  cursor: default;
-  min-height: 28px;
-  padding-top: 10px;
-  padding-bottom: 2px;
-}
-
-.user-menu-dropdown .n-dropdown-option-body--disabled .n-dropdown-option-body__prefix {
-  display: none;
-}
-
-.user-menu-dropdown .n-dropdown-option-body--disabled .n-dropdown-option-body__label {
-  padding-left: 0;
-}
-
-.user-menu-section-label {
-  font-size: var(--fs-12, 12px);
-  font-weight: 600;
-  color: var(--ink-faint);
-  letter-spacing: 0.02em;
-  /* 与常规项的文本列左缘对齐：22px 图标列 + 10px 间距 */
-  padding-left: 32px;
-}
-
-/* 行内容：标签 + 右侧状态/控件 */
-.user-menu-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 12px;
-}
-
-.user-menu-row-label {
-  font-size: var(--fs-14, 14px);
-  line-height: 1.4;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: color 0.15s ease;
-}
-
-.user-menu-check {
-  flex-shrink: 0;
-  color: var(--brand-fg);
-}
-
-/* 语言开关 */
-.user-menu-language-row .n-switch {
-  flex-shrink: 0;
-}
-
-/* 退出登录 */
-.user-menu-logout .n-dropdown-option-body__prefix,
-.user-menu-logout .user-menu-row-label {
-  color: var(--c-error-deep);
-}
-
-.user-menu-logout .n-dropdown-option-body:hover {
-  background: var(--c-error-soft);
-}
-
-.user-menu-logout .n-dropdown-option-body:hover .n-dropdown-option-body__prefix,
-.user-menu-logout .n-dropdown-option-body:hover .user-menu-row-label {
-  color: var(--c-error-deep);
-}
 </style>

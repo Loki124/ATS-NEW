@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 import logging
 import secrets
 from datetime import timedelta
@@ -17,14 +18,17 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.candidate.models import Candidate
+from apps.common.encryption import decrypt_value, encrypt_value
 from apps.common.exceptions import NotFound, PermissionDenied, ValidationError
 from apps.core.models import User
 from apps.core.role_v2_query import is_super_admin
 
 from .models import (
+    EXPORT_TOKEN_TTL_MINUTES,
     VERIFICATION_CODE_LENGTH,
     VERIFICATION_CODE_TTL_MINUTES,
     VERIFICATION_MAX_ATTEMPTS,
+    GDPRExportArtifact,
     GDPRRequest,
     GDPRRequestStatus,
     GDPRRequestType,
@@ -248,20 +252,60 @@ class GdprService:
         candidate.phone = ''           # 待 S3 改成 EncryptedCharField
         candidate.email = ''           # 待 S3 改成 EncryptedCharField
         candidate.id_card_no = ''      # 待 S3 改成 EncryptedCharField (之前漏)
+        # 2026-10-21 (整改卡 C2): 盲索引 hash 列必须一并清空。
+        #   phone_hash / email_hash / id_card_hash 是 salt 前置 SHA-256, 手机号空间
+        #   仅 ~10^10 且明文 salt 曾在源码里硬编码 → 留着它们等于"清空明文但保留
+        #   可反查的钥匙", 被遗忘权形同虚设。三列均 db_index=True, 查重走 hash 列,
+        #   匿名化后该候选人本就不该再参与查重, 清空无业务副作用。
+        candidate.phone_hash = ''
+        candidate.email_hash = ''
+        candidate.id_card_hash = ''
         # soft_delete 内部只 save deleted_at, PII 字段需显式 save
-        candidate.save(update_fields=['name', 'phone', 'email', 'id_card_no', 'updated_at'])
+        candidate.save(update_fields=[
+            'name', 'phone', 'email', 'id_card_no',
+            'phone_hash', 'email_hash', 'id_card_hash',
+            'updated_at',
+        ])
         candidate.soft_delete()
+
+        # 2026-10-21 (整改卡 C3): 清关联表里的 PII 副本。
+        #   主表清了不代表 PII 没了 —— 动态字段值表、简历原文、面评备注、审计链里
+        #   还各存着一份副本 (见 apps/gdpr/purge.py 的口径说明)。
+        from .purge import purge_candidate_pii
+        purge_report = purge_candidate_pii(candidate, processor=processor)
 
         req.status = GDPRRequestStatus.COMPLETED
         req.processed_by = processor
         req.processed_at = timezone.now()
-        req.result = f'已匿名化候选人 {candidate.id}'
-        req.save()
+        # 提交邮箱是候选人邮箱的副本, 请求已处理完 → 一并清空
+        req.submitted_email = ''
+        req.result = (
+            f'已匿名化候选人 {candidate.id}：主表 PII 与 3 个 hash 盲索引已清空，'
+            f'关联表 PII 副本已按被遗忘权清理（详见清理报告）'
+        )
+        req.save(update_fields=[
+            'status', 'processed_by', 'processed_at', 'result', 'submitted_email', 'updated_at',
+        ])
+        logger.info(
+            'GDPR forget executed: candidate=%s purge_report=%s',
+            candidate.id, purge_report,
+        )
         return req
 
     @staticmethod
     def approve_and_export(request_id: str, processor: User) -> GDPRRequest:
-        """数据导出"""
+        """数据导出 (2026-10-21 整改卡 C1: PII 明文不再落 `result` 列)
+
+        **改造前**: `req.result = f'导出数据：{export_data}'` —— export_data 含
+        name/phone/email/id_card_no 明文, 而 `result` 在 `GDPRRequestSerializer.fields`
+        里 → PII 明文既写进 `gdpr_requests` 表, 又能被请求详情接口原样吐回。
+
+        **改造后**:
+        1) 明文只在内存里组装一次
+        2) Fernet 加密 → 存 `GDPRExportArtifact` (一次性下载件)
+        3) `result` 只写摘要 (不含任何 PII)
+        4) 下载走独立端点: 超管登录 + 一次性 token + 有效期, 下载后 token 失效且密文擦除
+        """
         try:
             req = GDPRRequest.objects.select_for_update().get(id=request_id)
         except GDPRRequest.DoesNotExist as e:
@@ -272,7 +316,7 @@ class GdprService:
         req.save(update_fields=['status', 'updated_at'])
 
         candidate = req.candidate
-        # 收集候选人所有 PII 数据
+        # 收集候选人所有 PII 数据 —— 只存在于本函数栈内, 加密后即从内存语义上"消亡"
         export_data = {
             'candidate_id': candidate.id,
             'name': candidate.name,
@@ -282,12 +326,81 @@ class GdprService:
             'exported_at': timezone.now().isoformat(),
         }
 
+        artifact = GdprService._create_export_artifact(req, export_data, processor)
+
         req.status = GDPRRequestStatus.COMPLETED
         req.processed_by = processor
         req.processed_at = timezone.now()
-        req.result = f'导出数据：{export_data}'
+        pii_field_count = sum(
+            1 for key in export_data if key not in ('candidate_id', 'exported_at')
+        )
+        req.result = (
+            f'已导出候选人 {candidate.code or candidate.id} 的 {pii_field_count} 项个人信息；'
+            f'导出件为一次性下载（{EXPORT_TOKEN_TTL_MINUTES} 分钟内有效），下载动作已留审计记录'
+        )
         req.save()
+        # 导出件信息只在本次返回体里流转 (含 token), 不再写进 result 列
+        req._export_artifact = artifact  # noqa: SLF001
         return req
+
+    @staticmethod
+    def _create_export_artifact(
+        req: GDPRRequest, export_data: dict, processor: User | None
+    ) -> GDPRExportArtifact:
+        """把导出明文加密成一次性下载件。
+
+        加密用 `apps.common.encryption.encrypt_value` (Fernet), 与 `id_card_no`
+        同一套密钥体系 —— 换密钥时行为一致 (MultiFernet 双读)。
+        """
+        token = secrets.token_urlsafe(32)
+        payload = json.dumps(export_data, ensure_ascii=False, default=str)
+        ciphertext = encrypt_value(payload)
+        if not ciphertext:
+            raise ValidationError('导出件加密失败：请检查 ENCRYPTION_KEY 配置')
+        return GDPRExportArtifact.objects.create(
+            request=req,
+            payload=ciphertext,
+            token=token,
+            expires_at=timezone.now() + timedelta(minutes=EXPORT_TOKEN_TTL_MINUTES),
+            created_by=processor if (processor and processor.is_authenticated) else None,
+        )
+
+    @staticmethod
+    def consume_export_artifact(request_id: str, token: str) -> dict:
+        """消费一次性导出件, 返回导出明文 (下载后即失效)。
+
+        校验链: 归属该请求 → 未被下载过 → 未过期 → 密文可解。
+        成功后立刻擦除密文并落 `downloaded_at`, 同一 token 不可二次使用;
+        即便 DB 事后被导出, 该导出件也已无明文可取。
+        """
+        if not token:
+            raise ValidationError('缺少导出件 token')
+        try:
+            artifact = GDPRExportArtifact.objects.get(request_id=request_id, token=token)
+        except GDPRExportArtifact.DoesNotExist as e:
+            raise NotFound('导出件不存在或链接已失效') from e
+
+        if artifact.downloaded_at is not None:
+            raise ValidationError('导出件已被下载，一次性链接已失效')
+        if artifact.expires_at < timezone.now():
+            raise ValidationError('导出件已过期，请重新发起导出')
+
+        plaintext = decrypt_value(artifact.payload, field_name='gdpr_export_payload')
+        if not plaintext:
+            raise NotFound('导出件内容已擦除，请重新发起导出')
+        try:
+            data = json.loads(plaintext)
+        except json.JSONDecodeError as e:
+            raise ValidationError('导出件内容损坏，请重新发起导出') from e
+
+        # 一次性语义: 下载即擦除密文
+        artifact.payload = ''
+        artifact.downloaded_at = timezone.now()
+        artifact.download_count = (artifact.download_count or 0) + 1
+        artifact.save(update_fields=[
+            'payload', 'downloaded_at', 'download_count', 'updated_at',
+        ])
+        return data
 
     @staticmethod
     def reject(request_id: str, reason: str, processor: User) -> GDPRRequest:
@@ -320,6 +433,21 @@ class GdprService:
                 GDPRRequestStatus.AWAITING_VERIFICATION,
             ],
         ).update(status='EXPIRED')
+
+    @staticmethod
+    def cleanup_expired_exports() -> int:
+        """擦除超期未下载的导出件密文 (2026-10-21 卡 C1 配套)。
+
+        导出件即使没人下载, 到期后其 Fernet 密文也不应无限期留在库里 ——
+        擦掉 payload 后即便 DB 被整体导出, 也取不到候选人 PII。
+        """
+        expired = GDPRExportArtifact.objects.filter(
+            expires_at__lt=timezone.now(),
+            payload__gt='',
+        )
+        count = expired.count()
+        expired.update(payload='', downloaded_at=timezone.now())
+        return count
 
     @staticmethod
     def cleanup_stale_verification() -> int:

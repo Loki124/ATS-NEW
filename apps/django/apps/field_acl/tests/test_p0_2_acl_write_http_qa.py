@@ -69,7 +69,7 @@ def _call(client, method, body=None):
     )
     try:
         return r.status_code, r.json()
-    except Exception:  # pragma: no cover
+    except ValueError:  # pragma: no cover - r.json() 非 JSON 时抛 JSONDecodeError(ValueError 子类)
         return r.status_code, {'_raw': r.content[:300].decode('utf-8', 'replace')}
 
 
@@ -206,8 +206,12 @@ def test_rule_takes_effect_immediately_no_60s_wait(super_admin, role, department
       2. 故改为**端到端**断言：PUT 之后立刻走真实序列化器读字段，
          这同时覆盖显式 invalidate 与信号两条路径，任一失效都会红。
     """
+    # 造一条可序列化的投递（用超管自身作为创建人，便于读取）
+    import uuid
+
     from rest_framework.test import APIRequestFactory
 
+    from apps.application.models import Application
     from apps.application.serializers import ApplicationListSerializer
     from apps.candidate.models import Candidate
     from apps.position.models import Position, PositionState
@@ -217,10 +221,6 @@ def test_rule_takes_effect_immediately_no_60s_wait(super_admin, role, department
         RecruitmentStage,
         StageType,
     )
-    from apps.application.models import Application
-
-    # 造一条可序列化的投递（用超管自身作为创建人，便于读取）
-    import uuid
     process = RecruitmentProcess.objects.create(
         code=f'CACHE{uuid.uuid4().hex[:6].upper()}', name='缓存流程',
         current_version='V1.0', version_seq=1, is_latest=True, status='ENABLED',

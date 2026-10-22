@@ -407,11 +407,9 @@ onMounted(() => {
 .dm-section {
   position: relative;
   padding: var(--space-4);
-  padding-left: calc(var(--space-4) + 10px);
   margin-bottom: var(--space-3);
   background: var(--surface);
   border: 1px solid var(--border-hairline);
-  border-left: 3px solid var(--brand);
   border-radius: var(--radius-md);
   transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
   animation: wb-fade-up var(--duration-slow) var(--ease-out) both;
@@ -420,14 +418,19 @@ onMounted(() => {
   border-color: color-mix(in srgb, var(--brand) 30%, transparent);
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
 }
-.dm-params { border-left-color: var(--c-warning); }
-.dm-params:hover { border-color: color-mix(in srgb, var(--c-warning) 45%, transparent); }
 .dm-section-label {
   color: var(--ink-faint);
   font-size: var(--fs-12);
   font-weight: 600;
   letter-spacing: 0.02em;
   margin-bottom: var(--space-2);
+}
+/* 必填参数区用「图标 + 文字」表达强调，不画左侧色条（X-20） */
+.dm-section-label--warn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--c-warning-deep);
 }
 .dm-source {
   display: inline-block;

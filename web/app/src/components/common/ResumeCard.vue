@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { WarningOutline } from '@vicons/ionicons5'
 import type { ResumeDraft } from '@/stores/addCandidate'
 import StatusTag from './StatusTag.vue'
 import CheckBanner from './CheckBanner.vue'
@@ -17,13 +18,6 @@ const emit = defineEmits<{
   (e: 'replace'): void
 }>()
 
-function getStatusClass(s: string) {
-  if (s === 'clean') return 'clean'
-  if (s === 'unocc') return 'unocc'
-  if (s === 'occupied') return 'occ'
-  return ''
-}
-
 function progressColor(p: string | null) {
   if (p === 'uploading') return 'info'
   if (p === 'parsing') return 'warning'
@@ -33,7 +27,7 @@ function progressColor(p: string | null) {
 </script>
 
 <template>
-  <div :class="['card-item', getStatusClass(resume.status), { expanded: active, selected }]">
+  <div :class="['card-item', { expanded: active, selected }]">
     <div class="c-header" @click="emit('toggle')">
       <div v-if="resume.status !== 'processing'" :class="['c-chk', { checked: selected }]" @click.stop="emit('select')"></div>
       <div v-else class="c-chk-spacer"></div>
@@ -60,7 +54,8 @@ function progressColor(p: string | null) {
     </div>
 
     <div v-if="resume.parseError" class="parse-error">
-      <span class="pe-icon">⚠</span><span>{{ resume.parseError }}</span>
+      <n-icon class="pe-icon" :component="WarningOutline" :size="14" aria-hidden="true" />
+      <span>{{ resume.parseError }}</span>
     </div>
 
     <div v-if="active" class="c-body">
@@ -72,7 +67,7 @@ function progressColor(p: string | null) {
 </template>
 
 <style scoped>
-/* === ResumeCard · 玻璃卡片 + 状态左边框（DESIGN.md §4 玻璃卡片）=== */
+/* === ResumeCard · 玻璃卡片（状态由 StatusTag 表达，不画左侧色条 · X-20）=== */
 .card-item {
   background: var(--glass-bg-card);
   backdrop-filter: blur(var(--glass-blur-card));
@@ -92,10 +87,7 @@ function progressColor(p: string | null) {
   border-color: var(--brand);
   box-shadow: var(--shadow-card), 0 0 0 1px var(--brand-soft);
 }
-/* 状态左边框（DESIGN.md §4 语义状态） */
-.card-item.occ   { border-left: 3px solid var(--c-error); }
-.card-item.unocc { border-left: 3px solid var(--c-warning); }
-.card-item.clean { border-left: 3px solid var(--c-success); }
+/* 状态语义由 <StatusTag>（圆点 + 文字）承载，卡片不画左侧色条（X-20） */
 
 .c-header {
   display: flex;

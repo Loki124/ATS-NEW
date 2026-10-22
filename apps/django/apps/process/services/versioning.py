@@ -108,7 +108,10 @@ def _compute_next_version_seq(process) -> int:
     """
     from ..models import RecruitmentProcess
 
-    max_seq = RecruitmentProcess.objects.filter(code=process.code).aggregate(
+    # 2026-10-21 卡 D3: 改用 all_objects —— C1 是**无条件**唯一约束, 软删行同样占位,
+    # 计算 seq 时必须把软删行算进去 (原先靠「默认 manager 不过滤」达成, 软删 manager 化后
+    # 该前提消失, 漏算会直接撞唯一约束)。
+    max_seq = RecruitmentProcess.all_objects.filter(code=process.code).aggregate(
         max_seq=Max('version_seq'),
     )['max_seq'] or 0
     return max(max_seq, process.version_seq or 0) + 1
@@ -498,7 +501,9 @@ def clone_process_with_new_version(
     # → C3'（uniq_one_latest_per_code）立即抛 IntegrityError，克隆整体回滚。
     # ============================================================
     # ① 先降级：filter(code=...) 刻意不过滤软删，一并降级软删行（自愈，见 C3' soft_delete 条）
-    RecruitmentProcess.objects.filter(code=new_process.code).exclude(id=new_process.id).update(is_latest=False)
+    #    2026-10-21 卡 D3: 改用 all_objects —— 软删行仍占 uniq_one_latest_per_code 槽位,
+    #    不过滤就腾不出位置 → 新行落 is_latest=True 时撞唯一约束。
+    RecruitmentProcess.all_objects.filter(code=new_process.code).exclude(id=new_process.id).update(is_latest=False)
     # ② 后升级
     new_process.is_latest = True
     new_process.save(update_fields=['is_latest'])

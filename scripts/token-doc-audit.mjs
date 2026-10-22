@@ -89,6 +89,9 @@ const CLI_FLAGS = new Set([
   '--ci', '--cached', '--alias', '--parallel', '--recursive',
   // 业务命令行 (brand-tokens.mjs 等)
   '--brand', '--json', '--out', '--report', '--prefix', '--keep-original',
+  // 2026-10-22 (R-225): 截图/样式自证工具链的 CLI 参数
+  '--click', '--hover', '--measure', '--full', '--strict', '--baseline',
+  '--name', '--wait', '--width', '--height',
   // 版本/产物标记
   '--legacy-peer-deps', '--open', '--port', '--host',
 ])

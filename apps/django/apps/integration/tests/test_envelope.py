@@ -8,11 +8,11 @@
 {success, message, data} 形状（失败分支需 success=False，success_response 无法表达），
 本批不改、亦不破坏前端 r.success / r.message 契约，故不在此重复锁定。
 """
-from apps.common.tests.envelope_contract import assert_envelope
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
+from apps.common.tests.envelope_contract import assert_envelope
 from apps.integration.services import create_background_check_order
 
 BASE = '/api/v1/background-check/orders'

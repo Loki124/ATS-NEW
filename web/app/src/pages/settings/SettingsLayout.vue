@@ -86,6 +86,7 @@ const collapsed = ref(false)
 import type { MenuOption } from 'naive-ui'
 import { usePermission } from '../../composables/usePermission'
 import { filterMenuByPermission } from '../../utils/permissionMenu'
+import { buildCollapsedMenuOptions } from '../../utils/settingsMenu'
 const { t } = useI18n()
 type MenuItem = MenuOption
 
@@ -113,7 +114,7 @@ const rawSubMenuOptions: MenuItem[] = [
       },
       {
         // 组织管理（兵哥 2026-10-15 调整）：移入「基本信息」分组、置于「公司信息管理」之后。
-        // 形态同「用户管理」(g-user)——带图标的可展开父菜单项（不设 type:'group'），部门/职务/职级为其二级子项。
+        // 形态同「公司信息管理」(g-company)——带图标的可展开父菜单项（不设 type:'group'），部门/职务/职级为其二级子项。
         // 归入分组后由 naive-ui 缩进算法自动获得与同级子菜单一致的 27px 缩进，无需外部 CSS 兜底。
         key: 'g-org',
         label: t('pages.settings.SettingsLayout.s62'),
@@ -125,31 +126,23 @@ const rawSubMenuOptions: MenuItem[] = [
         ],
       },
       {
-        // ★ 北森风格重构：用户管理迁移自「组织信息管理」，承载内部/外部/全部用户 + 用户组
-        // 2026-10-18 兵哥：自助注册下线，原「注册审核」子项已删除 —— 账号开通与
-        //   待激活/已激活/已停用治理统一在「用户管理」页内完成（状态列 + 筛选 + 停用）。
-        key: 'g-user',
-        label: t('pages.settings.SettingsLayout.s15'),
-        icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }),
-        children: [
-          { key: '/settings/users/all', label: t('pages.settings.SettingsLayout.s15'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
-          { key: '/settings/user-groups', label: t('pages.settings.SettingsLayout.s17'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
-        ],
-      },
-      {
         // 权限管理 —— 「基本信息」下的子菜单（可展开父菜单项，无自身路由）
         // 2026-09-18 首次调整：由顶层分组归入「基本信息」分组内。
         // 2026-09-23 二次调整：原 type:'group' 会在「基本信息」内部再渲染一条独立的分组标题，
         //   视觉上与父级割裂（看起来像另一个分类而非子菜单）。去掉 type 后与同级
-        //   「公司信息管理」(g-company)、「用户管理」(g-user) 完全一致：带图标的可展开父菜单项。
+        //   「公司信息管理」(g-company) 完全一致：带图标的可展开父菜单项。
         //   点击仅展开子项、不导航 —— handleMenuClick 只处理以 '/' 开头的 key，
-        //   因此 g-permission 不构成死链（与 g-company / g-user 同款行为）。
-        // 排序：置于「基本信息」末位 —— 个人信息 → 公司信息 → 组织 → 用户 → 权限
+        //   因此 g-permission 不构成死链（与 g-company 同款行为）。
+        // 排序：置于「基本信息」末位 —— 个人信息 → 公司信息 → 组织 → 权限
         //   （先有组织与人，再配置权限，符合配置递进逻辑）。
+        // 2026-10-21 兵哥：用户管理迁入本分组并**排第一位**（用户与身份/资源同属权限域）；
+        //   原「用户管理」分组(g-user)随之删除（其两个子项：用户管理已迁入本处、
+        //   用户组管理功能整体下线 → 分组清空，不留空壳标题）。
         key: 'g-permission',
         label: t('pages.settings.SettingsLayout.s18'),
         icon: () => h(NIcon, null, { default: () => h(ShieldOutline) }),
         children: [
+          { key: '/settings/users/all', label: t('pages.settings.SettingsLayout.s15'), icon: () => h(NIcon, null, { default: () => h(PeopleCircleOutline) }) },
           { key: '/settings/permissions', label: t('pages.settings.SettingsLayout.s19'), icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
           { key: '/settings/dynamic-strategy', label: t('pages.settings.SettingsLayout.s69'), icon: () => h(NIcon, null, { default: () => h(OptionsOutline) }) },
           { key: '/settings/mou', label: t('pages.settings.SettingsLayout.s21'), icon: () => h(NIcon, null, { default: () => h(GitNetworkOutline) }) },
@@ -251,7 +244,7 @@ const rawSubMenuOptions: MenuItem[] = [
     children: [
       {
         // 2026-10-18 兵哥：/settings/theme 由普通子项提升为可展开父项（去掉 type:'group'，
-        //   与 g-company / g-org / g-user / g-permission 同款形态），
+        //   与 g-company / g-org / g-permission 同款形态），
         //   「前端组件规范」作为其二级子项。父项自身仍有路由，点击即进入主题外观页。
         key: 'g-theme',
         label: t('pages.settings.SettingsLayout.s61'),
@@ -282,9 +275,13 @@ const rawSubMenuOptions: MenuItem[] = [
 
 // G4: 按功能权限裁剪设置菜单（fail-open：未配置功能权限时全部可见）
 const { canAccess } = usePermission()
-const subMenuOptions = computed<MenuItem[]>(() =>
-  filterMenuByPermission(rawSubMenuOptions as MenuOption[], canAccess) as MenuItem[]
-)
+const subMenuOptions = computed<MenuItem[]>(() => {
+  const filtered = filterMenuByPermission(rawSubMenuOptions as MenuOption[], canAccess) as MenuItem[]
+  // 折叠态：分组打平 → 可展开父项回到根级 → naive 原生 hover 浮出二级菜单
+  //   （naive 的浮出载体 NDropdown 只挂在 root(level 0) 子菜单上；设置菜单的父项
+  //     原先都在分组内的 level 1 → 折叠态 hover 不出、点击也是死路。详见 utils/settingsMenu.ts）
+  return collapsed.value ? (buildCollapsedMenuOptions(filtered) as MenuItem[]) : filtered
+})
 
 // n-menu themeOverrides（让 Naive n-menu 字色走 CSS 变量，单一来源）
 const settingsMenuThemeOverrides = {
@@ -330,6 +327,13 @@ function onExpandedKeysChange(keys: Array<string | number>) {
   expandedKeys.value = keys
 }
 
+/** 展开某节点及其所有祖先分组（折叠态点父级图标 → 展开侧栏后要能立刻看到它） */
+function expandGroupChain(key: string) {
+  const chain = findPathToKey(rawSubMenuOptions, key)
+  if (!chain) return
+  expandedKeys.value = Array.from(new Set([...expandedKeys.value, ...chain]))
+}
+
 // 当前路由对应的菜单 key —— 优化：computed 兜底 + optimisticKey 覆盖
 const optimisticKey = ref('')
 const optimisticTimer = ref<number>()
@@ -347,6 +351,14 @@ function handleMenuClick(key: string) {
     if (optimisticTimer.value) window.clearTimeout(optimisticTimer.value)
     optimisticTimer.value = window.setTimeout(() => { optimisticKey.value = '' }, 1000)
     router.push(key)
+    return
+  }
+  // 折叠态点父级图标（key 非路由，如 'g-company'）→ 展开侧栏并展开该分组。
+  // 否则是死路：父项自身没有路由，折叠态也没有就地展开的位置。
+  // （与主侧栏「折叠态点分组图标 → 固定侧栏 + 展开该组」同一思路）
+  if (collapsed.value && typeof key === 'string' && key) {
+    collapsed.value = false
+    expandGroupChain(key)
   }
 }
 
@@ -483,7 +495,24 @@ watch(() => route.path, () => {
    仅为 block+min-height:100%，无受限高度的 flex 列，即使某页加了 overflow 也形不成滚动视口。
    修复：布局层用 :deep() 强制 .page-container 为高度受限的 flex 列，
    .page-header(flex-shrink:0, 见 glass.css) 固定、.page-body(flex:1;overflow-y:auto) 滚动。
-   → 单文件改动修好全部设置页；后续新增页面自动继承，无需逐页重复实现，杜绝回归。 */
+   → 单文件改动修好全部设置页；后续新增页面自动继承，无需逐页重复实现，杜绝回归。
+
+   ⚠️ 2026-10-21 (整改卡 E6 · AGENTS.md R-215): 本条契约是**两条轨道**，不是一条：
+     ① 表单/详情页 → 滚动容器用 .page-body，由本布局层统一托管（overflow-y:auto）；
+     ② 数据列表页（表格 + 筛选工具条 + 分页器）→ 滚动容器用 .data-body，
+        自身 overflow:hidden，**真实滚动只在 .table-wrap 内的表格体**（R-215「区域滚动」）。
+        这样标题/工具条/分页器固定、只有表格行滚动，不会出现「外层页滚 + 内层表滚」双滚动条。
+     正例（已按 ② 实现的页）：CodeTableLibrary / CompanyLibrary / MajorLibrary / SchoolLibrary /
+        DepartmentManagement / DynamicStrategy / JobLevelManagement / MouManagement /
+        PermissionManagement / PermissionResources / PositionTitleManagement /
+        RecruitmentProcess / RecruitmentRound / RecruitmentStage / UserDirectory。
+     ⚠️ 反例（仍是 ① 的表格页 → 整页滚 + 表体滚双滚动条）：已随 2026-10-21
+        「权限管理模块数据列表标准化」整改，把 PermissionManagement / PermissionResources
+        从 .page-body 迁到 .data-body 并统一为模型 B + 全局 .panel-shell；
+        UserDirectory / MouManagement 亦由 de-facto(header 在 .data-body 内)迁到模型 B。
+     判定口径：**页面内有 flex-height 的 n-data-table → 必须用 .data-body**；
+        纯表单/详情页 → 继续用 .page-body（表格页若用 .page-body 会产生双滚动条）。
+     盘点脚本：node scripts/scan_emoji.mjs 同目录的 e6 盘点见整改文档（2026-10-21）。 */
 .settings-scroll :deep(.page-container) {
   padding: 0 !important;
   min-height: 100%;
@@ -518,7 +547,10 @@ watch(() => route.path, () => {
 /* === 折叠态 CSS 补丁：Naive UI 自身 .menu-item-group-title 在 :collapsed=true 下未做隐藏 ===
    现象：折叠 64px 时 group label "基本信息/过程管理/招聘提速/内容管理" 被 CSS 强竖排成「基/本/信/息」单字一行
    根因：MenuOptionGroup.mjs 第 47-53 行无条件渲染 group title；cssr.mjs 第 102 行只把 .n-menu-item-content-header 设 opacity:0
-   方案：display:none 强制藏 group title + children label，children 之间用 hairline 隔开，icon 居中 === */
+   方案：display:none 强制藏 group title + children label，children 之间用 hairline 隔开，icon 居中 ===
+ * ⚠️ 2026-10-21 兵哥指令（设置菜单也用悬浮浮出）后，折叠态已**不再渲染分组**
+ *    （分组打平 → 可展开父项回到根级 → naive 原生 hover 浮出，详见 utils/settingsMenu.ts），
+ *    下面的 group title 规则退化为兜底；组间分隔改由 n-menu 的 divider 承担。 */
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-group-title),
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content-header),
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__arrow) {
@@ -536,10 +568,10 @@ watch(() => route.path, () => {
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-content__icon) {
   margin: 0 auto !important;
 }
-.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item-group + .n-menu-item-group) {
-  border-top: 1px solid var(--border-hairline);
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
+/* 折叠态组间分隔线：分组已打平（见 utils/settingsMenu.ts），用 n-menu 的 divider 保留视觉分组 */
+.settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-divider) {
+  margin: var(--space-2) 0 !important;
+  background-color: var(--border-hairline) !important;
 }
 .settings-sider.collapsed :deep(.settings-menu.n-menu--collapsed .n-menu-item) {
   margin-top: var(--space-1) !important;

@@ -17,7 +17,6 @@ import re
 
 import pytest
 
-
 # ─────────────────────────────────────────────────────────────
 # 1. 复现 QA-4 原报告 (BUG-7 真凶场景)
 # ─────────────────────────────────────────────────────────────
@@ -37,9 +36,9 @@ def test_qa_bug7_backfill_uses_real_stateapps():
     测试方法: 构造一个真实的 StateApps (snapshot 当前 candidate app 状态),
     直接传 backfill_id_card_hash(state_apps, schema_editor), 跑通即证明修复有效。
     """
-    from django.db.migrations.state import StateApps
-    from django.db.migrations.loader import MigrationLoader
     from django.apps import apps as django_apps
+    from django.db.migrations.loader import MigrationLoader
+    from django.db.migrations.state import StateApps
 
     # 加载 0005 migration 模块 (这是被测对象, 必须用真实产物)
     mig_0005 = importlib.import_module(

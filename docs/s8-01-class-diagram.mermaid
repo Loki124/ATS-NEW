@@ -1,0 +1,48 @@
+classDiagram
+    class PermissionResource {
+        +str resource_code
+        +str resource_name
+        +str resource_type
+        +str module
+        +int status
+        +bool strategy_governed
+    }
+    class RolePermissionV2 {
+        +str role_code
+        +str resource_code
+        +str system_code
+    }
+    class PermissionTemplate {
+        +str template_code
+        +str template_name
+        +list permission_codes
+    }
+    class RoleV2 {
+        +str role_code
+        +str template_code
+    }
+    class V2Permission {
+        +ACTION_SUFFIX
+        +CUSTOM_ACTION_SUFFIX
+        +has_permission(request, view)
+        +_derive(required, action, is_read)
+    }
+    class SeedCommand {
+        +RESOURCES
+        +S8_01_NEW_CODES
+        +STRATEGY_GOVERNED_CODES
+        +TEMPLATES
+    }
+    class Migration0044 {
+        +forward()
+        +backward()
+    }
+
+    RoleV2 "1" --> "N" RolePermissionV2 : 授权快照
+    RolePermissionV2 "N" --> "1" PermissionResource : resource_code
+    PermissionTemplate "1" --> "1" RoleV2 : clone_from_template 复制
+    SeedCommand ..> PermissionResource : 建码/置位
+    Migration0044 ..> PermissionResource : 存量兜底建码
+    Migration0044 ..> RolePermissionV2 : bg_check 复制
+    Migration0044 ..> PermissionTemplate : JSON 补码
+    V2Permission ..> PermissionResource : known_resource_codes 派生校验

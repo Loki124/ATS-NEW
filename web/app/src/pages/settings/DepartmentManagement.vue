@@ -7,7 +7,7 @@
       </div>
     </div>
 
-    <div class="page-body">
+    <div class="data-body">
       <!-- 与身份管理（RolesTab）同构：玻璃面板内 = 工具条（左搜索/筛选 + spacer + 右操作）+ table-wrap(flex-height) -->
       <div class="glass-panel panel-shell">
         <div class="toolbar">
@@ -1158,10 +1158,10 @@ onMounted(() => {
   padding: 0;
 }
 /* .page-header 的 flex-shrink:0 与 .spacer 的 flex:1 已由 glass.css 全局 .page-header / .toolbar .spacer 提供，此处不再私有重写（SETTINGS_PAGE_STRUCTURE.md §0） */
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;

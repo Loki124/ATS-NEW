@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant M as 迁移 0030 forward
+  participant R as permission_resources
+  participant RP as role_permission
+  participant T as permission_templates
+
+  M->>R: ① update_or_create 新建 8 条<br/>(campus_ambassador / campus_session × menu/list/edit/delete)
+  Note over R: 必须最先：②③ 都要指向这些码
+  M->>R: 断言 A1：旧 4 条 campus_control 存在且 status=1
+  M->>RP: 快照旧码行数 N（断言 A3 基准）
+  M->>RP: ② 复制 24 行 → campus_ambassador:*（bulk_create ignore_conflicts）
+  M->>RP: 复制 24 行 → campus_session:*（bulk_create ignore_conflicts）
+  M->>RP: 断言 A3：旧码行数 == N<br/>断言 A4：每个新码行数 == 对应旧码行数
+  M->>T: ③ 读 permission_codes JSON → 展开为 12 条 → 回写
+  M->>T: 断言 A5：无悬空码
+  M->>R: ③'.5 status=0 且未带前缀 → 前缀 '[已停用] '
+  M->>R: ④ 6 条在用资源改名（幂等）
+  M->>R: 断言 A2：新码全在且 status=1<br/>断言 A6：新码不破 R5
+  Note over M,R: 同一事务，任一断言失败 → RuntimeError → 整体回滚

@@ -32,7 +32,7 @@ class School(SoftDeleteModel):
     affiliated_to = models.CharField(max_length=100, blank=True, default='', help_text='主管部门')
     tags = models.CharField(max_length=300, blank=True, default='', help_text='校准标签，| 分隔')
     former_names = models.CharField(max_length=300, blank=True, default='', help_text='曾用名，| 分隔')
-    status = models.CharField(max_length=20, default='ACTIVE')
+    status = models.CharField(max_length=20, default='ACTIVE', db_index=True)
     updated_at = models.DateTimeField(auto_now=True, help_text='最后更新时间')
     is_customized = models.BooleanField(
         default=False,
@@ -104,7 +104,7 @@ class Company(SoftDeleteModel):
     scale = models.CharField(max_length=50, blank=True, default='')
     is_benchmark = models.BooleanField(default=False)
     description = models.TextField(blank=True, default='')
-    status = models.CharField(max_length=20, default='ACTIVE')
+    status = models.CharField(max_length=20, default='ACTIVE', db_index=True)
 
     class Meta:
         db_table = 'library_company'

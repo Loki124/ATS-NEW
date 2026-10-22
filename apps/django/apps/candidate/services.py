@@ -48,7 +48,7 @@ def _record_state_change(
     )
     candidate._state_change_recorded = True
 
-from apps.common.encryption import hash_candidates_for_search
+from apps.common.encryption import encrypted_field_eq_q, hash_candidates_for_search
 from apps.common.exceptions import NotFound, StateTransitionError
 from apps.common.search import keyword_q
 from apps.core.models import User
@@ -158,6 +158,42 @@ def validate_id_card(id_card: str) -> str:
 # ============================================================
 # 候选人服务
 # ============================================================
+def candidate_keyword_q(
+    keyword: str, *fields: str, model=None, backend: str | None = None
+) -> Q:
+    """候选人关键词搜索 —— 手机号/邮箱走 hash **精确**匹配。
+
+    2026-10-21 卡 C4: phone / email 改 Fernet 字段级加密后, `icontains` / `MATCH` 必然落空
+    (Fernet 非确定性 —— 同一明文每次密文不同, 且索引/全文索引建在密文上同样失效),
+    **且是静默落空**(返回空集, 不报错) → 搜索会「查不到人」而不报错。
+
+    故这两个字段的搜索口径**从模糊降级为精确**:
+    - 粘贴**完整**手机号 / 邮箱仍能搜到 (走 phone_hash / email_hash 盲索引列);
+    - 部分手机号 (如 "138") 的模糊搜索**不再支持** (密文无法 LIKE, 盲索引也无法前缀匹配);
+    - 其余字段 (name / current_company / current_position) 仍是 LIKE / FULLTEXT 模糊匹配。
+
+    用法: `candidate_keyword_q(keyword, 'name', 'current_company', model=Candidate)`
+    —— **不要**再把 'phone' / 'email' 放进 fields (那会命中对密文的 LIKE, 永远不中)。
+
+    backend 参数透传给 `keyword_q`:
+    - `None` → 跟随全局 `SEARCH_BACKEND`（默认 auto → MySQL 走 FULLTEXT）；
+      ⚠️ 走 FULLTEXT 的列**必须有对应的 FULLTEXT 索引**，否则 MySQL 报
+      1191 "Can't find FULLTEXT index matching the column list"
+      （candidates 表上有全文索引的列：name / phone / email / current_company；
+        加密后 phone/email 的全文索引已撤 —— 故**不要**再把这两列交给 keyword_q）。
+    - `'like'` → 强制 LIKE（全局搜索原本就是纯 LIKE，用它保持原语义）。
+    """
+    from apps.common.encryption import hash_candidates_for_search
+
+    q = keyword_q(keyword, *fields, backend=backend, model=model)
+    if not keyword:
+        return q
+    hashes = hash_candidates_for_search(keyword)
+    if not hashes:
+        return q
+    return q | Q(phone_hash__in=hashes) | Q(email_hash__in=hashes)
+
+
 class CandidateService:
     """候选人服务"""
 
@@ -253,9 +289,11 @@ class CandidateService:
             # 可再收敛为单读 (见 apps.common.encryption.hash_candidates_for_search)。
             conditions |= Q(id_card_hash__in=hash_candidates_for_search(id_card))
         if phone:
-            conditions |= Q(phone=phone)
+            # 2026-10-21 卡 C4: phone 已改 Fernet 加密 (非确定性) → 明文 = 匹配必然落空,
+            # 必须走 phone_hash 盲索引列 (与 id_card_no 同构, 见上)。
+            conditions |= encrypted_field_eq_q('phone_hash', phone)
         if email:
-            conditions |= Q(email=email)
+            conditions |= encrypted_field_eq_q('email_hash', email)
         if not conditions:
             return None
         return qs.filter(conditions).first()
@@ -506,7 +544,9 @@ class CandidateService:
         qs = base_qs if base_qs is not None else Candidate.objects.all()
         qs = qs.filter(deleted_at__isnull=True)
         if keyword:
-            qs = qs.filter(keyword_q(keyword, 'name', 'phone', 'email', 'current_company', model=Candidate))
+            qs = qs.filter(candidate_keyword_q(
+                keyword, 'name', 'current_company', model=Candidate,
+            ))
         if state:
             qs = qs.filter(current_state=state)
         if source_channel_id:
@@ -532,10 +572,14 @@ class CandidateService:
         """
         phone = validate_phone(phone)
         # 加 select_for_update(nowait=False) 让并发请求串行化
+        # 2026-10-21 卡 C4: phone 已加密 → 按明文查会静默落空, 改走 phone_hash 盲索引列。
         existing = (
             Candidate.objects
             .select_for_update()
-            .filter(phone=phone, deleted_at__isnull=True)
+            .filter(
+                encrypted_field_eq_q('phone_hash', phone),
+                deleted_at__isnull=True,
+            )
             .first()
         )
         if existing:
@@ -550,7 +594,10 @@ class CandidateService:
             # 并发场景: 另一进程已创建, 重新 fetch. 仅兜住 ORM 唯一键冲突 (phone 唯一约束).
             # 编程错误 (AttributeError/TypeError) 仍向上抛以便排查.
             logger.warning('Candidate upsert by phone: ORM conflict, retry fetch: %s', e)
-            existing = Candidate.objects.filter(phone=phone, deleted_at__isnull=True).first()
+            existing = Candidate.objects.filter(
+                encrypted_field_eq_q('phone_hash', phone),
+                deleted_at__isnull=True,
+            ).first()
             if existing:
                 return existing
             raise

@@ -63,7 +63,9 @@ export const useUserStore = defineStore('user', () => {
     user.value = userData
     if (userData) {
       localStorage.setItem('user', JSON.stringify(userData))
-      if (userData.uiSettings) setUiSettings(userData.uiSettings)
+      // ⚠️ persist=false：这里是从服务端**水合**（/me 响应），不是用户改动，
+      //    不应再回写一次（否则每次登录都多打一次 PATCH /auth/me/）。
+      if (userData.uiSettings) setUiSettings(userData.uiSettings, false)
     } else {
       localStorage.removeItem('user')
     }
@@ -80,10 +82,11 @@ export const useUserStore = defineStore('user', () => {
     } catch {
       /* 容量溢出忽略 */
     }
-    if (persist && data.menuLayout) {
-      // 异步同步到后端，失败不影响本地（下次 me 会修正）
+    // 异步同步到后端（后端 PATCH /auth/me/ 会**合并** uiSettings），失败不影响本地（下次 me 会修正）
+    // 2026-10-21：原先只同步 menuLayout 一个键，侧栏「固定」等新偏好无法跟账号走 → 改为同步全部键
+    if (persist && Object.keys(data).length) {
       import('../api/auth').then(({ updateUiSettings }) => {
-        updateUiSettings({ menuLayout: data.menuLayout }).catch(() => {})
+        updateUiSettings({ ...uiSettings.value, ...data }).catch(() => {})
       })
     }
   }

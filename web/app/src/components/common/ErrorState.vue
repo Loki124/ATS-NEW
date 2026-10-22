@@ -92,6 +92,6 @@ const showDetail = ref(false)
   border-radius: var(--radius-md, 10px); border: 1px solid transparent;
   font-size: var(--text-body); cursor: pointer;
 }
-.btn-primary { background: var(--brand, #6366f1); color: #fff; }
+.btn-primary { background: var(--brand); color: #fff; }
 .btn-primary:hover { filter: brightness(1.05); }
 </style>

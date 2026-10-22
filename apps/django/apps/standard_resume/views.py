@@ -12,10 +12,10 @@ CandidateInfoTable（候选人信息登记表设置，单体 JSON config）：
 """
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.core.permissions_v2 import V2Permission
 
 from .models import RegistrationForm, StandardResumeConfig
 from .serializers import RegistrationFormSerializer

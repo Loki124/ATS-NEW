@@ -33,6 +33,15 @@ ENTITY_VIEWSETS = {
     'position': 'apps.position.views.PositionViewSet',
     'process': 'apps.process.views.RecruitmentProcessViewSet',
     'talent': 'apps.talent_pool.views.TalentPoolEntryViewSet',
+    # 2026-10-21 卡 B1: 校招轮岗三实体随 S5-10/S5-21 接入 field_map 后补登记。
+    #   三者的 scope 口径与 core/entity_scope.py 的 ENTITY_SCOPE 完全一致
+    #   (campus_arrangement=current_dept / campus_class=hrbp__department /
+    #    campus_resource=bu, creator 均为 created_by), 已同时登记进
+    #   ENTITY_SCOPE_VIEWSETS 以锁死「改一处忘另一处」的口径漂移。
+    'campus_arrangement': 'apps.campus_rotation.views.RotationArrangementViewSet',
+    'campus_class': 'apps.campus_rotation.views.ClassRoomViewSet',
+    'campus_resource': 'apps.campus_rotation.views.RotationResourceViewSet',
+    'campus_person': 'apps.campus_control.views.PersonViewSet',
 }
 
 # ENTITY_SCOPE 键 -> ViewSet 类 (导出/批量入口与列表页口径一致性断言用).
@@ -47,6 +56,11 @@ ENTITY_SCOPE_VIEWSETS = {
     'talent_pool': 'apps.talent_pool.views.TalentPoolEntryViewSet',
     'referral': 'apps.referral.views.ReferralViewSet',
     'application': 'apps.application.views.ApplicationViewSet',
+    # 2026-10-21 卡 B1: 同上, 校招轮岗三实体。
+    'campus_arrangement': 'apps.campus_rotation.views.RotationArrangementViewSet',
+    'campus_class': 'apps.campus_rotation.views.ClassRoomViewSet',
+    'campus_resource': 'apps.campus_rotation.views.RotationResourceViewSet',
+    'campus_person': 'apps.campus_control.views.PersonViewSet',
 }
 
 

@@ -94,6 +94,24 @@
 
 ---
 
+## 0.4 已落地（2026-10-21，系统切换器体验优化）
+
+**触发**：兵哥反馈「把这个系统切换的功能样式优化一下，**不好用，而且导致页面波动**」，配图暴露三点：
+① 浮层面板过大、圆角 + 阴影过重 → 大面积遮挡下方菜单；② 「社会招聘」与「✓校园招聘」两行文字不对齐；
+③ 切换系统后侧栏菜单整组增删（「校招生管理」分组 + 「编制管控」）→ 条目逐个跳出，画面抖动。
+
+| 交付物 | 文件 | 说明 |
+|---|---|---|
+| 选项行自绘 | `web/app/src/utils/systemSwitcher.ts` | 「图标槽 / 文字 / 右侧勾」三段固定宽度；**不再用 naive 的 `icon` 字段**（其 prefix 预留位按「菜单里有没有带 icon 的项」在 14/36px 间跳变，会把两行文字起始位置挤偏） |
+| 紧凑型下拉变体 | `web/app/src/styles/glass.css` §下拉弹窗规范 | `.n-dropdown-menu.sys-switch-dropdown`：圆角 `--radius-lg`→`--radius-sm`、阴影 `--shadow-elevated`→`--shadow-float`、内边距 8→4；规范同步到 `docs/04-ui/DROPDOWN_POPOVER_SPEC.md` §2.6 |
+| 轻投影令牌 | `web/app/src/styles/tokens.css` | 新增 `--shadow-float`（浅色 / 暗色各一份） |
+| 切换器组件 | `web/app/src/components/common/SystemSwitcher.vue` | 触发器补系统图标（社招=人群 / 校招=学校）、箭头随开合旋转；折叠态命中区用伪元素扩到 44×44（R-102） |
+| 抖动消化 | `web/app/src/pages/Layout.vue` | `n-menu` 加 `:key="systemStore.current"` 强制重建 + `sider-menu--switching` 淡入（只动 opacity/transform，220ms，尊重 `prefers-reduced-motion`） |
+
+**行为不变**：D5 仍然成立 —— 切换系统**停留当前路由**，不跳工作台（有组件测试守着）。
+
+---
+
 ## 1. 目标与约束
 
 1. **两套系统、一套代码**：社会招聘（现状全量功能）与校园招聘（模块页面相似）共用同一部署、同一前端工程。

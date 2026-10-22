@@ -15,9 +15,9 @@
 """
 import pytest
 
+from apps.core.management.commands.seed_v2_init import STRATEGY_GOVERNED_CODES
 from apps.core.models_permission_v2 import PermissionResource
 from apps.core.views_dynamic_strategy import DynamicStrategyViewSet
-from apps.core.management.commands.seed_v2_init import STRATEGY_GOVERNED_CODES
 
 
 @pytest.mark.django_db
@@ -30,14 +30,20 @@ def test_governed_resources_groups_cross_module_codes_under_candidate():
     candidate 批是因为兵哥清单把「放入人才库」归在候选人管理）。
     """
     for code in STRATEGY_GOVERNED_CODES:
-        PermissionResource.objects.create(
-            system_code='recruit',
+        # 2026-10-21 卡 B5：测试环境会补齐 permission_resources（真源 = seed_v2_init.RESOURCES），
+        # 其中已含 recruit:candidate:list / :edit / :delete / :menu:view 等码 → 裸 create 撞
+        # permission_resources.resource_code 唯一约束。改 update_or_create：语义仍是
+        # 「把这一行置成本用例要断言的状态」，且不依赖库里此前有没有这行。
+        PermissionResource.objects.update_or_create(
             resource_code=code,
-            resource_name=code,
-            resource_type='BUTTON',
-            module=code.split(':')[1],  # 资源码第 2 段 == 真实 module（规范 R2）
-            status=1,
-            strategy_governed=True,
+            defaults={
+                'system_code': 'recruit',
+                'resource_name': code,
+                'resource_type': 'BUTTON',
+                'module': code.split(':')[1],  # 资源码第 2 段 == 真实 module（规范 R2）
+                'status': 1,
+                'strategy_governed': True,
+            },
         )
 
     out = DynamicStrategyViewSet._governed_resources()
@@ -80,28 +86,42 @@ def test_governed_resources_respects_status_and_type_and_flag():
     from apps.core.views_dynamic_strategy import STRATEGY_MODULE_RESOURCE_MODULES
 
     # 候选区内只该出现 strategy_governed=True 的 BUTTON 且 status=1
-    PermissionResource.objects.create(
-        system_code='recruit', resource_code='recruit:candidate:list',
-        resource_name='候选人列表', resource_type='BUTTON', module='candidate',
-        status=1, strategy_governed=True,
+    # 2026-10-21 卡 B5：update_or_create 而非 create —— 测试环境已补齐同码种子行，
+    # 裸 create 会撞 resource_code 唯一约束。
+    # 且先把全库的 strategy_governed 清零：本用例的前提是「受管控候选区**只有**
+    # 下面这 4 行」，而测试环境的种子已把 STRATEGY_GOVERNED_CODES 全部置为受管控
+    # （18 条 candidate 码），不隔离就会多出 17 条让断言失真。
+    PermissionResource.objects.update(strategy_governed=False)
+    PermissionResource.objects.update_or_create(
+        resource_code='recruit:candidate:list',
+        defaults={
+            'system_code': 'recruit', 'resource_name': '候选人列表', 'resource_type': 'BUTTON',
+            'module': 'candidate', 'status': 1, 'strategy_governed': True,
+        },
     )
     # 反例 1：停用（status=0）—— 勾了也不生效，不得入候选
-    PermissionResource.objects.create(
-        system_code='recruit', resource_code='recruit:candidate:edit',
-        resource_name='编辑候选人', resource_type='BUTTON', module='candidate',
-        status=0, strategy_governed=True,
+    PermissionResource.objects.update_or_create(
+        resource_code='recruit:candidate:edit',
+        defaults={
+            'system_code': 'recruit', 'resource_name': '编辑候选人', 'resource_type': 'BUTTON',
+            'module': 'candidate', 'status': 0, 'strategy_governed': True,
+        },
     )
     # 反例 2：菜单（非 BUTTON）—— 受限功能是按钮级，菜单不是功能
-    PermissionResource.objects.create(
-        system_code='recruit', resource_code='recruit:candidate:menu:view',
-        resource_name='候选人菜单', resource_type='MENU', module='candidate',
-        status=1, strategy_governed=True,
+    PermissionResource.objects.update_or_create(
+        resource_code='recruit:candidate:menu:view',
+        defaults={
+            'system_code': 'recruit', 'resource_name': '候选人菜单', 'resource_type': 'MENU',
+            'module': 'candidate', 'status': 1, 'strategy_governed': True,
+        },
     )
     # 反例 3：未标记受管控 —— 不得入候选
-    PermissionResource.objects.create(
-        system_code='recruit', resource_code='recruit:candidate:delete',
-        resource_name='删除候选人', resource_type='BUTTON', module='candidate',
-        status=1, strategy_governed=False,
+    PermissionResource.objects.update_or_create(
+        resource_code='recruit:candidate:delete',
+        defaults={
+            'system_code': 'recruit', 'resource_name': '删除候选人', 'resource_type': 'BUTTON',
+            'module': 'candidate', 'status': 1, 'strategy_governed': False,
+        },
     )
 
     out = DynamicStrategyViewSet._governed_resources()

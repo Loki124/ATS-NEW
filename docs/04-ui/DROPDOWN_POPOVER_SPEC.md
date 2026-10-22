@@ -79,6 +79,24 @@
 
 走全局 §6 滚动条规范，不单独覆写。`pointer-events:none` 确保 thumb 不吞相邻小点击目标。
 
+### 2.6 紧凑型变体：系统切换器（2026-10-21 新增）
+
+标准下拉面向「表单里选一个值」；**工具型入口**（常驻在侧栏/工具条上的切换器）需要更轻的浮层，
+否则浮层一展开就压住下方内容。系统切换器（`SystemSwitcher.vue`）是第一个落地的紧凑变体。
+
+| 项 | 标准值 | 紧凑变体 | 落地 |
+|----|--------|---------|------|
+| 圆角 | `--radius-lg` | `--radius-sm` | `glass.css` `.n-dropdown-menu.sys-switch-dropdown` |
+| 阴影 | `--shadow-elevated` | `--shadow-float`（单层轻投影） | 同上 |
+| 面板内边距 | `--space-2 0` | `--space-1 0` | 同上 |
+| 行高 / 字号 | 36px / 14px | 32px / 13px | 组件 `theme-overrides`（`--n-option-height` / `--n-font-size`） |
+| prefix 槽宽 | `--n-option-icon-prefix-width` | `0px`（图标/文字/勾全部自绘） | 组件 `theme-overrides` |
+
+**启用方式**：组件用 `menu-props.class` 挂 `.sys-switch-dropdown`；**只影响这一个下拉**，不改全局标准。
+
+> ⚠️ **为什么面板级视觉不能写在组件里**：L2/L3 用 `!important` 锁了标准值，组件内覆盖会被压掉
+> （写了不生效 = 静默失效）。所有下拉视觉改动一律回本文件这一节。
+
 ---
 
 ## 3. 高亮层「层叠圆角」实现
@@ -191,6 +209,8 @@ Naive 的 popover/dropdown 全用 CSS 变量 `--glass-bg-elevated` / `--glass-bo
 | `hover 高亮几乎看不出` | L3 `::before` 背景用 `--brand-tint` (6% brand) → light 下 alpha 太低无法识别 | dropdown 专改 `--option-hover` (14%)，三档梯度见 §2.3 |
 | `dropdown / select 浮层穿透页面内容`（用户 2026-08-28 报「透明度还是很高」） | Naive UI 浮层真实根是 **`.v-binder-follower-content`**（不是 `.n-popover`），`--glass-bg-elevated` 只是基础 token 抬到 .88/.88 仍会看到底部强对比元素（如紫按钮「新增阶段」）穿透 | (1) 改选择器到 `.v-binder-follower-content`； (2) alpha 升到 light .96 / dark .94；(3) blur 24→28px + saturate(180%)；(4) 加 `isolation: isolate` 防 transform 切断 backdrop-filter；(5) dark 改色基 `#1E293B → #0F172A` 防溶背景 |
 | 中间无 icon 项被"矩形包围"错觉 | 选项混有/无 icon，无 icon 项视觉缩窄像嵌独立容器 | **统一补 icon prefix** 或统一用同字号 left padding 让锚点对齐 |
+| prefix 槽预留位把文字挤偏 | naive 的 prefix 宽度由「菜单里是否存在带 icon 的项」决定（有 → 36px，无 → 14px）。用「空 span 占位」补齐当前项图标位时，两行文字起始位置对不齐（兵哥 2026-10-21 反馈系统切换器两行文字不对齐） | ① **整行自绘**：图标槽 + 文字 + 右侧勾都用自定义 `label` 渲染，并把 `--n-option-prefix-width` 压到 `0`，文字起始位置由结构保证；或 ② 统一补真实 icon prefix |
+| 自绘行的图标「跑到高亮块外面」 | 行高亮层 `::before` 是 `inset: 0 var(--space-1)`（在行内容盒内缩 4px），而行内容盒已被 `.n-dropdown-option { padding: 0 var(--space-3) }` 内缩 8px → 内容盒左右各有 4px 在高亮块**外面**。自绘行（不走 prefix 槽）若不补内边距，图标就落进那 4px 沟里，hover 时像「图标越界」，高亮块左边缘还在图标旁形成一条突兀竖线（兵哥 2026-10-22 反馈） | 自绘行补 `padding: 0 var(--space-2)`（≥ 高亮层 inset），让图标与右侧标记都落在高亮块内侧 |
 | Naive 默认 divider 灰在暗色仍浅灰 | 暗色下弹层里 divider 像一条白线刺眼 | 覆写 `--n-divider-color → var(--border-hairline)` |
 | 高亮层 border-radius 与外框错位 | 高亮是大圆角 + 内嵌到小圆角容器 = 视觉空隙 | 外大内小（12 / 6）+ inset 6px |
 | z-index 错层 | dropdown 被 modal 遮罩挡掉 | `--z-dropdown:1000 < --z-modal:1200`，不要再单独设 |
@@ -212,6 +232,7 @@ Naive 的 popover/dropdown 全用 CSS 变量 `--glass-bg-elevated` / `--glass-bo
 | 规范章节 | 落地文件 |
 |---------|---------|
 | §2 视觉五件套 / §3 高亮层 / §4 暗色 | `web/app/src/styles/glass.css` §下拉弹窗规范 |
+| §2.6 紧凑型变体（系统切换器） | `glass.css` `.n-dropdown-menu.sys-switch-dropdown` + 组件 `theme-overrides`（行高/字号/prefix 宽） |
 | §3 inset 实现细节（Naive BEM 内层类名） | `glass.css` 注释备案 |
 | §6 已知陷阱 | `docs/04-ui/UI_STANDARD.md` §7.8（指针 + 摘要） |
 

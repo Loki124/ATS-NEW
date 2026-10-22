@@ -23,6 +23,12 @@ const SHORTHAND_PROPS = new Set([
 ]);
 
 const VAR_RE = /var\([^)]*\)/g;
+// 2026-10-21 (整改卡 E1-a): 修「var() 盲区」。
+//   旧实现用 VAR_RE 把整个 `var(...)` 剥掉再查裸色值 → `var(--ink, #1e293b)` 这类
+//   **带 hex fallback** 的写法连 fallback 一起被抹掉 → 完全逃逸检测。
+//   正确做法: 只剥掉 `var(--token` 前缀, **把 fallback 留在串里继续查**。
+//   (`var(--a, var(--b))` 递归两次替换后仍无裸色 → 合法)
+const VAR_PREFIX_RE = /var\(\s*--[\w-]+\s*/g;
 const NEUTRAL_KW = /(?:transparent|currentcolor|inherit|initial|unset|none|#fff|#ffffff|#000|#000000|white|black)/i;
 const COLOR_LIT = /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/i;
 
@@ -52,7 +58,9 @@ function hasHardcodedColor(value) {
   v = stripBalanced(v, 'radial-gradient');
   v = stripBalanced(v, 'conic-gradient');
   v = stripBalanced(v, 'color-mix');
-  v = v.replace(VAR_RE, '').replace(NEUTRAL_KW, '');
+  // 只剥 `var(--token` 前缀, fallback 保留参与检查 (见 VAR_PREFIX_RE 注释)
+  v = v.replace(VAR_PREFIX_RE, ' ');
+  v = v.replace(NEUTRAL_KW, '');
   return COLOR_LIT.test(v);
 }
 
@@ -65,7 +73,10 @@ module.exports = {
       if (!COLOR_PROPS.has(prop) && !SHORTHAND_PROPS.has(prop)) return;
       if (hasHardcodedColor(decl.value)) {
         stylelint.utils.report({
-          ruleName: 'strict-color-value',
+          // 2026-10-21 (卡 E1): 报告用的 ruleName 必须与注册的规则名一致
+          // (strict-color/strict-color-value) —— 原先写 'strict-color-value',
+          // 与 .stylelintrc.json 里登记的名字对不上, 报告归属会落到"未注册规则"。
+          ruleName: 'strict-color/strict-color-value',
           result,
           node: decl,
           word: decl.value,

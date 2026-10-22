@@ -171,6 +171,7 @@ class TestR5R6StubsOverRealHttpApi:
         「管理员开通待激活账号 → 发码 → 验码 → 自动激活 → 拿到真 access token」。
         """
         import re
+
         from django.contrib.auth import get_user_model
         from django.core import mail
         User = get_user_model()

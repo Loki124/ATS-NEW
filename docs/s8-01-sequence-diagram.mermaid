@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant U as 招聘专员(持有 candidate:edit + candidate:eliminate)
+    participant FE as CandidateDetail.vue
+    participant API as POST /candidates/{id}/transition/
+    participant V2 as V2Permission
+    participant PC as permission_check.has_perm
+    participant DB as role_permission
+    participant EW as ensure_writable(eliminate)
+    participant EO as ensure_operable(eliminate)
+    participant SVC as CandidateService.mark_process_failed
+
+    FE->>FE: v-permission 双码显示按钮<br/>[candidate:edit, candidate:eliminate]
+    U->>FE: 点击「淘汰候选人」填原因
+    FE->>API: {action: mark_process_failed, reason, reason_tag_ids}
+    API->>V2: has_permission(request, view)
+    V2->>V2: explicit map['transition'] = [edit, eliminate]<br/>持任一即过门禁
+    V2->>PC: _any(user, [candidate:edit, candidate:eliminate])
+    PC->>DB: 查 role_permission（缓存 5min）
+    DB-->>PC: 命中 candidate:eliminate
+    PC-->>V2: true
+    V2-->>API: 放行
+    API->>EW: ensure_writable(user,'candidate',c,action='eliminate')
+    EW-->>API: 行在写范围内（fail-open：无 WRITE 规则时放行）
+    API->>EO: ensure_operable(user, c, 'eliminate')
+    EO-->>API: 是锁定人
+    API->>API: action_name=='mark_process_failed'<br/>细查 has_perm(user,'candidate:eliminate')
+    API->>SVC: mark_process_failed(candidate, reason, actor)
+    SVC-->>API: 候选人进入 PROCESS_FAILED + 入淘汰库
+    API-->>FE: {success, data}
+    FE-->>U: 成功提示 + 按钮转禁用态

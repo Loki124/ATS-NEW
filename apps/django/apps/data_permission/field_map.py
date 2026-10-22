@@ -116,6 +116,11 @@ MODULE_DIMENSION_FIELDS: dict[str, dict[str, dict | str | bool | None]] = {
         'hrbp': 'class_room__hrbp_id',
         'head_teacher': 'head_teacher_id',
         'mentor': 'mentor_id',
+        # 2026-10-21 S5-35：班长（class_monitor，2026-10-21 三期新增于
+        # RotationArrangement）。⚠️ 与 D-02 的区别：D-02 删的是 ClassRoom.class_monitor
+        # （个人档案不再维护班长）；此处是**轮岗安排**上的班长归属，字段真实存在，
+        # 故可作为按人隔离维度（编译为 Q(class_monitor_id__in=[...]））。
+        'class_monitor': 'class_monitor_id',
         'campus_class': 'class_room_id',
         'unit': True,
         'process': None,
@@ -273,6 +278,14 @@ DIMENSION_META: dict[str, dict] = {
         'contextKeys': ['currentUser.id'],
         'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
     },
+    # —— 校招域：班长（2026-10-21 S5-35）——
+    # 与 head_teacher / mentor 同属用户类维度：静态「包含/不包含」固定人员，
+    # 或动态「当前登录用户」（编译器编译为 Q(class_monitor_id__in=[user.pk])）。
+    'class_monitor': {
+        'key': 'class_monitor', 'label': '班长', 'valueType': 'user',
+        'contextKeys': ['currentUser.id'],
+        'operators': [{'value': 'in', 'label': '包含'}, {'value': 'not_in', 'label': '不包含'}],
+    },
     # 班级维度：valueType 非 user/department，用 str 承载班级 id。
     # 编译器对裸字符串走 static __in 分支（见模块 docstring spec 形状说明）。
     'campus_class': {
@@ -319,9 +332,10 @@ MODULE_DIMENSION_LABELS: dict[str, dict[str, str]] = {
     'campus_arrangement': {
         'dept': '当前轮岗部门',
         'creator': '创建人',
-        'hrbp': '班级HRBP',
+        'hrbp': '员工HRBP',
         'head_teacher': '班主任',
-        'mentor': '带教导师',
+        'mentor': '导师',
+        'class_monitor': '班长',
         'campus_class': '班级',
     },
     'campus_resource': {
@@ -359,16 +373,44 @@ HIDDEN_DIMENSIONS: dict[str, frozenset[str]] = {
     'demand': frozenset({'owner', 'hr'}),
     'candidate': frozenset({'owner', 'creator', 'dept'}),
     'position': frozenset({'owner'}),
+    # 2026-10-21 S5-35：校招生管理卡只暴露**人员关系四维度**
+    # （员工HRBP / 班长 / 班主任 / 导师），与需求一致 —— 这四个维度构成校招域
+    # 「按人隔离」的完整语义（见方案 §2.2 隔离矩阵）。
+    # 隐藏项及原因：
+    #   owner       —— 与 mentor 同指 mentor_id（冗余别名），同 demand/position 处理；
+    #   campus_class—— valueType='string' 且**无值选项源**（options_payload 对非
+    #                  user/department/unit 一律下发空 options），下拉会是空控件；
+    #   dept        —— 部门类维度走 UNIFIED_DEPT_OPERATORS（属于/不属于/含下级），
+    #                  与本卡要求的「包含/不包含」运算符族不同；部门隔离已由
+    #                  默认 scope（scope_field='current_dept'）覆盖，不需自定义规则；
+    #   creator     —— 同上，创建人隔离由默认 scope 的 SELF 兜底覆盖。
+    # ⚠️ 隐藏只影响 UI 下拉（options_payload 不下发），后端映射与编译逻辑全部保留 ——
+    #    存量规则若引用这些维度仍能正常编译执行（与既有 hidden 维度同策略）。
+    'campus_arrangement': frozenset({'owner', 'campus_class', 'dept', 'creator'}),
 }
 
-# 模块顺序与展示名（抽屉内 5 张卡的顺序）
-MODULE_ORDER: list[str] = ['demand', 'process', 'position', 'candidate', 'talent']
+# 模块顺序与展示名（抽屉内的卡片顺序）
+MODULE_ORDER: list[str] = [
+    'demand', 'process', 'position', 'candidate', 'talent',
+    # 2026-10-21 S5-35：校招生管理独立卡（排在校招域之后，与「校招生管理」一级
+    # 导航分组对应）。实体键 = campus_arrangement，原因见 MODULE_LABELS 注释。
+    'campus_arrangement',
+]
 MODULE_LABELS: dict[str, str] = {
     'demand': '招聘需求',
     'process': '招聘流程',
     'position': '招聘职位',
     'candidate': '候选人管理',
     'talent': '人才库',
+    # 2026-10-21 S5-35：校招域独立配置卡。
+    # ⚠️ 实体键 = campus_arrangement（轮岗安排）——**不是**整个校招域的合并视图：
+    #   校招四实体（campus_person/campus_class/campus_resource/campus_arrangement）
+    #   各自对应一个 ViewSet 的 data_perm_entity，规则按 entity 精确匹配执行，
+    #   一张卡只能治理一个实体（DataPermissionRule.entity 是单值字段）。
+    #   选 campus_arrangement 的理由：本次要求的四个维度（员工HRBP / 班长 / 班主任 /
+    #   导师）**只有它全部具备** —— class_monitor（班长）字段仅存在于
+    #   RotationArrangement（2026-10-21 三期新增），campus_person 侧无此字段。
+    'campus_arrangement': '校招生管理',
 }
 
 

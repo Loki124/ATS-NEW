@@ -40,10 +40,10 @@ class CampusRotationConfig(AppConfig):
         from apps.dictionary.registry import register_dictionary_seed
 
         from .seeds import (
-            seed_live_room_platform_type,
-            seed_location_type,
             seed_brand_type,
             seed_cs_type_type,
+            seed_live_room_platform_type,
+            seed_location_type,
             seed_workstation_type_type,
         )
 

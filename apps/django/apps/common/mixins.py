@@ -56,6 +56,43 @@ class SoftDeleteViewSetMixin:
         instance.soft_delete()
 
 
+class SoftDeleteRestoreMixin:
+    """让 restore 端点能取到**已软删**对象, 且不绕过行级隔离。
+
+    背景 (2026-10-21 整改卡 D3): `SoftDeleteModel` 挂上 `SoftDeleteManager` 之后,
+    ViewSet 的 `get_queryset()` 默认过滤 `deleted_at` → "恢复软删对象"**必然 404**
+    (campus / campus_control 的 restore 就是这个状态, 属既有缺陷);
+    而直接用 `Model.all_objects` 取数又会绕过 scope
+    (守卫 `apps/data_permission/tests/test_write_guard.py` 明确禁止全表取数)。
+
+    做法: 仅在 restore 动作内, 把取数来源换成含软删行的 manager,
+    其余过滤链 (scope / filter_backends) 原样保留
+    → 行为 =「可见范围内可恢复软删对象」, 且 restore 端点仍走 `self.get_object()`。
+
+    用法: 把本类放在 ViewSet 基类列表的**最前面**(需先于 DRF 的 get_object 生效),
+          并在 restore 动作里调用 `self.get_object()`。
+    """
+
+    def get_object(self):
+        if getattr(self, 'action', None) != 'restore':
+            return super().get_object()
+
+        model = self.queryset.model
+
+        def _get_queryset():
+            qs = model.all_objects.all()
+            scope = getattr(self, 'scope_queryset', None)
+            if callable(scope):
+                qs = scope(qs)
+            return qs
+
+        self.get_queryset = _get_queryset
+        try:
+            return super().get_object()
+        finally:
+            del self.get_queryset   # 还原为类方法
+
+
 class AuditMixin:
     """审计 Mixin - 自动记录创建人/修改人
 

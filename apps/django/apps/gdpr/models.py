@@ -29,6 +29,9 @@ VERIFICATION_CODE_LENGTH = 8          # 候选人生成 8 位 hex (32 bit 熵, 2
 VERIFICATION_CODE_TTL_MINUTES = 15   # 15 分钟过期
 VERIFICATION_MAX_ATTEMPTS = 5        # 5 次错误锁定
 
+# 导出件一次性下载 token 有效期 (分钟)。超期即拒, 与 token 单次消费共同构成"一次性"。
+EXPORT_TOKEN_TTL_MINUTES = 30
+
 
 class GDPRRequestType(models.TextChoices):
     FORGET = 'FORGET', '被遗忘权（删除）'
@@ -113,3 +116,58 @@ class GDPRRequest(TimestampedModel, SoftDeleteModel):
 
     objects = SoftDeleteManager()
     all_objects = models.Manager()
+
+
+class GDPRExportArtifact(TimestampedModel):
+    """GDPR 导出件 (2026-10-21 · 整改卡 C1)
+
+    **为什么要有这张表**: 改造前 `GdprService.approve_and_export` 把含 PII 明文的
+    `export_data` 直接 f-string 进 `GDPRRequest.result` 列, 而 `result` 又在
+    `GDPRRequestSerializer.fields` 里 → 候选人姓名/手机号/邮箱/身份证号**明文落库**,
+    并且任何能读该接口的超管 API 调用都能原样取回。
+
+    改造后:
+    - 明文只在内存里组装一次 → Fernet 加密后落到本表 (与 `id_card_no` 同一套密钥体系);
+    - 通过**一次性 token** 下载 → 下载成功即擦除密文 + 落 `downloaded_at`, token 不可复用;
+    - `expires_at` 到期即拒 (默认 `EXPORT_TOKEN_TTL_MINUTES`);
+    - 下载动作写审计日志 (只记 id, 不记 PII);
+    - `GDPRRequest.result` 只留**摘要**, 不含任何 PII。
+
+    安全属性一句话: **PII 明文从不进 `gdpr_requests` 表, 也从不随请求详情接口返回**。
+    """
+
+    id = models.CharField(max_length=32, primary_key=True, default=gen_id)
+    request = models.ForeignKey(
+        'gdpr.GDPRRequest', on_delete=models.CASCADE,
+        related_name='export_artifacts', verbose_name='GDPR 请求',
+    )
+    # Fernet 密文; 下载成功后被擦除为空串
+    payload = models.TextField(verbose_name='导出内容 (Fernet 密文)')
+    # 一次性下载 token (urlsafe base64, 32 字节熵)
+    token = models.CharField(max_length=64, unique=True, db_index=True, verbose_name='一次性下载 token')
+    expires_at = models.DateTimeField(db_index=True, verbose_name='过期时间')
+    downloaded_at = models.DateTimeField(null=True, blank=True, verbose_name='首次下载时间')
+    download_count = models.IntegerField(default=0, verbose_name='下载次数')
+    created_by = models.ForeignKey(
+        'core.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name='创建人',
+    )
+
+    class Meta:
+        db_table = 'gdpr_export_artifacts'
+        verbose_name = 'GDPR 导出件'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['request', 'expires_at']),
+        ]
+
+    def is_expired(self) -> bool:
+        return self.expires_at is not None and self.expires_at < timezone.now()
+
+    def is_consumed(self) -> bool:
+        """已下载过 (一次性语义) 或密文已被擦除。"""
+        return self.downloaded_at is not None or not self.payload
+
+    def __str__(self):
+        return f'GDPRExportArtifact({self.id}, request={self.request_id}, consumed={self.is_consumed()})'

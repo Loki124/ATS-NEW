@@ -45,6 +45,11 @@ DATA_PERM_MODULE_RESOURCE_MODULES: Dict[str, set] = {
     'position': {'position'},
     'candidate': {'candidate'},
     'talent': {'talent_pool'},
+    # 2026-10-21 S5-35：校招生管理卡 -> 校招资源模块（recruit:campus:* 资源码的
+    # module 均为 'campus'，见 seed_v2_init RESOURCES）。
+    # ⚠️ 语义：授予校招任一资源即视为「校招生管理功能已授予」-> 该卡可配置。
+    # 与既有 5 卡的映射口径一致（一个数据模块对应一个资源模块）。
+    'campus_arrangement': {'campus'},
 }
 
 # 数据权限配置本身对「超管角色」恒开放（与 is_super_admin 同义，但本函数只持有 role 不持有 user）。

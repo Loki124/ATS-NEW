@@ -126,7 +126,8 @@ def test_entry_condition_detects_not_soft_deleted(capsys):
     rule.soft_delete()  # legacy 软删 → 信号应把统一侧也软删
 
     # 强制把统一侧恢复为 active，制造不一致
-    unified = Rule.objects.get(source_app='entry_condition', legacy_id=rule.id)
+    # 2026-10-21 卡 D3: 用 all_objects —— 统一侧已被信号同步软删, 默认 manager 读不到。
+    unified = Rule.all_objects.get(source_app='entry_condition', legacy_id=rule.id)
     unified.deleted_at = None
     unified.save()
 
@@ -204,7 +205,7 @@ def test_time_limit_detects_not_soft_deleted(capsys):
     rule = _make_time_limit_rule(link)
     rule.soft_delete()
 
-    unified = Rule.objects.get(source_app='time_limit', legacy_id=rule.id)
+    unified = Rule.all_objects.get(source_app='time_limit', legacy_id=rule.id)
     unified.deleted_at = None
     unified.save()
 

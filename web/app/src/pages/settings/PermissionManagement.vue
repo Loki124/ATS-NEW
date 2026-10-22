@@ -1,12 +1,16 @@
 <template>
-  <div class="page-container permission-management">
-    <div class="page-body">
-      <div class="page-header">
-        <h1 class="page-title">{{ t('pages.settings.PermissionManagement.s1') }}</h1>
-        <p class="page-subtitle">{{ t('pages.settings.PermissionManagement.s2') }}</p>
-      </div>
+  <div class="page-container">
+    <!-- 模型 B（SETTINGS_PAGE_STRUCTURE.md §2.2）：header 为 .page-container 直接子元素，
+         header→内容间距由外壳 .settings-scroll :deep(.page-container) 的 gap 独家提供。 -->
+    <div class="page-header">
+      <h1 class="page-title">{{ t('pages.settings.PermissionManagement.s1') }}</h1>
+      <p class="page-subtitle">{{ t('pages.settings.PermissionManagement.s2') }}</p>
+    </div>
 
-      <div class="glass-panel permission-shell">
+    <!-- 列表区：区域滚动（R-215）—— .data-body 自身不滚，滚动只发生在 .table-wrap 内的表格体，
+         页头 / 筛选工具条 / 分页器保持固定。外壳用全局 .panel-shell（8px 内衬 + 撑满高度）。 -->
+    <div class="data-body">
+      <div class="glass-panel panel-shell">
         <RolesTab />
       </div>
     </div>
@@ -34,10 +38,13 @@ const { t } = useI18n()
 </script>
 
 <style scoped>
-/* === 2026-08-24 page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款）
-   - 标题区固定（flex-shrink: 0）→ 配置/操作按钮始终可触达
-   - 内容区自己滚（flex: 1; min-height: 0; overflow-y: auto）→ 与外层 .settings-scroll 滚职责分离
-   - 结构上让 sticky header 天然占据物理空间 → 解决下方内容穿透 header 的视觉 bug === */
+/* === 数据列表页标准结构（SETTINGS_PAGE_STRUCTURE.md §2.2 + AGENTS.md R-215）
+   模型 B：.page-container > .page-header + .data-body > .glass-panel.panel-shell
+                              > .roles-tab > .toolbar + .table-wrap > n-data-table[flex-height]
+   - .data-body 取代原 .page-body：后者被 SettingsLayout :deep(.page-body)
+     {overflow-y:auto!important} 强制整页滚动 → 与表格体内部滚动叠成**双滚动条**，
+     且标题/工具条会随整页滚走（违反 R-215「区域滚动」）。规范 §2.2 称此为「致命陷阱」。
+   - .panel-shell / .toolbar / .table-wrap 全部复用 glass.css 全局类，本页不再私有重写。 */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -49,24 +56,13 @@ const { t } = useI18n()
 .page-header {
   flex-shrink: 0;
 }
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  /* 2026-10-15 兵哥：间距朝更小收敛（16px → 8px），页头与内容靠 8px 轻隔即可分层 */
   gap: var(--space-2);
 }
-
-.permission-management {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-/* 玻璃面板作为内容根时撑满高度。
- * ⚠️ 2026-10-15 兵哥：内边距 16px → 8px（面板已无投影 + 无页头分隔线，
-   再叠 16px 内衬会让内容框显小、行密度虚低）。 */
-.permission-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-2); }
 </style>

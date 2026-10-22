@@ -38,9 +38,8 @@ code_tables 全族 6 条「码表*」→「静态数据*」；rule_engine:menu:v
 permission_templates）**必须在同一事务内同步**，任一断言失败整体回滚。
 """
 from django.db import migrations
-from django.db.models import F, Value
+from django.db.models import CharField, F, Value
 from django.db.models.functions import Concat
-from django.db.models import CharField
 
 SYSTEM = 'recruit'
 DISABLED_PREFIX = '[已停用] '
@@ -152,7 +151,10 @@ def forward(apps, schema_editor):
 
     # 快照历史授权行数（A3 / A4 基准；空库天然为 0，属正常）
     cc_before = RP.objects.filter(resource_code__in=CC_CODES).count()
-    sr_before = RP.objects.filter(resource_code__in=SR_CODES).count()
+    # noqa 说明: sr_before 是 A3/A4 的迁移前基线快照，与 cc_before 成对留存。
+    # 迁移已应用, 保留变量不删（改了会让历史迁移与当初的执行轨迹不一致）;
+    # ruff F841 只因它在本迁移里未被读取。卡 A6。
+    sr_before = RP.objects.filter(resource_code__in=SR_CODES).count()  # noqa: F841
 
     # ① 新建 11 条资源（幂等 update_or_create）
     for code, name, rtype, module in NEW_RESOURCES:

@@ -26,6 +26,9 @@ from django.db import transaction
 from django.utils import timezone
 from django_fsm import TransitionNotAllowed
 
+# 跨 app：阶段变更同步写候选人维度审计（CandidateHistory 哈希链）。audit 顶部仅依赖
+# stdlib，无循环导入风险；record_stage_change 内部延迟 import 模型。
+from apps.candidate.audit import record_stage_change
 from apps.common.exceptions import (
     NotFound,
     StateTransitionError,
@@ -37,10 +40,6 @@ from apps.time_limit.services import calc_time_limit
 
 from ..models import Application, ApplicationHistory, ApplicationStageRecord, ApplicationState
 from .stage_mapping import StageMappingError, resolve_stage_mapping
-
-# 跨 app：阶段变更同步写候选人维度审计（CandidateHistory 哈希链）。audit 顶部仅依赖
-# stdlib，无循环导入风险；record_stage_change 内部延迟 import 模型。
-from apps.candidate.audit import record_stage_change
 
 logger = logging.getLogger(__name__)
 

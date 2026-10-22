@@ -5,6 +5,13 @@
   - ``Foo.objects``            → 模型 Foo
   - ``<任意>.<accessor>``      → 所有把 <accessor> 作为反向访问名/related_name 的模型
 只要解析出的候选模型里存在「无 deleted_at」的，就报出来。
+
+用法：
+    python scripts_scan_softdelete.py            # 报告模式（不阻断，CI 当前用法）
+    python scripts_scan_softdelete.py --strict   # 发现即 exit 1（存量清零后翻硬门禁）
+
+2026-10-21 卡 B6：修掉一处**死循环**（`base.func` 不是 Attribute 时 `base = base`
+自赋值 → while 永真 → 脚本挂死不退出，实测挂 18 分钟无输出）；并在 CI 接入本脚本。
 """
 from __future__ import annotations
 
@@ -86,7 +93,18 @@ for path in sorted(BASE.rglob('*.py')):
         # Foo.objects / Foo.objects.select_related(...) 形态
         base = recv
         while isinstance(base, ast.Call):
-            base = base.func.value if isinstance(base.func, ast.Attribute) else base
+            # 🔴 2026-10-21 卡 B6：这里原先写成
+            #     `base = base.func.value if isinstance(base.func, ast.Attribute) else base`
+            #    —— 当 base.func **不是** Attribute（如 `get_foo(...).filter(...)`，
+            #    func 是 Name）时 base 被赋成它自己 → while 永远为真 → **死循环**，
+            #    脚本永远跑不完（实测挂 18 分钟无输出，CI 里等于挂死）。
+            #    修正：func 不是 Attribute 时无法再往里剥，置 None 并退出循环，
+            #    该调用点归入「未能静态解析」列表（人工确认），不再挂死。
+            if isinstance(base.func, ast.Attribute):
+                base = base.func.value
+            else:
+                base = None
+                break
         chain = []
         cur = base
         while isinstance(cur, ast.Attribute):
@@ -124,5 +142,11 @@ print(f'未能静态解析的调用点（需人工确认）：{len(unresolved)} 
 print('=' * 78)
 for rel, line, text in unresolved:
     print(f'{rel}:{line}  recv = {text}')
+
+# 默认报告模式不阻断；--strict 才把不合规变成失败（与 scripts_scan_todo.py 同款口径：
+# 存量清零后在 CI 加 --strict 即翻硬门禁）
+if '--strict' in sys.argv[1:] and findings:
+    print('\n[strict] 存在对无 deleted_at 模型的软删过滤调用点, 退出 1')
+    sys.exit(1)
 
 sys.exit(0)

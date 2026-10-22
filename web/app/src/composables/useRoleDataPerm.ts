@@ -36,7 +36,13 @@ export type {
   ActionDictItem, ActionPreset,
 } from '@/api/data-permission';
 
-export const MODULE_KEYS = ['demand', 'process', 'position', 'candidate', 'talent'] as const;
+export const MODULE_KEYS = [
+  'demand', 'process', 'position', 'candidate', 'talent',
+  // 2026-10-21 S5-35：校招生管理卡（后端 entity = campus_arrangement）。
+  // 顺序与后端 field_map.MODULE_ORDER 保持一致 —— 前端按 MODULE_KEYS 归一排序，
+  // 两处不一致会导致该卡在抽屉里落到末尾之外或顺序错乱。
+  'campus_arrangement',
+] as const;
 
 export const DIMENSION_LABELS: Record<string, string> = {
   dept: '部门',
@@ -47,6 +53,13 @@ export const DIMENSION_LABELS: Record<string, string> = {
   // 预览句兜底映射（renderCondition 只拿得到 dimension key，拿不到模块标签）。
   // 与后端 DIMENSION_META['lock_owner'].label 对齐；缺了它预览会裸渲染 key。
   lock_owner: '简历锁定人',
+  // 2026-10-21 S5-35：校招生管理卡的四个人员关系维度。
+  // 与后端 MODULE_DIMENSION_LABELS['campus_arrangement'] 对齐，避免预览裸渲染 key
+  // （如 "class_monitor 属于 [张三]"），与既有维度同一兜底策略。
+  hrbp: '员工HRBP',
+  class_monitor: '班长',
+  head_teacher: '班主任',
+  mentor: '导师',
 };
 
 /** 属性条件运算符 -> 中文标签（与后端 attribute_fields.UNIFIED_OPERATOR_LABELS 对齐）。 */
@@ -856,7 +869,6 @@ export function useRoleDataPerm(roleId: Ref<string>) {
     saving.value = true;
     try {
       const payload: RoleDataPermPayload = {
-        roleId: roleId.value,
         modules: draft.value.map((m) => ({
           moduleKey: m.moduleKey,
           // ⚠️ mode 必须**原样下发**（含 'unset'），不得"过滤掉 unset 模块"。

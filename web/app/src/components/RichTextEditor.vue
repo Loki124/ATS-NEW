@@ -215,21 +215,21 @@ onMounted(() => {
 <style scoped>
 .rich-text-editor {
   width: 100%;
-  border: 1px solid var(--n-border-color, #d9d9d9);
+  border: 1px solid var(--border-hairline);
   border-radius: 3px;
   background: var(--surface);
   overflow: hidden;
 }
 .rich-text-editor.is-disabled {
-  background: var(--n-color-disabled, #f5f5f5);
-  border-color: var(--n-border-color, #d9d9d9);
+  background: var(--g1);
+  border-color: var(--border-hairline);
 }
 .rte-toolbar {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--n-border-color, #f0f0f0);
+  border-bottom: 1px solid var(--border-hairline);
   background: var(--surface);
   flex-wrap: wrap;
 }
@@ -243,16 +243,16 @@ onMounted(() => {
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
-  color: #333;
+  color: var(--ink);
 }
 .rte-btn:hover {
-  border-color: var(--n-border-color, #d9d9d9);
+  border-color: var(--border-hairline);
   background: var(--surface);
 }
 .rte-select {
   height: 28px;
   padding: 0 4px;
-  border: 1px solid var(--n-border-color, #d9d9d9);
+  border: 1px solid var(--border-hairline);
   border-radius: 3px;
   background: var(--surface);
   cursor: pointer;
@@ -261,7 +261,7 @@ onMounted(() => {
 .rte-divider {
   width: 1px;
   height: 18px;
-  background: var(--n-border-color, #e8e8e8);
+  background: var(--border-hairline);
   margin: 0 2px;
 }
 .rte-content {
@@ -270,7 +270,7 @@ onMounted(() => {
   outline: none;
   font-size: 14px;
   line-height: 1.6;
-  color: #333;
+  color: var(--ink);
   word-break: break-word;
 }
 .rte-content :deep(ol),
@@ -280,11 +280,11 @@ onMounted(() => {
 }
 .rte-content.rte-placeholder-shown::before {
   content: attr(data-placeholder);
-  color: #bbb;
+  color: var(--ink-faint);
   pointer-events: none;
 }
 .rich-text-editor.is-disabled .rte-content {
-  color: #666;
+  color: var(--ink-soft);
   cursor: default;
 }
 </style>

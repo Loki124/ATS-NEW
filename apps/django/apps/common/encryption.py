@@ -225,6 +225,23 @@ def hash_candidates_for_search(
     return out
 
 
+def encrypted_field_eq_q(hash_field: str, plaintext: str | None):
+    """构造「按明文**等值**匹配 hash 盲索引列」的 Q 对象。
+
+    2026-10-21 卡 C4: phone / email / id_card_no 改 Fernet 字段级加密后,
+    明文 `filter(phone=...)` **必然落空** (Fernet 非确定性 —— 同一明文每次密文不同),
+    而且是**静默**落空 (返回空集, 不报错) → 查重会直接失效、重复候选人进库。
+    故按明文查这些字段必须走对应的 hash 盲索引列:
+        encrypted_field_eq_q('phone_hash', phone)
+        → Q(phone_hash__in=hash_candidates_for_search(phone))
+
+    双读 v1/v2 两种形态 (见 hash_candidates_for_search), salt 轮换回填期内也不漏判。
+    """
+    from django.db.models import Q
+
+    return Q(**{f'{hash_field}__in': hash_candidates_for_search(plaintext)})
+
+
 class EncryptedCharField(models.CharField):
     """字段级加密 CharField.
 

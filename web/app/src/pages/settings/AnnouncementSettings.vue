@@ -141,20 +141,21 @@
     </main>
 
     <!-- 添加/编辑 抽屉 -->
-    <n-drawer
+    <!-- 2026-10-21 (整改卡 E2 · AGENTS.md R-224): 抽屉回改居中弹窗。
+         标题从 n-drawer-content 的 #header 插槽提到 modal 的 title 属性;
+         底部操作区用 modal 的 #footer 插槽承载 (R-224);
+         内容区固定高度 + 仅内容区滚动 (R-223 / R-215);
+         mask-closable=false —— 表单未保存时点遮罩不丢数据 (R-106)。 -->
+    <n-modal
       :show="drawerVisible"
-      :width="560"
-      placement="right"
-      :trap-focus="false"
+      preset="card"
+      :title="editingId ? t('pages.settings.AnnouncementSettings.s51') : t('pages.settings.AnnouncementSettings.s52')"
+      :style="{ width: '560px', maxWidth: '95vw' }"
+      :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
-      :on-mask-click="requestClose"
+      :bordered="false"
       @update:show="(v: boolean) => !v && requestClose()"
     >
-      <n-drawer-content :native-scrollbar="false">
-        <template #header>
-          <span class="drawer-title">{{ editingId ? t('pages.settings.AnnouncementSettings.s51') : t('pages.settings.AnnouncementSettings.s52') }}</span>
-        </template>
-
         <n-form ref="formRef" :model="form" :rules="rules" label-placement="left" label-width="84px">
           <n-form-item :label="t('pages.settings.AnnouncementSettings.s22')" path="title">
             <n-input v-model:value="form.title" :placeholder="t('pages.settings.AnnouncementSettings.s23')" />
@@ -239,8 +240,7 @@
             <n-button type="primary" class="gradient-btn" :loading="saving" @click="save">{{ t('pages.settings.AnnouncementSettings.s42') }}</n-button>
           </n-space>
         </template>
-      </n-drawer-content>
-    </n-drawer>
+    </n-modal>
 
     <!-- 推送弹窗 -->
     <n-modal

@@ -74,8 +74,14 @@
             :placeholder="t('pages.settings.DataRangeModal.s12')"
             style="flex: 1; min-width: 160px"
           />
-          <n-button text type="error" size="small" @click="removeRow(i)">
-            <template #icon><n-icon :component="TrashOutline" /></template>
+          <n-button
+            text
+            type="error"
+            size="small"
+            :aria-label="t('components.common.A11y.s2')"
+            @click="removeRow(i)"
+          >
+            <template #icon><n-icon :component="TrashOutline" aria-hidden="true" /></template>
           </n-button>
         </div>
       </div>

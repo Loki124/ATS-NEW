@@ -1,6 +1,6 @@
 <template>
   <div class="page-container recruitment-process">
-    <div class="page-body">
+    <div class="data-body">
       <div class="page-header">
         <div>
           <h1 class="page-title">{{ t('pages.settings.RecruitmentProcess.s1') }}</h1>
@@ -55,7 +55,7 @@
         :process-name="rebindProcessName"
         @rebound="onRebindDone"
       />
-    </div><!-- /.page-body -->
+    </div><!-- /.data-body -->
   </div>
 </template>
 
@@ -297,13 +297,13 @@ onMounted(async () => { await loadDepartments(); loadList() })
 .page-header {
   flex-shrink: 0;
   /* 顶部/底部间距由全局 .settings-scroll .page-header（glass.css）统一提供：
-     margin-top:0、padding-top:0，底部走 .page-body 的 gap（全局 .page-body>.page-header{margin-bottom:0} 兜底）。
+     margin-top:0、padding-top:0，底部走 .data-body 的 gap（全局 .data-body>.page-header{margin-bottom:0} 兜底）。
      scoped 不再写 padding/margin，避免与全局叠加造成跨页顶部留白不一致（2026-09-30）。 */
 }
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;

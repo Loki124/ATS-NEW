@@ -149,6 +149,7 @@ def test_missing_id_rejected_with_detail(auth_client, _seed_campus_data, arrange
 @pytest.mark.django_db
 def test_mentor_change_creates_approval_not_direct_write(auth_client, _seed_campus_data, arrangements, department):
     from django.contrib.auth import get_user_model
+
     from apps.campus_rotation.seeds import seed_campus_roles
 
     mentor = get_user_model().objects.create_user(
@@ -200,6 +201,7 @@ def _grant_mentor_role(user):
 def test_approval_then_mentor_applied(auth_client, _seed_campus_data, arrangements, department):
     """建单 → 审批通过 → mentor 落字段（与 S5-17 语义一致）。"""
     from django.contrib.auth import get_user_model
+
     from apps.campus_rotation.seeds import seed_campus_roles
 
     seed_campus_roles()

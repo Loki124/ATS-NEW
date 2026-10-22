@@ -3,10 +3,10 @@
 注: AnnouncementViewSet 原手写 {success,data} 半信封, 本次收敛到 success_response 补齐 code;
 所有 success 分支(含 @action)统一带 code, 错误分支(Response({'detail':...}) / success:False)保持不变.
 """
-from apps.common.tests.envelope_contract import assert_envelope
 import pytest
 
 from apps.announcement.models import Announcement
+from apps.common.tests.envelope_contract import assert_envelope
 
 
 @pytest.mark.django_db

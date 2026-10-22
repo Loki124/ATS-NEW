@@ -5,7 +5,15 @@ v2.4 建模：
 - 3 个维度（院校标签/专业标签/性别）；性别指标为 男/女。
 - 规则：院校/专业为「全局」；性别按「部门」各一套，同(适用范围,年度)同维度加和 == 100%。
 - 人数目标（年度 + 12 月）直接承载于规则上（指标层）。
+
+2026-10-21（二期）数据真实化：
+- 姓名由「员工N」改为真实姓名（与性别一致），并保留 `legacy_name` 记录改名前的老姓名，
+  供 seed 命令**原地更新**存量行（改名 + 补字段），避免重复行、不删任何数据。
+- 在职人员补 8 位工号（YYMM + 4 位序号）与实际入职日期（8 月入职，核算月份口径不变）。
+- 补齐院校名称 / 学历 / 联系电话，供「个人档案」详情页呈现。
 """
+from datetime import date
+
 from .constants import DEPTS, MAJORS, SCHOOLS, SEXES  # noqa: F401
 
 
@@ -26,11 +34,51 @@ _SAMPLE = [
     ["醒电BG", "985", "男", "其他"], ["醒电BG", "985", "男", "其他"], ["醒电BG", "211", "男", "工学"], ["醒电BG", "211", "女", "其他"], ["醒电BG", "双一流", "女", "其他"],
 ]
 
+# 真实姓名（与 _SAMPLE 顺序一一对应，性别与 _SAMPLE 的 sex 一致）
+_SAMPLE_NAMES = [
+    "王明远", "李泽宇", "张思齐", "刘浩然", "陈睿泽", "杨文博", "赵一鸣", "黄嘉豪", "周天佑",
+    "吴思彤", "徐雨桐", "孙梦琪",
+    "马若飞", "朱承宇", "胡志远", "郭锦程", "何修远", "高立诚",
+    "林昊天", "罗宇轩", "郑逸凡", "梁晨曦",
+    "宋若曦", "唐佳怡", "许欣然", "邓语嫣",
+    "冯昱辰", "曾皓宇", "彭思睿",
+    "蔡可欣",
+    "蒋宏毅",
+]
+
+# 院校标签 → 真实校名池（档案详情「院校名称」用；院校标签本身仍用于管控计算）
+SCHOOL_NAME_POOL = {
+    "985": ["华中科技大学", "武汉大学", "西安交通大学", "哈尔滨工业大学", "东南大学", "同济大学", "浙江大学"],
+    "211": ["武汉理工大学", "南京邮电大学", "苏州大学", "暨南大学", "南京师范大学", "合肥工业大学"],
+    "双一流": ["南方科技大学", "南京信息工程大学", "宁波大学"],
+    "其他": ["湖北工业大学", "江苏科技大学", "安徽工业大学"],
+}
+
+# 学历分布（多数本科，少量硕博）
+EDUCATION_POOL = ["本科", "本科", "硕士", "本科", "博士"]
+
+
+def derive_realistic_fields(index: int, school: str) -> dict:
+    """按序号确定性派生「院校名称 / 学历 / 联系电话」。
+
+    同一 index 每次得到相同结果 ⇒ seed 幂等（重复执行不会让数据漂移）。
+    """
+    pool = SCHOOL_NAME_POOL.get(school) or SCHOOL_NAME_POOL["其他"]
+    return {
+        "school_name": pool[index % len(pool)],
+        "education": EDUCATION_POOL[index % len(EDUCATION_POOL)],
+        "phone": f"158{10000000 + (index * 137317) % 89999999:08d}",
+    }
+
+
 SAMPLE_PERSONS = []
 for _i, (_bu, _school, _sex, _major) in enumerate(_SAMPLE, 1):
+    _idx = _i - 1
     SAMPLE_PERSONS.append({
         # 'code' 不再硬编码 —— 由 Person.save() 自动补号 C+8 流水号（连续且唯一）。
-        'name': f'员工{_i}',
+        'name': _SAMPLE_NAMES[_idx],
+        # 改名前的老姓名（存量行靠它原地更新，不新建重复行）
+        'legacy_name': f'员工{_i}',
         'bu': _bu,
         'school': _school,
         'sex': _sex,
@@ -40,6 +88,10 @@ for _i, (_bu, _school, _sex, _major) in enumerate(_SAMPLE, 1):
         'counted': True,
         'position': '',
         'level': '',
+        # 在职 → 已补 8 位工号 + 实际入职日期（8 月入职，计入 8 月核算口径不变）
+        'employee_id': f'2508{_i:04d}',
+        'actual_entry_date': date(2025, 8, 4 + _idx % 24),
+        **derive_realistic_fields(_idx, _school),
     })
 
 

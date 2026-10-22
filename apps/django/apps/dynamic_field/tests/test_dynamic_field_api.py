@@ -311,7 +311,7 @@ class TestRetrieveListDestroy:
         assert resp.status_code == 204, resp.content
         existing_field.refresh_from_db()
         assert existing_field.deleted_at is not None
-        assert DynamicField.objects.filter(id=existing_field.id).exists()
+        assert DynamicField.all_objects.filter(id=existing_field.id).exists()
         assert client.get(LIST_URL).json()['data'] == []
 
     def test_delete_unknown_id_returns_404(self, client):

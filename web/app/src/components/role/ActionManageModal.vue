@@ -329,7 +329,7 @@ async function submitForm() {
   justify-content: space-between;
   margin-bottom: 8px;
 }
-.preset-title { font-size: 13px; font-weight: 700; color: var(--ink, #1e293b); }
+.preset-title { font-size: 13px; font-weight: 700; color: var(--ink); }
 .preset-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .preset-tag { padding-right: 4px; }
 .preset-edit { margin-left: 8px; }

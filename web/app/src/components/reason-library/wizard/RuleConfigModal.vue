@@ -318,8 +318,8 @@ function confirm() {
   font-size: var(--fs-12);
   line-height: 1.6;
   color: var(--brand-text);
-  background: var(--brand-soft, rgba(32, 128, 240, 0.1));
-  border: 1px solid var(--brand-tint, rgba(32, 128, 240, 0.2));
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-tint);
   border-radius: var(--radius-md);
 }
 .cfg-section-title {
@@ -423,7 +423,7 @@ function confirm() {
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--border-hairline, #c4c8d4);
+  border: 1.5px solid var(--border-hairline);
   border-radius: 4px;
   background: var(--surface);
   cursor: pointer;

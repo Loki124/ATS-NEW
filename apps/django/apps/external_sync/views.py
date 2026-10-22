@@ -11,10 +11,10 @@
 
 真实同步 (摩卡 People / 邮箱) 待企业 API 授权后实现, 此处不落地。
 """
-from rest_framework.permissions import IsAuthenticated
-from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.core.permissions_v2 import V2Permission
 
 
 class CompanySyncListView(APIView):

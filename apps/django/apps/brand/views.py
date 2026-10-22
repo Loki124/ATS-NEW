@@ -18,12 +18,11 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
-from rest_framework.permissions import IsAuthenticated
-from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.response import success_response
+from apps.core.permissions_v2 import V2Permission
 
 from .models import BrandInfo
 from .serializers import BrandInfoSerializer

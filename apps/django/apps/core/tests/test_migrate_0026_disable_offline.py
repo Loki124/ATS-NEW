@@ -99,6 +99,30 @@ def test_enable_resources_reverses(mig_module):
     ).status == 1
 
 
+def _fetch_all_pages(client, url):
+    """遍历**全部分页**取回资源列表。
+
+    2026-10-21 卡 B5：资源目录是 300+ 条的大表，接口走服务端分页（page_size=50），
+    只看第一页会漏掉排序靠后的资源 —— 本用例查的 'recruit:settings:users:create'
+    排在 settings 模块中段，落在第 2 页之后，故必须翻页。
+    """
+    items = []
+    page = 1
+    while True:
+        sep = '&' if '?' in url else '?'
+        resp = client.get(f'{url}{sep}page={page}')
+        assert resp.status_code == 200, resp.content
+        data = resp.json()
+        batch = data['data'] if isinstance(data, dict) and 'data' in data else data
+        items.extend(batch)
+        pagination = (data.get('pagination') or {}) if isinstance(data, dict) else {}
+        # 分页元数据是 camelCase（success_response 走 camel 包装：hasNext/hasPrevious）
+        if not (pagination.get('hasNext') or pagination.get('has_next')):
+            break
+        page += 1
+    return items
+
+
 @pytest.mark.django_db
 def test_disabled_resources_excluded_from_default_queryset(auth_client, mig_module):
     """停用资源退出默认查询面（= 不再进入权限勾选候选）。"""
@@ -111,16 +135,14 @@ def test_disabled_resources_excluded_from_default_queryset(auth_client, mig_modu
     )
     mig_module.disable_resources(_Apps(PermissionResource), None)
 
-    resp = auth_client.get('/api/v1/permissions/resources/?module=settings&status=all')
-    assert resp.status_code == 200
-    data = resp.json()
-    items = data['data'] if isinstance(data, dict) and 'data' in data else data
+    items = _fetch_all_pages(
+        auth_client, '/api/v1/permissions/resources/?module=settings&status=all'
+    )
     hit = [r for r in items if r['resourceCode'] == 'recruit:settings:users:create']
     assert hit and hit[0]['status'] == 0, 'status=all 应能查到停用项（可追溯）'
 
-    resp2 = auth_client.get('/api/v1/permissions/resources/?module=settings')
-    assert resp2.status_code == 200
-    data2 = resp2.json()
-    items2 = data2['data'] if isinstance(data2, dict) and 'data' in data2 else data2
+    items2 = _fetch_all_pages(
+        auth_client, '/api/v1/permissions/resources/?module=settings'
+    )
     assert not any(r['resourceCode'] == 'recruit:settings:users:create' for r in items2), \
         '缺省查询不应返回停用资源'

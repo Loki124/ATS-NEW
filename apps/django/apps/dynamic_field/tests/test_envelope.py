@@ -9,9 +9,9 @@
 
 判定黄金标准: 响应体必须含 ``code`` 字段且 == 0 (缺 code 即半信封未收口)。
 """
-from apps.common.tests.envelope_contract import assert_envelope
 import pytest
 
+from apps.common.tests.envelope_contract import assert_envelope
 from apps.dynamic_field.models import DynamicField, FieldModule
 
 RESOURCE = 'Candidate'

@@ -181,6 +181,7 @@ def list_candidate_paths() -> List[Dict[str, str]]:
 
     try:
         from apps.dynamic_field.models import DynamicField
+
         # 敏感口径与指标自动同步保持单一事实源（dynamic_field.signals）：
         # PII 类型 + 联系方式/薪资 key 都不该作为「可引用字段」出现在规则条件下拉里，
         # 否则会绕过 signals 的排除规则 —— 手机号/邮箱/期望薪资因此泄漏。

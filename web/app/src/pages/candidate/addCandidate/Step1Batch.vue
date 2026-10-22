@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { NIcon } from 'naive-ui'
-import { WarningOutline as AlertTriangle } from '@vicons/ionicons5'
+import { AttachOutline, WarningOutline as AlertTriangle } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import ResumeCard from '@/components/common/ResumeCard.vue'
 import UploadZone from '@/components/common/UploadZone.vue'
@@ -34,7 +34,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
       </div>
 
       <div v-if="isAllDone()" class="upload-zone" style="padding:10px 14px;border-style:dashed;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap: var(--space-2);font-size:11px;text-align:left;" @click="emit('upload', [])">
-        <span style="font-size: var(--fs-18);">📎</span>
+        <n-icon :component="AttachOutline" :size="18" aria-hidden="true" />
         <span style="flex:1;color:var(--g6);">{{ t('pages.candidate.addCandidate.Step1Batch.s3') }}<span style="color: var(--brand-fg);font-weight:500;">{{ t('pages.candidate.addCandidate.Step1Batch.s4') }}</span>{{ t('pages.candidate.addCandidate.Step1Batch.s5') }}</span>
         <span style="font-size: var(--fs-10);color:var(--g5);">PDF / Word / TXT</span>
       </div>
@@ -149,10 +149,7 @@ const occupiedCount = () => store.resumes.filter((r) => r.status === 'occupied')
 }
 .card-item:hover { border-color: var(--brand); }
 .card-item.selected { border-color: var(--brand); box-shadow: 0 0 0 1px var(--overlay-scrim-mid); }
-.card-item.occ { border-left: 3px solid var(--c-error-deep); }
-.card-item.dir-set { border-left: 3px solid var(--c-success); }
-.card-item.unocc { border-left: 3px solid var(--w); }
-.card-item.clean { border-left: 3px solid var(--c-success); }
+/* 卡片状态由 <ResumeCard> 的 StatusTag 承载，不画左侧色条（X-20） */
 .card-item .c-header {
   display: flex;
   align-items: center;

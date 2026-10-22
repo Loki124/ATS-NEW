@@ -17,7 +17,6 @@
 
 命名收敛为 snake_case 后，「同名不同写法」这类僵尸码从根上不可能再产生。
 """
-import json
 
 from django.db import migrations
 

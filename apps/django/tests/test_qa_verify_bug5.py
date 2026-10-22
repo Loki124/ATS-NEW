@@ -196,7 +196,9 @@ class TestBug5TransitionInventory:
 
     def test_each_declared_transition_has_test_coverage(self):
         """反射元测试: 每个 transition 在测试文件里都有引用, 防止后续加 transition 但忘了写测试。"""
-        import os, re
+        import os
+        import re
+
         from apps.candidate.models import Candidate
         declared = sorted({
             name for name, m in vars(Candidate).items()

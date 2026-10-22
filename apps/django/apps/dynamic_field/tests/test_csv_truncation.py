@@ -274,6 +274,19 @@ class TestImportSkipTruncated:
 # --- E. 导出端到端 (CSV 截断 + BOM; JSON 不截断) ------------------------------
 
 
+def _export_json_options(client) -> str:
+    """取 JSON 导出里 huge_opts 字段的 options 字符串。
+
+    2026-10-21 卡 B5：options 存 MySQL JSON 列，对象键会被 MySQL 归一化重排，
+    与 Python 字面量的插入序不同。凡是比对 options 的**内容**，一律以本函数
+    （库内真实值）为准，不要拿 Python 侧的 json.dumps 直接比字符串。
+    """
+    resp = client.get(f'{EXPORT_URL}?format=json')
+    assert resp.status_code == 200, resp.content
+    data = resp.json()['data']
+    return next(r for r in data if r['field_key'] == 'huge_opts')['options']
+
+
 @pytest.fixture
 def huge_options_field(db) -> DynamicField:
     """预置一条 options 序列化后远超 2000 字符的字段。"""
@@ -303,8 +316,13 @@ class TestExportCsvTruncation:
 
         assert CSV_TRUNCATION_MARK in cell, 'CSV 导出必须对超长单元格打截断标记'
         assert CSV_CELL_MAX_LEN <= len(cell) <= CSV_CELL_MAX_LEN + 100
-        # 保留原文前 2000 字符
-        assert cell.startswith(json.dumps(HUGE_OPTIONS, ensure_ascii=False)[:CSV_CELL_MAX_LEN])
+        # 保留原文前 2000 字符。
+        # 2026-10-21 卡 B5: **不能**拿 Python 侧插入序的 json.dumps(HUGE_OPTIONS) 前缀来比 ——
+        # options 落 MySQL JSON 列后对象键会被 MySQL 归一化重排（label 在 value 前），
+        # 与 Python 字面量顺序不同，字符串比较必然失败。
+        # 改为与「JSON 导出返回的同一份内容」比对（同一数据源 → 同一键序）。
+        full = _export_json_options(client)
+        assert cell.startswith(full[:CSV_CELL_MAX_LEN])
 
     def test_json_export_keeps_full_options(self, client, huge_options_field):
         """JSON 导出 → options 完整无标记 (截断只作用于 CSV, 这是关键设计约束)。"""
@@ -315,7 +333,8 @@ class TestExportCsvTruncation:
         row = next(r for r in data if r['field_key'] == 'huge_opts')
 
         assert CSV_TRUNCATION_MARK not in row['options']
-        assert row['options'] == json.dumps(HUGE_OPTIONS, ensure_ascii=False)
+        # 结构比较（不看对象键序）—— MySQL JSON 列会重排对象键，见上。
+        assert json.loads(row['options']) == HUGE_OPTIONS
         assert len(row['options']) > CSV_CELL_MAX_LEN
 
     def test_csv_export_has_utf8_bom(self, client, huge_options_field):

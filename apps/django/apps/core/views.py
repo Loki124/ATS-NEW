@@ -89,6 +89,10 @@ class UserViewSet(EnvelopeModelViewSet):
         2026-10-10: 用户管理列表新增「拥有身份」列, 需展示每个用户的全部身份名称。
         同一份 rows 顺带派生 role_names_map (uid -> [身份名称...]), 仍只查 2 次
         (user_roles + roles), 不随用户数增长。
+
+        2026-10-21: 用户管理列表新增「管理单元范围」列。同一份 rows 再顺带派生
+        mgmt_unit_names_map (uid -> [管理单元名称...]), 额外只多 1 次管理单元名称查询,
+        查询数仍与用户数无关 —— 不引入 N+1。
         """
         ctx = super().get_serializer_context()
         if self.action in ('list', 'active'):
@@ -96,17 +100,17 @@ class UserViewSet(EnvelopeModelViewSet):
             user_ids = list(self.get_queryset().values_list('id', flat=True))
             rows = list(UserRoleV2.objects.filter(
                 user_id__in=user_ids, system_code='recruit',
-            ).values_list('user_id', 'role_code'))
+            ).values_list('user_id', 'role_code', 'management_unit_ids'))
             # roleType 保持原单值语义 (role_code), 其它页面依赖它; 多角色时取最后命中,
             # 与既有行为一致, 不在此处改动。
-            ctx['role_map'] = {uid: code for uid, code in rows}
+            ctx['role_map'] = {uid: code for uid, code, _ in rows}
             # role_code -> role_name: roles 表按 (system_code, role_code) 唯一
             name_by_code = dict(RoleV2.objects.filter(
                 system_code='recruit',
-                role_code__in={code for _, code in rows},
+                role_code__in={code for _, code, _ in rows},
             ).values_list('role_code', 'role_name'))
             names_map = {}
-            for uid, code in rows:
+            for uid, code, _ in rows:
                 name = name_by_code.get(code)
                 if not name:
                     continue
@@ -114,7 +118,45 @@ class UserViewSet(EnvelopeModelViewSet):
                 if name not in bucket:
                     bucket.append(name)
             ctx['role_names_map'] = names_map
+            ctx['mgmt_unit_names_map'] = self._build_mgmt_unit_names_map(rows)
         return ctx
+
+    @staticmethod
+    def _build_mgmt_unit_names_map(rows):
+        """uid -> [管理单元名称...] —— 用户管理列表「管理单元范围」列的数据源.
+
+        rows 是本页 user_roles 的 (user_id, role_code, management_unit_ids) 三元组。
+        先一次性收集所有管理单元 id, 再批量查名称(1 次查询), 查询数不随用户数增长
+        —— 与 #9 的 N+1 修复同一原则。
+
+        口径与执行面一致: 管理单元授权按用户级统一配置, 多身份取并集。
+        """
+        from apps.core.models_permission_v2 import ManagementUnit
+        unit_ids = set()
+        for _, _, muids in rows:
+            for v in (muids or []):
+                try:
+                    unit_ids.add(int(v))
+                except (TypeError, ValueError):
+                    continue
+        if not unit_ids:
+            return {}
+        name_by_id = dict(
+            ManagementUnit.objects.filter(id__in=unit_ids).values_list('id', 'unit_name')
+        )
+        out = {}
+        for uid, _, muids in rows:
+            names = []
+            for v in (muids or []):
+                try:
+                    name = name_by_id.get(int(v))
+                except (TypeError, ValueError):
+                    continue
+                if name and name not in names:
+                    names.append(name)
+            if names:
+                out[uid] = names
+        return out
 
     def list(self, request, *args, **kwargs):
         """list 默认按 UserMinimalSerializer 脱敏 phone/email, 防止 HR 拿到全员手机号"""

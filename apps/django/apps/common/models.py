@@ -19,8 +19,24 @@ class TimestampedModel(models.Model):
 
 
 class SoftDeleteModel(models.Model):
-    """软删除抽象基类"""
+    """软删除抽象基类
+
+    2026-10-21 (整改卡 D3): 补挂默认 manager —— 此前本基类**不挂** manager,
+    全库约 73 个软删模型的默认 ``objects`` 不过滤 → 任何 ``Model.objects.xxx`` 都把
+    软删行当活数据取出来 (实测 38 个 ViewSet 整类漏 ``deleted_at__isnull=True``,
+    表现为「删了还在列表里」)。
+
+    现在:
+      - ``objects``     默认 manager, **自动过滤**软删行 (列表/统计/导出的正确默认值);
+      - ``all_objects`` 显式取全量 (含软删行) —— 需要读历史行时用这个, 别用 ``objects``。
+
+    子类若自己声明了同名 manager, 以子类为准 (Django 的 manager 继承规则:
+    子类同名 manager 覆盖父类; 不同名则并存)。
+    """
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name='删除时间')
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
 
     class Meta:
         abstract = True

@@ -7,7 +7,7 @@
       <p class="page-subtitle">{{ t('pages.settings.CompanySettings.s2') }}</p>
     </div>
 
-    <div class="page-body">
+    <div class="data-body">
       <div class="glass-panel panel-shell">
         <div class="toolbar">
           <!-- 说明文字属列表语义 → 用全局 .field-hint，禁私建 tip 类名（8px 间距 + 语义色令牌） -->
@@ -140,5 +140,19 @@ onMounted(() => {
 /* 列表下方的补充说明：与上方面板留 8px（--space-2），由 .page-body 的 gap 统一管控 */
 .sync-note {
   margin: 0;
+}
+
+/* 2026-10-21 (整改卡 E6 · R-215): 滚动容器由 .page-body 迁到 .data-body ——
+   数据列表页用区域滚动：外层不滚（overflow:hidden），真实滚动只在 .table-wrap 内的
+   表格体（flex-height），标题/工具条/分页器固定。原依赖 SettingsLayout 对
+   .page-body 的 overflow-y:auto 强制滚动，与表格体自滚形成双滚动条。 */
+.data-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 </style>

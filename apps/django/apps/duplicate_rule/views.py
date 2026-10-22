@@ -15,10 +15,10 @@
 """
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from apps.core.permissions_v2 import V2Permission
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.core.permissions_v2 import V2Permission
 
 from .catalog import (
     APPLICATION_CONFIG_KEY,

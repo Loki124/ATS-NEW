@@ -768,8 +768,8 @@ class TestStateChangesArePersisted:
     # ---------- 负向：状态机拒绝时不得留下半截写入 ----------
     def test_rejected_withdraw_leaves_state_untouched_in_db(self, onboarded_application):
         """被拒绝的撤回不能在 DB 里留下任何状态改动。"""
-        from apps.common.exceptions import StateTransitionError
         from apps.application.services import ApplicationService
+        from apps.common.exceptions import StateTransitionError
 
         with pytest.raises(StateTransitionError):
             ApplicationService.withdraw(
@@ -895,8 +895,8 @@ class TestWithdrawFromOfferStates:
         terminal_state, phone_suffix,
     ):
         """4 个终态一律不允许撤回 —— 这是 source 的另一侧边界。"""
-        from apps.common.exceptions import StateTransitionError
         from apps.application.services import ApplicationService
+        from apps.common.exceptions import StateTransitionError
 
         app = _make_application(
             f'APP-SD-T-{terminal_state}', f'cand-sd-t-{terminal_state.lower()}',

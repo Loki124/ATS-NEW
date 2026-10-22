@@ -1,0 +1,12 @@
+flowchart LR
+  U[用户] -->|JWT| V[V2Permission]
+  V --> CC["校招管控<br/>campus_control:*<br/>ControlDimension / Indicator / Rule"]
+  V --> CA["校园大使<br/>campus_ambassador:*<br/>CampusAmbassadorViewSet"]
+  V --> CS["宣讲会<br/>campus_session:*<br/>CampusSessionViewSet"]
+  PM[permissionMenu.ts] -->|路径→码| CA
+  PM -->|路径→码| CS
+  PM -->|路径→码| CC
+  RP[role_permission<br/>1→3 复制] -.授权.-> CA
+  RP -.授权.-> CS
+  TPL[permission_templates<br/>4→12 展开] -.模板.-> CA
+  TPL -.模板.-> CS

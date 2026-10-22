@@ -11,11 +11,11 @@
 """
 
 from apps.campus_rotation.services.gender_balance import (
-    allocate_by_gender,
     DEFAULT_MALE_RATIO,
-    RATIO_DEVIATION_TOLERANCE,
-    MALE,
     FEMALE,
+    MALE,
+    RATIO_DEVIATION_TOLERANCE,
+    allocate_by_gender,
 )
 
 

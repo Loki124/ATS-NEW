@@ -2,7 +2,7 @@
 import logging
 
 from celery import shared_task
-from django.db import DatabaseError, transaction
+from django.db import DatabaseError, OperationalError, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +151,7 @@ def score_batch_task(self, candidate_ids, submit_mode, task_id):
         send_async_notification_task.delay(task_id)
 
 
-@shared_task
+@shared_task(max_retries=3, default_retry_delay=5, autoretry_for=(OperationalError,))
 def send_async_notification_task(task_id):
     """异步评分完成后发通知中心
 

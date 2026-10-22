@@ -1,31 +1,40 @@
 <template>
-  <n-drawer :show="show" :width="400" placement="right" @update:show="$emit('update:show', $event)">
-    <n-drawer-content :title="formattedDate" closable>
-      <div v-if="items.length === 0" class="schedule-drawer__empty">
-        <n-empty description="当天无日程" />
-      </div>
-      <div v-else class="schedule-drawer__list">
-        <div
-          v-for="item in items"
-          :key="item.id"
-          class="schedule-drawer__item"
-          @click="$emit('item-click', item)"
-        >
-          <span class="schedule-drawer__time">{{ item.time }}</span>
-          <div class="schedule-drawer__detail">
-            <div class="schedule-drawer__name">{{ item.candidateName }}</div>
-            <div class="schedule-drawer__position">{{ item.position }}</div>
-          </div>
+  <!-- 2026-10-21 (整改卡 E2 · AGENTS.md R-224): 抽屉回改居中弹窗。
+       内容区固定高度 (R-223) + 仅内容区滚动 (R-215) + mask-closable=false (防误触丢失)。 -->
+  <n-modal
+    :show="show"
+    preset="card"
+    :title="formattedDate"
+    :style="{ width: '400px', maxWidth: '95vw' }"
+    :content-style="{ height: 'min(520px, calc(88vh - 180px))', overflowY: 'auto' }"
+    :mask-closable="false"
+    :bordered="false"
+    @update:show="$emit('update:show', $event)"
+  >
+    <div v-if="items.length === 0" class="schedule-drawer__empty">
+      <n-empty description="当天无日程" />
+    </div>
+    <div v-else class="schedule-drawer__list">
+      <div
+        v-for="item in items"
+        :key="item.id"
+        class="schedule-drawer__item"
+        @click="$emit('item-click', item)"
+      >
+        <span class="schedule-drawer__time">{{ item.time }}</span>
+        <div class="schedule-drawer__detail">
+          <div class="schedule-drawer__name">{{ item.candidateName }}</div>
+          <div class="schedule-drawer__position">{{ item.position }}</div>
         </div>
       </div>
-    </n-drawer-content>
-  </n-drawer>
+    </div>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import dayjs from 'dayjs'
-import { NDrawer, NDrawerContent, NEmpty } from 'naive-ui'
+import { NEmpty, NModal } from 'naive-ui'
 
 // ScheduleItem 与 WeeklySchedule.vue 字段一致(为避免 .vue 文件循环引用,这里本地重新声明)
 export interface ScheduleItem {

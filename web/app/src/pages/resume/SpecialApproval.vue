@@ -105,8 +105,22 @@ import { get, post } from '../../api/auth'
 
 import { extractApiError } from '../../api/dynamic-field'
 import { useCloseGuard } from '@/composables/useCloseGuard'
+import { useUserStore } from '../../stores/user'
 const { t } = useI18n()
 const message = useMessage()
+const userStore = useUserStore()
+
+/**
+ * 当前登录用户 id（统一成字符串；未登录返回 ''）。
+ * ⚠️ 权威来源 = pinia user store（stores/user.ts）。**localStorage 里从来没有 'userId' 这个键**
+ *    （全仓只写过 accessToken/refreshToken/user/uiSettings/rememberMe/locale 等），
+ *    所以历史上的 `localStorage.getItem('userId')` 恒为 null：
+ *    审批按钮对所有人隐藏 + 锁定人判断恒 false。
+ */
+function currentUserId(): string {
+  const id = userStore.user?.id
+  return id === undefined || id === null || id === '' ? '' : String(id)
+}
 
 const loading = ref(false)
 const approvalFlows = ref<any[]>([])
@@ -192,11 +206,15 @@ const handleViewDetail = async (flow: any) => {
 
 const canApprove = (flow: any) => {
   if (flow.status !== 'PENDING') return false
+  const myId = currentUserId()
+  if (!myId) return false
   const nodes = JSON.parse(flow.nodes || '[]')
   const currentNode = nodes.find((n: any) => n.nodeId === flow.currentNodeId)
   if (!currentNode) return false
   // 当前用户是否是当前节点的审批人
-  return currentNode.approverId === localStorage.getItem('userId')
+  // ⚠️ approverId 来自接口 JSON，可能是数字也可能是字符串 → 必须统一转字符串再比，
+  //    否则数字 id 与字符串 id 不相等，审批按钮仍然对所有人隐藏。
+  return currentNode.approverId != null && String(currentNode.approverId) === myId
 }
 
 const handleApprove = (flow: any) => {
@@ -211,13 +229,18 @@ const handleSubmitApproval = async () => {
     message.warning('请输入审批意见')
     return false
   }
+  const myId = currentUserId()
+  if (!myId) {
+    message.error('当前用户未登录，无法审批')
+    return false
+  }
 
   submitting.value = true
   try {
     const res = await post(`/resumes/approval-flows/${approveForm.flowId}/approve`, {
       action: approveForm.action,
       comment: approveForm.comment,
-      approverId: localStorage.getItem('userId')
+      approverId: myId
     })
 
     if (res.data.success) {

@@ -25,7 +25,7 @@ class ParseJob(SoftDeleteModel):
     ]
 
     job_id = models.CharField(max_length=32, unique=True, db_index=True)
-    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='processing')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='processing', db_index=True)
     phase = models.CharField(max_length=16, choices=PHASE_CHOICES, null=True, blank=True)
     progress = models.IntegerField(default=0)
     file_name = models.CharField(max_length=255)

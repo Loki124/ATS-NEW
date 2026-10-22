@@ -68,9 +68,9 @@ on_delete=CASCADE：删用户 → 其角色授权自动清除（PRD P0-3 验收�
     判空），**不按 is_active 过滤**（软删用户的授权须保留）。这是不可逆
     数据删除，执行前须按 PLAN_R3 §5.5.3 备份 user_roles 三表。
 """
-from django.db import migrations, models
 import django.db.models.deletion
 import django.db.utils
+from django.db import migrations, models
 
 # 🔴 2026-10-15：1452 被 Django 包成 IntegrityError，只 catch OperationalError
 # 会让这类错绕过 Safe* 兜底直接冒泡 → migrate 无限重试卡死（线上 attempt 18 卡死）。

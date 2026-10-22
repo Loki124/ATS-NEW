@@ -432,12 +432,17 @@ onMounted(load)
 </script>
 
 <style scoped>
+/* 高度链：.panel-shell(全局, flex:1) → .roles-tab(flex:1) → .table-wrap(全局, flex:1)
+   保证只有表格区域滚动，筛选行与分页器固定（R-215）
+
+   ⚠️ 本层**不设 gap**：筛选行与表格之间的间距只由全局 .toolbar 的 margin-bottom(8px)
+   提供。若这里再叠一层 gap(8px)，间距会变成 16px，与其余数据列表页（8px）不一致。
+   距单一来源：glass.css 的 .toolbar { margin-bottom: var(--space-2) }。 */
 .roles-tab {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  gap: var(--space-2);
 }
 /* 搜索/筛选输入宽度：2026-10-18 起由 glass.css 全局 .rule-filter-search(240px) /
    .rule-filter-select(136px) 提供唯一真源，此处不再覆写（曾逐字重复全局值）。 */

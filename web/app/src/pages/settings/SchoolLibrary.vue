@@ -86,50 +86,56 @@
       </n-card>
 
       <!-- 院校详情抽屉 -->
-      <n-drawer v-model:show="detailVisible" :width="560" placement="right">
-        <n-drawer-content :title="detailRow?.name || t('pages.settings.SchoolLibrary.s46')" closable>
-          <n-descriptions bordered :column="1" label-placement="left" size="small">
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s12')">{{ detailRow?.code || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s13')">
-              {{ (detailRow?.formerNames || '').split('|').filter(Boolean).join('、') || '-' }}
-            </n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s14')">{{ detailRow?.educationLevel || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s15')">{{ detailRow?.schoolType || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s16')">{{ detailRow?.schoolCategory || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s17')">
-              {{ [detailRow?.province, detailRow?.city].filter(Boolean).join(' / ') || '-' }}
-            </n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s18')">{{ detailRow?.affiliatedTo || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s19')">{{ detailRow?.location || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s20')">
-              <n-space v-if="tagListOf(detailRow).length" :size="[4, 4]">
-                <n-tag v-for="tag in tagListOf(detailRow)" :key="tag" size="small" type="info">{{ tag }}</n-tag>
-              </n-space>
-              <span v-else>-</span>
-            </n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s21')">{{ detailRow?.status || '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s22')">{{ detailRow?.updatedAt ? formatTime(detailRow.updatedAt) : '-' }}</n-descriptions-item>
-            <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s23')">
-              {{ detailRow?.isCustomized ? t('pages.settings.SchoolLibrary.s63') : t('pages.settings.SchoolLibrary.s64') }}
-            </n-descriptions-item>
-          </n-descriptions>
-          <template #footer>
-            <n-space>
-              <n-button @click="detailVisible = false">{{ t('pages.settings.SchoolLibrary.s24') }}</n-button>
-              <n-button type="primary" @click="openEdit(detailRow!)">{{ t('pages.settings.SchoolLibrary.s73') }}</n-button>
+      <n-modal
+        v-model:show="detailVisible"
+        preset="card"
+        :title="detailRow?.name || t('pages.settings.SchoolLibrary.s46')"
+        :style="{ width: '560px', maxWidth: '95vw' }"
+        :content-style="{ height: 'min(640px, calc(88vh - 180px))', overflowY: 'auto' }"
+        :mask-closable="false"
+        :bordered="false"
+      >
+        <n-descriptions bordered :column="1" label-placement="left" size="small">
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s12')">{{ detailRow?.code || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s13')">
+            {{ (detailRow?.formerNames || '').split('|').filter(Boolean).join('、') || '-' }}
+          </n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s14')">{{ detailRow?.educationLevel || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s15')">{{ detailRow?.schoolType || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s16')">{{ detailRow?.schoolCategory || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s17')">
+            {{ [detailRow?.province, detailRow?.city].filter(Boolean).join(' / ') || '-' }}
+          </n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s18')">{{ detailRow?.affiliatedTo || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s19')">{{ detailRow?.location || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s20')">
+            <n-space v-if="tagListOf(detailRow).length" :size="[4, 4]">
+              <n-tag v-for="tag in tagListOf(detailRow)" :key="tag" size="small" type="info">{{ tag }}</n-tag>
             </n-space>
-          </template>
-        </n-drawer-content>
-      </n-drawer>
+            <span v-else>-</span>
+          </n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s21')">{{ detailRow?.status || '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s22')">{{ detailRow?.updatedAt ? formatTime(detailRow.updatedAt) : '-' }}</n-descriptions-item>
+          <n-descriptions-item :label="t('pages.settings.SchoolLibrary.s23')">
+            {{ detailRow?.isCustomized ? t('pages.settings.SchoolLibrary.s63') : t('pages.settings.SchoolLibrary.s64') }}
+          </n-descriptions-item>
+        </n-descriptions>
+        <template #footer>
+          <n-space>
+            <n-button @click="detailVisible = false">{{ t('pages.settings.SchoolLibrary.s24') }}</n-button>
+            <n-button type="primary" @click="openEdit(detailRow!)">{{ t('pages.settings.SchoolLibrary.s73') }}</n-button>
+          </n-space>
+        </template>
+      </n-modal>
 
       <!-- 院校编辑 / 新增弹窗 -->
-      <n-modal
-        v-model:show="editVisible"
-        preset="card"
-        :title="editingId ? t('pages.settings.SchoolLibrary.s61') : t('pages.settings.SchoolLibrary.s62')"
-        style="width: 680px"
-        :mask-closable="false"
-      >
+            <n-modal
+              v-model:show="editVisible"
+              preset="card"
+              :title="editingId ? t('pages.settings.SchoolLibrary.s61') : t('pages.settings.SchoolLibrary.s62')"
+              style="width: 680px"
+              :mask-closable="false"
+            >
         <n-form ref="editFormRef" :model="editForm" :rules="editRules" label-placement="left" label-width="96">
           <n-form-item :label="t('pages.settings.SchoolLibrary.s26')" path="name">
             <n-input v-model:value="editForm.name" :placeholder="t('pages.settings.SchoolLibrary.s27')" maxlength="200" />
@@ -178,7 +184,7 @@
             <n-button type="primary" :loading="saving" :disabled="saving" @click="submitEdit">{{ t('pages.settings.SchoolLibrary.s45') }}</n-button>
           </n-space>
         </template>
-      </n-modal>
+                  </n-modal>
     </div><!-- /.data-body -->
   </div>
 </template>

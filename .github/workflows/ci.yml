@@ -74,6 +74,74 @@ jobs:
           . .venv/bin/activate
           python scripts_scan_todo.py
 
+      # 2026-10-21 (整改卡 B6): 把「权限写口」扫描脚本接进 CI —— **硬门禁**。
+      #   扫描器 (卡 A3 修完结构盲区后) 会列出两类缺口:
+      #     ① 写操作(POST/PUT/PATCH/DELETE)未声明任何权限码的视图;
+      #     ② 单码声明视图的**派生写码**(:create/:edit/:delete)未在 permission_resources
+      #        注册 —— 这种情况下 V2Permission 会回退到读码校验, 等于「持 :list 的账号
+      #        可执行写操作」= P0 权限提升。
+      #   脚本有缺口时 exit 1 → 直接阻断合并。
+      #   码集合取「DB ∪ seed」双源并集（DB 未 migrate 时也能给出正确判定）。
+      - name: V2 write-permission guard (hard gate)
+        working-directory: apps/django
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+          DB_ENGINE: mysql
+          DB_NAME: ats_test
+          DB_USER: root
+          DB_PASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+        run: |
+          . .venv/bin/activate
+          python scripts_scan_v2_write_guard.py
+
+      # 2026-10-21 (整改卡 B6): 软删过滤扫描 —— **warn-only 观察期**。
+      #   报出「对没有 deleted_at 字段的模型做软删过滤」的调用点（脏数据来源）。
+      #   脚本当前恒 exit 0（只报告不阻断）；待存量调用点收口后再翻成硬门禁。
+      - name: Soft-delete filter scan (warn-only)
+        working-directory: apps/django
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+          DB_ENGINE: mysql
+          DB_NAME: ats_test
+          DB_USER: root
+          DB_PASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+        run: |
+          . .venv/bin/activate
+          python scripts_scan_softdelete.py
+
+      # 2026-10-21 (整改卡 D3): 软删**泄漏** ViewSet 扫描 —— **hard gate**。
+      #   与上一步方向相反: 报出「模型有 deleted_at, 但 ViewSet 的 queryset 不过滤」
+      #   的调用点 —— 即「删了还在列表里」。D3 结构性修复后实测 0 处, 可直接当硬门禁,
+      #   防止以后新增模型/ViewSet 时重新漏掉 (基类已挂 SoftDeleteManager, 漏的是
+      #   自定义 manager / 绕过默认 manager 的写法)。
+      - name: Soft-delete leak scan (hard gate)
+        working-directory: apps/django
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+          DB_ENGINE: mysql
+          DB_NAME: ats_test
+          DB_USER: root
+          DB_PASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+        run: |
+          . .venv/bin/activate
+          python scripts_scan_softdelete_viewsets.py --strict
+
+      # 2026-10-21 整跑 flaky 根因治理: 禁**模块级** django_db(transaction=True)。
+      #   模块级事务标记 → 该文件每个用例 teardown 都 flush 整库 → 抹掉已提交种子
+      #   → 字典序在后的用例批量 403（整跑失败集合逐轮不同的主因之一）。
+      #   方法级装饰器不受影响；确需模块级的必须先在脚本的 KNOWN_EXCEPTIONS 登记理由。
+      - name: Module-level transaction marker scan (hard gate)
+        working-directory: apps/django
+        run: |
+          . .venv/bin/activate
+          python scripts_scan_module_level_transaction.py --strict
+
       - name: Run tests (full suite, quarantine excluded)
         working-directory: apps/django
         env:
@@ -145,9 +213,14 @@ jobs:
         run: npm run lint:ci
 
       # X-04 / X-05 / X-13 令牌强制门禁（AGENTS.md §6.2）。
-      # 当前为 warn-only（.stylelintrc.json defaultSeverity=warning），不阻断合并；
-      # 待存量硬编码色收敛后再翻 defaultSeverity=error 转硬门禁。
-      - name: Style lint (warn-only)
+      # 2026-10-21 (整改卡 E1-c): 已翻**硬门禁**（.stylelintrc.json defaultSeverity=error）。
+      #   落地顺序不可反: 先修插件盲区（var(--token, #hex) 的 fallback 曾整体逃逸检测,
+      #   实测修好后暴露 79 处）→ 再把存量 88 处硬编码色收敛到设计令牌 → 最后翻 severity。
+      #   现在 lint:style 有任何命中即 exit 1, 阻断合并。
+      #
+      # X-20 卡片禁止左侧边框线保持 error（该规则在 .stylelintrc.json 里显式
+      # severity=error，命中即阻断合并；非卡片场景须在插件 ALLOWLIST 登记原因）。
+      - name: Style lint (X-04/X-05/X-13/X-20 hard gate)
         working-directory: web/app
         run: npm run lint:style
 
@@ -200,6 +273,46 @@ jobs:
 
       - name: Audit design-token references in docs
         run: node scripts/token-doc-audit.mjs
+
+  ui-render-scope:
+    # 2026-10-22: scoped→h() 失效样式的**新增**阻断门禁。
+    #
+    # 事故背景: Vue 的 scoped 样式依赖编译期给模板元素注入 data-v-xxx,
+    #   而表格列 render 里用 h() 造的 VNode 不带该属性 → scoped 规则**完全不命中**。
+    #   症状极具迷惑性: 源码规则完全正确、lint/编译/单测全绿, 渲染却是裸的
+    #   (实测两行日期被排成两列、图标越出高亮块 → **连续三轮改 CSS 都没生效**)。
+    #   这类缺陷没有任何静态类型信号, 只能靠专门的结构扫描兜住。
+    #
+    # 为什么是「只拦新增」而不是全量阻断:
+    #   存量 32 处是既有遗留 (设置中心若干页 + DemandList + GlobalSearch 等),
+    #   直接全量阻断会让流水线立刻全红、无法合并。基线机制与仓库既有门禁同源
+    #   (见 apps/django/scripts_scan_todo.py、ruff 门禁的「只许减少、不许新增」思路):
+    #   存量登记进 scripts/render-scope-baseline.txt 放行, CI 只拦**新增**。
+    #   存量清完后把基线清空即自动变严格门禁。
+    #
+    # ⚠️ 扫描器必须用真浏览器实测校准过 (2026-10-22):
+    #   规则选择器实测为 .saturation-cell[data-v-ba9f44de], 而元素上**无任何 data-v 属性**
+    #   → 确认不命中。判据须用**非继承属性** —— font-variant-numeric 是继承属性,
+    #   computed 里看着"生效了"其实是父级 .n-data-table-table 继承来的假阳性。
+    name: UI Render-Scope Gate (block new scoped→h() breakage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/app/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: web/app
+        run: npm ci
+
+      - name: Scan scoped→h() broken styles (strict, baseline-aware)
+        working-directory: web/app
+        run: node scripts/check-h-render-scope.mjs --strict
 
   e2e:
     name: Playwright e2e
@@ -293,6 +406,41 @@ jobs:
         with:
           name: playwright-report
           path: web/app/playwright-report/
+          retention-days: 7
+
+      # 2026-10-21 (整改卡 E7): a11y 冒烟接进 CI —— 原先 e2e/a11y-smoke.mjs 恒
+      # process.exit(0), R-102/R-103/R-109 三个 [R] 项永久处于"未验证"状态。
+      # 现在脚本按 violations 数退出 (A11Y_MAX_VIOLATIONS), 三档视口各跑一遍。
+      #
+      # ⚠️ 当前为 **report-only** (A11Y_ALLOW_VIOLATIONS=1): 本地沙箱起不了 Playwright
+      # (macOS Mach 端口被限制), 存量违规数无法在提交前测出 → 直接翻硬门禁会让 CI
+      # 立刻全红并阻塞合并。首轮跑完拿到基线后, 删掉该 env 即自动变硬门禁。
+      - name: A11y smoke (axe-core, 320/768/1200)
+        working-directory: web/app
+        env:
+          CI: true
+          BASE_URL: http://127.0.0.1:5212
+          A11Y_ALLOW_VIOLATIONS: '1'
+        run: |
+          npx vite --host 127.0.0.1 --port 5212 > /tmp/vite-a11y.log 2>&1 &
+          VITE_PID=$!
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:5212/ >/dev/null 2>&1 && break
+            sleep 2
+          done
+          for VP in 320x640 768x1024 1200x900; do
+            echo "--- viewport $VP"
+            A11Y_VIEWPORT=$VP A11Y_REPORT=/tmp/ats-a11y-$VP.json npm run audit:a11y || true
+          done
+          kill $VITE_PID 2>/dev/null || true
+          cat /tmp/ats-a11y-*.json || true
+
+      - name: Upload a11y reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-reports
+          path: /tmp/ats-a11y-*.json
           retention-days: 7
 
       - name: Upload backend log on failure

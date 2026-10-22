@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from typing import List
 
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 
 from apps.common.exceptions import NotFound, PermissionDenied, StateTransitionError
 from apps.core.models import User

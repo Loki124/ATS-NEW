@@ -97,6 +97,10 @@ DYNAMIC_DIMENSION_RULES: dict[str, frozenset[str]] = {
         # 未登记该维度的实体即使写了规则也不会被编译（field_map 取不到路径 → no-op），
         # 故此处登记不影响存量规则语义。
         'head_teacher', 'mentor',
+        # 2026-10-21 S5-35：校招生管理卡新增「班长」维度（class_monitor），
+        # 同为用户类维度，可接 currentUser.id —— 编译为
+        # Q(class_monitor_id__in=[user.pk])，即「只看我当班长带的人」。
+        'class_monitor',
     }),
     'unit': frozenset({'unit'}),
 }

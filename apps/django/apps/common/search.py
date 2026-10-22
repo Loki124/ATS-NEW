@@ -17,7 +17,7 @@
 """
 from django.conf import settings
 from django.db import connection
-from django.db.models import Q, BooleanField
+from django.db.models import BooleanField, Q
 from django.db.models.expressions import RawSQL
 
 

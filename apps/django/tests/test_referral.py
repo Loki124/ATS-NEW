@@ -63,8 +63,8 @@ class TestReferralN1Detection:
         assert referral.status == 'SUBMITTED'
 
     def test_social_when_no_match(self, hrbp_user, candidate, db, process):
-        from apps.position.models import Position, PositionState
         from apps.core.models import Department
+        from apps.position.models import Position, PositionState
         other_dept = Department.objects.create(id='dept-other', name='其他部门', code='OTHER_DEPT')
         pos = Position.objects.create(
             id='pos-other-001', code='P_OTHER', title='其他部门职位',

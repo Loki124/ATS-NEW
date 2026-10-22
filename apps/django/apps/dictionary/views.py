@@ -6,13 +6,12 @@ from django.db import IntegrityError, transaction
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import V2Permission
 from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
+from apps.core.permissions_v2 import V2Permission
 
 from .models import DictionaryItem, DictionaryType
 from .serializers import (
@@ -190,13 +189,34 @@ class DictionaryTypeViewSet(EnvelopeWriteMixin, DictionaryCRUDMixin, viewsets.Mo
                         item.save(update_fields=['parent', 'updated_at'])
 
                 # 3) 已存在项：更新 / 停用
+                # 2026-10-21 卡 F4: 消除 N+1 —— 原先每条 2 次查询
+                #   (① DictionaryItem.objects.get(id=...) ② _has_children_final 内的
+                #    filter(parent=item)) → N 条 = 2N 次查询。
+                #   现改为: 批量取一次已存在项 + 批量取一次子级映射, 循环内零查询。
+                existing_ids = [p['item_id'] for p in parsed if p['item_id']]
+                existing_items = {
+                    it.id: it for it in DictionaryItem.objects.filter(
+                        id__in=existing_ids, type=dtype, deleted_at__isnull=True,
+                    )
+                }
+                children_map: dict[str, list[str]] = {}
+                for child in DictionaryItem.objects.filter(
+                    parent_id__in=existing_ids, deleted_at__isnull=True,
+                ):
+                    children_map.setdefault(child.parent_id, []).append(child.id)
+
                 for p in parsed:
                     if not p['item_id']:
                         continue
-                    item = DictionaryItem.objects.get(
-                        id=p['item_id'], type=dtype, deleted_at__isnull=True
-                    )
-                    if not p['is_active'] and _has_children_final(item, parsed, created_map, dtype):
+                    item = existing_items.get(p['item_id'])
+                    if item is None:
+                        # 保持原语义: 交给外层 except DictionaryItem.DoesNotExist → 400
+                        raise DictionaryItem.DoesNotExist(
+                            f'字典项 {p["item_id"]} 不存在或已被删除'
+                        )
+                    if not p['is_active'] and _has_children_final(
+                        item, parsed, created_map, dtype, live_children=children_map,
+                    ):
                         raise DjangoValidationError(
                             f'元素 {item.key} 包含子级，不可停用，请先移除或转移其子级'
                         )
@@ -367,18 +387,30 @@ def _resolve_parent(p, created_map, dtype):
     return None
 
 
-def _has_children_final(item, parsed, created_map, dtype):
-    """最终态下 item 是否仍拥有子级（数据库 live 子级, 排除被改走父级的; 或草稿新增指向它的）。"""
+def _has_children_final(item, parsed, created_map, dtype, live_children=None):
+    """最终态下 item 是否仍拥有子级（数据库 live 子级, 排除被改走父级的; 或草稿新增指向它的）。
+
+    live_children: 可选的 {parent_id: [child_id, ...]} 预取结果。
+      2026-10-21 卡 F4: 批量导入时一次查完传入, 避免每条再查一次 (N+1)。
+      不传时退回单条查询 (供其他调用方使用)。
+    """
     reparented_away = set()
     for p in parsed:
         if p['item_id']:
             parent = _resolve_parent(p, created_map, dtype)
             if parent is None or parent.id != item.id:
                 reparented_away.add(p['item_id'])
-    for child in DictionaryItem.objects.filter(parent=item, deleted_at__isnull=True):
-        if child.id in reparented_away:
-            continue
-        return True
+    if live_children is None:
+        children = DictionaryItem.objects.filter(parent=item, deleted_at__isnull=True)
+        for child in children:
+            if child.id in reparented_away:
+                continue
+            return True
+    else:
+        for child_id in live_children.get(item.id, []):
+            if child_id in reparented_away:
+                continue
+            return True
     for p in parsed:
         if p['item_id']:
             continue

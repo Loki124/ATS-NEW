@@ -6,6 +6,7 @@
 - 适用范围：bu/position/level 均可空（空 = 不限 / 全局）。
 - 取消原 lo/hi 上下限配置；人数目标（annual_target / monthly_targets）直接承载于规则。
 """
+import re
 from decimal import Decimal, InvalidOperation
 
 from django.db import IntegrityError
@@ -13,7 +14,21 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.validators import UniqueTogetherValidator
 
-from .constants import DEPTS, LEVELS, MAJORS, POSITIONS, SCHOOLS, SEXES, STATUS, STRENGTH
+from .constants import (
+    DEGREES,
+    DEPTS,
+    EDUCATIONS,
+    EMPLOYED_STATUSES,
+    EMPLOYEE_ID_PATTERN,
+    LEVELS,
+    MAJORS,
+    PENDING_STATUSES,
+    POSITIONS,
+    SCHOOLS,
+    SEXES,
+    STATUS,
+    STRENGTH,
+)
 from .models import (
     ControlDimension,
     ControlIndicator,
@@ -244,26 +259,129 @@ class ControlRuleSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class CampusCandidateLinkField(serializers.PrimaryKeyRelatedField):
+    """关联招聘系统候选人（校招分区）。
+
+    - 延迟取 queryset：candidate app 依赖 campus_control.constants，模块级互 import 会成环；
+    - 只允许「校招」分区候选人（recruit_type='campus'），软删候选人由默认 manager 过滤掉。
+    """
+
+    def get_queryset(self):
+        from apps.candidate.models import Candidate
+        return Candidate.objects.filter(recruit_type='campus')
+
+
+def auto_match_candidate(name, phone):
+    """在「招聘系统 · 候选人管理」（校招分区）里自动认出这个人对应的候选人。
+
+    口径（2026-10-21 兵哥口径：编号自动获取，不需要人工选候选人）：
+    - 唯一同名 → 认（候选人的手机号为空表示「没冲突」；与档案手机号不一致则不认）；
+    - 同名多人 → 只有档案手机号与候选人手机号**精确一致**时才认
+      （候选人手机号是加密存储的，走 hash 盲索引列比对）；
+    - 认不出 → 返回 None（档案走本地补号，行为与从前一致，绝不猜人）。
+
+    :return: Candidate 实例；认不出返回 None
+    """
+    from apps.candidate.models import Candidate
+
+    name = (name or '').strip()
+    phone = (phone or '').strip()
+    if not name:
+        return None
+    qs = Candidate.objects.filter(recruit_type='campus', name=name)
+    hits = list(qs[:2])
+    if not hits:
+        return None
+    if len(hits) == 1:
+        cand = hits[0]
+        if phone and cand.phone and cand.phone != phone:
+            return None  # 手机号对不上 → 不认（宁可不同源，也不挂错人）
+        return cand
+    # 同名多人 → 只能靠手机号精确匹配
+    if not phone:
+        return None
+    from apps.common.encryption import hash_for_search
+    return qs.filter(phone_hash=hash_for_search(phone)).first()
+
+
 class PersonSerializer(serializers.ModelSerializer):
     """人员主数据序列化器（全局人员主数据，一行一人）。"""
 
+    # 候选人编号：前端不填（表单里是只读的「自动生成（C+8位）」），
+    # 由 Person.save() 事务内补号。序列化层必须允许缺省，
+    # 否则新建/编辑档案会被「该字段是必填项」拦死（模型层的自动补号形同虚设）。
+    code = serializers.CharField(required=False, allow_blank=True, max_length=32)
+
+    # 2026-10-21：编号与「招聘系统 · 候选人管理」同源 —— 关联候选人后，
+    #   档案编号直接取该候选人的编号（两系统同号，同号即同人）。
+    candidate = CampusCandidateLinkField(required=False, allow_null=True)
+    candidate_code = serializers.SerializerMethodField()
+    candidate_name = serializers.SerializerMethodField()
+
     position = serializers.CharField(required=False, allow_blank=True, default='')
     level = serializers.CharField(required=False, allow_blank=True, default='')
+    # 2026-10-22：招聘月份不再由表单录入 → 可空（核算月份以入职日期为准）
+    month = serializers.CharField(required=False, allow_blank=True, default='', max_length=8)
+    # 意向部门：显式声明 ChoiceField，把默认英文报错换成中文业务提示（R-203）
+    intent_bu = serializers.ChoiceField(
+        choices=[(d, d) for d in DEPTS],
+        required=False, allow_blank=True, allow_null=True, default='',
+        error_messages={'invalid_choice': '意向部门非法'},
+    )
+    # 学位：与学历同口径（枚举 + 中文报错）
+    degree = serializers.ChoiceField(
+        choices=[(d, d) for d in DEGREES],
+        required=False, allow_blank=True, allow_null=True, default='',
+        error_messages={'invalid_choice': '学位非法'},
+    )
 
     # 2026-10-19 S5-10：外键展示名（FK 本身只出 PK）
     head_teacher_name = serializers.SerializerMethodField()
     class_room_name = serializers.SerializerMethodField()
+    # 2026-10-21 二期：导师展示名 + 档案详情所需基础字段
+    mentor_name = serializers.SerializerMethodField()
+    # 2026-10-22：HRBP 展示名（FK 本身只出 PK）
+    hrbp_name = serializers.SerializerMethodField()
+    # 2026-10-22：列表新增的三个轮岗维度指标（由 ViewSet 按页批量聚合后经 context 下发，
+    #   口径见 `campus_control.person_rotation_stats`，与档案详情完全一致）
+    rotation_status = serializers.SerializerMethodField()
+    rotation_status_label = serializers.SerializerMethodField()
+    rotation_dept = serializers.SerializerMethodField()
+    overall_score = serializers.SerializerMethodField()
 
     class Meta:
         model = Person
         fields = [
-            'id', 'code', 'name', 'employee_id', 'bu', 'school', 'sex', 'major',
+            'id', 'code', 'name', 'employee_id', 'bu', 'intent_bu', 'school', 'sex', 'major',
             'month', 'status', 'expected_entry_date', 'actual_entry_date',
             'position', 'level', 'counted',
             'head_teacher', 'head_teacher_name', 'class_room', 'class_room_name',
+            'mentor', 'mentor_name',
+            'school_name', 'education', 'phone', 'major_name', 'degree', 'hrbp', 'hrbp_name', 'batch',
+            'rotation_status', 'rotation_status_label', 'rotation_dept', 'overall_score',
+            'candidate', 'candidate_code', 'candidate_name',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    # 2026-10-22：轮岗维度指标统一从 context 的批量聚合结果里取（无分页场景 → 空）
+    def _rotation_entry(self, obj):
+        stats = (self.context or {}).get('rotation_stats') or {}
+        return stats.get(str(obj.id)) or {}
+
+    def get_rotation_status(self, obj):
+        return self._rotation_entry(obj).get('rotation_status', '')
+
+    def get_rotation_status_label(self, obj):
+        return self._rotation_entry(obj).get('rotation_status_label', '')
+
+    def get_rotation_dept(self, obj):
+        return self._rotation_entry(obj).get('rotation_dept', '')
+
+    def get_overall_score(self, obj):
+        """综合评分（轮岗均分）；无评分返回 None —— 前端显示「—」，不臆造 0 分。"""
+        score = self._rotation_entry(obj).get('overall_score')
+        return round(float(score), 1) if score is not None else None
 
     # 2026-10-19 S5-10：外键展示名（FK 本身只出 PK）
     def get_head_teacher_name(self, obj):
@@ -271,6 +389,20 @@ class PersonSerializer(serializers.ModelSerializer):
 
     def get_class_room_name(self, obj):
         return obj.class_room.name if obj.class_room_id else ''
+
+    def get_mentor_name(self, obj):
+        return obj.mentor.full_name if obj.mentor_id else ''
+
+    def get_hrbp_name(self, obj):
+        return obj.hrbp.full_name if obj.hrbp_id else ''
+
+
+    def get_candidate_code(self, obj):
+        """关联候选人的编号（= 本档案编号，同源）。"""
+        return obj.candidate.code if obj.candidate_id else ''
+
+    def get_candidate_name(self, obj):
+        return obj.candidate.name if obj.candidate_id else ''
 
     def validate_code(self, value):
         qs = Person.objects.filter(code=value)
@@ -284,6 +416,12 @@ class PersonSerializer(serializers.ModelSerializer):
         if value not in DEPTS:
             raise serializers.ValidationError('部门非法')
         return value
+
+    def validate_intent_bu(self, value):
+        """意向部门：与 bu 同枚举（可空）。"""
+        if value and value not in DEPTS:
+            raise serializers.ValidationError('意向部门非法')
+        return value or ''
 
     def validate_school(self, value):
         if value not in SCHOOLS:
@@ -304,6 +442,114 @@ class PersonSerializer(serializers.ModelSerializer):
         if value not in STATUS:
             raise serializers.ValidationError('状态非法')
         return value
+
+    def validate_employee_id(self, value):
+        """工号：8 位纯数字，且非空时全校唯一（存量 36 条在职数据均已是 8 位数字）。"""
+        value = (value or '').strip()
+        if value and not re.fullmatch(EMPLOYEE_ID_PATTERN, value):
+            raise serializers.ValidationError('工号须为 8 位纯数字')
+        if value:
+            qs = Person.objects.filter(employee_id=value)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError('该工号已被占用')
+        return value
+
+    def validate(self, attrs):
+        """工号 / 入职日期 / 预计入职日期 三字段的形态随在职状态走（2026-10-21 兵哥口径）。
+
+        - 未入职（待入职）：无工号、无实际入职日期，有预计入职日期；
+        - 已入职（在职 / 离职）：有工号、有实际入职日期。
+
+        未入职状态下若带了工号 / 实际入职日期，服务端**自动清空**而不是报错——
+        业务上「待入职本来就没有工号」，前端切换状态时残留值不该变成一次失败保存。
+
+        另含**编号同源**口径（关联招聘系统候选人 → 编号取候选人编号）：
+        - 忽略前端传入的 code（表单里编号是只读的，编号一律以候选人为准）；
+        - 该候选人的编号若已被别的档案占用 → 明确报错（不静默撞 unique 约束）。
+        """
+        cand = attrs.get('candidate')
+        if cand is not None:
+            attrs.pop('code', None)
+            qs = Person.objects.filter(code=cand.code)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError({
+                    'candidate': [f'该候选人的编号「{cand.code}」已被其他档案占用'],
+                })
+
+        status = attrs.get('status', getattr(self.instance, 'status', None))
+        employee_id = attrs.get('employee_id', getattr(self.instance, 'employee_id', '')) or ''
+        expected = attrs.get(
+            'expected_entry_date', getattr(self.instance, 'expected_entry_date', None)
+        )
+        actual = attrs.get(
+            'actual_entry_date', getattr(self.instance, 'actual_entry_date', None)
+        )
+
+        if status in PENDING_STATUSES:
+            attrs['employee_id'] = ''
+            attrs['actual_entry_date'] = None
+            if not expected:
+                raise serializers.ValidationError({
+                    'expected_entry_date': ['待入职人员须填写预计入职日期'],
+                })
+        elif status in EMPLOYED_STATUSES:
+            if not employee_id:
+                raise serializers.ValidationError({
+                    'employee_id': ['在职 / 离职人员须填写工号（8 位纯数字）'],
+                })
+            if not actual:
+                raise serializers.ValidationError({
+                    'actual_entry_date': ['在职 / 离职人员须填写实际入职日期'],
+                })
+        return attrs
+
+    def validate_education(self, value):
+        # 学历可为空（未采集）；非空时须在枚举内
+        if value and value not in EDUCATIONS:
+            raise serializers.ValidationError('学历非法')
+        return value
+
+    # ================= 编号自动获取（无需人工选候选人） =================
+
+    def _auto_candidate(self, attrs):
+        """自动认人：显式传了 candidate 就用它；否则按 姓名(+手机号) 去候选人管理里认。
+
+        认得出且该候选人编号未被别的档案占用 → 返回该候选人（保存时编号取候选人编号）；
+        认不出 / 编号已被占用 → 返回 None（档案保持自己的编号，保存不失败）。
+        """
+        if attrs.get('candidate') is not None:
+            return attrs['candidate']
+        instance = self.instance
+        if instance is not None and instance.candidate_id:
+            return instance.candidate  # 已认定过，不换人
+        name = attrs.get('name', getattr(instance, 'name', ''))
+        phone = attrs.get('phone', getattr(instance, 'phone', ''))
+        cand = auto_match_candidate(name, phone)
+        if cand is None:
+            return None
+        occupied = Person.objects.filter(code=cand.code)
+        if instance is not None:
+            occupied = occupied.exclude(pk=instance.pk)
+        if occupied.exists():
+            # 候选人编号已被别的档案占用 → 这次不换源（不因自动匹配让用户的保存失败）
+            return None
+        return cand
+
+    def create(self, validated_data):
+        cand = self._auto_candidate(validated_data)
+        if cand is not None:
+            validated_data['candidate'] = cand
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        cand = self._auto_candidate(validated_data)
+        if cand is not None:
+            validated_data['candidate'] = cand
+        return super().update(instance, validated_data)
 
 
 __all__ = [

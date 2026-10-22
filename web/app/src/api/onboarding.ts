@@ -180,9 +180,11 @@ export async function listOnboardingsByCandidate(
 export async function transitionOnboarding(
   id: string,
   action: string,
-  payload?: { newDate?: string; result?: string; reason?: string },
+  payload?: { newDate?: string; result?: string },
 ) {
-  const body: Record<string, unknown> = { action, reason: payload?.reason || '' }
+  // ⚠️ body 只能有后端 OnboardingTransitionSerializer 认的字段（action/new_date/result）。
+  //    历史上硬编码 `reason: payload?.reason || ''` → 后端不认 → 静默丢弃。
+  const body: Record<string, unknown> = { action }
   if (action === ONBOARDING_ACTION.DELAY && payload?.newDate) body.new_date = payload.newDate
   if (action === ONBOARDING_ACTION.REGULARIZE && payload?.result) body.result = payload.result
   const { data } = await api.post(`onboardings/${id}/transition/`, body)

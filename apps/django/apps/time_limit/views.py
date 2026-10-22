@@ -10,7 +10,6 @@ from apps.common.exceptions import NotFound
 from apps.common.mixins import AuditMixin, SoftDeleteViewSetMixin
 from apps.common.pagination import StandardResultsSetPagination
 from apps.core.permissions_v2 import V2Permission
-from apps.core.permissions import HasProcessPermission
 from apps.process.models import ProcessStageLink
 
 from .models import TimeLimitRule

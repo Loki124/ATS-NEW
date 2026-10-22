@@ -52,3 +52,12 @@ try:
         MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 except ImportError:
     pass
+
+# 2026-10-21 卡 C4: 开发环境显式注入**非公开**的 PII hash salt。
+#   此前 base.py 的默认值是空串 → 意为「沿用源码内置的历史 salt 'ats-pii'」，
+#   而本仓库公开 → 该 salt 已知 → 手机号空间仅 ~10^10，可被离线预计算反查。
+#   这里给开发环境一个显式默认值（.env 里有真 salt 时仍以 .env 为准），
+#   保证 dev 不会静默用着公开的 legacy salt。
+#   ⚠️ 该值仅供本地**假数据**使用，生产必须由部署环境注入随机 salt
+#      （config/settings/prod.py 对空值会直接拒绝启动）。
+PII_HASH_SALT = env('PII_HASH_SALT', default='ats-dev-only-salt-2026-not-for-prod')

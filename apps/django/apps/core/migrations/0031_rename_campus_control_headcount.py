@@ -11,7 +11,7 @@
 反向迁移把「编制管控」换回「校招管控」，保证可回滚。
 """
 from django.db import migrations
-from django.db.models import Value, CharField
+from django.db.models import CharField, Value
 from django.db.models.functions import Replace
 
 

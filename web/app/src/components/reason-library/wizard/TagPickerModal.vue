@@ -243,7 +243,7 @@ function confirm() {
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--border-hairline, #c4c8d4);
+  border: 1.5px solid var(--border-hairline);
   border-radius: 4px;
   background: var(--surface);
   cursor: pointer;

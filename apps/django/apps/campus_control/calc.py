@@ -101,14 +101,15 @@ def rule_matches(p: dict, rule: dict) -> bool:
     return True
 
 
-# 计入核算的人员状态集合（v2.5 核心术语）
-_COUNTED_STATUSES = {'在职', '在途Offer', '在途待入职'}
+# 计入核算的人员状态集合（2026-10-21 兵哥口径收敛为三态）
+# 在职 = 已入职；待入职 = 未入职但已占编（按预计入职日期计入）；离职 / 其他不计。
+_COUNTED_STATUSES = {'在职', '待入职'}
 
 
 def _accounting_month(p: dict) -> str:
     """返回人员应被计入的核算月份。
 
-    在职人员按「实际入职日期」计入；在途Offer / 在途待入职按「预计入职日期」计入。
+    在职人员按「实际入职日期」计入；待入职人员按「预计入职日期」计入。
     日期不存在时回退到 month 字段。
     """
     status = p.get('status')
@@ -192,7 +193,7 @@ def count_status(actual, target):
 
 
 def _count_achievement(persons, rule, month_label=None):
-    """年度/本月 达成(在职) / 在途(在途Offer·在途待入职) / 实际(计入核算且指标命中) 人数。
+    """年度/本月 达成(在职) / 在途(待入职) / 实际(计入核算且指标命中) 人数。
 
     month_label 指定时仅统计核算月份==该月的人员（本月口径）；否则统计全年（年度口径）。
     """
@@ -208,7 +209,7 @@ def _count_achievement(persons, rule, month_label=None):
         st = p.get('status')
         if st == '在职':
             achieved += 1
-        elif st in ('在途Offer', '在途待入职'):
+        elif st == '待入职':
             in_progress += 1
     return achieved, in_progress, actual
 
@@ -404,12 +405,12 @@ def simulate(draft, rules, persons, year, month=None):
     """录入校验。draft = {bu, position?, level?, school, sex, major, month?}。
 
     月度目标从规则（annual_target / monthly_targets）读取，不再依赖独立人数目标表。
-    v2.5 按新核心术语计算：draft 默认视为「在途待入职」，按 expected_entry_date 回退到 month。
+    v2.5 按新核心术语计算：draft 默认视为「待入职」，按 expected_entry_date 回退到 month。
     """
     tmp_month = draft.get('month') or month or '8月'
     tmp = {
         **draft, 'month': tmp_month, 'counted': True,
-        'status': '在途待入职',
+        'status': '待入职',
         'expected_entry_date': None,
         'actual_entry_date': None,
     }

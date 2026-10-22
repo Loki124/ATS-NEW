@@ -24,6 +24,7 @@ class CampusAmbassador(FullAuditModel, UUIDModel):
     region = models.CharField(max_length=32, blank=True, default='', verbose_name='区域')
     status = models.CharField(
         max_length=16, choices=Status.choices, default=Status.PENDING, verbose_name='状态',
+                   db_index=True,
     )
     phone = models.CharField(max_length=32, blank=True, default='', verbose_name='联系电话')
     note = models.TextField(blank=True, default='', verbose_name='备注')
@@ -67,6 +68,7 @@ class CampusSession(FullAuditModel, UUIDModel):
     capacity = models.PositiveIntegerField(null=True, blank=True, verbose_name='容纳人数')
     status = models.CharField(
         max_length=16, choices=Status.choices, default=Status.PLANNED, verbose_name='状态',
+                   db_index=True,
     )
     note = models.TextField(blank=True, default='', verbose_name='备注')
     recruit_type = models.CharField(

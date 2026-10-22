@@ -23,6 +23,7 @@ v2 权限 IDOR 测试需要两个不同部门的 HR 用户, 用于验证:
   `tests/fixtures_common.py`, 在这里以 plugin 身份全局加载一次.
 """
 import os
+import time
 
 import django
 
@@ -38,6 +39,28 @@ import pytest
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
+
+
+def pytest_configure(config):
+    """给 ``tmp_path`` 一个**每轮唯一**的 basetemp（除非命令行显式指定）。
+
+    2026-10-21 整跑 flaky 根因治理。
+
+    背景：pytest.ini 曾把 ``--basetemp`` 写死成 ``/tmp/ats_pytest_bt``。pytest 的
+    ``_ensure_relative_to_basetemp`` 对**已存在**的 basetemp 会先 ``rm_rf`` 再
+    ``mkdir`` → 沙箱拦删除 → ``PermissionError: [Errno 1] Operation not permitted``
+    → 所有用 ``tmp_path`` 的用例在 **setup 阶段**整片 error（实测一次整跑 12 例）。
+
+    改成「每轮唯一的新目录」后：
+      ① 目录不存在 → 只需 ``mkdir``（沙箱放行新建），不需要删旧目录；
+      ② 并发的两轮整跑不会互相覆盖对方的临时文件。
+
+    放在 ``/tmp`` 下是为了绕开沙箱对 ``/private/var/folders/.../pytest-of-*`` 的拦截
+    （pytest.ini 注释里记的同一个坑）。
+    """
+    if config.option.basetemp:
+        return  # 命令行显式指定 → 尊重调用方
+    config.option.basetemp = f'/tmp/ats_pytest_bt_{os.getpid()}_{int(time.time())}'
 
 
 @pytest.fixture

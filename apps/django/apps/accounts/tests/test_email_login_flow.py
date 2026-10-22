@@ -142,10 +142,12 @@ class TestEmailLoginActivatesPending:
         _make_user('stopped_u', status='DISABLED')
         c = APIClient()
         # 直接插一条有效验证码（绕过发码接口的停用拦截），模拟"手上有码"的情形
-        from apps.accounts.services import CODE_PURPOSE, hash_code
-        from apps.accounts.models import EmailVerificationCode
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.accounts.models import EmailVerificationCode
+        from apps.accounts.services import CODE_PURPOSE, hash_code
         EmailVerificationCode.objects.create(
             email='stopped_u@corp.com', code_hash=hash_code('123456'),
             purpose=CODE_PURPOSE, expires_at=timezone.now() + timedelta(minutes=15),

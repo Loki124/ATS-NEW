@@ -545,7 +545,7 @@ const vFocus = {
 }
 .rp-tag-clear:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.22);
+  background: color-mix(in srgb, white 22%, transparent);
 }
 .rp-tag-text {
   min-width: 0;

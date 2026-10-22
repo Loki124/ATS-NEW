@@ -54,7 +54,8 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   // 注：自助注册 / 注册审核（/settings/registrations）已于 2026-10-18 下线——路由删除、
   // 资源码由 core.0026 停用，其登记规则随之移除（死登记会让菜单守卫指向停用码，
   // 有 apps/core/tests/test_menu_code_registration.py 护栏兜底）。
-  { prefix: '/settings/user-groups', code: 'recruit:settings:user_groups:menu:view' },
+  // 2026-10-21：用户组管理（/settings/user-groups）功能整体下线——路由删除、
+  //   资源码由 core.0050 停用，其登记规则随之移除（同上，死登记会让菜单守卫指向停用码）。
 
   // ===== 权限管理（本模块自身入口）=====
   { prefix: '/settings/permissions/resources', code: 'recruit:settings:permissions:resources:menu:view' },
@@ -95,6 +96,9 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   // ===== 校园招聘（campus 模块）：轮岗安排 / 轮岗资源 / 班级管理 / 人员管理 =====
   // 最长前缀匹配（permissionForPath 取最长命中）；fail-open：未登记路径恒可见。
   { prefix: '/campus/rotation-arrangement', code: 'recruit:campus:rotation:menu:view' },
+  // 轮岗资源（2026-10-21 兵哥：合并为单入口页签 BU汇总/直播间/客服部门）
+  { prefix: '/campus/rotation-resource', code: 'recruit:campus:resource:menu:view' },
+  // 旧路径（重定向到轮岗资源对应页签），权限码与新入口一致
   { prefix: '/campus/live-room', code: 'recruit:campus:resource:menu:view' },
   { prefix: '/campus/service-dept', code: 'recruit:campus:resource:menu:view' },
   { prefix: '/campus/resource-summary', code: 'recruit:campus:resource:menu:view' },

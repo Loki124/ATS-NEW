@@ -1308,9 +1308,9 @@ function confirm() {
 .tpl-box {
   margin-top: var(--space-3, 12px);
   padding: 8px;
-  border: 1px dashed var(--brand-tint, rgba(99, 102, 241, 0.2));
+  border: 1px dashed var(--brand-tint);
   border-radius: var(--radius-sm, 8px);
-  background: var(--brand-soft, rgba(99, 102, 241, 0.08));
+  background: var(--brand-soft);
 }
 .tpl-label {
   display: block;
@@ -1350,6 +1350,6 @@ function confirm() {
 /* 输入错误态：对齐 EntryRuleEditModal 的 input-error（error 边框 + 浅红底） */
 .input-error :deep(.n-input__input-el) {
   border-color: var(--c-error) !important;
-  background: var(--c-error-soft, rgba(239, 68, 68, 0.06));
+  background: var(--c-error-soft);
 }
 </style>

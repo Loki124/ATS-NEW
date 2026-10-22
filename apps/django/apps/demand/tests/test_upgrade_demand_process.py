@@ -40,7 +40,7 @@ def _reload(obj):
     ``AttributeError: Direct state modification is not allowed``——报错点在测试代码里，
     与被测逻辑无关，极易误判成产品 bug。
     """
-    return type(obj)._default_manager.get(pk=obj.pk)
+    return type(obj).all_objects.get(pk=obj.pk)
 
 
 # ---------------------------------------------------------------------------

@@ -7,10 +7,11 @@ from rest_framework.test import APIClient
 @pytest.mark.django_db
 def test_qa4_r2_masking_serializer_level():
     """非特权用户经序列化器输出时, phone/email/id_card_no 必须被 mask."""
-    from apps.candidate.models import Candidate
-    from apps.candidate.serializers import CandidateListSerializer, CandidateDetailSerializer
     from django.contrib.auth import get_user_model
     from rest_framework.test import APIRequestFactory
+
+    from apps.candidate.models import Candidate
+    from apps.candidate.serializers import CandidateDetailSerializer, CandidateListSerializer
     User = get_user_model()
     PHONE, EMAIL, IDC = '13800138001', 'zhang@test.com', '110101199605151234'
     cand = Candidate.objects.create(name='张三', phone=PHONE, email=EMAIL, id_card_no=IDC)
@@ -30,10 +31,11 @@ def test_qa4_r2_masking_serializer_level():
 @pytest.mark.django_db
 def test_qa4_r2_superuser_sees_plaintext():
     """对照组: superuser 不脱敏 (证明脱敏是按权限生效, 不是无脑全 mask)."""
-    from apps.candidate.models import Candidate
-    from apps.candidate.serializers import CandidateDetailSerializer
     from django.contrib.auth import get_user_model
     from rest_framework.test import APIRequestFactory
+
+    from apps.candidate.models import Candidate
+    from apps.candidate.serializers import CandidateDetailSerializer
     User = get_user_model()
     cand = Candidate.objects.create(name='李四', phone='13800138002',
                                     email='li@test.com', id_card_no='110101199605151235')
@@ -54,6 +56,7 @@ def test_qa4_email_login_really_activates_pending_user():
     本用例改为验证「待激活账号 → 发码 → 验码 → 自动激活 → 拿到真 access token」全链路。
     """
     import re
+
     from django.contrib.auth import get_user_model
     from django.core import mail
     User = get_user_model()
@@ -104,8 +107,9 @@ def test_qa4_change_password_actually_changes_password():
 # ---------- R8: resolve_scope 必须独立返回 department_ids ----------
 @pytest.mark.django_db
 def test_qa4_r8_dept_scope_not_dropped():
-    from apps.core.scope_resolver import resolve_scope
     import inspect
+
+    from apps.core.scope_resolver import resolve_scope
     src = inspect.getsource(resolve_scope)
     assert 'department_ids' in src, 'resolve_scope 未返回 department_ids'
-    print(f"\n[R8] ✅ resolve_scope 源码含 department_ids key")
+    print("\n[R8] ✅ resolve_scope 源码含 department_ids key")

@@ -49,6 +49,10 @@ RESOURCES = [
     ('recruit:candidate:onboarding:list', '录用信息列表', 'BUTTON', 'candidate'),
     ('recruit:candidate:onboarding:create', '创建录用信息', 'BUTTON', 'candidate'),
     ('recruit:candidate:onboarding:edit', '编辑录用信息', 'BUTTON', 'candidate'),
+    # 2026-10-21 卡 A2：OnboardingViewSet.destroy 按 action 派生
+    # recruit:candidate:onboarding:delete，该码未在 known_resource_codes()
+    # → 回退 recruit:candidate:onboarding:list（持录用信息列表码即可删录用信息，越权面）。补专属码。
+    ('recruit:candidate:onboarding:delete', '删除录用信息', 'BUTTON', 'candidate'),
     # --- module: interview ---
     ('recruit:interview:menu:view', '面试菜单', 'MENU', 'interview'),
     ('recruit:interview:list', '面试列表', 'BUTTON', 'interview'),
@@ -62,6 +66,10 @@ RESOURCES = [
     # permission_required_map 精确守卫（update/partial_update→edit，destroy→delete）。
     ('recruit:interview:edit', '编辑面试', 'BUTTON', 'interview'),
     ('recruit:interview:delete', '删除面试', 'BUTTON', 'interview'),
+    # 2026-10-21 卡 A2：InterviewViewSet.create 按 action 派生 recruit:interview:create，
+    # 该码未在 known_resource_codes() → 回退 recruit:interview:list（持面试列表码即可新建面试，
+    # 越权面）。补专属码。
+    ('recruit:interview:create', '新建面试', 'BUTTON', 'interview'),
     # --- module: demand ---
     ('recruit:demand:menu:view', '需求菜单', 'MENU', 'demand'),
     ('recruit:demand:list', '需求列表', 'BUTTON', 'demand'),
@@ -81,17 +89,37 @@ RESOURCES = [
     ('recruit:position:edit', '编辑职位', 'BUTTON', 'position'),
     ('recruit:position:publish', '发布职位', 'BUTTON', 'position'),
     ('recruit:position:close', '关闭职位', 'BUTTON', 'position'),
+    # 2026-10-21 卡 A2：PositionViewSet.destroy 按 action 派生 recruit:position:delete，
+    # 该码未在 known_resource_codes() → 回退 recruit:position:list（持职位列表码即可删职位，
+    # 越权面）。补专属码。
+    ('recruit:position:delete', '删除职位', 'BUTTON', 'position'),
     # --- module: candidate / submodule: application（2026-10-21 兵哥确认：「申请」=候选人每次
     #     应聘记录，在候选人详情页展示多次投递；0048 自独立 module:application 归位，
     #     与 offer/onboarding 子模块同构。menu:view/create/edit/reject 四码无任何端点
     #     守卫与前端调用点（menu:view 为无页面孤儿码），停用不再 seed，见 0048）---
     ('recruit:candidate:application:list', '应聘记录列表', 'BUTTON', 'candidate'),
     ('recruit:candidate:application:advance', '推进流程', 'BUTTON', 'candidate'),
+    # 2026-10-21 卡 A2（守卫脚本升级后暴露的派生码缺口）：应聘记录的 create/edit/delete
+    # 此前 seed 未定义 —— ApplicationViewSet 的 create/update/partial_update/destroy 与
+    # 12 个自定义 POST 动作（advance / change_process / check_stage_transition / grab /
+    # jump / pause / release / resume / soft_reject / start / upgrade_version / withdraw）
+    # 按 action 派生 recruit:candidate:application:create / :edit / :delete，三者均不在
+    # known_resource_codes() → 告警回退 recruit:candidate:application:list（持应聘记录列表码
+    # 即可新增/改动/删除应聘记录，越权面）。现补三条专属码。
+    ('recruit:candidate:application:create', '新建应聘记录', 'BUTTON', 'candidate'),
+    ('recruit:candidate:application:edit', '编辑应聘记录', 'BUTTON', 'candidate'),
+    ('recruit:candidate:application:delete', '删除应聘记录', 'BUTTON', 'candidate'),
     # --- module: referral ---
     ('recruit:referral:menu:view', '内推菜单', 'MENU', 'referral'),
     ('recruit:referral:list', '内推列表', 'BUTTON', 'referral'),
     ('recruit:referral:create', '发起内推', 'BUTTON', 'referral'),
     ('recruit:referral:approve', '审批内推', 'BUTTON', 'referral'),
+    # 2026-10-21 卡 A2：ReferralViewSet 的 update/partial_update/destroy 与自定义 POST
+    # detect_type 按 action 派生 recruit:referral:edit / :delete，两者均未在
+    # known_resource_codes() → 告警回退 recruit:referral:list（持内推列表码即可改/删内推、
+    # 跑内推类型识别，越权面）。补两条专属码。
+    ('recruit:referral:edit', '编辑内推', 'BUTTON', 'referral'),
+    ('recruit:referral:delete', '删除内推', 'BUTTON', 'referral'),
     # --- module: invitation ---
     ('recruit:invitation:menu:view', '邀约菜单', 'MENU', 'invitation'),
     ('recruit:invitation:list', '邀约列表', 'BUTTON', 'invitation'),
@@ -103,6 +131,10 @@ RESOURCES = [
     # 与 OfferViewSet.TRANSITION_ACTION_PERM 同款 G1 模式，见 T02）。
     ('recruit:invitation:edit', '编辑邀约', 'BUTTON', 'invitation'),
     ('recruit:invitation:reject', '标记邀约失败', 'BUTTON', 'invitation'),
+    # 2026-10-21 卡 A2：InvitationViewSet.destroy 按 action 派生 recruit:invitation:delete，
+    # 该码未在 known_resource_codes() → 回退 recruit:invitation:list（持邀约列表码即可删邀约，
+    # 越权面）。补专属码。
+    ('recruit:invitation:delete', '删除邀约', 'BUTTON', 'invitation'),
     # --- module: talent_pool ---
     ('recruit:talent_pool:menu:view', '人才库菜单', 'MENU', 'talent_pool'),
     ('recruit:talent_pool:list', '人才库列表', 'BUTTON', 'talent_pool'),
@@ -143,6 +175,10 @@ RESOURCES = [
     ('recruit:settings:mgmt_unit:list', '管理单元列表', 'BUTTON', 'settings'),
     ('recruit:settings:mgmt_unit:create', '新增管理单元', 'BUTTON', 'settings'),
     ('recruit:settings:mgmt_unit:edit', '编辑管理单元', 'BUTTON', 'settings'),
+    # 2026-10-21 卡 A2：ManagementUnitViewSet.destroy 按 action 派生
+    # recruit:settings:mgmt_unit:delete，该码未在 known_resource_codes()
+    # → 回退 recruit:settings:mgmt_unit:list（持管理单元列表码即可删管理单元，越权面）。补专属码。
+    ('recruit:settings:mgmt_unit:delete', '删除管理单元', 'BUTTON', 'settings'),
     # --- module: settings ---
     # 用户管理 (用户集中入口: 内部员工/外部用户/全部用户; 注册审核/用户组迁入)
     # 顶层菜单: 全部用户入口 (子菜单 users:internal/external 已下线, 见 core.0026)
@@ -207,8 +243,6 @@ RESOURCES = [
     ('recruit:settings:field_acl:edit', '编辑字段权限', 'BUTTON', 'settings'),
     ('recruit:settings:field_acl:delete', '删除字段权限', 'BUTTON', 'settings'),
     ('recruit:settings:field_acl:export', '导出字段权限', 'BUTTON', 'settings'),
-    # 用户组 (迁移到「用户管理」下, 标记占位)
-    ('recruit:settings:user_groups:menu:view', '用户组管理菜单', 'MENU', 'settings'),
     # 标准简历设置 (config)
     ('recruit:settings:standard_resume:menu:view', '标准简历设置菜单', 'MENU', 'settings'),
     ('recruit:settings:standard_resume:edit', '编辑标准简历', 'BUTTON', 'settings'),
@@ -371,6 +405,12 @@ RESOURCES = [
     ('recruit:settings:channel:list', '渠道列表', 'BUTTON', 'settings'),
     ('recruit:settings:channel:cost:list', '渠道成本列表', 'BUTTON', 'settings'),
     ('recruit:settings:channel:cost:edit', '渠道成本维护', 'BUTTON', 'settings'),
+    # 2026-10-21 卡 A2：ChannelViewSet 的 create/update/partial_update/destroy 按 action
+    # 派生 recruit:settings:channel:create / :edit / :delete，三者均未在 known_resource_codes()
+    # → 告警回退 recruit:settings:channel:list（持渠道列表码即可增删改渠道，越权面）。补三条专属码。
+    ('recruit:settings:channel:create', '新建渠道', 'BUTTON', 'settings'),
+    ('recruit:settings:channel:edit', '编辑渠道', 'BUTTON', 'settings'),
+    ('recruit:settings:channel:delete', '删除渠道', 'BUTTON', 'settings'),
 
     # --- module: process ---
     ('recruit:settings:recruitment_process:list', '流程列表', 'BUTTON', 'settings'),
@@ -391,6 +431,12 @@ RESOURCES = [
     ('recruit:settings:user_app_data_scope:menu:view', '应用数据范围菜单', 'MENU', 'settings'),
     ('recruit:settings:user_app_data_scope:list', '应用数据范围列表', 'BUTTON', 'settings'),
     ('recruit:settings:user_app_data_scope:edit', '编辑应用数据范围', 'BUTTON', 'settings'),
+    # 2026-10-21 卡 A2：UserAppDataScopeViewSet 的 create/destroy 按 action 派生
+    # recruit:settings:user_app_data_scope:create / :delete，两者均未在 known_resource_codes()
+    # → 告警回退 recruit:settings:user_app_data_scope:list（持列表码即可增删用户数据范围，
+    # 越权面 —— 直接影响行级可见性）。补两条专属码。
+    ('recruit:settings:user_app_data_scope:create', '新建应用数据范围', 'BUTTON', 'settings'),
+    ('recruit:settings:user_app_data_scope:delete', '删除应用数据范围', 'BUTTON', 'settings'),
 
     # --- 配置类模块补 :list 读码 ---
     # 2026-10-11 (G2 接线): 这些模块此前只有 menu:view + 写码, 缺读码。
@@ -407,6 +453,13 @@ RESOURCES = [
     ('recruit:settings:company_brand:list', '品牌信息列表', 'BUTTON', 'settings'),
     ('recruit:settings:demand_config:list', '需求配置列表', 'BUTTON', 'settings'),
     ('recruit:settings:rule_engine:list', '规则引擎列表', 'BUTTON', 'settings'),
+    # 2026-10-21 卡 A2：AutomationTriggerView / AutomationLogViewSet 的 create/destroy 与
+    # rule_engine 的 RuleListView / TriggerCatalogView / OperatorCatalogView 的 create/destroy
+    # 按 action 派生 recruit:settings:rule_engine:create / :delete，均未在 known_resource_codes()
+    # → 告警回退 recruit:settings:rule_engine:list（持规则引擎列表码即可增删规则/触发器，越权面）。
+    # 补两条专属码。
+    ('recruit:settings:rule_engine:create', '新建规则', 'BUTTON', 'settings'),
+    ('recruit:settings:rule_engine:delete', '删除规则', 'BUTTON', 'settings'),
     ('recruit:settings:recruitment_stage:list', '招聘阶段列表', 'BUTTON', 'settings'),
     ('recruit:settings:recruitment_round:list', '面试轮次列表', 'BUTTON', 'settings'),
     ('recruit:settings:metrics:list', '指标管理', 'BUTTON', 'settings'),
@@ -431,11 +484,12 @@ RESOURCES = [
     ('recruit:campus:class:create', '新建班级', 'BUTTON', 'campus'),
     ('recruit:campus:class:edit', '编辑班级', 'BUTTON', 'campus'),
     ('recruit:campus:class:delete', '删除班级', 'BUTTON', 'campus'),
-    ('recruit:campus:person:menu:view', '校招生档案菜单', 'MENU', 'campus'),
-    ('recruit:campus:person:list', '校招生档案列表', 'BUTTON', 'campus'),
-    ('recruit:campus:person:create', '新建校招生档案', 'BUTTON', 'campus'),
-    ('recruit:campus:person:edit', '编辑校招生档案', 'BUTTON', 'campus'),
-    ('recruit:campus:person:delete', '删除校招生档案', 'BUTTON', 'campus'),
+    # 2026-10-21 兵哥：菜单/页面名由「校招生档案」更名为「人员管理」（resource_code 不变，仅显示名）
+    ('recruit:campus:person:menu:view', '人员管理菜单', 'MENU', 'campus'),
+    ('recruit:campus:person:list', '人员管理列表', 'BUTTON', 'campus'),
+    ('recruit:campus:person:create', '新建人员档案', 'BUTTON', 'campus'),
+    ('recruit:campus:person:edit', '编辑人员档案', 'BUTTON', 'campus'),
+    ('recruit:campus:person:delete', '删除人员档案', 'BUTTON', 'campus'),
     # --- module: campus (2026-10-19 新增：三角色工作台 / 审批流 / 操作日志) ---
     # 需求 1-1：三角色应用端口
     ('recruit:campus:hrbp:menu:view', 'HRBP 工作台菜单', 'MENU', 'campus'),
@@ -541,7 +595,7 @@ STRATEGY_GOVERNED_CODES = [
     # 候选人管理 / 面试管理
     'recruit:interview:schedule',           # 安排面试（module=interview）
     # 候选人管理 / 候选人基础
-    'recruit:application:advance',          # 推进流程（module=application）
+    'recruit:candidate:application:advance',    # 推进流程（module=candidate/application，0048 归位）
     'recruit:talent_pool:create',           # 放入人才库（module=talent_pool，库内名：入库）
     # ===== 第三批（S8-01，2026-10-20）—— 11 条新码全部置位（兵哥清单初衷）=====
     # 面试编辑/删除（修「持 list 即可改/删面试」越权面）
@@ -593,13 +647,18 @@ RESOURCE_SUB_MODULES = {
     'recruit:candidate:offer:create': 'offer管理',
     'recruit:candidate:offer:edit': 'offer管理',
     'recruit:candidate:offer:list': 'offer管理',
-    # 候选人管理 / 录用信息（3 条 onboarding 操作，2026-10-21 待入职并入详情页页签，0047 归位）
+    # 候选人管理 / 录用信息（4 条 onboarding 操作，2026-10-21 待入职并入详情页页签，0047 归位）
     'recruit:candidate:onboarding:create': '录用信息',
     'recruit:candidate:onboarding:edit': '录用信息',
     'recruit:candidate:onboarding:list': '录用信息',
-    # 候选人管理 / 应聘记录（2 条 application 操作，2026-10-21 兵哥确认申请=每次应聘记录，0048 归位）
+    'recruit:candidate:onboarding:delete': '录用信息',
+    # 候选人管理 / 应聘记录（5 条 application 操作，2026-10-21 兵哥确认申请=每次应聘记录，0048 归位；
+    #   create/edit/delete 为 2026-10-21 卡 A2 补的派生码，原先回退到 :list 造成权限提升）
     'recruit:candidate:application:list': '应聘记录',
     'recruit:candidate:application:advance': '应聘记录',
+    'recruit:candidate:application:create': '应聘记录',
+    'recruit:candidate:application:edit': '应聘记录',
+    'recruit:candidate:application:delete': '应聘记录',
 }
 
 
@@ -715,8 +774,8 @@ TEMPLATES = [
             'recruit:demand:delete', 'recruit:demand:batch_update',
             'recruit:position:menu:view', 'recruit:position:list',
             'recruit:position:create', 'recruit:position:publish',
-            'recruit:application:menu:view', 'recruit:application:list',
-            'recruit:application:advance',
+            'recruit:candidate:application:list',
+            'recruit:candidate:application:advance',
             'recruit:referral:menu:view', 'recruit:referral:list',
             'recruit:talent_pool:menu:view', 'recruit:talent_pool:list',
             'recruit:settings:permissions:roles:menu:view', 'recruit:settings:permissions:roles:list',
@@ -736,7 +795,7 @@ TEMPLATES = [
             'recruit:interview:schedule',
             'recruit:demand:menu:view', 'recruit:demand:list',
             'recruit:position:menu:view', 'recruit:position:list',
-            'recruit:application:menu:view', 'recruit:application:list',
+            'recruit:candidate:application:list',
             'recruit:invitation:menu:view', 'recruit:invitation:list',
             'recruit:invitation:create',
             # 2026-10-20 S8-01: 11 条新码全部进专员模板 —— 专员是这些功能的真实操作者
@@ -765,7 +824,7 @@ TEMPLATES = [
             'recruit:candidate:menu:view', 'recruit:candidate:list',
             'recruit:interview:menu:view', 'recruit:interview:list',
             'recruit:interview:feedback',
-            'recruit:application:menu:view', 'recruit:application:list',
+            'recruit:candidate:application:list',
         ],
     },
 ]

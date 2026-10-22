@@ -33,6 +33,11 @@ def test_bootstrap_missing_resources_raises():
         config_key='GLOBAL_DEFAULT_DATA_SCOPE',
         config_value='SELF',
     )
+    # 2026-10-21 卡 B5：测试环境会惰性补齐 permission_resources（真源 = seed_v2_init.RESOURCES，
+    # 见 tests/fixtures_common.py::_seed_permission_resources）—— 注册表非空时
+    # bootstrap 的「资源数 < 50」闸门根本不会触发。本用例要验的正是**空注册表**这一态，
+    # 故先把已补齐的注册表清空（事务内，回滚，不影响其它用例）。
+    PermissionResource.objects.all().delete()
     # 只加 1 条 resource (触发第 2 检查: cnt < 50)
     PermissionResource.objects.create(
         system_code='recruit',

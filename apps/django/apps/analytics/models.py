@@ -29,6 +29,13 @@ class ReportSnapshot(TimestampedModel, SoftDeleteModel):
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     name = models.CharField(max_length=200, verbose_name='报表名')
     report_type = models.CharField(max_length=32, choices=ReportType.choices, verbose_name='报表类型')
+    # 2026-10-21 卡 F1: 幂等键 —— 每日看板快照按「类型:日期」唯一, 任务重跑/并发
+    #   不会生成两条同一天的快照 (MySQL 唯一索引允许多个 NULL, 故不影响其他快照)。
+    snapshot_key = models.CharField(
+        max_length=64, null=True, blank=True, unique=True,
+        verbose_name='幂等键',
+        help_text='同一幂等键只会有一条快照; 每日看板用 DASHBOARD:YYYY-MM-DD; NULL 不受限',
+    )
     scope = models.JSONField(default=dict, verbose_name='报表范围', help_text='{department, time_range, hr_id, ...}')
     data = models.JSONField(default=dict, verbose_name='报表数据')
 
@@ -68,7 +75,7 @@ class ExportTask(TimestampedModel, SoftDeleteModel):
     fields = models.JSONField(default=list, verbose_name='导出字段')
 
     format = models.CharField(max_length=8, choices=Format.choices, default=Format.XLSX, verbose_name='格式')
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, verbose_name='状态')
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, verbose_name='状态', db_index=True)
 
     file_url = models.URLField(max_length=500, blank=True, verbose_name='文件URL')
     file_size = models.IntegerField(null=True, blank=True, verbose_name='文件大小（字节）')

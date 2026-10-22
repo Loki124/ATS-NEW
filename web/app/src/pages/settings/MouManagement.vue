@@ -1,6 +1,7 @@
 <template>
   <div class="page-container mou-management">
-<div class="page-body">
+    <!-- 模型 B（SETTINGS_PAGE_STRUCTURE.md §2.2）：header 为 .page-container 直接子元素，
+         header→内容间距由外壳 .settings-scroll :deep(.page-container) 的 gap 独家提供。 -->
     <div class="page-header">
       <div>
         <h1 class="page-title">{{ t('pages.settings.MouManagement.s3') }}</h1>
@@ -8,32 +9,34 @@
       </div>
     </div>
 
-    <!-- 管理单元列表（北森交互：表格为主视图，树形展开在「名称」列） -->
-    <div class="glass-panel panel-shell">
-          <div class="toolbar">
-            <n-select
-              v-model:value="unitStatusFilter"
-              :options="statusFilterOptions"
-              style="width: 160px"
-              :placeholder="t('pages.settings.MouManagement.s2')"
-              clearable
-            />
-            <div class="spacer"></div>
-            <n-button type="primary" class="gradient-btn" @click="openCreateRoot">
-              <template #icon><n-icon :component="AddOutline" /></template>
-              {{ t('pages.settings.MouManagement.s4') }}
-            </n-button>
-            <n-button quaternary :disabled="!checkedRowKeys.length" @click="batchDisable">
-              <template #icon><n-icon :component="StopOutline" /></template>
-              {{ t('pages.settings.MouManagement.s5') }}
-            </n-button>
-            <n-button quaternary :disabled="!allUnits.length" @click="exportDataRange">
-              <template #icon><n-icon :component="DownloadOutline" /></template>
-              {{ t('pages.settings.MouManagement.s6') }}
-            </n-button>
-          </div>
+    <!-- 列表区：区域滚动（R-215）—— .data-body 自身不滚，滚动只发生在 .table-wrap 内的表格体 -->
+    <div class="data-body">
+      <!-- 管理单元列表（北森交互：表格为主视图，树形展开在「名称」列） -->
+      <div class="glass-panel panel-shell">
+        <div class="toolbar">
+          <n-select
+            v-model:value="unitStatusFilter"
+            :options="statusFilterOptions"
+            style="width: 160px"
+            :placeholder="t('pages.settings.MouManagement.s2')"
+            clearable
+          />
+          <div class="spacer"></div>
+          <n-button type="primary" class="gradient-btn" @click="openCreateRoot">
+            <template #icon><n-icon :component="AddOutline" /></template>
+            {{ t('pages.settings.MouManagement.s4') }}
+          </n-button>
+          <n-button quaternary :disabled="!checkedRowKeys.length" @click="batchDisable">
+            <template #icon><n-icon :component="StopOutline" /></template>
+            {{ t('pages.settings.MouManagement.s5') }}
+          </n-button>
+          <n-button quaternary :disabled="!allUnits.length" @click="exportDataRange">
+            <template #icon><n-icon :component="DownloadOutline" /></template>
+            {{ t('pages.settings.MouManagement.s6') }}
+          </n-button>
+        </div>
 
-          <div class="table-wrap">
+        <div class="table-wrap">
           <n-data-table
             :data="unitTreeData"
             :columns="unitTableColumns"
@@ -44,8 +47,9 @@
             flex-height
             @update:checked-row-keys="(keys: Array<string | number>) => (checkedRowKeys = keys.map(String))"
           />
-          </div>
         </div>
+      </div>
+    </div><!-- /.data-body -->
 
     <!-- 管理单元 新建/编辑/详情 融合弹窗（居中；编辑与点击名称共用） -->
     <n-modal
@@ -278,7 +282,6 @@
         :pagination="localPagination()"
       />
     </n-modal>
-</div><!-- /.page-body -->
 </div>
 </template>
 
@@ -946,7 +949,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* === settings page-header + page-body 三件套（与 AccountSettings/DemandConfig 同款） === */
+/* === 数据列表页标准结构（SETTINGS_PAGE_STRUCTURE.md §2.2 + AGENTS.md R-215）
+   模型 B：.page-container > .page-header + .data-body > .glass-panel.panel-shell
+                              > .toolbar + .table-wrap > n-data-table[flex-height]
+   - .page-header 的 flex-shrink:0 由 glass.css 全局 .page-header 提供（此处不私有重写）
+   - .panel-shell / .toolbar / .table-wrap 全部复用 glass.css 全局类，本页不再私有重写 */
 .page-container {
   display: flex;
   flex-direction: column;
@@ -955,10 +962,10 @@ onMounted(() => {
   padding: 0;
 }
 /* .page-header 的 flex-shrink:0 已由 glass.css 全局 .page-header 提供，此处不再私有重写（SETTINGS_PAGE_STRUCTURE.md §0） */
-.page-body {
+.data-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;

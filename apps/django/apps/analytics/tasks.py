@@ -4,7 +4,7 @@ from typing import Dict
 
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
-from django.db import DatabaseError
+from django.db import DatabaseError, OperationalError
 from django.utils import timezone
 
 from apps.common.excel import build_workbook
@@ -12,7 +12,12 @@ from apps.common.excel import build_workbook
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='apps.analytics.tasks.run_export_task')
+@shared_task(
+    name='apps.analytics.tasks.run_export_task',
+    max_retries=3,
+    default_retry_delay=5,
+    autoretry_for=(OperationalError,),
+)
 def run_export_task(export_task_id: str) -> Dict:
     """执行导出任务（异步）"""
 
@@ -106,22 +111,34 @@ def run_export_task(export_task_id: str) -> Dict:
     }
 
 
-@shared_task(name='apps.analytics.tasks.generate_daily_report_snapshot')
+@shared_task(
+    name='apps.analytics.tasks.generate_daily_report_snapshot',
+    max_retries=3,
+    default_retry_delay=5,
+    autoretry_for=(OperationalError,),
+)
 def generate_daily_report_snapshot() -> Dict:
-    """每日生成 HR 看板快照"""
+    """每日生成 HR 看板快照（幂等：同一天重跑只更新同一条）"""
     from .models import ReportSnapshot
     from .services import AnalyticsService
 
     summary = AnalyticsService.get_dashboard_summary()
     funnel = AnalyticsService.get_funnel_data(days=7)
 
-    snapshot = ReportSnapshot.objects.create(
-        name=f'每日看板-{timezone.now().strftime("%Y-%m-%d")}',
-        report_type='DASHBOARD',
-        scope={'days': 7},
-        data={'summary': summary, 'funnel': funnel},
+    # 2026-10-21 卡 F1: 幂等键 + update_or_create —— 任务重跑 (Celery 重试 / 手动补跑)
+    #   不会生成两条同一天的快照 (原先每次 create → 看板出现重复快照)。
+    day = timezone.now().strftime('%Y-%m-%d')
+    snapshot, created = ReportSnapshot.objects.update_or_create(
+        snapshot_key=f'DASHBOARD:{day}',
+        defaults={
+            'name': f'每日看板-{day}',
+            'report_type': 'DASHBOARD',
+            'scope': {'days': 7},
+            'data': {'summary': summary, 'funnel': funnel},
+        },
     )
     return {
         'snapshot_id': snapshot.id,
+        'created': created,
         'generated_at': snapshot.generated_at.isoformat(),
     }

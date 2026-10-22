@@ -5,8 +5,8 @@
 - class_room：FK→campus_rotation.ClassRoom，可空（SET_NULL）；字符串引用避循环 import。
 所有字段均 null/blank=True，不破坏既有数据，迁移安全。
 """
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

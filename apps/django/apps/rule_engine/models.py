@@ -174,6 +174,7 @@ class Rule(FullAuditModel, UUIDModel):
     status = models.CharField(
         max_length=16, choices=RuleStatus.choices,
         default=RuleStatus.ENABLED, verbose_name='状态',
+                   db_index=True,
     )
     enabled = models.BooleanField(default=True, verbose_name='启用开关')
     failure_rate_threshold = models.FloatField(

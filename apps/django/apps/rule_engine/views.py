@@ -7,8 +7,8 @@ from rest_framework import generics
 from rest_framework.views import APIView
 
 from apps.common.pagination import StandardResultsSetPagination
-from apps.core.permissions_v2 import V2Permission
 from apps.common.response import success_response
+from apps.core.permissions_v2 import V2Permission
 
 from .adapters import aggregate_rules
 from .models import UnifiedOperator, UnifiedTriggerType

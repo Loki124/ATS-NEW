@@ -118,10 +118,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   transition: 0.15s;
 }
 .scoring-card:hover { border-color: var(--brand); }
-.scoring-card.passed { border-left: 3px solid var(--c-success); }
-.scoring-card.failed { border-left: 3px solid var(--c-error-deep); }
-.scoring-card.scoring { border-left: 3px solid var(--c-info); }
-.scoring-card.waiting { border-left: 3px solid var(--g4); }
+/* 评分状态由 .sc-status 文字承载，卡片不画左侧色条（X-20） */
 .sc-card-header {
   display: flex;
   align-items: center;

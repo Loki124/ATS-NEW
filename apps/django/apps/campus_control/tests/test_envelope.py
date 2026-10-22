@@ -12,8 +12,8 @@ Batch 11 协调批：
 - retrieve 返 envelope；
 - list 返 envelope（含 data 列表）。
 """
-from apps.common.tests.envelope_contract import assert_envelope
 import uuid
+from datetime import date
 
 import pytest
 
@@ -23,10 +23,16 @@ from apps.campus_control.models import (
     ControlRule,
     Person,
 )
+from apps.common.tests.envelope_contract import assert_envelope
 
 pytestmark = pytest.mark.django_db
 
 BASE = '/api/v1/campus'
+
+
+def _emp_id() -> str:
+    """8 位纯数字工号（2026-10-21 兵哥口径）；随机取位避免用例间撞号。"""
+    return f'{20000000 + (uuid.uuid4().int % 9000000):08d}'
 
 
 # —— 工厂（预置对象走 ORM，非被测路径；用唯一后缀避免 unique 碰撞）——
@@ -56,6 +62,9 @@ def _make_person(user):
     return Person.objects.create(
         code=f'C{_uid()}', name='张三', bu='能电BG', school='985', sex='男',
         major='工学', month='1月', status='在职', created_by=user, updated_by=user,
+        # 2026-10-21 兵哥口径：在职须有工号（8 位纯数字）+ 实际入职日期
+        employee_id=_emp_id(), actual_entry_date=date(2026, 1, 5),
+        expected_entry_date=date(2026, 1, 1),
     )
 
 
@@ -201,6 +210,10 @@ def test_person_create_and_retrieve_envelope(auth_client, super_user):
         'major': '工学',
         'month': '2月',
         'status': '在职',
+        # 2026-10-21 兵哥口径：在职须有工号（8 位纯数字）+ 实际入职日期
+        'employee_id': _emp_id(),
+        'actual_entry_date': '2026-02-09',
+        'expected_entry_date': '2026-02-01',
     }
     resp = auth_client.post(f'{BASE}/persons/', payload)
     assert resp.status_code == 201

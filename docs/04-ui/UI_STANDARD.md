@@ -366,10 +366,12 @@ onboarding 流程曾引用 `--g1…--g7` 但全仓未定义，导致边框 / 底
 | 固定 4 列 + `@media 1024/480` 栅格 | 窄屏挤压、断点散乱 | 用 `.grid-auto`（`auto-fit + minmax`） |
 | 发明 920/1100 等非标断点 | 媒体查询不统一 | 只用 `--breakpoint-sm/md/lg` |
 | 长表单在 >1280px 屏满宽拉伸 | 可读性差 | 根容器加 `.content-shell` |
+| 卡片加 `border-left` 状态色条（如 `border-left: 3px solid var(--c-error)`） | 颜色成唯一状态通道（违反 R-109）、同视图卡片语言分裂 | 状态用「标签 / 徽标 / 图标 + 文字」表达，卡片只留 1px 统一描边（X-20） |
 
 ### 5.14 校验门禁（Gate）
 
 - **stylelint**：禁止裸像素 color（已有）；布局改动后必须 `npm run lint:style` 通过。
+- **stylelint（X-20，硬门禁）**：`no-left-border/no-left-border` 显式 `severity=error`，命中 `border-left*` 即阻断 CI；非卡片场景须在 `web/app/stylelint-plugin-no-left-border.cjs` 的 `ALLOWLIST` 登记 `{ file, selector, reason }`。
 - **构建**：`npm run build:nocheck` 通过（vue-tsc 由 vite build 替代，避免 OOM）。
 - **磁盘核查**：改动后 `grep -rn "padding: 0" src/pages/**/*.vue` 确认无 `.page-container` 裸清零（设置页除外，但须确认在 `.settings-scroll` 上下文内）。
 - **真实浏览器复测**：弹窗 / 页面边距须用 `getComputedStyle` 硬证据确认（`.page-container` 解析 padding 应等于 `--page-pad-x/y`；`.n-modal .n-card-content` 应等于 `--modal-pad-y` `--modal-pad-x`），不靠目测、不写死数值。
@@ -381,6 +383,7 @@ onboarding 流程曾引用 `--g1…--g7` 但全仓未定义，导致边框 / 底
 - [ ] 统计卡以外的固定列栅格改为 `.grid-auto`。
 - [ ] **设置页把 `.glass-panel` 套在 `.page-body` 上时**（如 ThemeSettings），玻璃面板自身只管外观（背景 / 模糊 / 圆角 / 边框）**无内部 padding**，必须在该页 scoped `.page-body` 显式声明内边距（如 `padding: var(--space-5) var(--space-6)`），否则区块贴面板内边缘（违反 §5.3）。裸 `<div class="page-body">` 的设置页由 `.settings-scroll` 的 20px 外层 padding 兜底，无需额外声明。
 - [ ] 暗色模式抽查：边距 token 随 `body.dark` 自动联动，无硬编码色。
+- [x] 卡片左侧边框线全量收口（2026-10-21，X-20）：需求列表 / 简历卡 / 评分卡 / 阶段选择项 / 指标详情分区 / 抢单池共 7 处已改为「1px 描边 + 标签/图标/文字」表达状态；门禁 `no-left-border/no-left-border` 已接入 `.stylelintrc.json`（severity=error）。
 
 ---
 
@@ -519,6 +522,7 @@ Web 端高度 MUST 按三档使用，禁止无级缩放：
 ### 7.2 卡片 / 面板
 - `.glass-panel`（大块容器）、`.glass-card`（统计 / 列表卡）、`.n-card.n-card`（全局玻璃化）。
 - KPI：`.kpi-card`——玻璃底 + 无边框 + hover 品牌浅底上浮；**栅格统一 `repeat(auto-fit,minmax(180px,1fr))`**（去 4/5 列分裂）。
+- **禁止左侧边框线（X-20）**：卡片一律 `1px` 统一描边（`var(--glass-border)` / `var(--border-hairline)`），状态靠「标签 / 徽标 / 图标 + 文字」表达，不靠 `border-left` 色条。已收口页面见 §5.15。
 
 ### 7.3 标签 / 徽标
 `.glass-tag` + `--brand/success/warning/error/info` 变体；文字用 `--ink-soft`（非 `--ink-faint`）。
@@ -795,6 +799,7 @@ const pagination = reactive({
 - ❌ 用原生 `confirm()` / `alert()`。
 - ❌ 用 `overflow:hidden` 吞掉表格 / 滚动容器真实滚动。
 - ❌ 第 3 个品牌紫（只能 `--brand` / `--brand-grad-a`）。
+- ❌ 卡片加 `border-left` 状态色条（X-20）——状态改用标签 / 徽标 / 图标 + 文字。
 - ❌ 滥用 `!important`（仅玻璃覆盖 Naive 必要处保留，并加注释）。
 
 ---

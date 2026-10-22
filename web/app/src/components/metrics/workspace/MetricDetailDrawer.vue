@@ -76,7 +76,10 @@
 
       <!-- 输入参数契约（参数化 Handler） -->
       <section v-if="detailRow?.paramSchema?.length" class="dm-section dm-params">
-        <div class="dm-section-label">{{ t('metrics.detail.inputParamsTitle') }}</div>
+        <div class="dm-section-label dm-section-label--warn">
+          <n-icon :component="AlertCircleOutline" :size="14" aria-hidden="true" />
+          {{ t('metrics.detail.inputParamsTitle') }}
+        </div>
         <div class="detail-params-readonly">
           <div v-for="p in detailRow.paramSchema" :key="p.key" class="detail-param-row">
             <span class="param-label">{{ p.label }}</span>
@@ -93,6 +96,7 @@
 
 <script setup lang="ts">
 import { inject } from 'vue'
+import { AlertCircleOutline } from '@vicons/ionicons5'
 import KindIcon from '@/components/metrics/KindIcon.vue'
 import { METRICS_WORKSPACE_KEY } from '@/composables/useMetricsWorkspace'
 

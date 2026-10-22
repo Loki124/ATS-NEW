@@ -34,6 +34,7 @@ class EmailVerificationCode(TimestampedModel):
         max_length=16, default='ACTIVE',
         choices=[('ACTIVE', '有效'), ('USED', '已使用'), ('EXPIRED', '已过期'), ('LOCKED', '已锁定')],
         verbose_name='状态',
+                   db_index=True,
     )
 
     class Meta:

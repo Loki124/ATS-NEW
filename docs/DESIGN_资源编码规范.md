@@ -118,11 +118,19 @@ recruit:settings:permissions:resources:menu:view  6 段  settings 二级子页�
 ```
 list create edit delete export view approve assign
 publish close schedule feedback advance reject start stop
+recommend eliminate notify cancel
 batch_update open_grab
 ```
 
 > `batch_update`（批量变更人员）/ `open_grab`（开启抢单）为 S8-02（2026-10-20，
 > commit `3a2ccd7e`）新增的专属守卫动作，已同步 `ACTION_WHITELIST`。
+
+> `recommend`（转推其他职位）/ `eliminate`（淘汰候选人）/ `notify`（发送通知）/
+> `cancel`（取消背调订单）为 S8-01（2026-10-20）新增的专属守卫动作，各有真实按钮
+> （候选人详情「推荐其他职位 / 淘汰候选人 / 发送通知」、背调订单「取消」）。
+> 资源码动作段与 `DataPermissionAction` 动作键**同词**——两套词表是刻意的双轨制
+> （资源码管「端点/按钮能不能调」，动作键管「这条记录在不在写范围」），不合并、
+> 不同步消亡，但命名对齐，管理员不需要两张心理表。已同步 `ACTION_WHITELIST`。
 
 > 🔴 **规则 R3**：动作段必须落在这个词表内。新增动作需先改本表 + 同步前端按钮，
 > 否则「加了动作但前端没有对应按钮」= 永远无法被授权的僵尸资源。

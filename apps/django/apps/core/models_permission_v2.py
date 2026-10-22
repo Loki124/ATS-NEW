@@ -125,8 +125,8 @@ class RolePermissionV2(models.Model):
 
     使用 resource_code 字符串而非 FK(spec §3.2 跨系统复用)
     """
-    role_code = models.CharField(max_length=64, verbose_name='角色编码')
-    resource_code = models.CharField(max_length=128, verbose_name='资源编码')
+    role_code = models.CharField(max_length=64, verbose_name='角色编码', db_index=True)
+    resource_code = models.CharField(max_length=128, verbose_name='资源编码', db_index=True)
     system_code = models.CharField(max_length=32, verbose_name='系统编码')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
 

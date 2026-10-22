@@ -8,6 +8,24 @@
 - 部分失败 rollback（事务）
 """
 import pytest
+
+
+def _by_phone(phone: str):
+    """按手机号取候选人 —— 走 phone_hash 盲索引列 (2026-10-21 卡 C4: phone 已加密,
+    明文 = 匹配必然落空)。"""
+    from apps.candidate.models import Candidate
+    from apps.common.encryption import encrypted_field_eq_q
+
+    return Candidate.objects.get(encrypted_field_eq_q('phone_hash', phone))
+
+
+def _by_phone_q(phone: str):
+    """按手机号过滤候选人 —— 同 _by_phone, 走 phone_hash 盲索引列。"""
+    from apps.candidate.models import Candidate
+    from apps.common.encryption import encrypted_field_eq_q
+
+    return Candidate.objects.filter(encrypted_field_eq_q('phone_hash', phone))
+
 from django.db import transaction
 
 from apps.add_candidate.services.bulk_create import (
@@ -77,7 +95,7 @@ class TestBulkCreateService:
         )
         # result.created_candidate_ids 是 candidate.id（nanoid），按 phone 找 candidate
         from apps.candidate.models import Candidate
-        cand = Candidate.objects.get(phone='13800138001')
+        cand = _by_phone('13800138001')
         assert result.created_candidate_ids == [str(cand.id)]
         assert result.route == {'draft_001': 'pending'}
 
@@ -96,7 +114,7 @@ class TestBulkCreateService:
 
         from apps.application.models import Application, ApplicationState
         from apps.candidate.models import Candidate
-        cand = Candidate.objects.get(phone='13800138002')
+        cand = _by_phone('13800138002')
         assert result.created_candidate_ids == [str(cand.id)]
 
         app = Application.objects.get(candidate=cand)
@@ -119,7 +137,7 @@ class TestBulkCreateService:
 
         from apps.candidate.models import Candidate
         from apps.talent_pool.models import TalentPoolEntry
-        cand = Candidate.objects.get(phone='13800138003')
+        cand = _by_phone('13800138003')
         assert result.created_candidate_ids == [str(cand.id)]
 
         entry = TalentPoolEntry.objects.get(candidate=cand)
@@ -135,9 +153,9 @@ class TestBulkCreateService:
         )
         from apps.candidate.models import Candidate
         cands = {
-            '张三': Candidate.objects.get(phone='13800138001'),
-            '李四': Candidate.objects.get(phone='13800138002'),
-            '孙六': Candidate.objects.get(phone='13800138003'),
+            '张三': _by_phone('13800138001'),
+            '李四': _by_phone('13800138002'),
+            '孙六': _by_phone('13800138003'),
         }
         assert len(result.created_candidate_ids) == 3
         assert sorted(result.created_candidate_ids) == sorted([str(c.id) for c in cands.values()])
@@ -195,7 +213,7 @@ class TestBulkCreateService:
             )
         # 验证 draft_pending 也没创建
         from apps.candidate.models import Candidate
-        assert not Candidate.objects.filter(phone='13800138001').exists()
+        assert not _by_phone_q('13800138001').exists()
 
     def test_idempotency_same_draft_id_twice(self, draft_pending, hr_user):
         """同一 draft_id 重复调用 → 不创建第二个（去重）"""
@@ -205,9 +223,9 @@ class TestBulkCreateService:
         # 返回相同 ID，不报错
         # 注：created_candidate_ids 实际是 candidate.id（nanoid），但同一 draft 两次调用应返回相同 ID
         from apps.candidate.models import Candidate
-        first_cand = Candidate.objects.get(phone='13800138001')
+        first_cand = _by_phone('13800138001')
         assert result2.created_candidate_ids == [str(first_cand.id)]
-        assert Candidate.objects.filter(phone='13800138001').count() == 1
+        assert _by_phone_q('13800138001').count() == 1
 
 
 # ===== 序列化器层：direction 取值守卫 =====

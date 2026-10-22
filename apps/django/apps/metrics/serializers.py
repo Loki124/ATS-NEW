@@ -21,7 +21,6 @@ from .models import (
 from .services.derived_registry import get as get_derived_func
 from .services.rule_validators import validate_metric_rule
 
-
 # ===== 日期型出参：单位即「粒度」，值域即「日期区间约束」 =====
 # 日期没有量纲（不像 岁/元/月），所以「单位」唯一有意义的语义是日期精度（年/月/日），
 # 它同时决定边界精度与枚举步长单位；值域因此不再是数值刻度，而是一段可选日期区间。

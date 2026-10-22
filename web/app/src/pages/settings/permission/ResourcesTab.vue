@@ -416,20 +416,21 @@ onMounted(load)
 </script>
 
 <style scoped>
-/* 高度链：.resources-shell(flex:1) → .resources-tab(flex:1) → .table-wrap(flex:1)
-   保证只有表格区域滚动，筛选行与分页器固定（R-215） */
+/* 高度链：.panel-shell(全局, flex:1) → .resources-tab(flex:1) → .table-wrap(全局, flex:1)
+   保证只有表格区域滚动，筛选行与分页器固定（R-215）
+
+   ⚠️ 本层**不设 gap**：筛选行与表格之间的间距只由全局 .toolbar 的 margin-bottom(8px)
+   提供。若这里再叠一层 gap(8px)，间距会变成 16px，与其余数据列表页（8px）不一致。
+   距单一来源：glass.css 的 .toolbar { margin-bottom: var(--space-2) }。 */
 .resources-tab {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   flex: 1;
   min-height: 0;
 }
+/* 筛选行复用全局 .toolbar（间距/换行/内间距均已由全局提供），
+   此处只补全局没有的一条：不让筛选行在 flex 列里被压缩（R-215 要求它固定）。 */
 .filter-row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  flex-wrap: wrap;
   flex-shrink: 0;
 }
 .filter-search {
@@ -447,10 +448,12 @@ onMounted(load)
 }
 /* 无子模块的行用弱化色，避免与真实归属混淆 */
 :deep(.dim-text) {
-  color: var(--n-500, #999);
+  color: var(--n-500);
 }
 .load-error {
   flex-shrink: 0;
+  /* 错误提示条与表格之间的间距（.resources-tab 已取消 gap，此处自带一份） */
+  margin-bottom: var(--space-2);
 }
 .error-row {
   display: flex;

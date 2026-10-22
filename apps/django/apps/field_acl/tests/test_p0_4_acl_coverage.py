@@ -298,8 +298,8 @@ def test_application_acl_none_removes_field(client_for, role, app_scenario):
 
 def test_acl_access_log_records_masked_fields(client_for, app_scenario):
     """审计 masked_fields 必须非空（PRD P0-4 验收③：1607 条全空的历史问题不再复现）。"""
-    from apps.field_acl.models import FieldAclAccessLog
     from apps.application.serializers import ApplicationListSerializer
+    from apps.field_acl.models import FieldAclAccessLog
     ApplicationListSerializer(
         app_scenario['app'], context={'request': _req(client_for)},
     ).data
@@ -343,8 +343,8 @@ def test_application_acl_none_wins_over_mask_across_roles(client_for, db, app_sc
     对齐 FieldAclService._get_field_permission 的 NONE > MASK > READ 与前端
     PERMISSION_SEVERITY。若这条失效，同一用户换个角色组合就能看到本该隐藏的字段。
     """
-    from apps.core.models_permission_v2 import UserRoleV2
     from apps.application.serializers import ApplicationListSerializer
+    from apps.core.models_permission_v2 import UserRoleV2
 
     role_a = RoleV2.objects.create(
         system_code='recruit', role_code='ACL_MASK_ROLE', role_name='MASK 角色', status=1,

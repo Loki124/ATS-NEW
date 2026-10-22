@@ -140,6 +140,7 @@ class TestR8DeptScopeNotDropped:
 
     def test_no_department_returns_empty(self, db):
         from django.contrib.auth import get_user_model
+
         from apps.core.scope_resolver import _dept_and_sub_ids, _own_dept_ids
 
         u = get_user_model().objects.create_user(

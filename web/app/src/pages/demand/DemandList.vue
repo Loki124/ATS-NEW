@@ -155,7 +155,6 @@
             :key="item.id"
             class="demand-card"
             :class="{ 'selected': selectedDemand?.id === item.id }"
-            :style="{ '--state-bar': stateBarColor(item.state || item.demandStatus) }"
             tabindex="0"
             @click="handleCardClick(item)"
             @keydown.enter="handleCardClick(item)"
@@ -264,13 +263,18 @@
       </template>
     </template>
 
-    <!-- 详情抽屉 -->
-    <n-drawer
+    <!-- 2026-10-21 (整改卡 E2 · AGENTS.md R-224): 抽屉回改居中弹窗。
+         抬头信息留在 modal 的 #header 插槽; 原本塞在抬头里的「提交审批 / 编辑」
+         两个动作按钮按 R-224 要求下沉到 #footer 插槽 (操作区不与标题区混排);
+         内容区固定高度 + 仅内容区滚动。 -->
+    <n-modal
       v-model:show="detailVisible"
-      :width="drawerWidth"
-      placement="right"
+      preset="card"
+      :style="{ width: `${drawerWidth}px`, maxWidth: '95vw' }"
+      :content-style="{ height: 'min(680px, calc(88vh - 180px))', overflowY: 'auto' }"
+      :mask-closable="false"
+      :bordered="false"
     >
-      <n-drawer-content :native-scrollbar="false">
         <template #header>
           <div class="drawer-header">
             <div class="drawer-header__main">
@@ -278,10 +282,6 @@
               <span class="drawer-name" :title="selectedDemand?.name || selectedDemand?.title">{{ selectedDemand?.name || selectedDemand?.title }}</span>
               <n-tag :type="getStatusType(selectedDemand?.state || selectedDemand?.demandStatus)" size="small">{{ getStatusText(selectedDemand?.state || selectedDemand?.demandStatus) }}</n-tag>
               <n-tag v-if="selectedDemand?.approvalStatus || selectedDemand?.approval_status" :type="getApprovalType(selectedDemand?.approvalStatus || selectedDemand?.approval_status)" size="small">{{ getApprovalText(selectedDemand?.approvalStatus || selectedDemand?.approval_status) }}</n-tag>
-            </div>
-            <div class="drawer-header__actions">
-              <n-button v-if="(selectedDemand?.state || selectedDemand?.demandStatus) === 'DRAFT'" v-permission="['recruit:demand:approve', 'recruit:demand:edit']" type="primary" size="small" @click="handleSubmitApproval">{{ t('pages.demand.DemandList.s43') }}</n-button>
-              <n-button v-permission="'recruit:demand:edit'" size="small" @click="handleEdit(selectedDemand)">{{ t('pages.demand.DemandList.s50') }}</n-button>
             </div>
           </div>
         </template>
@@ -355,8 +355,28 @@
             </n-tab-pane>
           </n-tabs>
         </template>
-      </n-drawer-content>
-    </n-drawer>
+
+        <template #footer>
+          <n-space justify="end">
+            <n-button
+              v-if="(selectedDemand?.state || selectedDemand?.demandStatus) === 'DRAFT'"
+              v-permission="['recruit:demand:approve', 'recruit:demand:edit']"
+              type="primary"
+              size="small"
+              @click="handleSubmitApproval"
+            >
+              {{ t('pages.demand.DemandList.s43') }}
+            </n-button>
+            <n-button
+              v-permission="'recruit:demand:edit'"
+              size="small"
+              @click="handleEdit(selectedDemand)"
+            >
+              {{ t('pages.demand.DemandList.s50') }}
+            </n-button>
+          </n-space>
+        </template>
+    </n-modal>
 
     <!-- 创建/编辑弹窗 -->
     <n-modal
@@ -943,21 +963,6 @@ const getApprovalText = (status: string) => {
   return texts[status] || status
 }
 
-// 整卡状态色条
-const STATE_BAR_COLOR: Record<string, string> = {
-  DRAFT: 'var(--c-gray-600, #888780)',
-  PENDING: 'var(--c-blue-600, #185FA5)',
-  APPROVED: 'var(--c-teal-600, #0F6E56)',
-  RECRUITING: 'var(--brand, #534AB7)',
-  PAUSED: 'var(--c-amber-600, #854F0B)',
-  COMPLETED: 'var(--c-green-600, #3B6D11)',
-  CANCELLED: 'var(--c-red-600, #A32D2D)',
-  REJECTED: 'var(--c-red-600, #A32D2D)',
-}
-function stateBarColor(state: string): string {
-  return STATE_BAR_COLOR[state] || 'var(--c-gray-600, #888780)'
-}
-
 // FSM 流转：当前 state → 可执行的下一步动作
 const TERMINAL_STATES = new Set(['COMPLETED', 'CANCELLED'])
 const FSM_TRANSITIONS: Record<string, { action: string; label: string }[]> = {
@@ -1495,7 +1500,6 @@ onUnmounted(() => {
   gap: var(--space-3);
   background: var(--glass-bg-card);
   border: 1px solid var(--glass-border);
-  border-left: 4px solid var(--state-bar, var(--c-gray-600, #888780));
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   cursor: pointer;

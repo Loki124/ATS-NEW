@@ -12,23 +12,29 @@
 - approve_and_forget 已 verified + 超管 → 成功 + PII 匿名化
 - reject 不需要 verified
 - cleanup_stale_verification 自动转 EXPIRED
+
+2026-10-21 整改卡 C1 / C2 追加:
+- C1: approve_and_export 的 result 列与详情接口**不再**含 PII 明文;
+      明文改走一次性加密下载件 (下载即失效 + 密文擦除 + 审计留痕)
+- C2: approve_and_forget 连盲索引 hash 列 (phone_hash/email_hash/id_card_hash) 一起清空
 """
-import pytest
 from datetime import timedelta
 from unittest.mock import patch
 
+import pytest
 from django.utils import timezone
 
+from apps.common.exceptions import NotFound, ValidationError
 from apps.gdpr.models import (
+    VERIFICATION_CODE_LENGTH,
+    VERIFICATION_MAX_ATTEMPTS,
+    GDPRExportArtifact,
     GDPRRequest,
     GDPRRequestStatus,
     GDPRRequestType,
-    VERIFICATION_CODE_LENGTH,
-    VERIFICATION_MAX_ATTEMPTS,
     hash_verification_code,
 )
 from apps.gdpr.services import GdprService
-from apps.common.exceptions import ValidationError, NotFound
 
 
 @pytest.fixture
@@ -285,8 +291,8 @@ class TestGdprApproveAndForget:
         assert approved.processed_at is not None
         assert '已匿名化' in approved.result
 
-        # 候选人 PII 应被清空 (用 raw queryset 避免 django-fsm 阻止)
-        c = Candidate.objects.get(id=candidate.id)
+        # 候选人 PII 应被清空 (用 all_objects 读回: 2026-10-21 卡 D3 后默认 manager 已过滤软删行)
+        c = Candidate.all_objects.get(id=candidate.id)
         assert c.name.startswith('[匿名-')
         assert c.phone == ''
         assert c.email == ''
@@ -296,8 +302,66 @@ class TestGdprApproveAndForget:
 
 
 @pytest.mark.django_db
+class TestGdprAnonymizeClearsHashColumns:
+    """整改卡 C2: 匿名化必须连盲索引 hash 列一起清空。
+
+    phone_hash / email_hash / id_card_hash 是 salt 前置 SHA-256, 手机号空间仅
+    ~10^10 且历史 salt 曾硬编码在源码里 → 只清明文列、留着 hash 列等于
+    "把门锁了但把钥匙留在门口", 被遗忘权形同虚设。
+    """
+
+    def test_anonymize_clears_hash_columns(self, candidate, super_user):
+        from apps.candidate.models import Candidate
+        from apps.common.encryption import hash_for_search
+
+        Candidate.objects.filter(id=candidate.id).update(
+            phone_hash=hash_for_search('13800000001'),
+            email_hash=hash_for_search('gdpr@example.com'),
+            id_card_hash=hash_for_search('110101199001011234'),
+        )
+
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.FORGET,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        GdprService.approve_and_forget(req.id, super_user)
+
+        c = Candidate.all_objects.get(id=candidate.id)
+        assert c.phone_hash == ''
+        assert c.email_hash == ''
+        assert c.id_card_hash == ''
+
+    def test_hash_columns_cleared_in_db(self, candidate, super_user):
+        """DB 层直查: 3 个 hash 列均为空串 (防 ORM 缓存/未落库)。"""
+        from django.db import connection
+
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.FORGET,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        GdprService.approve_and_forget(req.id, super_user)
+
+        with connection.cursor() as cur:
+            cur.execute(
+                'SELECT phone_hash, email_hash, id_card_hash FROM candidates WHERE id=%s',
+                [candidate.id],
+            )
+            row = cur.fetchone()
+        assert row == ('', '', '')
+
+
+@pytest.mark.django_db
 class TestGdprApproveAndExport:
+    """整改卡 C1: 导出不得把 PII 明文写进 result 列。"""
+
     def test_export_after_verify_succeeds(self, candidate, super_user):
+        """导出成功 → result 只剩摘要, PII 明文不再落库。"""
         req = GdprService.submit_request(
             candidate_id=candidate.id,
             request_type=GDPRRequestType.EXPORT,
@@ -308,10 +372,205 @@ class TestGdprApproveAndExport:
 
         exported = GdprService.approve_and_export(req.id, super_user)
         assert exported.status == GDPRRequestStatus.COMPLETED
-        # 导出数据应包含所有 PII 字段
-        assert candidate.name in exported.result
-        assert candidate.phone in exported.result
-        assert candidate.email in exported.result
+        assert '已导出' in exported.result
+        # result 里不含任何 PII 明文
+        assert candidate.name not in exported.result
+        assert candidate.phone not in exported.result
+        assert candidate.email not in exported.result
+
+    def test_export_result_column_has_no_pii_plaintext(self, candidate, super_user):
+        """DB 层的 result 列同样不得含 PII 明文 (改造前是 f'导出数据：{export_data}')."""
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.EXPORT,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        GdprService.approve_and_export(req.id, super_user)
+
+        db_req = GDPRRequest.objects.get(id=req.id)
+        assert candidate.phone not in db_req.result
+        assert candidate.email not in db_req.result
+        assert 'gdpr@example.com' not in db_req.result
+
+
+@pytest.mark.django_db
+class TestGdprExportArtifact:
+    """整改卡 C1: 一次性加密下载件。"""
+
+    def test_artifact_payload_is_ciphertext(self, candidate, super_user):
+        """落库的导出件必须是 Fernet 密文, 不含明文。"""
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.EXPORT,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        GdprService.approve_and_export(req.id, super_user)
+
+        artifact = GDPRExportArtifact.objects.get(request=req)
+        assert artifact.payload.startswith('gAAAA')          # Fernet token 前缀
+        assert candidate.phone not in artifact.payload
+        assert candidate.email not in artifact.payload
+        assert artifact.downloaded_at is None
+        assert artifact.download_count == 0
+        assert artifact.expires_at > timezone.now()
+
+    def test_download_returns_data_then_token_is_dead(self, candidate, super_user):
+        """下载一次拿到明文, 同一 token 二次下载被拒 + 密文已擦除。"""
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.EXPORT,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        GdprService.approve_and_export(req.id, super_user)
+        artifact = GDPRExportArtifact.objects.get(request=req)
+
+        data = GdprService.consume_export_artifact(req.id, artifact.token)
+        assert data['phone'] == candidate.phone
+        assert data['email'] == candidate.email
+        assert data['name'] == candidate.name
+
+        # 下载后: 密文擦除 + 下载时间落库
+        artifact.refresh_from_db()
+        assert artifact.payload == ''
+        assert artifact.downloaded_at is not None
+        assert artifact.download_count == 1
+
+        # 同一 token 不可二次使用
+        with pytest.raises(ValidationError, match='已被下载'):
+            GdprService.consume_export_artifact(req.id, artifact.token)
+
+    def test_expired_artifact_rejected(self, candidate, super_user):
+        """过期导出件拒绝下载。"""
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.EXPORT,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        GdprService.approve_and_export(req.id, super_user)
+        artifact = GDPRExportArtifact.objects.get(request=req)
+
+        GDPRExportArtifact.objects.filter(id=artifact.id).update(
+            expires_at=timezone.now() - timedelta(minutes=1),
+        )
+        with pytest.raises(ValidationError, match='过期'):
+            GdprService.consume_export_artifact(req.id, artifact.token)
+
+    def test_wrong_token_rejected(self, candidate, super_user):
+        """token 对不上 → 404 (不泄露"存在但无权"与"不存在"的差别)。"""
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.EXPORT,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        GdprService.approve_and_export(req.id, super_user)
+
+        with pytest.raises(NotFound):
+            GdprService.consume_export_artifact(req.id, 'not-a-real-token')
+
+    def test_cleanup_expired_exports_wipes_ciphertext(self, candidate, super_user):
+        """超期未下载的导出件: 保留行, 擦掉密文。"""
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.EXPORT,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        GdprService.approve_and_export(req.id, super_user)
+        artifact = GDPRExportArtifact.objects.get(request=req)
+
+        GDPRExportArtifact.objects.filter(id=artifact.id).update(
+            expires_at=timezone.now() - timedelta(minutes=1),
+        )
+        assert GdprService.cleanup_expired_exports() == 1
+        artifact.refresh_from_db()
+        assert artifact.payload == ''
+
+
+@pytest.mark.django_db
+class TestGdprApiNoPlaintextLeak:
+    """整改卡 C1 的 API 层验收: 读接口不得吐 PII 明文。"""
+
+    def _prepare_verified(self, candidate):
+        req = GdprService.submit_request(
+            candidate_id=candidate.id,
+            request_type=GDPRRequestType.EXPORT,
+            submitted_email='gdpr@example.com',
+        )
+        plaintext = req._plaintext_code  # noqa: SLF001
+        GdprService.verify_code(req.id, plaintext)
+        return req
+
+    def test_retrieve_response_has_no_pii_plaintext(self, auth_client, candidate):
+        """GET 请求详情 → 响应体不含手机号/邮箱明文。"""
+        req = self._prepare_verified(candidate)
+        resp = auth_client.get(f'/api/v1/gdpr/{req.id}/')
+        assert resp.status_code == 200, resp.content
+        body = resp.content.decode()
+        assert candidate.phone not in body
+        assert candidate.email not in body
+        # 提交邮箱改为脱敏输出
+        assert resp.data['data']['submitted_email_masked'] == 'g***@example.com'
+        assert 'submitted_email' not in resp.data['data']
+
+    def test_process_export_returns_download_url_without_plaintext(self, auth_client, candidate):
+        """process(approve_export) → 只给一次性下载链接, 响应体不含 PII 明文。"""
+        req = self._prepare_verified(candidate)
+        resp = auth_client.post(
+            f'/api/v1/gdpr/{req.id}/process/',
+            {'action': 'approve_export'},
+            format='json',
+        )
+        assert resp.status_code == 200, resp.content
+        body = resp.content.decode()
+        assert candidate.phone not in body
+        assert candidate.email not in body
+        export_info = resp.data['data']['export']
+        assert export_info['one_time'] is True
+        assert 'token=' in export_info['download_url']
+
+    def test_download_endpoint_serves_then_expires(self, auth_client, candidate):
+        """一次性下载端点: 首次拿到明文, 再次下载被拒。"""
+        req = self._prepare_verified(candidate)
+        resp = auth_client.post(
+            f'/api/v1/gdpr/{req.id}/process/',
+            {'action': 'approve_export'},
+            format='json',
+        )
+        assert resp.status_code == 200, resp.content
+        token = resp.data['data']['export']['download_url'].split('token=')[1]
+
+        first = auth_client.get(f'/api/v1/gdpr/{req.id}/export/', {'token': token})
+        assert first.status_code == 200, first.content
+        assert first.data['data']['phone'] == candidate.phone
+
+        # 审计留痕: 下载动作写 AuditLog, 且日志里不含 PII 明文
+        from apps.audit.models import AuditLog
+        log = AuditLog.objects.filter(
+            entity='GDPRRequest', entity_id=str(req.id), action='EXPORT',
+        ).first()
+        assert log is not None, '下载动作必须留审计记录'
+        assert candidate.phone not in (log.old_value + log.new_value)
+        assert candidate.email not in (log.old_value + log.new_value)
+
+        second = auth_client.get(f'/api/v1/gdpr/{req.id}/export/', {'token': token})
+        assert second.status_code >= 400
+
+    def test_export_endpoint_requires_superadmin(self, client, candidate):
+        """未登录访问一次性下载端点 → 拒绝。"""
+        req = self._prepare_verified(candidate)
+        resp = client.get(f'/api/v1/gdpr/{req.id}/export/', {'token': 'whatever'})
+        assert resp.status_code in (401, 403)
 
 
 @pytest.mark.django_db

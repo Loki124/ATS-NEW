@@ -49,11 +49,13 @@ class Command(BaseCommand):
         self.total = 0
 
         # ---- automation（Phase 2）----
+        # 2026-10-21 卡 D3: 「已删分支」必须用 all_objects —— 默认 manager 已过滤软删行,
+        # 用 objects 查 deleted_at__isnull=False 恒为空 → 漂移检测对已删规则直接失明。
         from apps.automation.models import AutomationRule
         self._check_source_app(
             AUTOMATION_SOURCE_APP,
             active_qs=AutomationRule.objects.filter(deleted_at__isnull=True),
-            deleted_qs=AutomationRule.objects.filter(deleted_at__isnull=False),
+            deleted_qs=AutomationRule.all_objects.filter(deleted_at__isnull=False),
             diff_fn=self._diff_automation,
             sync_fn=sync_automation_rule_to_unified,
         )
@@ -63,7 +65,7 @@ class Command(BaseCommand):
         self._check_source_app(
             ENTRY_CONDITION_SOURCE_APP,
             active_qs=EntryConditionRule.objects.filter(deleted_at__isnull=True),
-            deleted_qs=EntryConditionRule.objects.filter(deleted_at__isnull=False),
+            deleted_qs=EntryConditionRule.all_objects.filter(deleted_at__isnull=False),
             diff_fn=self._diff_entry_condition,
             sync_fn=sync_entry_condition_rule_to_unified,
         )
@@ -73,7 +75,7 @@ class Command(BaseCommand):
         self._check_source_app(
             TIME_LIMIT_SOURCE_APP,
             active_qs=TimeLimitRule.objects.filter(deleted_at__isnull=True),
-            deleted_qs=TimeLimitRule.objects.filter(deleted_at__isnull=False),
+            deleted_qs=TimeLimitRule.all_objects.filter(deleted_at__isnull=False),
             diff_fn=self._diff_time_limit,
             sync_fn=sync_time_limit_rule_to_unified,
         )
@@ -133,7 +135,7 @@ class Command(BaseCommand):
 
         # 缺失镜像 / 字段漂移
         for legacy in active_qs:
-            unified = Rule.objects.filter(
+            unified = Rule.all_objects.filter(
                 source_app=source_app, legacy_id=legacy.id,
             ).first()
             if unified is None:
@@ -154,7 +156,7 @@ class Command(BaseCommand):
 
         # 应软删未软删：legacy 已软删，但统一侧仍 active
         for legacy in deleted_qs:
-            unified = Rule.objects.filter(
+            unified = Rule.all_objects.filter(
                 source_app=source_app, legacy_id=legacy.id,
             ).first()
             if unified and unified.deleted_at is None:

@@ -409,6 +409,7 @@ onBeforeUnmount(() => {
 .stat-card { text-align: center; }
 .stat-label { font-size: var(--fs-12); color: var(--n-440); }
 .stat-value { font-size: 22px; font-weight: 600; margin-top: var(--space-1); }
-.claim-pool { margin-bottom: var(--space-4); border-left: 4px solid var(--c-warning); }
+/* 抢单池：整圈描边表达「待处理」，不画左侧色条（X-20） */
+.claim-pool { margin-bottom: var(--space-4); border: 1px solid var(--c-warning-deep); }
 .filter-row { margin-bottom: var(--space-3); }
 </style>

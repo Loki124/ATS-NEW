@@ -172,6 +172,10 @@ def test_ready_raises_when_tables_exist_but_data_missing():
 def test_ready_raises_when_resources_insufficient():
     """模板齐但资源 < 50 → 阻断. 证明跳过逻辑没有误伤第二重校验."""
     _seed_full_v2_data()
+    # 2026-10-21 卡 B5：测试环境会补齐 permission_resources（真源 = seed_v2_init.RESOURCES，
+    # 300+ 条已提交）→ 不清空的话「资源数」远大于 50，第二重校验根本不会触发。
+    # 本用例要验的正是**资源不足**这一态，故先把注册表清空（事务内，回滚）。
+    PermissionResource.objects.all().delete()
     PermissionResource.objects.filter(module='test').delete()
     PermissionResource.objects.create(
         system_code='recruit', resource_code='recruit:only:one',
@@ -199,20 +203,24 @@ def test_bootstrap_ok_when_data_complete():
 
 
 @pytest.mark.v2_permission
-def test_migrate_on_brand_new_sqlite_db_exits_zero(tmp_path):
-    """硬证据: 全新空 SQLite 库执行 manage.py migrate 必须退出码 0.
+def test_sqlite_backend_is_rejected_with_clear_message(tmp_path):
+    """SQLite 后端必须被**显式拒绝**（2026-10-15 起开发/测试统一 MySQL）。
 
-    这是 BUG 的原生复现路径 —— 修复前这里会得到
-    `OperationalError: no such table: permission_templates`.
+    原用例是「全新空 SQLite 库执行 manage.py migrate 必须退出码 0」——
+    那是 BUG 的原生复现路径（修复前报 `no such table: permission_templates`）。
+    但 2026-10-15 全仓约定已**移除 SQLite**（config/settings/base.py:261-266 对
+    非 mysql/postgres 的 DATABASE_URL 直接抛 ImproperlyConfigured，不再回落 SQLite），
+    该用例的前提已不成立。
+
+    保留为「反向契约」守卫：SQLite 必须被**明确拒绝并给出可读原因**，
+    而不是静默回落 —— 静默回落正是当初掩盖 MySQL 特有行为差异的根因。
     """
-    project_root = str(tmp_path)
     db_path = str(tmp_path / 'fresh.sqlite3')
     env = dict(os.environ)
     env.update({
         'DJANGO_SETTINGS_MODULE': 'config.settings.dev',
-        'DATABASE_URL': f'sqlite:///{db_path}',  # 绝对路径 (sqlite:////abs)
+        'DATABASE_URL': f'sqlite:///{db_path}',
         'PERMISSION_V2_BOOTSTRAP_DISABLED': '0',  # 守卫开启, 不得靠开关绕过
-        'PYTHONPATH': project_root,
     })
     django_dir = DJANGO_DIR
 
@@ -225,23 +233,26 @@ def test_migrate_on_brand_new_sqlite_db_exits_zero(tmp_path):
         timeout=600,
     )
 
-    assert proc.returncode == 0, (
-        f'migrate 失败 (exit={proc.returncode})\n'
-        f'--- stdout ---\n{proc.stdout[-3000:]}\n'
-        f'--- stderr ---\n{proc.stderr[-3000:]}'
+    assert proc.returncode != 0, (
+        f'SQLite 后端应被拒绝，却退出 0（疑似静默回落）\n{proc.stdout[-2000:]}'
     )
-    assert 'no such table' not in (proc.stdout + proc.stderr)
-    assert os.path.exists(db_path), 'migrate 应真实建出库文件'
+    combined = proc.stdout + proc.stderr
+    assert '仅支持 MySQL / PostgreSQL' in combined, (
+        f'拒绝 SQLite 时必须给出可读原因\n{combined[-3000:]}'
+    )
 
 
 @pytest.mark.v2_permission
-def test_makemigrations_on_brand_new_sqlite_db_exits_zero(tmp_path):
-    """makemigrations 不得因数据库未就绪而崩溃."""
-    db_path = str(tmp_path / 'fresh_mm.sqlite3')
+def test_makemigrations_check_does_not_crash():
+    """makemigrations 不得因数据库未就绪而崩溃.
+
+    2026-10-21 卡 B5：原用例用「全新 SQLite 库」做前提，但 SQLite 已被移除
+    （见上一条用例的说明），现在**沿用当前环境的数据库配置**（不覆写 DATABASE_URL）——
+    makemigrations --check 本就不需要写库，只要设置模块能加载即可。
+    """
     env = dict(os.environ)
     env.update({
         'DJANGO_SETTINGS_MODULE': 'config.settings.dev',
-        'DATABASE_URL': f'sqlite:///{db_path}',
         'PERMISSION_V2_BOOTSTRAP_DISABLED': '0',
     })
     django_dir = DJANGO_DIR

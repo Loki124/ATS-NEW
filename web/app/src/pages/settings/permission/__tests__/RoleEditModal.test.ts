@@ -31,6 +31,7 @@ import path from 'node:path'
 import { NConfigProvider, NMessageProvider } from 'naive-ui'
 import { naivePlugin } from '../../../../plugins/naive'
 import RoleEditModal from '../RoleEditModal.vue'
+import { MODULE_KEYS } from '@/composables/useRoleDataPerm'
 
 const h0 = vi.hoisted(() => ({
   fetchAllResources: vi.fn(),
@@ -64,7 +65,7 @@ const RESOURCES = [
   { resourceCode: 'recruit:candidate:list', resourceName: '候选人列表', module: 'candidate' },
 ]
 
-/** 5 模块的读/写配置基线（写侧刻意覆盖四种 mode：none / all / owner / scope） */
+/** 各模块的读/写配置基线（写侧刻意覆盖四种 mode：none / all / owner / scope） */
 const MODULES = [
   {
     moduleKey: 'demand', mode: 'scope', expr: '', featureGranted: true,
@@ -78,10 +79,14 @@ const MODULES = [
   { moduleKey: 'position', mode: 'all', expr: '', featureGranted: true, groups: [], write: { mode: 'all', expr: '', groups: [], actions: [] } },
   { moduleKey: 'candidate', mode: 'all', expr: '', featureGranted: true, groups: [], write: { mode: 'scope', expr: '', groups: [], actions: ['view'] } },
   { moduleKey: 'talent', mode: 'all', expr: '', featureGranted: true, groups: [], write: { mode: 'none', expr: '', groups: [], actions: [] } },
+  // 2026-10-21 S5-35：校招生管理卡（后端 entity = campus_arrangement）
+  { moduleKey: 'campus_arrangement', mode: 'all', expr: '', featureGranted: true, groups: [], write: { mode: 'none', expr: '', groups: [], actions: [] } },
 ]
 
 const OPTIONS = {
-  modules: ['demand', 'process', 'position', 'candidate', 'talent'].map((k) => ({
+  modules: [
+    'demand', 'process', 'position', 'candidate', 'talent', 'campus_arrangement',
+  ].map((k) => ({
     moduleKey: k,
     label: k,
     dimensions: [{ key: 'dept', label: '部门', valueType: 'department', options: [] }],
@@ -181,7 +186,7 @@ describe('RoleEditModal 读/写拆分', () => {
     const doc = document.body.textContent || ''
     expect(doc).not.toContain('去配置')
     // 但读范围自身的配置入口仍在（不能连累）
-    expect($all('.module-card').length).toBe(5)
+    expect($all('.module-card').length).toBe(MODULE_KEYS.length)
     expect($all('.module-card .summary-actions').length).toBeGreaterThan(0)
   })
 
@@ -278,8 +283,8 @@ describe('RoleEditModal 读/写拆分', () => {
     // ① 模块级 icon + hover 提示整条移除（与功能权限解耦，各模块单独提示内容全部撤掉）
     expect($all('.hint-btn')).toHaveLength(0)
     expect($all('.module-card .mc-tip')).toHaveLength(0)
-    // ② 每张卡都有标题元素（5 模块）
-    expect($all('.module-card .mc-title')).toHaveLength(5)
+    // ② 每张卡都有标题元素（模块数取 MODULE_KEYS 真源，勿写死）
+    expect($all('.module-card .mc-title')).toHaveLength(MODULE_KEYS.length)
     // ③ 标题列宽统一（.mc-title min-width:5em）→ 各卡分段选择器左边缘对齐。
     //    vitest 默认 css:false，scoped 样式不注入 DOM，改源码级正则守护规则存在性与数值
     //    （范式同 styles/__tests__/table-alignment-rules.test.ts）。

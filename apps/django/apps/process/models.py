@@ -194,7 +194,7 @@ class RecruitmentProcess(FullAuditModel):
     id = models.CharField(max_length=32, primary_key=True, default=gen_id)
     # code 刻意**不加** unique：同一条流程线（code）可有多行，每行是一个版本（T1 版本化）。
     # 唯一性改由 Meta.constraints 的 (code, version_seq) / (code, current_version) / C3' 三条约束承担。
-    code = models.CharField(max_length=20, verbose_name='流程编号', help_text='W+三位流水号')
+    code = models.CharField(max_length=20, verbose_name='流程编号', help_text='W+三位流水号', db_index=True)
     name = models.CharField(max_length=30, verbose_name='流程名称', help_text='限 30 字，不可重复')
     # default 与解析逻辑必须对同一格式达成一致：serializers.py / template_apply.py 均写 'V1.0'，
     # 此处若留 '1.0' 会形成双来源，且升版逻辑拼出 '1.0+1' 这类垃圾版本号并经 __str__ 直达 UI。

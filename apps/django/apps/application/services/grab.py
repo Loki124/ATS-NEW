@@ -78,8 +78,21 @@ class GrabService:
     @staticmethod
     def get_pool(stage_id: str | None = None,
                  position_id: str | None = None,
-                 limit: int = 50) -> List[Application]:
-        """获取抢单池（候选人已到抢单阶段但未被认领的申请）"""
+                 scope_q=None) -> Any:
+        """获取抢单池（候选人已到抢单阶段但未被认领的申请）
+
+        2026-10-21 卡 D2 两处修复:
+        1. **接行级 scope** —— 此前无 scope 过滤, 全公司申请池对所有登录用户可见
+           (列表接口被 scope 裁剪, 抢单池却不裁剪 → 换个接口就能看到别人的申请)。
+           `scope_q` 由调用方用 `apps.core.entity_scope.entity_scope_q(request, 'application')`
+           构造 (ENTITY_SCOPE 单一真相源, 与 ApplicationViewSet 列表口径一致)。
+           传 None = 不裁剪 (保留给内部/后台调用方)。
+        2. **不再先截断** —— 此前 `[:limit]` 在分页之前执行, 导致 `pagination.total`
+           报的是截断后的条数 (恒 ≤ limit) 而非真实池总量。截断下移到 ViewSet:
+           **先分页, 再按 limit 裁剪当页**, total 仍取未截断 queryset。
+
+        返回 QuerySet (不再返回 list) —— 分页器需要 queryset 才能算真实 total。
+        """
         qs = Application.objects.filter(
             state=ApplicationState.ACTIVE,
             is_grabbed=False,
@@ -94,7 +107,9 @@ class GrabService:
             qs = qs.filter(current_stage_id=stage_id)
         if position_id:
             qs = qs.filter(position_id=position_id)
-        return list(qs.order_by('stage_entered_at')[:limit])
+        if scope_q is not None:
+            qs = qs.filter(scope_q)
+        return qs.order_by('stage_entered_at')
 
     @staticmethod
     @transaction.atomic
@@ -259,14 +274,20 @@ class GrabService:
         return users[0] if users else None
 
     @staticmethod
-    def get_grab_pool_summary() -> Dict[str, Any]:
-        """抢单池汇总统计"""
+    def get_grab_pool_summary(scope_q=None) -> Dict[str, Any]:
+        """抢单池汇总统计
+
+        2026-10-21 卡 D2: 与 `get_pool` 同口径接行级 scope —— 此前汇总数是全公司池子的大小,
+        同样绕过 scope。
+        """
         from django.db.models import Count
         pool = Application.objects.filter(
             state=ApplicationState.ACTIVE,
             is_grabbed=False,
             deleted_at__isnull=True,
         )
+        if scope_q is not None:
+            pool = pool.filter(scope_q)
         by_stage = list(pool.values('current_stage__name').annotate(
             count=Count('id'),
         ).order_by('-count'))

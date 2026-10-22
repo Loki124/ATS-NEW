@@ -18,6 +18,7 @@ from typing import Any, Dict, List
 
 from celery import shared_task
 from django.core.cache import cache
+from django.db import OperationalError
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def read_progress(task_id: str) -> Dict[str, Any] | None:
         return None
 
 
-@shared_task(bind=True, queue='scoring')
+@shared_task(bind=True, queue='scoring', max_retries=3, default_retry_delay=5, autoretry_for=(OperationalError,))
 def filter_by_scene_task(self, task_id: str, scene: str,
                          candidate_ids: List[str] | None = None) -> Dict[str, Any]:
     """按场景规则对（全量）候选人执行筛选，进度与结果写入缓存。"""

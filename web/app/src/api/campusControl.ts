@@ -112,7 +112,120 @@ export interface Person {
   headTeacherName: string
   classRoom: string | null
   classRoomName: string
+  mentor: string | null
+  mentorName: string
+  schoolName: string
+  education: string
+  phone: string
   counted: boolean
+  /** 关联的招聘系统候选人 id（编号同源：档案编号 = 候选人编号，由后端自动匹配） */
+  candidate: string | null
+  /** 关联候选人的编号 / 姓名（只读回显） */
+  candidateCode: string
+  candidateName: string
+}
+
+/* ============ 个人档案详情（2026-10-21 二期） ============ */
+/** 档案详情「基本信息」 */
+export interface PersonProfileBasic {
+  id: string
+  code: string
+  name: string
+  employeeId: string
+  status: string
+  sex: string
+  bu: string
+  position: string
+  level: string
+  school: string
+  schoolName: string
+  major: string
+  education: string
+  phone: string
+  month: string
+  expectedEntryDate: string
+  actualEntryDate: string
+  counted: boolean
+  classRoomId: string
+  classRoomName: string
+  headTeacherId: string
+  headTeacherName: string
+  mentorId: string
+  mentorName: string
+  batch: string
+}
+
+/** 所属班级（班主任 / HRBP / 批次） */
+export interface PersonProfileClassRoom {
+  id: string
+  code: string
+  name: string
+  batch: string
+  headTeacher: string
+  hrbp: string
+  studentCount: number
+}
+
+/** 当前轮岗安排 */
+export interface PersonProfileRotation {
+  id: string
+  stage: string
+  stageLabel: string
+  currentDept: string
+  currentDeptId: string
+  mentor: string
+  mentorId: string
+  headTeacher: string
+  directManager: string
+  classRoom: string
+  rotationStart: string
+  rotationEnd: string
+  rank: number | null
+  result: string
+  finalDept: string
+  note: string
+}
+
+/** 轮岗期考核结果（一段轮岗 = 一行） */
+export interface PersonProfileStage {
+  id: string
+  arrangementId: string
+  stageNo: number
+  department: string
+  bu: string
+  period: string
+  plannedPeriod: string
+  status: string
+  assessmentStatus: string
+  score: number | null
+  result: string
+  mentor: string
+  mentorId: string
+  arrangementStage: string
+  assessedAt: string
+  assessedBy: string
+}
+
+/** 四项统计（无数据时为 null，前端显示「—」，不显示 0） */
+export interface PersonProfileStats {
+  rotationAvgScore: number | null
+  monthlyAvgScore: number | null
+  overallScore: number | null
+  rank: number | null
+  rating: string | null
+}
+
+export interface PersonProfile {
+  person: PersonProfileBasic
+  classRoom: PersonProfileClassRoom | null
+  rotation: PersonProfileRotation | null
+  stats: PersonProfileStats
+  stages: PersonProfileStage[]
+  /** 以下四个业务域暂未建模，后端返回空数组 → 前端渲染空态 */
+  monthlyAssessments: any[]
+  dailyReports: any[]
+  recommendations: any[]
+  feedbacks: any[]
 }
 
 export interface RatioRow {
@@ -409,6 +522,7 @@ export const validateDraft = (
 /* ============================ 人员主数据 ============================ */
 export interface ListPersonsParams {
   staffed?: boolean
+  /** 状态筛选，支持逗号分隔多值（如「待入职,离职」） */
   status?: string
   bu?: string
   position?: string
@@ -421,6 +535,8 @@ export interface ListPersonsParams {
   search?: string
   headTeacher?: string
   classRoom?: string
+  /** 导师（档案级带教导师） */
+  mentor?: string
 }
 export const listPersons = (params?: ListPersonsParams) => {
   const q: Record<string, unknown> = { page_size: 200 }
@@ -437,6 +553,7 @@ export const listPersons = (params?: ListPersonsParams) => {
   if (params?.search) q.search = params.search
   if (params?.headTeacher) q.headTeacher = params.headTeacher
   if (params?.classRoom) q.classRoom = params.classRoom
+  if (params?.mentor) q.mentor = params.mentor
   return api.get('/campus/persons/', { params: q }).then((r) => listData<Person>(r))
 }
 export const upsertPerson = (p: Partial<Person> & { code: string; name: string; bu: string; school: string; sex: string; major: string; month: string; status: string }) => {
@@ -448,6 +565,8 @@ export const upsertPerson = (p: Partial<Person> & { code: string; name: string; 
     actual_entry_date: p.actualEntryDate || null,
     position: p.position ?? '', level: p.level ?? '',
     head_teacher: p.headTeacher ?? null, class_room: p.classRoom ?? null,
+    mentor: p.mentor ?? null,
+    school_name: p.schoolName ?? '', education: p.education ?? '', phone: p.phone ?? '',
     counted: p.counted ?? true,
   }
   if (p.id) return api.put(`/campus/persons/${p.id}/`, payload).then((r) => (r.data?.data ?? r.data) as Person)
@@ -456,13 +575,21 @@ export const upsertPerson = (p: Partial<Person> & { code: string; name: string; 
 export const deletePerson = (id: string) => api.delete(`/campus/persons/${id}/`).then((r) => r.data)
 export const restorePerson = (id: string) => api.post(`/campus/persons/${id}/restore/`).then((r) => r.data)
 
+/* ============================ 个人档案详情（二期） ============================ */
+/**
+ * 拉取个人档案详情（档案详情弹窗的唯一数据源）。
+ * 后端一次返回：基本信息 + 班级 + 当前轮岗 + 轮岗期考核结果 + 四项统计。
+ */
+export const getPersonProfile = (id: string) =>
+  api.get(`/campus/persons/${id}/profile/`).then((r) => r.data.data as PersonProfile)
+
 export default {
   listDimensions, createDimension, updateDimension, deleteDimension,
   listIndicators, createIndicator, updateIndicator, deleteIndicator,
   listRules, createRule, updateRule, deleteRule, copyRule, toggleRule, batchSaveRules, batchConfigRules,
   saveDimensionRuleSet,
   getRatio, validateDraft,
-  listPersons, upsertPerson, deletePerson,
+  listPersons, upsertPerson, deletePerson, getPersonProfile,
   exportRules, downloadRuleTemplate, importRules,
   exportIndicators, downloadIndicatorTemplate, importIndicators,
 }

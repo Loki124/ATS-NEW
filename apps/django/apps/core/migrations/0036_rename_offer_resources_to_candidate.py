@@ -128,7 +128,9 @@ def forward(apps, schema_editor):
     _rename_grants(RolePermission)
     _rename_templates(Template)
 
-    renamed = sum(
+    # noqa 说明: renamed 是改名计数的快照，与下方 print 的口径对应。
+    # 迁移已应用, 不删变量（保持历史迁移与当初执行轨迹一致）; ruff F841 卡 A6。
+    renamed = sum(  # noqa: F841
         1 for old in RENAME if not Resource.objects.filter(resource_code=old).exists()
     )
     print(

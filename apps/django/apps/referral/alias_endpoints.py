@@ -342,17 +342,52 @@ def permissions_roles_list(request):
     return Response({'success': True, 'data': data})
 
 
+def _user_roles_with_scope(user_id, roles):
+    """组装「身份 + 用户级管理单元授权范围」响应体.
+
+    managementUnitIds = 该用户**全部身份行** management_unit_ids 的并集,
+    即执行面 scope_resolver.resolve_scope L1 实际生效的范围
+    (读取侧同样不过滤 system_code, 故这里也不过滤, 两端口径一致).
+
+    粒度说明: 管理单元授权按**用户级统一**配置 —— 一个用户的全部身份共用同一份范围,
+    所以每条身份项携带的 managementUnitIds 相同; 前端据此回显单一选择器。
+    """
+    from apps.core.models_permission_v2 import UserRoleV2
+    from apps.core.serializers import RoleSerializer
+    data = RoleSerializer(roles, many=True).data
+    scope = set()
+    for ur in UserRoleV2.objects.filter(user_id=user_id):
+        for v in (ur.management_unit_ids or []):
+            try:
+                scope.add(int(v))
+            except (TypeError, ValueError):
+                continue
+    ids = sorted(scope)
+    for item in data:
+        item['managementUnitIds'] = list(ids)
+    return data
+
+
 @_scoped_view(methods=['GET', 'POST'], resource_code='recruit:settings:users:role_grant:edit')
 def permissions_user_roles(request, user_id):
     _log_stub_hit('permissions_user_roles', request)
-    """GET /permissions/users/{id}/roles — 用户的角色
-    POST /permissions/users/{id}/roles — 覆盖式保存用户的角色分配 (body {roleIds:[RoleV2.id]})
+    """GET /permissions/users/{id}/roles — 用户的身份配置 + 管理单元授权范围
+    POST /permissions/users/{id}/roles — 保存用户的身份配置与管理单元授权范围
+
+    body: { roleIds: [RoleV2.id], managementUnitIds?: [ManagementUnit.id] }
 
     T30.175: V1 UserRole 表已 DROP, 改读/写 UserRoleV2 (role_code) + RoleV2.
     2026-09-19: 补 POST 真实现 — 此前 GET-only, 前端「分配角色」弹窗一直 405 失败.
+    2026-10-21: 增加管理单元授权配置(用户级统一口径):
+      - 落库字段 UserRoleV2.management_unit_ids —— 执行面 scope_resolver L1 的唯一真相源.
+        本端点按用户级口径把同一份范围写到该用户的全部身份行, 解析时多身份取并集
+        → 实际生效范围 == 本次配置.
+      - managementUnitIds **缺省 = 不动已有范围**(向后兼容: 老调用方只传 roleIds 不会被清空);
+        传 [] = 显式清空范围.
+      - 覆盖式保存改为 upsert: 保留仍在册身份的 management_unit_ids,
+        修掉「在用户管理页重存一次身份即静默抹掉管理单元授权」的丢数据问题。
     """
     from apps.core.models_permission_v2 import RoleV2, UserRoleV2
-    from apps.core.serializers import RoleSerializer
     try:
         uid = int(user_id)
     except (TypeError, ValueError):
@@ -368,21 +403,78 @@ def permissions_user_roles(request, user_id):
                 {'success': False, 'code': 'validation_error', 'message': 'roleIds 必须是 list'},
                 status=400,
             )
+        # ---- 管理单元授权范围(可选; 缺省 = 保留已有范围) ----
+        has_scope = 'management_unit_ids' in request.data or 'managementUnitIds' in request.data
+        unit_ids = []
+        if has_scope:
+            raw_units = request.data.get('management_unit_ids')
+            if raw_units is None:
+                raw_units = request.data.get('managementUnitIds')
+            if raw_units is None:
+                raw_units = []
+            if not isinstance(raw_units, list):
+                return Response(
+                    {'success': False, 'code': 'validation_error',
+                     'message': 'managementUnitIds 必须是 list'},
+                    status=400,
+                )
+            for v in raw_units:
+                try:
+                    unit_ids.append(int(v))
+                except (TypeError, ValueError):
+                    return Response(
+                        {'success': False, 'code': 'validation_error',
+                         'message': f'managementUnitIds 含非法 id：{v}'},
+                        status=400,
+                    )
+            # 未知管理单元 → 响亮 400。静默丢弃会让「配了却没生效」无从察觉
+            # (与 DR-02 对 role_code 的处理同一原则: 宁可报错, 不写脏数据)。
+            from apps.core.models_permission_v2 import ManagementUnit
+            known = set(
+                ManagementUnit.objects.filter(id__in=unit_ids).values_list('id', flat=True)
+            )
+            unknown = [i for i in unit_ids if i not in known]
+            if unknown:
+                return Response(
+                    {'success': False, 'code': 'validation_error',
+                     'message': f'管理单元不存在：{unknown}'},
+                    status=400,
+                )
         # 2026-09-19 修复: 去掉 status=1 过滤 —— 种子角色 status 多为 None, 该过滤会令
         # role_codes 恒为空 -> 覆盖式清空后不写任何行, POST 谎报 success:true 但实际上没保存。
         # 与列表接口 permissions_roles_list 行为对齐: 仅按 id 取角色。
         roles = list(RoleV2.objects.filter(id__in=role_ids))
         role_codes = [r.role_code for r in roles]
         with transaction.atomic():
-            UserRoleV2.objects.filter(user_id=uid, system_code='recruit').delete()
+            # 2026-10-21: 不再「删光再重建」—— 那会把仍在册身份的 management_unit_ids 一并抹掉。
+            # 改为: 移除不再需要的身份, 保留/新建目标身份(保留其已有授权范围)。
+            UserRoleV2.objects.filter(user_id=uid, system_code='recruit').exclude(
+                role_code__in=role_codes,
+            ).delete()
+            granted_by = getattr(request.user, 'id', None)
             for rc in role_codes:
-                UserRoleV2.objects.get_or_create(
-                    user_id=uid,
-                    role_code=rc,
-                    system_code='recruit',
-                    defaults={'granted_by_id': getattr(request.user, 'id', None)},
-                )
-        data = RoleSerializer(roles, many=True).data
+                # 唯一约束是 (user, role_code) —— 不含 system_code, 故按 (user, role_code) 查,
+                # 否则撞上别的 system_code 的同码行会抛 IntegrityError。
+                ur = UserRoleV2.objects.filter(user_id=uid, role_code=rc).first()
+                if ur is None:
+                    UserRoleV2.objects.create(
+                        user_id=uid,
+                        role_code=rc,
+                        system_code='recruit',
+                        granted_by_id=granted_by,
+                    )
+                elif ur.granted_by_id is None:
+                    ur.granted_by_id = granted_by
+                    ur.save(update_fields=['granted_by_id'])
+            if has_scope:
+                # 用户级统一口径: 同一份范围写到该用户全部身份行。
+                # 不过滤 system_code —— 读取侧 resolve_scope 同样不过滤, 两端一致。
+                scope = unit_ids or None
+                for ur in UserRoleV2.objects.filter(user_id=uid):
+                    if ur.management_unit_ids != scope:
+                        ur.management_unit_ids = scope
+                        ur.save(update_fields=['management_unit_ids', 'updated_at'])
+        data = _user_roles_with_scope(uid, roles)
         return Response({'success': True, 'data': data})
     # GET
     role_codes = list(UserRoleV2.objects.filter(
@@ -390,7 +482,7 @@ def permissions_user_roles(request, user_id):
     ).values_list('role_code', flat=True).distinct())
     # 2026-09-19 修复: 去掉 status=1 过滤, 与列表/POST 行为对齐 (种子角色 status 多为 None)
     roles = RoleV2.objects.filter(role_code__in=role_codes)
-    data = RoleSerializer(roles, many=True).data
+    data = _user_roles_with_scope(uid, roles)
     return Response({'success': True, 'data': data})
 
 

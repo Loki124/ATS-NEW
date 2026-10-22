@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import pytest
 from django.contrib.auth import get_user_model
-from tests.fixtures_common import attach_super_admin
 from rest_framework.test import APIClient
 
-from apps.dictionary.models import DictionaryType, DictionaryItem
+from apps.dictionary.models import DictionaryItem, DictionaryType
+from tests.fixtures_common import attach_super_admin
 
 POSITION_TITLE_LIST = '/api/v1/position-titles/'
 

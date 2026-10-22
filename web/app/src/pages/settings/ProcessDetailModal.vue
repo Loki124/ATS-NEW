@@ -2028,8 +2028,7 @@ function scrollToSection(id: string) {
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 .picker-item:hover { border-color: var(--brand); }
-.picker-item--start { border-left: 3px solid var(--c-success); }
-.picker-item--end { border-left: 3px solid var(--c-warning); }
+/* 起始 / 结束由名称后的 n-tag 标注，不画左侧色条（X-20） */
 .picker-item__dot {
   width: 10px;
   height: 10px;

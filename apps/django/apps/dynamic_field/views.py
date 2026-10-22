@@ -426,7 +426,10 @@ class DynamicFieldViewSet(ExportMixin, viewsets.ModelViewSet):
         resource = self.get_resource()
         field_key = serializer.validated_data.get('field_key', '')
 
-        soft_deleted = DynamicField.objects.filter(
+        # 2026-10-21 卡 D3: 必须用 all_objects —— 默认 manager 已过滤软删行,
+        # 用 ``objects`` 查 ``deleted_at__isnull=False`` 永远查不到 → 误判为"无占位"
+        # → 走新建路径 → 撞 unique_together → IntegrityError。
+        soft_deleted = DynamicField.all_objects.filter(
             resource=resource,
             field_key=field_key,
             deleted_at__isnull=False,
@@ -1327,7 +1330,8 @@ DEFAULT_PRESET_FIELDS: dict[str, list[dict]] = {
 def _seed_preset_fields(resource: str, module: FieldModule) -> int:
     """幂等 seed 三模块默认预设字段。
 
-    - 存在性判断含软删记录 (``DynamicField.objects`` 为默认管理器, 软删记录仍在),
+    - 存在性判断含软删记录 (2026-10-21 卡 D3: 改用 ``all_objects`` —— 默认 manager
+      已过滤软删行, 用 ``objects`` 会漏看软删记录, 导致管理员删过的预设被重新 seed 出来),
       故管理员删过的预设不会因再次 ensure-default 而复活。
     - 已存在的 field_key 跳过; 仅新建缺失项 → 可安全重复调用。
     Returns:
@@ -1338,7 +1342,8 @@ def _seed_preset_fields(resource: str, module: FieldModule) -> int:
     for idx, spec in enumerate(presets):
         field_key = spec['field_key']
         # 含软删的存在性检查: 任何 (resource, field_key) 记录都视为已处理
-        if DynamicField.objects.filter(resource=resource, field_key=field_key).exists():
+        # (all_objects 含软删行 —— 默认 manager 已过滤, 见上方说明)
+        if DynamicField.all_objects.filter(resource=resource, field_key=field_key).exists():
             continue
         DynamicField.objects.create(
             resource=resource,

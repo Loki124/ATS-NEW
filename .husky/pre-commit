@@ -13,4 +13,11 @@
 cd "$(git rev-parse --show-toplevel)/web/app" || exit 1
 
 # 用本地二进制直跑，不走 npx（npx 会联网取包，离线/受限环境下会假失败）
-exec ./node_modules/.bin/lint-staged
+./node_modules/.bin/lint-staged || exit 1
+
+# 2026-10-22: scoped→h() 失效样式门禁（R-225）。
+#   这类缺陷对 eslint / vue-tsc / stylelint / vitest **零信号** —— 它们只验源码不验渲染，
+#   所以「全绿 + 渲染全错」完全可能发生（2026-10-22 连续三轮改 CSS 都没生效的根因）。
+#   扫描器只拦**新增**（存量登记在 scripts/render-scope-baseline.txt），
+#   全仓扫描约 0.3s，放进 pre-commit 无性能负担。
+node scripts/check-h-render-scope.mjs --strict

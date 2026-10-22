@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
+import { WarningOutline } from '@vicons/ionicons5'
 import { useAddCandidateStore } from '@/stores/addCandidate'
 import StatusTag from '@/components/common/StatusTag.vue'
 import CheckBanner from '@/components/common/CheckBanner.vue'
@@ -53,7 +54,8 @@ function val(field: string): any {
 <template>
   <div v-if="resume" class="left-panel">
     <div v-if="resume.parseError" class="parse-error">
-      <span class="pe-icon">⚠</span><span>{{ resume.parseError }}</span>
+      <n-icon class="pe-icon" :component="WarningOutline" :size="14" aria-hidden="true" />
+      <span>{{ resume.parseError }}</span>
     </div>
     <div class="detail-header">
       <div class="detail-avatar">{{ resume.parsed?.name?.charAt(0) || resume.file_name.charAt(0) }}</div>

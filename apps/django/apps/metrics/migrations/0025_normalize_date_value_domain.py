@@ -13,8 +13,11 @@ DATE_GRANULARITIES = ('年', '月', '日')
 
 def normalize(apps, schema_editor):
     MetricTemplate = apps.get_model('metrics', 'MetricTemplate')
-    AtomicMetric = apps.get_model('metrics', 'AtomicMetric')
-    DerivedMetric = apps.get_model('metrics', 'DerivedMetric')
+    # noqa 说明: AtomicMetric / DerivedMetric 是历史迁移取过的模型引用（当时用于
+    # 判定模板类型）。迁移已应用, 保留不删以保持与当初执行轨迹一致;
+    # ruff F841 卡 A6。删除会改变「已应用迁移」的内容, 风险大于收益。
+    AtomicMetric = apps.get_model('metrics', 'AtomicMetric')  # noqa: F841
+    DerivedMetric = apps.get_model('metrics', 'DerivedMetric')  # noqa: F841
     changed = []
     for tpl in MetricTemplate.objects.all():
         metric = tpl.atomic_metric or tpl.derived_metric

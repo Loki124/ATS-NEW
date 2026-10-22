@@ -96,20 +96,28 @@ def test_normalize_forward(silent_signals):
     assert {'candidate', 'expectation', 'work', 'project', 'edu', 'skill', 'certificate'} <= codes
 
     assert DynamicField.objects.filter(resource='Candidate', field_key='name').exists()
-    assert not DynamicField.objects.filter(resource='Candidate', field_key='Name').exists()
+    # 2026-10-21 卡 B5：**不能**用 `filter(field_key='Name').exists()` 判「旧 key 已消失」。
+    # 测试库是 MySQL，utf8mb4_unicode_ci 排序规则**大小写不敏感** → 查 'Name' 会命中
+    # 改名后的 'name' 行，断言必然假失败（SQLite 时代是大小写敏感，才没暴露）。
+    # 改在 Python 侧比字符串（大小写敏感），语义才与「改名」一致。
+    _keys = set(
+        DynamicField.objects.filter(resource='Candidate').values_list('field_key', flat=True)
+    )
+    assert 'Name' not in _keys
 
     assert DynamicField.objects.get(field_key='political_affiliation').field_type == 'LIST_SINGLE'
     assert DynamicField.objects.get(field_key='resume_update_time').field_type == 'DATE'
 
     for junk in ('excel', 'test_confirm_smoke'):
-        assert DynamicField.objects.get(field_key=junk).deleted_at is not None
+        assert DynamicField.all_objects.get(field_key=junk).deleted_at is not None
 
     assert DynamicField.objects.get(field_key='company').module.code == 'work'
     assert DynamicField.objects.get(field_key='project_name').module.code == 'project'
 
     # 被占用的 key 不改名、不报错，占位行原样保留
-    assert DynamicField.objects.filter(field_key='salary').exists()
-    assert DynamicField.objects.get(field_key='salary').deleted_at is not None
+    # (2026-10-21 卡 D3: 占位行是软删行, 默认 manager 已过滤 → 用 all_objects 读)
+    assert DynamicField.all_objects.filter(field_key='salary').exists()
+    assert DynamicField.all_objects.get(field_key='salary').deleted_at is not None
 
 
 def test_normalize_backwards_restores(silent_signals):
@@ -120,12 +128,17 @@ def test_normalize_backwards_restores(silent_signals):
     run(MIG, 'backwards')
 
     assert DynamicField.objects.filter(resource='Candidate', field_key='Name').exists()
-    assert not DynamicField.objects.filter(resource='Candidate', field_key='name').exists()
+    # 同上：MySQL 大小写不敏感 → 旧 key 判定必须在 Python 侧做
+    _keys = set(
+        DynamicField.objects.filter(resource='Candidate').values_list('field_key', flat=True)
+    )
+    assert 'name' not in _keys
     assert DynamicField.objects.get(field_key='Political affiliation').field_type == ''
-    assert DynamicField.objects.get(field_key='excel').deleted_at is None
-    assert DynamicField.objects.get(field_key='test_confirm_smoke').deleted_at is None
+    assert DynamicField.all_objects.get(field_key='excel').deleted_at is None
+    assert DynamicField.all_objects.get(field_key='test_confirm_smoke').deleted_at is None
     # 占位的 salary 不能被反向改名成 'Salary'
-    assert DynamicField.objects.filter(field_key='salary').exists()
+    # (2026-10-21 卡 D3: 占位行是软删行, 默认 manager 已过滤 → 用 all_objects 读)
+    assert DynamicField.all_objects.filter(field_key='salary').exists()
 
     codes = set(FieldModule.objects.filter(resource='Candidate').values_list('code', flat=True))
     assert 'expectation' not in codes
@@ -145,4 +158,8 @@ def test_normalize_is_idempotent(silent_signals):
 
     assert FieldModule.objects.filter(resource='Candidate').count() == mods_first
     assert DynamicField.objects.filter(resource='Candidate').count() == fields_first
-    assert DynamicField.objects.filter(field_key='Name').count() == 0, '改名不应被重跑还原'
+    assert (
+        'Name' not in set(
+            DynamicField.objects.filter(resource='Candidate').values_list('field_key', flat=True)
+        )
+    ), '改名不应被重跑还原'

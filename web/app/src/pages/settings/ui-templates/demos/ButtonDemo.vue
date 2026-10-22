@@ -109,7 +109,7 @@
                   :loading="st.key === 'loading'"
                 >
                   <template v-if="row.icon && st.key !== 'loading'" #icon>
-                    <n-icon :component="row.icon" />
+                    <n-icon :component="row.icon" aria-hidden="true" />
                   </template>
                   {{ row.label }}
                 </n-button>

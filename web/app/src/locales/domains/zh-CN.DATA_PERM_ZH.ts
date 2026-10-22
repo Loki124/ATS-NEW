@@ -1541,7 +1541,6 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.SettingsLayout.s13': "品牌信息管理",
   'pages.settings.SettingsLayout.s14': "部门",
   'pages.settings.SettingsLayout.s15': "用户管理",
-  'pages.settings.SettingsLayout.s17': "用户组管理",
   'pages.settings.SettingsLayout.s18': "权限管理",
   'pages.settings.SettingsLayout.s19': "身份管理",
   'pages.settings.SettingsLayout.s20': "资源管理",
@@ -2236,6 +2235,11 @@ export const DATA_PERM_ZH: Record<string, string> = {
   'pages.settings.UserDirectory.s29': "保存用户",
   'pages.settings.UserDirectory.s30': "UUID",
   'pages.settings.UserDirectory.s31': "保存后由系统自动生成",
+  // 管理单元授权（2026-10-21）：用户级统一口径，一个用户的全部身份共用同一份范围
+  'pages.settings.UserDirectory.s32': "管理单元授权",
+  'pages.settings.UserDirectory.s33': "请选择该用户可管理的管理单元",
+  'pages.settings.UserDirectory.s34': "未授权时按身份默认数据范围生效；授权后仅可见所选单元范围内的数据",
+  'pages.settings.UserDirectory.s35': "加载管理单元失败，无法配置授权范围",
   'pages.settings.permission.ResourcesTab.s2': "按模块筛选",
   'pages.settings.permission.ResourcesTab.s3': "刷新",
   // 分页与状态提示（对齐「校招管控-规则配置」分页器外观）

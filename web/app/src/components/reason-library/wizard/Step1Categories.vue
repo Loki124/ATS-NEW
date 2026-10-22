@@ -483,7 +483,7 @@ function canMoveDown(cat: RuleCategory): boolean {
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--border-hairline, #c4c8d4);
+  border: 1.5px solid var(--border-hairline);
   border-radius: 4px;
   background: var(--surface);
   cursor: pointer;
@@ -515,14 +515,14 @@ function canMoveDown(cat: RuleCategory): boolean {
   width: 22px;
   height: 22px;
   padding: 0;
-  border: 1px solid var(--border-hairline, rgba(15, 23, 42, .08));
+  border: 1px solid var(--border-hairline);
   background: transparent;
   border-radius: 5px;
   cursor: pointer;
   color: var(--ink-soft);
   flex-shrink: 0;
 }
-.expand-btn:hover { background: var(--brand-tint, rgba(99,102,241,.1)); color: var(--brand-fg); }
+.expand-btn:hover { background: var(--brand-tint); color: var(--brand-fg); }
 .cat-actions {
   display: flex;
   gap: 2px;

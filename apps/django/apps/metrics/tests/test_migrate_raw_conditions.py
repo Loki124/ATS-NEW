@@ -137,7 +137,10 @@ def _make_raw_condition(link, field: str, operator: str, value, seq: int = 1) ->
     """在给定 link 上建一条待迁移的裸路径进入条件项。"""
     rule = EntryConditionRule.objects.create(
         link=link, process_id=link.process_id,
-        workflow_version='V1.0', rule_name=f'tst_life3_rule_{_new_id()}',
+        # EntryConditionRule.rule_name 是 max_length=30（apps/entry_condition/models.py:73），
+        # 前缀 + nanoid(21) 不得超过 30 —— 2026-10-21 卡 B5 前这里用 15/20 字符前缀，
+        # 拼出 36/41 字符 → MySQL 1406 Data too long，整文件 12 个用例全挂在建数据这步。
+        workflow_version='V1.0', rule_name=f'tst_l3r_{_new_id()}',
     )
     return ConditionItem.objects.create(
         rule=rule, item_seq=seq, condition_type='DEMAND',
@@ -893,7 +896,8 @@ def test_merge_preserves_existing_operators_and_conditions():
     _, _, link = _build_context()
     rule = EntryConditionRule.objects.create(
         link=link, process_id=link.process_id,
-        workflow_version='V1.0', rule_name=f'tst_life3_ref_rule_{_new_id()}',
+        # 同上：rule_name 限 30 字符（9 + 21 = 30）
+        workflow_version='V1.0', rule_name=f'tst_l3b_{_new_id()}',
     )
     # 迁移前就已存在的 METRIC 条件，引用该模板、用 IN
     legacy_ref = ConditionItem.objects.create(
@@ -977,7 +981,8 @@ def test_apply_output_marks_new_and_reuse_separately():
     _, _, link = _build_context()
     rule = EntryConditionRule.objects.create(
         link=link, process_id=link.process_id,
-        workflow_version='V1.0', rule_name=f'tst_life3_newreuse_{_new_id()}',
+        # 同上：rule_name 限 30 字符（10 + 21 = 31 → 超了，用 9 字符前缀）
+        workflow_version='V1.0', rule_name=f'tst_l3nr_{_new_id()}',
     )
     ci1 = ConditionItem.objects.create(
         rule=rule, item_seq=1, condition_type='CANDIDATE',

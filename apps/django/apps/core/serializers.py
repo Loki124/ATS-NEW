@@ -55,7 +55,6 @@ def _is_subordinate_of(manager_id, user_id):
     """
     if not manager_id or not user_id or manager_id == user_id:
         return False
-    from django.db.models import Q
 
     from .models import User
 
@@ -297,6 +296,11 @@ class UserMinimalSerializer(serializers.ModelSerializer):
         # (回归测试 apps/core/tests/test_user_list_nplus1.py 会拦截)。
         # 未注入时给空数组而非 None: 前端直接 .filter(Boolean) 渲染, 无需判空。
         ret['roleNames'] = self.context.get('role_names_map', {}).get(instance.pk, [])
+        # 2026-10-21: 用户管理列表「管理单元范围」列 — 该用户被授权的管理单元名称。
+        # 只认批量注入的 mgmt_unit_names_map (由 UserViewSet.get_serializer_context 提供),
+        # 与 roleNames 同一条纪律: 刻意不做逐行 fallback, 否则每行 1 次查询, N+1 又回来。
+        # 未注入时给空数组: 前端直接 .filter(Boolean) 渲染, 无需判空。
+        ret['managementUnitNames'] = self.context.get('mgmt_unit_names_map', {}).get(instance.pk, [])
         # 需求5: 直属上级（id）+ 派生姓名（只读）。list queryset 已 select_related('direct_manager')
         ret['directManager'] = instance.direct_manager_id
         ret['directManagerName'] = (

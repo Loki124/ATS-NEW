@@ -36,7 +36,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         from apps.core.models_permission_v2 import (
-            PermissionResource, RolePermissionV2,
+            PermissionResource,
+            RolePermissionV2,
         )
 
         fix = opts['fix']

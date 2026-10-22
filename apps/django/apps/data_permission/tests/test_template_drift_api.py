@@ -27,7 +27,13 @@ class TemplateDriftApiTestCase(TestCase):
         from apps.core.models import User
         from apps.core.models_permission_v2 import RoleV2
 
-        self.role = RoleV2.objects.create(role_code='HRBP', role_name='HRBP 角色')
+        # 2026-10-21 卡 B5：改 get_or_create —— `recruit-HRBP` 是**已提交**的系统角色
+        # （apps/campus_rotation 的 post_migrate 回调 seed_campus_roles 预置），
+        # 裸 create 会撞 roles.uk_system_role。本用例只用到 role_code，不关心其它字段。
+        self.role, _created = RoleV2.objects.get_or_create(
+            system_code='recruit', role_code='HRBP',
+            defaults={'role_name': 'HRBP 角色'},
+        )
         self.tpl = DataPermTemplate.objects.create(
             code='TPL_DRIFT', name='测试用模板', module_key='demand',
             params=[{'key': 'relation', 'label': '包含关系', 'required': True, 'default': 'contains'}],
@@ -144,4 +150,8 @@ class TemplateDriftApiTestCase(TestCase):
     def test_mode_all_modules_have_empty_drift_list(self):
         resp = build_modules_response(self.role)
         self.assertTrue(all('templateDrifts' in m for m in resp['modules']))
-        self.assertEqual(len(resp['modules']), 5)
+        # 模块清单取后端唯一真源（2026-10-21 S5-32 新增校招生管理卡后已非 5 个）；
+        # 写死数字会让每次加模块都要改测试，且漏改时报的是无关的「总数不对」。
+        from apps.data_permission.field_map import MODULE_ORDER
+        self.assertEqual(len(resp['modules']), len(MODULE_ORDER))
+        self.assertEqual({m['moduleKey'] for m in resp['modules']}, set(MODULE_ORDER))

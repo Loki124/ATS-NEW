@@ -358,4 +358,9 @@ def test_build_modules_response_always_has_write_normalized(role, admin_user):
     data = build_modules_response(role)
     assert 'writeNormalized' in data
     assert data['writeNormalized'] == []
-    assert len(data['modules']) == 5, '5 模块必须齐套'
+    # ⚠️ 不断言硬编码模块数：模块清单是 MODULE_ORDER 的派生物（2026-10-21 S5-35
+    # 新增校招生管理卡后已由 5 变 6），写死数字会让每次新增模块都要改测试 ——
+    # 且漏改时真正该报的是「某模块没出现」，而非「总数不对」。
+    from apps.data_permission.field_map import MODULE_ORDER
+    assert len(data['modules']) == len(MODULE_ORDER), '模块必须与 MODULE_ORDER 齐套'
+    assert {m['moduleKey'] for m in data['modules']} == set(MODULE_ORDER)

@@ -198,7 +198,7 @@ async function onRollback(v: SceneRuleVersion) {
 }
 .ver-item.current {
   border-color: var(--brand);
-  background: var(--brand-soft, rgba(32, 128, 240, 0.08));
+  background: var(--brand-soft);
 }
 .ver-head {
   display: flex;
@@ -214,7 +214,7 @@ async function onRollback(v: SceneRuleVersion) {
   font-size: var(--fs-12);
   font-weight: 600;
   color: var(--brand-fg);
-  background: var(--brand-soft, rgba(32, 128, 240, 0.12));
+  background: var(--brand-soft);
   border-radius: 999px;
   padding: 1px 8px;
 }

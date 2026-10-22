@@ -33,7 +33,6 @@
 """
 from django.db import migrations
 
-
 # 旧码 → (新码, 新中文名, 新类型, 新 module)
 RENAME = {
     # 渠道管理 → settings:channel

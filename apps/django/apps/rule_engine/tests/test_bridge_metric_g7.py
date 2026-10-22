@@ -22,8 +22,9 @@ entry_condition 把「指标模板 id」直接存在 ``ConditionItem.field`` 里
 5. 同一规则内 FIELD + METRIC 混合条件，逐条独立判定。
 6. 软删模板 -> 视为非指标条件（与源侧 ``_resolve_metric_template`` 同口径）。
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from apps.entry_condition.models import ConditionItem, EntryConditionRule
 from apps.metrics.models import AtomicMetric, MetricTemplate

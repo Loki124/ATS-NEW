@@ -30,9 +30,8 @@
 """
 from __future__ import annotations
 
-from django.utils import timezone
-
 import pytest
+from django.utils import timezone
 
 from apps.common.exceptions import StateTransitionError
 from apps.demand.models import Demand, DemandState
@@ -44,8 +43,12 @@ REBIND_URL = '/api/v1/demands/{id}/rebind-process/'
 
 
 def _reload(obj):
-    """从库里重新取一份实例（避开 FSMField protected=True，见 upgrade 文件同款说明）。"""
-    return type(obj)._default_manager.get(pk=obj.pk)
+    """从库里重新取一份实例（避开 FSMField protected=True，见 upgrade 文件同款说明）。
+
+    2026-10-21 卡 D3: 用 all_objects —— 默认 manager 已过滤软删行,
+    而本用例正是要读回**已软删**的职位, 验证它没被改指。
+    """
+    return type(obj).all_objects.get(pk=obj.pk)
 
 
 # ---------------------------------------------------------------------------

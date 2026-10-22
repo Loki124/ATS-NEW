@@ -605,6 +605,6 @@ onMounted(() => {
   color: var(--ink-faint);
 }
 .save-state.is-dirty {
-  color: var(--c-warning, #f59e0b);
+  color: var(--c-warning);
 }
 </style>
