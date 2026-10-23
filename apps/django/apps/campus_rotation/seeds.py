@@ -1,6 +1,6 @@
 """campus_rotation 种子数据。
 
-- 字典种子：LIVE_ROOM_PLATFORM（直播间平台）/ LOCATION（地点），范式照搬
+- 字典种子：LIVE_ROOM_PLATFORM（轮岗平台）/ LOCATION（地点），范式照搬
   apps/dictionary/seeds.py 的 _seed_type（update_or_create(type__code, key)，幂等）。
 - 角色种子：CAMPUS_MENTOR（校园导师）/ HEAD_TEACHER（班主任），RoleV2 系统预置，
   幂等 update_or_create(system_code='recruit', role_code=...)。
@@ -59,10 +59,16 @@ WORKSTATION_TYPE_ITEMS = [
 
 
 def seed_live_room_platform_type():
-    """直播间平台字典（系统预置，可扩展）。"""
+    """轮岗平台字典（系统预置，可扩展）。
+
+    2026-10-23 闸口1 裁决 Q2：字典**沿用** LIVE_ROOM_PLATFORM（零迁移、零数据风险），
+    但**展示名改为中性口径** —— 平台字段自本次起对直播间 / 客服部门 / 其他
+    三类形态均可填写，不再是直播间专属 → 展示名不能继续叫「直播间平台」。
+    字典项仍是「视频号 / 腾讯会议 / 企微直播」三项，本次**不加项**（运营可在字典页自行维护）。
+    """
     _seed_type(
-        'LIVE_ROOM_PLATFORM', '直播间平台', 'Live Room Platform',
-        '直播间所属直播平台枚举（视频号/腾讯会议/企微直播）',
+        'LIVE_ROOM_PLATFORM', '轮岗平台', 'Rotation Platform',
+        '轮岗资源所属平台枚举（视频号/腾讯会议/企微直播）',
         LIVE_ROOM_PLATFORM_ITEMS,
     )
 

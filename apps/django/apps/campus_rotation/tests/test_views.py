@@ -533,3 +533,90 @@ class TestCapacitySaturation:
             format='json',
         )
         assert r_patch.status_code == 200, r_patch.content
+
+
+# --------------------------------------------------------------------------- #
+# 平台字段 × 资源类型（2026-10-23 闸口1 裁决 Q1：三类形态均可填平台）
+# --------------------------------------------------------------------------- #
+@pytest.mark.django_db
+class TestPlatformFieldByResourceType:
+    """闸口1 Q1：原「平台按资源类型设限」的类型门控整条删除。
+
+    改后唯一约束 = 「有值则须为启用中的 LIVE_ROOM_PLATFORM 字典项」，
+    对直播间 / 客服部门 / 其他 三类形态统一生效；留空一律允许。
+    """
+
+    def test_service_dept_accepts_valid_platform(self, auth_client, bu_hierarchy, _seed_campus_data):
+        bu = bu_hierarchy['bu_valid']
+        resp = auth_client.post(
+            f'{BASE}/resources/',
+            {
+                'name': '客服部带平台', 'resource_type': 'SERVICE_DEPT',
+                'platform': 'VIDEO_ACCOUNT', 'bu': bu.id,
+            },
+            format='json',
+        )
+        assert resp.status_code == 201, resp.content
+        data = resp.json()['data']
+        assert data['resourceType'] == 'SERVICE_DEPT'
+        assert data['platform'] == 'VIDEO_ACCOUNT', data
+
+    def test_other_accepts_valid_platform(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """闸口1 Q1：OTHER（其他）一并放开。"""
+        bu = bu_hierarchy['bu_valid']
+        resp = auth_client.post(
+            f'{BASE}/resources/',
+            {
+                'name': '其他带平台', 'resource_type': 'OTHER',
+                'platform': 'TENCENT_MEETING', 'bu': bu.id,
+            },
+            format='json',
+        )
+        assert resp.status_code == 201, resp.content
+        assert resp.json()['data']['platform'] == 'TENCENT_MEETING'
+
+    def test_service_dept_rejects_invalid_platform(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """放开类型后，字典有效性校验对三类形态统一生效。"""
+        bu = bu_hierarchy['bu_valid']
+        resp = auth_client.post(
+            f'{BASE}/resources/',
+            {
+                'name': '客服部非法平台', 'resource_type': 'SERVICE_DEPT',
+                'platform': 'NOT_A_PLATFORM', 'bu': bu.id,
+            },
+            format='json',
+        )
+        assert resp.status_code == 400, resp.content
+        assert '平台字典项不存在或未启用' in str(resp.json().get('errors')), resp.json()
+
+    def test_service_dept_platform_is_optional(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """客服部门平台为选填 → 留空合法。"""
+        bu = bu_hierarchy['bu_valid']
+        resp = auth_client.post(
+            f'{BASE}/resources/',
+            {'name': '客服部不填平台', 'resource_type': 'SERVICE_DEPT', 'bu': bu.id},
+            format='json',
+        )
+        assert resp.status_code == 201, resp.content
+        assert resp.json()['data']['platform'] in ('', None)
+
+    def test_platform_filter_is_cross_resource_type(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """平台筛选跨形态：同一平台下的直播间与客服部门资源都能被筛出。"""
+        bu = bu_hierarchy['bu_valid']
+        for name, rtype, platform in (
+            ('直播间视频号', 'LIVE_ROOM', 'VIDEO_ACCOUNT'),
+            ('客服部视频号', 'SERVICE_DEPT', 'VIDEO_ACCOUNT'),
+            ('直播间腾讯会议', 'LIVE_ROOM', 'TENCENT_MEETING'),
+        ):
+            r = auth_client.post(
+                f'{BASE}/resources/',
+                {'name': name, 'resource_type': rtype, 'platform': platform, 'bu': bu.id},
+                format='json',
+            )
+            assert r.status_code == 201, r.content
+
+        resp = auth_client.get(f'{BASE}/resources/', {'platform': 'VIDEO_ACCOUNT'})
+        assert resp.status_code == 200
+        rows = resp.json()['data']
+        assert len(rows) == 2, rows
+        assert {row['resourceType'] for row in rows} == {'LIVE_ROOM', 'SERVICE_DEPT'}

@@ -73,11 +73,15 @@ describe('示例数据形状', () => {
     })
   })
 
-  it('平台仅直播间形态有值（客服部门 / 其他留空）', () => {
+  it('平台对三类形态均可有值（客服部门 / 其他不再强制留空）', () => {
     MOCK_RESOURCES.forEach((r: any) => {
       if (r.resourceType === 'LIVE_ROOM') expect(r.platform).toBeTruthy()
-      else expect(r.platform).toBe('')
+      else expect(typeof r.platform).toBe('string') // 可留空（''），也可填字典 key
     })
+    // 演示口径（闸口1 Q1 放开后）：客服部门示例至少有一条带平台值
+    expect(
+      MOCK_RESOURCES.some((r: any) => r.resourceType === 'SERVICE_DEPT' && !!r.platform),
+    ).toBe(true)
   })
 
   it('校招生档案覆盖全部在职状态（页签/筛选项都能命中）', () => {

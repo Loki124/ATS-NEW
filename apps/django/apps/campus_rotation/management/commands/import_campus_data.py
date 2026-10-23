@@ -185,7 +185,10 @@ class Command(BaseCommand):
             'department': resolver.resolve_department(item.get('department')),
             'bu': resolver.resolve_department(item.get('bu')),
             'mentor': resolver.resolve_user(item.get('mentor')),
-            'platform': (item.get('platform') or '').strip() if resource_type == 'LIVE_ROOM' else '',
+            # 2026-10-23 闸口1 裁决 Q1：平台对三类形态**均可填** → 去掉资源类型门控。
+            #   （原写法 `... if resource_type == 'LIVE_ROOM' else ''` 是**静默清空**：
+            #     运营用 JSON 导入给客服部门填了平台会被无声丢弃且零反馈。）
+            'platform': (item.get('platform') or '').strip(),
             'location': item.get('location', ''),
             'capacity': item.get('capacity'),
             'social_count': item.get('social_count', 0),
@@ -441,7 +444,7 @@ SAMPLE_DATA = '''
       "department": "腾讯云研发部",        // 按 Department.name 精确匹配
       "bu": "云与智慧产业事业群",          // 按 Department.name 精确匹配
       "mentor": {"employee_id": "12345"},  // 或 {"username": "zhangsan"}
-      "platform": "TENCENT_MEETING",      // 仅直播间填
+      "platform": "TENCENT_MEETING",      // 选填（直播间必填，其余类型可留空）
       "location": "SHENZHEN",
       "capacity": 50,
       "is_active": true

@@ -168,15 +168,15 @@
             </n-grid-item>
           </n-grid>
 
-          <!-- 平台仅「直播间」形态有意义；其余类型隐藏并清空（后端会拒绝非直播间的平台值） -->
+          <!-- 平台：2026-10-23 闸口1 裁决 —— 直播间 / 客服部门 / 其他 三类形态均可选填；
+               切换资源类型不再清空已选平台（后端只校验「有值则须为启用中的字典项」）。 -->
           <n-grid :cols="2" :x-gap="24">
             <n-grid-item>
-              <n-form-item label="平台" :required="formState.resourceType === 'LIVE_ROOM'">
+              <n-form-item label="平台">
                 <n-select
                   v-model:value="formState.platform"
                   :options="platformOptions"
-                  :placeholder="formState.resourceType === 'LIVE_ROOM' ? '请选择平台' : '仅直播间可填平台'"
-                  :disabled="formState.resourceType !== 'LIVE_ROOM'"
+                  placeholder="请选择平台（选填）"
                   clearable
                   filterable
                 />
@@ -240,7 +240,7 @@
         <n-space vertical :size="12">
           <n-alert type="info" :show-icon="true" :bordered="false">
             仅支持 .xlsx 格式。「资源编号」留空 = 新建（系统按资源类型自动生成 LR+4 / SD+4 / OT+4 流水号）；
-            填写则按该编号更新已有资源。平台仅「直播间」必填，其余类型请留空；
+            填写则按该编号更新已有资源。平台：直播间必填，客服部门 / 其他选填；
             归属部门须与系统中的部门名称完全一致，不存在的行会被跳过并在下方列出原因。
           </n-alert>
           <n-space align="center" :wrap="false">
@@ -372,7 +372,7 @@ const searchText = ref('')
 const filterDepartment = ref<string[]>([])
 /** 资源类型筛选 */
 const filterResourceType = ref<string | null>(null)
-/** 所在平台筛选（仅直播间有意义） */
+/** 所在平台筛选（跨形态：平台是资源属性，选某平台即筛出所有该平台的资源） */
 const filterPlatform = ref<string | null>(null)
 /** 状态筛选：默认「启用」。启停改由行内「启用 / 停用」按钮操作。 */
 const filterStatus = ref<string | null>('active')
@@ -446,10 +446,9 @@ const emptyForm = () => ({
 })
 const formState = reactive(emptyForm())
 
-/** 切换资源类型：非直播间必须清空平台（后端会拒绝非直播间的平台值）。 */
+/** 切换资源类型：平台对三类形态均可选填 → **不清空**已选平台（避免用户输入被静默丢弃）。 */
 const onResourceTypeChange = (value: string) => {
   formState.resourceType = value
-  if (value !== 'LIVE_ROOM') formState.platform = null
 }
 
 const onMentorSearch = async (kw: string) => {
@@ -486,7 +485,7 @@ const loadList = async () => {
 
 const loadDicts = async () => {
   try {
-    // 只剩「直播间平台」一个字典（品牌 / 客服类型 / 工位类型随字段下线而移除）
+    // 只剩「轮岗平台」一个字典（品牌 / 客服类型 / 工位类型随字段下线而移除）
     platformOptions.value = await dictOptions('LIVE_ROOM_PLATFORM')
   } catch (e: any) {
     message.error(extractError(e))
@@ -546,8 +545,8 @@ const save = async () => {
     department: formState.department,
     bu: formState.bu,
     mentor: formState.mentor,
-    // 平台仅直播间形态有意义；其余类型提交空串（后端对非直播间的平台值会 400）
-    platform: formState.resourceType === 'LIVE_ROOM' ? formState.platform : null,
+    // 平台对三类形态均可选填 → 原样提交（后端只校验「有值则须为启用中的字典项」）
+    platform: formState.platform,
     location: formState.location,
     capacity: formState.capacity,
     socialCount: formState.socialCount,

@@ -7,7 +7,7 @@
    客服部门 dept_no → resource_no、cs_supervisor → mentor、resource_type=SERVICE_DEPT；
 2. **已下线字段确实不再存在**（品牌 / 客服类型 / 工位类型 / 是否需培训认证）——
    需求明确要求去掉，这是「合并后不再有这些列」的可执行断言；
-3. 平台（platform）保留但仅对直播间形态有意义；
+3. 平台（platform）保留 —— 2026-10-23 闸口1 裁决 Q1：三类形态**均可**填写；
 4. 轮岗安排的两个旧 FK（live_room / service_dept）合并为单个 resource FK，
    且**存量引用不丢**（这是最容易漏的一条：只建新表不改 FK → 位置引用静默变空）；
 5. 新号按资源类型分别取号：LR+4 / SD+4 / OT+4，且**同前缀独立计数**。
@@ -110,13 +110,17 @@ def test_number_generated_per_type_with_four_digits():
     assert d.resource_no == 'OT0001', d.resource_no
 
 
-def test_platform_only_meaningful_for_live_room():
-    """平台字段保留但只对直播间有意义（客服部门留空）。"""
+def test_platform_allowed_for_all_resource_types():
+    """平台字段：2026-10-23 闸口1 裁决 Q1 → 三类形态**均可**填写（不再只对直播间有意义）。"""
     live = RotationResource.objects.create(
         name='直播间', resource_type='LIVE_ROOM', platform='TENCENT_MEETING',
     )
     dept = RotationResource.objects.create(
-        name='客服部门', resource_type='SERVICE_DEPT', platform='',
+        name='客服部门', resource_type='SERVICE_DEPT', platform='VIDEO_ACCOUNT',
+    )
+    other = RotationResource.objects.create(
+        name='其他', resource_type='OTHER', platform='',
     )
     assert live.platform == 'TENCENT_MEETING'
-    assert dept.platform == ''
+    assert dept.platform == 'VIDEO_ACCOUNT'
+    assert other.platform == ''

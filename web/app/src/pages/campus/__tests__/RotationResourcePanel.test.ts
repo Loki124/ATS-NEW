@@ -37,6 +37,7 @@ vi.mock('../../../utils/request', () => ({
 }))
 
 import RotationResourcePanel from '../RotationResourcePanel.vue'
+import { api } from '../../../utils/request'
 
 const RESOURCES = [
   {
@@ -247,14 +248,61 @@ describe('轮岗资源页 · 字段（合并后）', () => {
     expect(vm.noHint).toContain('OT+4')
   }, 20000)
 
-  it('⑫ 切换资源类型为非直播间 → 平台被清空（后端会拒绝非直播间的平台值）', async () => {
+  it('⑫ 切换资源类型 → 平台取值保留（闸口1 Q1：三类形态均可填平台）', async () => {
     const w = await mountPage()
     const vm = w.vm as any
     vm.openCreate()
     await flushPromises()
     vm.formState.platform = 'VIDEO_ACCOUNT'
     vm.onResourceTypeChange('SERVICE_DEPT')
-    expect(vm.formState.platform).toBe(null)
+    expect(vm.formState.platform).toBe('VIDEO_ACCOUNT')
     expect(vm.formState.resourceType).toBe('SERVICE_DEPT')
+    // 「其他」同样放开 → 也不再清空
+    vm.onResourceTypeChange('OTHER')
+    expect(vm.formState.platform).toBe('VIDEO_ACCOUNT')
+  }, 20000)
+
+  it('⑬ 平台字段：三类形态均可交互、无必填星号、占位文案写明选填', async () => {
+    const w = await mountPage()
+    const vm = w.vm as any
+    vm.openCreate()
+    await flushPromises()
+
+    // 平台下拉：可交互（不再按资源类型禁用）、占位文案含「选填」
+    const selects = w.findAllComponents({ name: 'Select' }) as any[]
+    const platformSelect = selects.find((s) =>
+      String(s.props('placeholder') || '').includes('选填'),
+    )
+    expect(platformSelect).toBeTruthy()
+    expect(platformSelect!.props('disabled')).toBeFalsy()
+
+    // 平台标签无必填星号
+    const platformItem = w.findAll('.n-form-item').find((it) =>
+      it.find('.n-form-item-label__text').exists()
+      && it.find('.n-form-item-label__text').text() === '平台',
+    )
+    expect(platformItem).toBeTruthy()
+    expect(platformItem!.find('.n-form-item-label__asterisk').exists()).toBe(false)
+
+    // 切到客服部门 / 其他，平台下拉仍可交互
+    vm.onResourceTypeChange('SERVICE_DEPT')
+    await flushPromises()
+    expect(platformSelect!.props('disabled')).toBeFalsy()
+  }, 20000)
+
+  it('⑭ 客服部门提交 payload 携带 platform（不再是恒 null）', async () => {
+    const w = await mountPage()
+    const vm = w.vm as any
+    ;(api.post as any).mockClear()
+    vm.openCreate()
+    await flushPromises()
+    vm.formState.name = '上海在线客服一部'
+    vm.formState.resourceType = 'SERVICE_DEPT'
+    vm.formState.platform = 'VIDEO_ACCOUNT'
+    await vm.save()
+    await flushPromises()
+    expect(api.post).toHaveBeenCalled()
+    const payload = (api.post as any).mock.calls[0][1]
+    expect(payload.platform).toBe('VIDEO_ACCOUNT')
   }, 20000)
 })

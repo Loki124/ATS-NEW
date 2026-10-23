@@ -36,7 +36,7 @@ export const MOCK_RESOURCES: any[] = [
   { id: 'MOCK_RS_07', resourceNo: 'LR0007', name: '视频号直播-北京-旧场地', resourceType: 'LIVE_ROOM', department: '技术中心', bu: '能良', mentor: '吴倩（带教导师）', mentorName: '吴倩', platform: 'VIDEO_ACCOUNT', location: '北京', capacity: 10, socialCount: 1, campusCount: 0, isActive: false },
   { id: 'MOCK_RS_08', resourceNo: 'LR0008', name: '企微直播-成都-宣讲候场', resourceType: 'LIVE_ROOM', department: '产品中心', bu: '能智BG', mentor: '郑凯（带教导师）', mentorName: '郑凯', platform: 'WECHAT_WORK_LIVE', location: '成都', capacity: 18, socialCount: 5, campusCount: 11, isActive: true },
   // —— 客服部门形态（SD+4）——
-  { id: 'MOCK_RS_09', resourceNo: 'SD0001', name: '上海在线客服一部', resourceType: 'SERVICE_DEPT', department: '技术中心', bu: '能智BG', mentor: '林曼（客服主管）', mentorName: '林曼', platform: '', location: '上海', capacity: 40, socialCount: 8, campusCount: 22, isActive: true },
+  { id: 'MOCK_RS_09', resourceNo: 'SD0001', name: '上海在线客服一部', resourceType: 'SERVICE_DEPT', department: '技术中心', bu: '能智BG', mentor: '林曼（客服主管）', mentorName: '林曼', platform: 'VIDEO_ACCOUNT', location: '上海', capacity: 40, socialCount: 8, campusCount: 22, isActive: true },
   { id: 'MOCK_RS_10', resourceNo: 'SD0002', name: '上海外呼客服组', resourceType: 'SERVICE_DEPT', department: '运营中心', bu: '能智BG', mentor: '黄磊（客服主管）', mentorName: '黄磊', platform: '', location: '上海', capacity: 25, socialCount: 5, campusCount: 10, isActive: true },
   { id: 'MOCK_RS_11', resourceNo: 'SD0003', name: '北京售后客服部', resourceType: 'SERVICE_DEPT', department: '产品中心', bu: '醒市', mentor: '冯雪（客服主管）', mentorName: '冯雪', platform: '', location: '北京', capacity: 18, socialCount: 4, campusCount: 6, isActive: true },
   { id: 'MOCK_RS_12', resourceNo: 'SD0004', name: '深圳在线客服二部', resourceType: 'SERVICE_DEPT', department: '运营中心', bu: '醒市', mentor: '邓超（客服主管）', mentorName: '邓超', platform: '', location: '深圳', capacity: 30, socialCount: 9, campusCount: 14, isActive: true },
@@ -248,9 +248,17 @@ export function buildMockPersonProfile(p: any) {
       classRoomName: p?.classRoomName || '',
       headTeacherId: '',
       headTeacherName: p?.headTeacherName || '',
+      // 2026-10-23（聂荣口径）新增字段
+      majorName: p?.majorName || p?.major || '',
+      classMonitorId: '',
+      classMonitorName: '',
+      hrbpId: '',
+      hrbpName: classRoom?.hrbp || '',
+      rotationStatus: '',
+      rotationStatusLabel: '',
       mentorId: '',
       mentorName: '',
-      batch: classRoom?.batch || '',
+      batch: classRoom?.batch || p?.batch || '',
     },
     classRoom: classRoom
       ? {
@@ -272,6 +280,7 @@ export function buildMockPersonProfile(p: any) {
       rating: null,
     },
     stages: [],
+    educations: [],
     monthlyAssessments: [],
     dailyReports: [],
     recommendations: [],

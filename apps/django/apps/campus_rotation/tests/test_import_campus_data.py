@@ -93,3 +93,29 @@ def test_apply_is_idempotent_by_business_key(tmp_path):
     assert RotationResource.objects.filter(resource_no='LR000010').count() == 1
     # 再次确认更新链路未新增行
     assert RotationResource.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_platform_not_silently_cleared_for_non_live_room(tmp_path):
+    """闸口1 Q1：JSON 导入**不再按资源类型静默清空平台**。
+
+    原实现 `'platform': ... if resource_type == 'LIVE_ROOM' else ''` 会把客服部门
+    填的平台**无声丢弃且零反馈** —— 运营以为导进去了，实际库里的值是空。
+    """
+    payload = {
+        'resources': [
+            {'resource_no': 'SD000010', 'name': '客服部门带平台',
+             'resource_type': '客服部门', 'platform': 'VIDEO_ACCOUNT'},
+        ],
+        'class_rooms': [],
+        'rotation_arrangements': [],
+    }
+    src = tmp_path / 'data.json'
+    src.write_text(json.dumps(payload), encoding='utf-8')
+
+    out = StringIO()
+    call_command('import_campus_data', source=str(src), stdout=out)
+
+    res = RotationResource.objects.get(resource_no='SD000010')
+    assert res.resource_type == 'SERVICE_DEPT'
+    assert res.platform == 'VIDEO_ACCOUNT', '客服部门的平台不应被静默清空'

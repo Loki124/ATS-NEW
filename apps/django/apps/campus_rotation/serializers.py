@@ -43,7 +43,8 @@ class RotationResourceSerializer(serializers.ModelSerializer):
 
     已下线字段（需求明确要求去掉，模型层已无对应列）：
       品牌 / 客服类型 / 工位类型 / 是否需培训认证
-    平台（platform）保留 —— 仅「直播间」形态有意义。
+    平台（platform）保留 —— 2026-10-23 闸口1 裁决：直播间 / 客服部门 / 其他
+    **三类形态均可选填**（有值则须为启用中的 LIVE_ROOM_PLATFORM 字典项）。
     """
     # 只读聚合字段（不落库）：按资源归属部门 + 在校（ONGOING）状态统计校招生占用。
     campus_count = serializers.IntegerField(read_only=True, default=0)
@@ -87,16 +88,12 @@ class RotationResourceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'mentor': '该用户不具备校园导师（CAMPUS_MENTOR）身份'})
 
-        # 平台仅「直播间」形态有意义（客服部门 / 其他本就没有该字段）。
-        # 客户端切换资源类型后若残留平台值 → 明确报错，而不是悄悄丢弃。
-        resource_type = attrs.get('resource_type') or getattr(
-            self.instance, 'resource_type', RotationResource.ResourceType.LIVE_ROOM,
-        )
+        # 平台：2026-10-23 闸口1 裁决 —— **不再按资源类型设限**（Q1：OTHER 一并放开）。
+        #   唯一约束是「有值则须为启用中的字典项」；留空一律允许。
+        #   ⚠️ 直播间资源的平台「必填」口径只在 **Excel 导入**端（行级错误）成立，
+        #      表单端历史口径即为「不强校验」，本次维持现状（不改 = 不引入新口径差）。
         platform = attrs.get('platform')
         if platform:
-            if resource_type != RotationResource.ResourceType.LIVE_ROOM:
-                raise serializers.ValidationError(
-                    {'platform': '平台仅「直播间」形态可填，请清空或改选直播间'})
             if not dict_key_active('LIVE_ROOM_PLATFORM', platform):
                 raise serializers.ValidationError(
                     {'platform': '平台字典项不存在或未启用'})

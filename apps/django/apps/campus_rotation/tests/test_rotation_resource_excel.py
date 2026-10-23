@@ -263,6 +263,24 @@ class TestResourceTemplate:
         header = [ws.cell(row=header_row, column=c).value for c in range(1, len(HEADERS) + 1)]
         assert header == HEADERS, header
 
+    def test_template_notes_platform_rule_covers_all_types(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """2026-10-23 闸口1：模板填写说明的平台口径 = 直播间必填 + 其余类型选填，且不含旧口径文案。"""
+        resp = auth_client.get(f'{BASE}/resources/template/?file_format=xlsx')
+        assert resp.status_code == 200, resp.content
+        ws = load_workbook(io.BytesIO(resp.content)).active
+        texts = []
+        for ridx in range(1, min(ws.max_row, 30) + 1):
+            for cidx in range(1, len(HEADERS) + 1):
+                v = ws.cell(row=ridx, column=cidx).value
+                if isinstance(v, str) and '平台' in v:
+                    texts.append(v)
+        joined = '\n'.join(texts)
+        assert joined, '模板填写说明应含平台相关文案'
+        assert '选填' in joined, joined
+        assert '客服部门' in joined, joined
+        # 旧口径「…其余类型请留空」已作废（闸口1 Q1：三类形态均可填平台）
+        assert '请留空' not in joined, joined
+
 
 # --------------------------------------------------------------------------- #
 # 4. 导入
@@ -321,16 +339,47 @@ class TestResourceImport:
         assert data['skipped'] == 1
         assert any('平台' in e for e in data['errors']), data['errors']
 
-    def test_import_platform_rejected_for_non_live_room(self, auth_client, bu_hierarchy, _seed_campus_data):
-        """非直播间填平台 → 行级错误（平台仅直播间形态有意义）。"""
+    def test_import_platform_allowed_for_non_live_room(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """2026-10-23 闸口1 裁决 Q1：平台对三类形态**均可填**（原口径「非直播间填平台 → 行级错误」作废）。
+
+        客服部门行填中文名平台 → 成功落库且 platform 解析为字典 key。
+        """
         _reset_resources()
         resp = _post_import(auth_client, [
             _row(name='客服带平台', resource_type='客服部门', department='技术BU', platform='视频号'),
         ])
+        assert resp.status_code == 200, resp.content
+        data = resp.json()['data']
+        assert data['skipped'] == 0, data
+        assert data['created'] == 1, data
+        res = RotationResource.objects.get(name='客服带平台')
+        assert res.resource_type == 'SERVICE_DEPT'
+        assert res.platform == 'VIDEO_ACCOUNT', '平台中文名应解析为字典 key'
+
+    def test_import_platform_allowed_for_other_type(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """闸口1 Q1：OTHER（其他）同样放开平台填写。"""
+        _reset_resources()
+        resp = _post_import(auth_client, [
+            _row(name='其他带平台', resource_type='其他', department='技术BU', platform='VIDEO_ACCOUNT'),
+        ])
+        assert resp.status_code == 200, resp.content
+        data = resp.json()['data']
+        assert data['skipped'] == 0, data
+        res = RotationResource.objects.get(name='其他带平台')
+        assert res.resource_type == 'OTHER'
+        assert res.platform == 'VIDEO_ACCOUNT'
+
+    def test_import_invalid_platform_rejected_for_all_types(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """放开类型后，「有值则须为启用中的字典项」对三类形态统一生效。"""
+        _reset_resources()
+        resp = _post_import(auth_client, [
+            _row(name='平台非法', resource_type='客服部门', department='技术BU', platform='NOT_A_PLATFORM'),
+        ])
         assert resp.status_code == 400, resp.content
         data = resp.json()['data']
-        assert data['skipped'] == 1
+        assert data['skipped'] == 1, data
         assert any('平台' in e for e in data['errors']), data['errors']
+        assert not RotationResource.objects.filter(name='平台非法').exists()
 
     def test_import_invalid_resource_type_is_skipped(self, auth_client, bu_hierarchy, _seed_campus_data):
         _reset_resources()

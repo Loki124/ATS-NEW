@@ -3,7 +3,7 @@
 2026-10-22 兵哥指令：直播间 + 客服部门整合为「轮岗资源」一张表后，
 本模块由 `io_live_room.py` 演进而来 —— 列结构从「直播间 11 列」扩为
 「轮岗资源 12 列」，核心变化是**新增「资源类型」列**（直播间 / 客服部门 / 其他），
-并按类型区分「平台」是否必填。
+并按类型区分「平台」是否必填（2026-10-23 闸口1 裁决：**仅直播间必填**，其余类型选填）。
 
 模板 / 导入 / 导出**共用同一套列结构**（HEADERS，顺序固定），保证
 「下载模板 → 填数据 → 导入」闭环一致。
@@ -16,7 +16,7 @@
   4 归属BU     bu           选填（须为二级部门 / BU）
   5 导师       mentor       选填（须具备 CAMPUS_MENTOR 身份）
   6 平台       platform     **直播间必填**（LIVE_ROOM_PLATFORM 字典，中文名或 key）；
-                           客服部门 / 其他必须留空
+                           客服部门 / 其他**选填**（填了同样须是启用中的字典项）
   7 地点       location     选填（**自由文本**，非字典项）
   8 容量上限   capacity     选填（非负整数）
   9 社招人数   social_count 选填（非负整数）
@@ -264,8 +264,8 @@ TEMPLATE_NOTES = [
     '（直播间 LR+4 位、客服部门 SD+4 位、其他 OT+4 位，如 LR0001）；'
     '填写则按该编号 upsert（命中已有编号 → 更新该资源）。',
     '4. 归属部门必须填写系统内已存在的部门名称；归属BU 填写时必须是二级部门（BU）。',
-    '5. 平台仅「直播间」必填，可填中文名（如 视频号）或字典 key（如 VIDEO_ACCOUNT），'
-    '两者都认；须为启用状态的平台字典项。客服部门 / 其他请留空。',
+    '5. 平台：直播间必填，客服部门 / 其他选填；可填中文名（如 视频号）或字典 key（如 '
+    'VIDEO_ACCOUNT），两者都认；填了就须为启用状态的平台字典项，留空表示不填。',
     '6. 地点为自由文本，直接填写即可（如 北京 / 滨海新区 A 座），不做字典校验。',
     '7. 导师可填用户名或姓名，该用户须具备「校园导师（CAMPUS_MENTOR）」身份。',
     '8. 容量上限 / 社招人数填非负整数；状态填「启用」或「停用」（留空 = 启用）。',
@@ -434,13 +434,15 @@ def parse_import_workbook(file_obj):
                 _row_err(f'归属BU「{bu_raw}」须为二级部门（部门层级=第2级）')
                 continue
 
-        # —— 平台（直播间必填；其它类型必须留空）——
+        # —— 平台（直播间必填；其余类型选填）——
+        # 2026-10-23 闸口1 裁决 Q1：直播间 / 客服部门 / 其他 **均可填平台**，
+        #   仅「直播间」保留必填判空；有值则一律须解析为启用中的字典项。
         platform_raw = _s(vals.get('平台'))
         platform_key = ''
-        if resource_type == 'LIVE_ROOM':
-            if not platform_raw:
-                _row_err('资源类型为「直播间」时，平台不能为空')
-                continue
+        if resource_type == 'LIVE_ROOM' and not platform_raw:
+            _row_err('资源类型为「直播间」时，平台不能为空')
+            continue
+        if platform_raw:
             platform_key = _resolve_dict_key(
                 PLATFORM_DICT, platform_raw, dict_cache, dict_active_cache,
             )
@@ -449,9 +451,6 @@ def parse_import_workbook(file_obj):
                     f'平台「{platform_raw}」非法（须为启用中的平台字典项，可填中文名或 key）'
                 )
                 continue
-        elif platform_raw:
-            _row_err(f'平台仅「直播间」可填，资源类型为「{RESOURCE_TYPE_LABEL[resource_type]}」时请留空')
-            continue
         if len(platform_key) > _MAX_PLATFORM_LEN:
             _row_err(f'平台过长（须 ≤{_MAX_PLATFORM_LEN} 字，当前 {len(platform_key)}）')
             continue
