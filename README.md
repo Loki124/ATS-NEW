@@ -99,7 +99,7 @@ npm run dev  # 访问 http://localhost:5212
 | Phase 6 | 文档与台账：README / TODO 口径、审计索引、sqlite 残留清理 | ✅ |
 | Phase 7 | 整跑可信度：补种打错库 / 吞异常 / 无守卫 / 共享库并发 4 个根因、前端 localStorage 兜底 | ✅ |
 
-**待办**：C4 的**独立发布**（代码已落地，需兵哥授权后单独发版）、E8 主体（把 176 个 `.vue`
+**待办**：C4 的**独立发布**（代码已随 `4252f139` 合入 HEAD，未按计划卡走独立 PR；生产迁移执行情况需另行核对）、E8 主体（把 176 个 `.vue`
 分批纳入覆盖率门禁）、E9（e2e 补齐，需浏览器运行时）、F5（prefetch，需生产量级 EXPLAIN）、
 F6/F7（拆大组件 / 清 any，持续项），以及 C4 遗留的「其他模型（`User.phone`/`User.email` 等）PII 仍明文」。
 
@@ -116,7 +116,7 @@ F6/F7（拆大组件 / 清 any，持续项），以及 C4 遗留的「其他模�
 - **PII 加密范围**：候选人 **身份证号**（`candidates.id_card_no`）、**手机号**（`candidates.phone`）、
   **邮箱**（`candidates.email`）均为字段级加密
   （`apps/common/encryption.py` 的 `EncryptedCharField`，Fernet/AES-128-CBC+HMAC）。
-  手机号 / 邮箱的落地加密见整改卡 **C4**（2026-10-21 完成，待授权独立发布）；
+  手机号 / 邮箱的落地加密见整改卡 **C4**（2026-10-21 完成，2026-10-23 已合入 HEAD）；
   查重与「完整号码/邮箱」精确搜索走 `phone_hash` / `email_hash` 盲索引列。
   `User.phone` / `User.email` 等**其他模型**的 PII 字段**仍是明文**，不在本卡口径内。
 - **`PII_HASH_SALT` 必填**：生产环境**必须**配置 `PII_HASH_SALT`（查重盲索引的盐）。
