@@ -10,9 +10,20 @@ from apps.core.models import Department, User
 from apps.core.models_permission_v2 import RoleV2, UserRoleV2
 from apps.dictionary.models import DictionaryItem
 
-# 导师名下 ONGOING 轮岗名额上限（方案 §3.2：上限来源 = 配置或约定常量）。
-# 如后续需运营可调，可下沉到 CampusModuleConfig，但当前按约定常量落地。
-MENTOR_ONGOING_CAPACITY = 20
+# 导师名下 ONGOING 轮岗名额上限。
+#
+# ⚠️ 2026-10-23 按聂荣《校招生管理系统 - 需求文档》口径由 **20 → 5**：
+#    需求原文「导师带教人数上限为5人」（人员管理模块与轮岗安排模块两处均写明 5）。
+#    旧值 20 出自本仓早期方案 §3.2 的「配置或约定常量」，与需求文档不符 —— 本次以需求文档为准。
+#    口径真源收敛到 `apps.campus_rotation.rules.MENTOR_CAPACITY`（与成班/批次规则同文件，
+#    避免同一语义散落两处）。
+#
+# ⚠️ 下调后的存量影响：某导师名下若已有 > 5 条 ONGOING 轮岗安排，再触发「进入轮岗中」
+#    会被判名额饱和（409 CapacityExceeded / TransitionNotAllowed）—— 这是口径收紧的预期行为，
+#    存量超编需业务侧先分流，不是缺陷。
+from apps.campus_rotation.rules import MENTOR_CAPACITY
+
+MENTOR_ONGOING_CAPACITY = MENTOR_CAPACITY
 
 
 class CapacityExceeded(APIException):

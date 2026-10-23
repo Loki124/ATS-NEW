@@ -30,11 +30,37 @@ from .constants import (
     STRENGTH,
 )
 from .models import (
+    BatchNaming,
+    BatchRule,
     ControlDimension,
     ControlIndicator,
     ControlRule,
     Person,
+    PersonEducation,
 )
+
+
+class PersonEducationSerializer(serializers.ModelSerializer):
+    """教育经历子记录（聂荣 2026-10-23 口径：个人档案「教育经历 · 院校标签就高原则」）。
+
+    院校标签 / 学历都是枚举 → 用 ChoiceField 把默认英文报错换成中文业务提示（R-203）。
+    """
+
+    school_tag = serializers.ChoiceField(
+        choices=[(s, s) for s in SCHOOLS],
+        required=False, allow_blank=True, default='',
+        error_messages={'invalid_choice': '院校标签非法'},
+    )
+    education = serializers.ChoiceField(
+        choices=[(e, e) for e in EDUCATIONS],
+        required=False, allow_blank=True, default='',
+        error_messages={'invalid_choice': '学历非法'},
+    )
+
+    class Meta:
+        model = PersonEducation
+        fields = ['id', 'school_name', 'school_tag', 'major_name', 'education']
+        read_only_fields = ['id']
 
 
 def _to_decimal(v):
@@ -300,8 +326,17 @@ def auto_match_candidate(name, phone):
     # 同名多人 → 只能靠手机号精确匹配
     if not phone:
         return None
-    from apps.common.encryption import hash_for_search
-    return qs.filter(phone_hash=hash_for_search(phone)).first()
+    # ⚠️ 2026-10-23 (决策 A 回灌 J5): 必须走**双读** hash 匹配，不能用单形态等值。
+    #    `hash_for_search(phone)` 只产出**当前**形态（配了 PII_HASH_SALT → `v2_`），
+    #    而库里还躺着**历史 v1 形态**（无前缀，64 字符）的存量哈希
+    #    （实测 ats_dev：phone_hash v1 1 行 / v2 6 行）
+    #    ⇒ 单形态 `phone_hash=` 对 v1 行**永远查不到**，而且是**静默**查不到（返回 None、不报错）
+    #    ⇒ `auto_match_candidate` 返回 None → 校招档案走**本地补号**（编号与候选人不同源），
+    #      肉眼完全看不出问题。
+    #    改用 `encrypted_field_eq_q`（= `phone_hash__in=hash_candidates_for_search(phone)`，
+    #    与 candidate/services.py 的主查重路径同款）⇒ v1/v2 都能命中。
+    from apps.common.encryption import encrypted_field_eq_q
+    return qs.filter(encrypted_field_eq_q('phone_hash', phone)).first()
 
 
 class PersonSerializer(serializers.ModelSerializer):
@@ -342,6 +377,11 @@ class PersonSerializer(serializers.ModelSerializer):
     mentor_name = serializers.SerializerMethodField()
     # 2026-10-22：HRBP 展示名（FK 本身只出 PK）
     hrbp_name = serializers.SerializerMethodField()
+    # 2026-10-23（聂荣口径）：班长展示名 + 身份完整性标记
+    class_monitor_name = serializers.SerializerMethodField()
+    identity_incomplete = serializers.SerializerMethodField()
+    # 2026-10-23（聂荣口径）：教育经历（多条；档案详情按「院校标签就高原则」取用）
+    educations = PersonEducationSerializer(many=True, required=False)
     # 2026-10-22：列表新增的三个轮岗维度指标（由 ViewSet 按页批量聚合后经 context 下发，
     #   口径见 `campus_control.person_rotation_stats`，与档案详情完全一致）
     rotation_status = serializers.SerializerMethodField()
@@ -356,9 +396,12 @@ class PersonSerializer(serializers.ModelSerializer):
             'month', 'status', 'expected_entry_date', 'actual_entry_date',
             'position', 'level', 'counted',
             'head_teacher', 'head_teacher_name', 'class_room', 'class_room_name',
+            'class_monitor', 'class_monitor_name',
             'mentor', 'mentor_name',
             'school_name', 'education', 'phone', 'major_name', 'degree', 'hrbp', 'hrbp_name', 'batch',
             'rotation_status', 'rotation_status_label', 'rotation_dept', 'overall_score',
+            'identity_incomplete',
+            'educations',
             'candidate', 'candidate_code', 'candidate_name',
             'created_at', 'updated_at',
         ]
@@ -393,8 +436,59 @@ class PersonSerializer(serializers.ModelSerializer):
     def get_mentor_name(self, obj):
         return obj.mentor.full_name if obj.mentor_id else ''
 
+    def get_class_monitor_name(self, obj):
+        return obj.class_monitor.full_name if obj.class_monitor_id else ''
+
+    def get_identity_incomplete(self, obj):
+        """身份字段完整性（聂荣 2026-10-23 取数规则）。
+
+        需求原文：「简历编号与员工工号应取尽取，历史非招聘系统入职人员可不显示简历编号，
+        在途校招生可不显示工号，**其他必须完整**」。
+
+        - **简历编号**（`code`）：历史非招聘系统入职人员可缺 → 不算缺失；
+        - **工号**（`employee_id`）：待入职（在途）人员可缺；**在职 / 离职必须完整**。
+
+        返回 True 表示该行存在"必须完整却缺失"的字段，供列表打标记提醒补录。
+        """
+        if not obj.employee_id and obj.status not in PENDING_STATUSES:
+            return True
+        return False
+
+    def _suggested_hrbp_id(self, obj):
+        """当前轮岗 BU 部门的 HRBP id（自动填充的建议值）。
+
+        - 列表场景：直接取 ViewSet 按页批量聚合的结果（零额外查询）；
+        - 单条场景（retrieve / 无分页）：单查一次兜底。
+        """
+        ctx = self.context or {}
+        if 'rotation_stats' in ctx:
+            entry = (ctx.get('rotation_stats') or {}).get(str(obj.id)) or {}
+            return entry.get('suggested_hrbp_id', '') or ''
+        from apps.campus_control.person_rotation_stats import suggested_hrbp_id_for_person
+        return suggested_hrbp_id_for_person(obj)
+
     def get_hrbp_name(self, obj):
-        return obj.hrbp.full_name if obj.hrbp_id else ''
+        """HRBP 展示名：人工指定优先；未指定时回落到轮岗 BU 部门的 HRBP（自动填充口径）。"""
+        if obj.hrbp_id:
+            return obj.hrbp.full_name
+        suggested = self._suggested_hrbp_id(obj)
+        if suggested:
+            from apps.core.models import User
+            user = User.objects.filter(id=suggested).first()
+            return user.full_name if user else ''
+        return ''
+
+    def to_representation(self, instance):
+        """把「自动填充后的 HRBP」回写进响应（否则前端编辑弹窗拿到的仍是空值）。
+
+        只在**未人工指定**且确有建议值时回写；已指定的一律原样返回。
+        """
+        data = super().to_representation(instance)
+        if not data.get('hrbp'):
+            suggested = self._suggested_hrbp_id(instance)
+            if suggested:
+                data['hrbp'] = suggested
+        return data
 
 
     def get_candidate_code(self, obj):
@@ -489,6 +583,30 @@ class PersonSerializer(serializers.ModelSerializer):
             'actual_entry_date', getattr(self.instance, 'actual_entry_date', None)
         )
 
+        # ---- 聂荣 2026-10-23 口径：班长 / HRBP 的「自动填充，可修改」 ----
+        #
+        # ① 班长（基于班级自动带出可修改）：档案上的班长为空时，取所选班级的班长。
+        #    ⚠️ 只在**为空**时填 —— 人工指定过的班长不得被班级变更覆盖（那是"可修改"的语义）。
+        if 'class_monitor' not in attrs and not getattr(self.instance, 'class_monitor_id', None):
+            class_room = attrs.get('class_room') or getattr(self.instance, 'class_room', None)
+            if class_room is not None and class_room.class_monitor_id:
+                attrs['class_monitor'] = class_room.class_monitor
+
+        # ② HRBP（基于轮岗 BU 部门的 HRBP 自动填充，可修改）：档案上的 HRBP 为空时，
+        #    取该生当前轮岗 BU 部门的 Department.hrbp。
+        if 'hrbp' not in attrs and not getattr(self.instance, 'hrbp_id', None):
+            instance = self.instance
+            if instance is not None:
+                from apps.campus_control.person_rotation_stats import (
+                    suggested_hrbp_id_for_person,
+                )
+                from apps.core.models import User
+                suggested = suggested_hrbp_id_for_person(instance)
+                if suggested:
+                    user = User.objects.filter(id=suggested).first()
+                    if user is not None:
+                        attrs['hrbp'] = user
+
         if status in PENDING_STATUSES:
             attrs['employee_id'] = ''
             attrs['actual_entry_date'] = None
@@ -539,20 +657,113 @@ class PersonSerializer(serializers.ModelSerializer):
             return None
         return cand
 
+    def _save_educations(self, person, educations):
+        """同步该生的教育经历（增量按 id 更新 / 新增，其余软删）。
+
+        ⚠️ 档案详情按「院校标签就高原则」取用 → 教育经历是**有序集合**，
+        全量替换最不容易出错；但仍保留按 id 更新，避免前端改一条就整段重写（丢 created_at，
+        进而影响「同标签同学历时取最早录入」这条稳定性规则）。
+        """
+        keep_ids = []
+        for item in educations:
+            payload = dict(item)
+            eid = payload.pop('id', None)
+            if eid:
+                obj = PersonEducation.objects.filter(id=eid, person=person).first()
+                if obj is not None:
+                    for key, value in payload.items():
+                        setattr(obj, key, value)
+                    obj.save()
+                    keep_ids.append(obj.id)
+                    continue
+            obj = PersonEducation.objects.create(person=person, **payload)
+            keep_ids.append(obj.id)
+        person.educations.exclude(id__in=keep_ids).delete()
+
     def create(self, validated_data):
+        educations = validated_data.pop('educations', None)
         cand = self._auto_candidate(validated_data)
         if cand is not None:
             validated_data['candidate'] = cand
-        return super().create(validated_data)
+        instance = super().create(validated_data)
+        if educations is not None:
+            self._save_educations(instance, educations)
+        return instance
 
     def update(self, instance, validated_data):
+        educations = validated_data.pop('educations', None)
         cand = self._auto_candidate(validated_data)
         if cand is not None:
             validated_data['candidate'] = cand
-        return super().update(instance, validated_data)
+        instance = super().update(instance, validated_data)
+        if educations is not None:
+            self._save_educations(instance, educations)
+        return instance
 
 
 __all__ = [
     'ControlDimensionSerializer', 'ControlIndicatorSerializer',
     'ControlRuleSerializer', 'PersonSerializer', 'IntegrityError',
+    'BatchRuleSerializer', 'BatchNamingSerializer',
 ]
+
+
+# ===========================================================================
+# 批次规则引擎（契约 §4.2）—— 追加于本文件末尾
+# ===========================================================================
+class BatchRuleSerializer(serializers.ModelSerializer):
+    """批次规则（逆向清单 §4.4 ②）。
+
+    校验：区间起止必须合法（开始日 ≤ 结束日）；批次号唯一性由视图层提示（同名次允许重复
+    ——「批次号」是展示编号，人员归属以日期命中为准）。
+    """
+
+    class Meta:
+        model = BatchRule
+        fields = [
+            'id', 'code', 'name', 'start_date', 'end_date', 'enabled', 'sort',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        start = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+        end = attrs.get('end_date', getattr(self.instance, 'end_date', None))
+        if start and end and start > end:
+            raise serializers.ValidationError({'end_date': '区间结束日不能早于开始日'})
+        return attrs
+
+
+class BatchNamingSerializer(serializers.ModelSerializer):
+    """批次命名配置（单例）。模板变量白名单在 validate_template 里校验。"""
+
+    #: 命名模板支持的变量（逆向清单 §4.4 ①）
+    TEMPLATE_VARS = ('{YYYY}', '{YY}', '{MM}', '{M}', '{DD}', '{SEQ}', '{N}')
+
+    class Meta:
+        model = BatchNaming
+        fields = [
+            'id', 'template', 'seq_width', 'seq_start', 'cycle', 'date_field', 'auto_apply',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate_template(self, value):
+        """模板只允许白名单变量；未知占位符会被静默留在批次号里 → 直接拦掉。"""
+        text = value or ''
+        for token in re.findall(r'\{[^{}]*\}', text):
+            if token not in self.TEMPLATE_VARS:
+                raise serializers.ValidationError(
+                    '命名模板只支持 %s 这些变量' % ' '.join(self.TEMPLATE_VARS)
+                )
+        return text
+
+    def validate_seq_width(self, value):
+        if not 1 <= int(value) <= 4:
+            raise serializers.ValidationError('序号位数须在 1 ~ 4 之间')
+        return value
+
+    def validate_seq_start(self, value):
+        if not 1 <= int(value) <= 99:
+            raise serializers.ValidationError('序号起始值须在 1 ~ 99 之间')
+        return value

@@ -249,6 +249,17 @@ class Person(FullAuditModel, UUIDModel):
         'campus_rotation.ClassRoom', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='persons', verbose_name='班级',
     )
+    # 2026-10-23（聂荣《校招生管理系统 - 需求文档》）：**班长** —— 人员管理模块字段。
+    #   需求原文：「包含字段：…、带教导师、班长、HRBP、…」
+    #   取值口径：「班长（基于班级自动带出可修改）」——
+    #     · 自动带出 = 选定班级后，取该班级的 class_monitor（ClassRoom.class_monitor）；
+    #     · 可修改 = 人员档案上的本字段是**独立**于班级的档案级取值（不随班级变更而回滚）。
+    #   ⚠️ 与 RotationArrangement.class_monitor（轮岗安排级班长）不是同一个字段，
+    #     两者语义不同：档案级=这个人当前是谁的班长，轮岗级=这一段轮岗里的班长。
+    class_monitor = models.ForeignKey(
+        'core.User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name='班长',
+    )
     # 2026-10-21 二期（校招生管理助手）：档案详情 + 人员管理筛选所需字段
     #   mentor     带教导师：与 head_teacher 同为「人员管理」核心筛选条件；
     #              轮岗期各段的导师明细见档案详情「轮岗期考核结果」（RotationStage.mentor）。
@@ -318,6 +329,31 @@ class Person(FullAuditModel, UUIDModel):
     def __str__(self):
         return f'{self.code}·{self.name}'
 
+    def _entry_date_for_batch(self):
+        """取「核算用入职日期」：实际入职日期优先，其次预计入职日期。
+
+        口径与 `apps.campus_control.calc._accounting_month` 一致 ——
+        在职/离职用实际入职日期，待入职用预计入职日期；两者都空则返回 None（不臆造批次）。
+        """
+        return self.actual_entry_date or self.expected_entry_date
+
+    def _autofill_batch(self):
+        """批次为空时按入职日期自动生成（聂荣 2026-10-23 口径）。
+
+        ⚠️ **只补空值**：批次在编辑弹窗里可改，人工填过的不覆盖。
+        ⚠️ 无入职日期时不写批次（留空由人工填）—— 宁缺毋造。
+        """
+        if self.batch:
+            return
+        from apps.campus_rotation.rules import batch_no
+
+        entry_date = self._entry_date_for_batch()
+        if entry_date is None:
+            return
+        generated = batch_no(entry_date)
+        if generated:
+            self.batch = generated
+
     def save(self, *args, **kwargs):
         """编号来源（2026-10-21）：与「招聘系统 · 候选人管理」同源。
 
@@ -327,7 +363,14 @@ class Person(FullAuditModel, UUIDModel):
           避免校招侧领到招聘系统已用掉的编号。
 
         录入/编辑人员未传 code 时也自动拿到唯一 C 编号，避免撞 unique=True 约束导致 500。
+
+        2026-10-23（聂荣口径）另补：**批次自动生成** ——
+        需求原文「批次（基于入职时间自动生成，以月中15号为界…）」。
+        规则真源在 `apps.campus_rotation.rules.batch_no`（与成班/导师规则同文件）。
+        ⚠️ 只在 **batch 为空** 时自动补：批次在编辑弹窗里**可改**，
+          人工填过的批次不得被自动值覆盖（否则用户改的批次会在下一次保存时被抹掉）。
         """
+        self._autofill_batch()
         if self.candidate_id:
             # 候选人编号即本档案编号（软删候选人也可取，FK 指向的行仍在）
             cand = self.candidate
@@ -388,6 +431,57 @@ class Person(FullAuditModel, UUIDModel):
             super().save(*args, **kwargs)
 
 
+class PersonEducation(FullAuditModel, UUIDModel):
+    """校招生教育经历（2026-10-23 聂荣《校招生管理系统 - 需求文档》口径）。
+
+    需求原文（人员管理模块 · 个人档案 · 基本信息）：
+      「教育经历（**院校标签就高原则**对应的教育经历，包含字段 院校名称、专业、学历）」
+
+    ## 为什么独立建表
+
+    `Person` 上只有**一组**院校/专业/学历字段（school / school_name / major_name /
+    education），装不下「多条教育经历」（本科在 A 校、硕士在 B 校）。而「院校标签就高原则」
+    恰恰是**在多条里挑标签最高的那条** —— 没有多条就无从「就高」。故独立建子表。
+
+    ## 就高原则
+
+    院校标签优先级：`985` > `211` > `双一流` > `其他`
+    （= `campus_control.constants.SCHOOLS` 的**声明顺序**，不另造一套优先级表）。
+    标签相同 → 取**学历高**的那条（博士 > 硕士 > 本科 > 大专 > …）；
+    仍相同 → 取最早录入的一条（`created_at` 升序），保证结果稳定可复现。
+
+    ## 与 Person 单条字段的关系
+
+    `Person.school/school_name/major_name/education` 是**快路径单条**（招聘系统导入时
+    带过来的一组），保留不动以兼容既有查询与核算；档案详情的「教育经历」以本表为准，
+    本表无记录时**回退**到 Person 自身的单条字段（保证老数据不空）。
+    """
+
+    person = models.ForeignKey(
+        'campus_control.Person', on_delete=models.CASCADE,
+        related_name='educations', verbose_name='校招生档案',
+    )
+    school_name = models.CharField(max_length=64, blank=True, default='', verbose_name='院校名称')
+    school_tag = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(s, s) for s in SCHOOLS], verbose_name='院校标签',
+    )
+    major_name = models.CharField(max_length=64, blank=True, default='', verbose_name='专业')
+    education = models.CharField(
+        max_length=16, blank=True, default='',
+        choices=[(e, e) for e in EDUCATIONS], verbose_name='学历',
+    )
+
+    class Meta:
+        db_table = 'campus_control_person_education'
+        verbose_name = '校招生教育经历'
+        verbose_name_plural = '校招生教育经历'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.person_id}·{self.school_name or self.school_tag or "-"}'
+
+
 class PersonDimensionValue(FullAuditModel, UUIDModel):
     """人员动态维度取值（如 身份证籍贯=江苏）。
 
@@ -411,3 +505,91 @@ class PersonDimensionValue(FullAuditModel, UUIDModel):
 
     def __str__(self):
         return f'{self.person.code}·{self.dimension.name}={self.value}'
+
+
+# ===========================================================================
+# 批次规则引擎（契约 §4.2，追加于本文件末尾）
+#
+# 逆向依据：`docs/03-product/校招生管理_逆向功能清单与差距矩阵_2026-10-23.md`
+#   §4.4「批次规则引擎」① 自动命名规则 / ② 批次定义 / ③ 区间时间轴 / ④ 命中统计 / ⑤ 应用
+#   核心算法 A10（批次匹配：按日期区间命中规则，命中区间唯一）/ A11（批次号生成：模板 + 序号）
+#
+# ⚠️ 本段是**追加**内容，不改动上方既有模型（人员主数据 / 管控规则 / 教育经历 / 动态维度）。
+# ===========================================================================
+class BatchRule(FullAuditModel, UUIDModel):
+    """批次规则（逆向清单 §4.4 ②「批次定义」：批次号 + 中文名 + 入职日期区间）。
+
+    - `code` = 批次号（如 `260701`），由命名模板 + 区间起始日 + 序号生成（算法 A11）；
+    - `name` = 批次中文名（如「2026 年 7 月批」）；
+    - `[start_date, end_date]` = 入职日期区间（含端点），人员按日期落入区间即命中本规则（算法 A10）；
+    - `enabled` = 启停（停用后不参与命中）；
+    - `sort` = 排序（同名次时的稳定次序，决定序号分配顺序）。
+
+    ⚠️ 命中口径：**区间唯一**。区间重叠时同一个人会命中多条 → 视为无法归属（不写入批次），
+    避免「同一人被两个批次号抢走」的静默脏数据（逆向清单 A10 原文：「命中区间唯一，跨区间需无重叠」）。
+    """
+
+    code = models.CharField(max_length=32, verbose_name='批次号', db_index=True)
+    name = models.CharField(max_length=64, verbose_name='批次名称')
+    start_date = models.DateField(verbose_name='区间开始日')
+    end_date = models.DateField(verbose_name='区间结束日')
+    enabled = models.BooleanField(default=True, verbose_name='启用')
+    sort = models.PositiveIntegerField(default=0, verbose_name='排序')
+
+    class Meta:
+        db_table = 'campus_batch_rules'
+        verbose_name = '批次规则'
+        verbose_name_plural = '批次规则'
+        ordering = ['sort', 'start_date', 'code']
+
+    def __str__(self):
+        return f'{self.code}·{self.name}'
+
+
+class BatchNaming(FullAuditModel, UUIDModel):
+    """批次命名配置（**单例**，逆向清单 §4.4 ①「自动命名规则」）。
+
+    - `template` = 命名模板，变量 `{YYYY}{YY}{MM}{M}{DD}{SEQ}{N}`
+      （`{N}` = 「第1批」形，含第/批字样）；
+    - `seq_width` = 序号位数（1–4，逆向清单写「序号位数（1–4）」）；
+    - `seq_start` = 序号起始值（1–99）；
+    - `cycle` = 序号循环粒度：month 每月归零 / year 每年归零 / none 全局递增；
+    - `date_field` = 区间判定依据：entryDate 入职日期 / hireDate 录用日期；
+    - `auto_apply` = 「新增人员时自动按区间归属批次」开关。
+
+    序号算法（算法 A11）：「序号 = seq_start + 计数，宽度 = seq_width 补零」，
+    计数按 `cycle` 粒度归零；日期部分取**区间起始日**（逆向清单 A11 原文：
+    「批次号 = 命名模板 ＋ 区间起始日 ＋ 批次序号」）。
+    """
+
+    class Cycle(models.TextChoices):
+        MONTH = 'month', '每月归零'
+        YEAR = 'year', '每年归零'
+        NONE = 'none', '全局递增'
+
+    class DateField(models.TextChoices):
+        ENTRY = 'entryDate', '入职日期'
+        HIRE = 'hireDate', '录用日期'
+
+    template = models.CharField(
+        max_length=64, default='{YY}{MM}{SEQ}', verbose_name='命名模板',
+    )
+    seq_width = models.PositiveIntegerField(default=2, verbose_name='序号位数')
+    seq_start = models.PositiveIntegerField(default=1, verbose_name='序号起始值')
+    cycle = models.CharField(
+        max_length=16, choices=Cycle.choices, default=Cycle.MONTH, verbose_name='序号循环粒度',
+    )
+    date_field = models.CharField(
+        max_length=16, choices=DateField.choices, default=DateField.ENTRY, verbose_name='区间判定依据',
+    )
+    auto_apply = models.BooleanField(default=True, verbose_name='新增人员自动归属批次')
+
+    class Meta:
+        db_table = 'campus_batch_naming'
+        verbose_name = '批次命名配置'
+        verbose_name_plural = '批次命名配置'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.template}·{self.cycle}'
+

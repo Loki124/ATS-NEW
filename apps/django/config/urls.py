@@ -82,6 +82,10 @@ _NON_EMPTY = [
     ('campus/', 'apps.campus_control.urls'),
     ('campus-recruit/', 'apps.campus.urls'),
     ('campus-rotation/', 'apps.campus_rotation.urls'),
+    # 2026-10-23 校招生全生命周期移植：考核域 / 学习与社区 / 定岗与结算
+    ('campus-assessment/', 'apps.campus_assessment.urls'),
+    ('campus-learning/', 'apps.campus_learning.urls'),
+    ('campus-placement/', 'apps.campus_placement.urls'),
     ('external-sync/', 'apps.external_sync.urls'),
     ('dynamic-fields/', 'apps.dynamic_field.urls'),
     ('brand/', 'apps.brand.urls'),

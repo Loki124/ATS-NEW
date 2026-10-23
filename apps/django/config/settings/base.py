@@ -153,6 +153,11 @@ LOCAL_APPS = [
     'apps.campus_control',  # 校招管控（人员比例管控系统）    # 制度公告 — 招聘专家查看 / HR 及以上维护
     'apps.campus',         # 校招专属功能（校园大使 / 宣讲会）— Phase 4
     'apps.campus_rotation',  # 校招轮岗（轮岗安排 / 轮岗资源 / 班级管理）— Batch 0
+    # 2026-10-23 校招生全生命周期移植（逆向自 workbuddy.link 校招生管理系统）：
+    #   三个新域按业务边界独立成 app，跨域只读引用 campus_control.Person。
+    'apps.campus_assessment',  # 校招考核域（考勤 / 月度考核 / 考核模板 / 五行五力 / 反馈 / 月报 / 试用期）
+    'apps.campus_learning',  # 校招学习与社区（课程 / 进度 / 考试 / 活动 / 论坛）
+    'apps.campus_placement',  # 校招定岗与结算（岗位需求 / 志愿撮合 / 定岗跟踪 / 定价 / 台账 / 账单）
     'apps.external_sync',  # G40 Mock 占位端点 (无 model, 仅 APIView). 还原 T02 删除: 前端 CompanySettings 显式 Mock 页仍真实调用, 不能 404
     'apps.duplicate_rule',  # 2026-09-13: 重复候选人管理独立模块（合并规则 / 重复申请管理 / 候选人查重规则）
     'apps.accounts',        # 2026-09-11: 自助注册 → 邮箱验证码 → 管理员审核 → 激活登录

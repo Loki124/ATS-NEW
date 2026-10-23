@@ -37,6 +37,8 @@ from decimal import Decimal
 
 from apps.campus_rotation.models import RotationArrangement, RotationStage
 
+from .education import pick_top_education
+
 # 轮岗安排阶段的展示名（RotationArrangementStage.choices）
 _STAGE_LABELS = {
     'PENDING': '待分配',
@@ -105,6 +107,23 @@ def _rating(score):
         if score >= threshold:
             return label
     return _RATING_FALLBACK
+
+
+def _suggested_hrbp_name(person):
+    """该生当前轮岗 BU 部门的 HRBP 姓名（档案未指定 HRBP 时的回落值）。
+
+    聂荣 2026-10-23 口径：「HRBP（基于轮岗BU部门的HRBP自动填充，可修改）」。
+    与 `person_rotation_stats.suggested_hrbp_id_for_person` 同源。
+    """
+    from apps.campus_control.person_rotation_stats import suggested_hrbp_id_for_person
+
+    suggested = suggested_hrbp_id_for_person(person)
+    if not suggested:
+        return ''
+    from apps.core.models import User
+
+    user = User.objects.filter(id=suggested).first()
+    return user.full_name if user else ''
 
 
 def _person_arrangements(person):
@@ -209,6 +228,7 @@ def build_person_profile(person):
         'school': person.school or '',
         'school_name': person.school_name or '',
         'major': person.major or '',
+        'major_name': person.major_name or '',
         'education': person.education or '',
         'phone': person.phone or '',
         'month': person.month or '',
@@ -219,11 +239,46 @@ def build_person_profile(person):
         'class_room_name': class_room.name if class_room else '',
         'head_teacher_id': str(person.head_teacher_id) if person.head_teacher_id else '',
         'head_teacher_name': person.head_teacher.full_name if person.head_teacher_id else '',
+        # 2026-10-23（聂荣口径）：班长（档案级；字段新增于 Person.class_monitor）
+        'class_monitor_id': str(person.class_monitor_id) if person.class_monitor_id else '',
+        'class_monitor_name': person.class_monitor.full_name if person.class_monitor_id else '',
         'mentor_id': str(person.mentor_id) if person.mentor_id else '',
         'mentor_name': person.mentor.full_name if person.mentor_id else '',
-        # 批次：取自所属班级（校招生按班级编批）
-        'batch': (class_room.batch if class_room else '') or '',
+        # HRBP：人工指定优先；未指定时回落到轮岗 BU 部门的 HRBP（自动填充口径）
+        'hrbp_id': str(person.hrbp_id) if person.hrbp_id else '',
+        'hrbp_name': person.hrbp.full_name if person.hrbp_id else _suggested_hrbp_name(person),
+        # 批次：优先档案自身的批次（自动生成/人工指定），回退所属班级的批次
+        'batch': (person.batch or (class_room.batch if class_room else '')) or '',
+        # 2026-10-23（聂荣口径）基本信息新增项：
+        #   轮岗状态分类 = 当前轮岗安排所处阶段的中文标签
+        'rotation_status': current.stage if current is not None else '',
+        'rotation_status_label': (
+            _STAGE_LABELS.get(current.stage, current.stage or '') if current is not None else ''
+        ),
     }
+
+    # 教育经历（聂荣 2026-10-23 口径：院校标签就高原则）
+    #   有多条教育经历 → 取院校标签最高的那条（口径见 `campus_control.education`）；
+    #   无教育经历记录 → 回退 Person 自身的单条院校字段（老数据不空）。
+    education_records = list(
+        person.educations.filter(deleted_at__isnull=True).order_by('created_at')
+    )
+    educations_payload = [
+        {
+            'id': str(e.id),
+            'school_name': e.school_name or '',
+            'school_tag': e.school_tag or '',
+            'major_name': e.major_name or '',
+            'education': e.education or '',
+        }
+        for e in education_records
+    ]
+    top_education = pick_top_education(education_records)
+    if top_education is not None:
+        person_payload['school_name'] = top_education.school_name or person_payload['school_name']
+        person_payload['school'] = top_education.school_tag or person_payload['school']
+        person_payload['major_name'] = top_education.major_name or person_payload['major_name']
+        person_payload['education'] = top_education.education or person_payload['education']
 
     class_room_payload = None
     if class_room:
@@ -274,6 +329,8 @@ def build_person_profile(person):
             'rating': _rating(overall),
         },
         'stages': stages,
+        # 2026-10-23（聂荣口径）：教育经历全量 + 就高原则命中的那一条已在 person 里
+        'educations': educations_payload,
         # 以下四个业务域暂无数据模型，统一返回空数组（前端渲染空态）
         'monthly_assessments': [],
         'daily_reports': [],

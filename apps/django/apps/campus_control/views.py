@@ -27,7 +27,7 @@ v2.9 拆分说明：
 from decimal import Decimal
 from io import BytesIO
 
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import HttpResponse
 from rest_framework import viewsets
@@ -38,13 +38,14 @@ from rest_framework.response import Response
 
 from apps.common.mixins import SoftDeleteRestoreMixin
 from apps.common.pagination import StandardResultsSetPagination
+from apps.common.response import success_response
 from apps.common.views import EnvelopeWriteMixin
 from apps.core.permissions import IsHROrAbove
 from apps.core.permissions_v2 import ScopeQuerysetMixin, V2Permission
 
-from . import person_profile, person_rotation_stats, services
+from . import class_formation, person_profile, person_rotation_stats, services
 from .calc import _COUNTED_STATUSES, compute_ratio, simulate
-from .constants import STATUS
+from .constants import DATA_SCOPE_ENTRY_YEAR_MIN, STATUS
 from .io_indicator import (
     build_indicator_export_csv,
     build_indicator_export_workbook,
@@ -56,12 +57,16 @@ from .io_xlsx import (
     build_template_workbook,
 )
 from .models import (
+    BatchNaming,
+    BatchRule,
     ControlDimension,
     ControlIndicator,
     ControlRule,
     Person,
 )
 from .serializers import (
+    BatchNamingSerializer,
+    BatchRuleSerializer,
     ControlDimensionSerializer,
     ControlIndicatorSerializer,
     ControlRuleSerializer,
@@ -546,6 +551,8 @@ class PersonViewSet(
         'partial_update': 'recruit:campus:person:edit',
         'destroy': 'recruit:campus:person:delete',
         'restore': 'recruit:campus:person:edit',
+        # 2026-10-23（聂荣口径）一键成班：属写操作（建班级 + 挂人）→ 走编辑权限码
+        'form_classes': 'recruit:campus:person:edit',
     }
     pagination_class = StandardResultsSetPagination
     # 🔴 S5-24（需求 1-2）：行级隔离配置（与 core/entity_scope.py 的
@@ -583,6 +590,35 @@ class PersonViewSet(
             'success': True,
             'data': person_profile.build_person_profile(person),
         })
+
+    @action(detail=False, methods=['post'], url_path='form-classes')
+    def form_classes(self, request):
+        """一键成班（聂荣 2026-10-23 口径）。
+
+        需求原文：「班级（按照当前批次每30-35人成立一个班级，默认30人成班，
+        若剩余人数低于10人则均分至所有班级，超过10人则独立成班，
+        若均分后单个班级人数超过35人，则不均分，独立成班）」。
+
+        请求体::
+
+            { "batch": "260701", "dry_run": false }
+
+        - `dry_run=true` → 只算方案不落库（前端「预览成班方案」用）；
+        - 已分配班级的人员**不重复分班**（幂等）。
+
+        权限：走 `recruit:campus:person:edit`（写操作：建班级 + 挂人）。
+        """
+        batch = str(request.data.get('batch') or '').strip()
+        if not batch:
+            raise DRFValidationError({'batch': ['请指定批次号']})
+        dry_run = str(request.data.get('dry_run', '')).strip().lower() in (
+            '1', 'true', 'yes',
+        )
+        try:
+            result = class_formation.form_classes_for_batch(batch, dry_run=dry_run)
+        except ValueError as exc:
+            raise DRFValidationError({'batch': [str(exc)]})
+        return Response({'success': True, 'data': result})
 
     # 整数精确筛的合法集合（防止用户传 ?year=abc 触发 FieldError）
     _SAFE_INT_FILTERS = {'year'}
@@ -641,6 +677,29 @@ class PersonViewSet(
         mentor = params.get('mentor')
         if mentor:
             qs = qs.filter(mentor_id=mentor)
+        # 2026-10-23（聂荣口径）：班长筛选（档案级班长；字段新增于 Person.class_monitor）
+        class_monitor = params.get('class_monitor')
+        if class_monitor:
+            qs = qs.filter(class_monitor_id=class_monitor)
+        # 2026-10-23（聂荣口径）：批次筛选
+        batch = params.get('batch')
+        if batch:
+            qs = qs.filter(batch=batch)
+
+        # 2026-10-23（聂荣口径）取数范围：**26 年及以后入职或预计入职**。
+        #   「数据范围（26年及以后入职或预计入职数据）」——
+        #   ⚠️ 两个日期都空的人员**保留**（无从判定归属年份，宁留勿删；
+        #      招聘系统刚认领的档案两个日期都还没有）。
+        #   ⚠️ `?entry_scope=all` 显式关闭该过滤（查历史数据 / 编制管控旁路核对用）。
+        entry_scope = (params.get('entry_scope') or 'current').strip().lower()
+        if entry_scope not in ('all', 'current'):
+            entry_scope = 'current'
+        if entry_scope == 'current':
+            qs = qs.filter(
+                Q(expected_entry_date__year__gte=DATA_SCOPE_ENTRY_YEAR_MIN)
+                | Q(actual_entry_date__year__gte=DATA_SCOPE_ENTRY_YEAR_MIN)
+                | Q(expected_entry_date__isnull=True, actual_entry_date__isnull=True)
+            )
 
         # 2026-10-22：轮岗状态筛选（按人）——该生**存在**处于该阶段的轮岗安排。
         #   口径与 person_rotation_stats.build_rotation_stats_map / person_profile 完全一致：
@@ -698,3 +757,382 @@ class PersonViewSet(
         #    retrieve/update/delete 保持按 id 可取（不因不可见而 404，避免前端
         #    详情页打不开却无法判断原因）。
         return self.scope_queryset(qs)
+
+
+# ===========================================================================
+# 批次规则引擎（契约 §4.2）—— 追加于本文件末尾，不改动上方既有端点
+#
+# 逆向依据：`docs/03-product/校招生管理_逆向功能清单与差距矩阵_2026-10-23.md`
+#   §4.4「批次规则引擎」① 自动命名规则 / ② 批次定义 / ④ 命中统计 / ⑤ 应用
+#   算法 A10 批次匹配（区间唯一）/ A11 批次号生成（模板 + 序号按循环粒度归零 + 位宽补零）
+#
+# 端点（挂既有 `/api/v1/campus/`）：
+#   GET/POST/…  /batch-rules/            批次规则 CRUD
+#   GET/PUT     /batch-naming/           命名配置（单例）
+#   GET         /batch-rules/preview/    实时预览（样例 + 每规则命中人数 + 未命中 + 无批次）
+#   POST        /batch-rules/apply/      按规则回写人员批次（只补空值）
+#   POST        /batch-rules/recalc/     重算批次号（先预览，body {"apply": true} 才落库）
+# ===========================================================================
+
+#: 批次号模板支持的变量（逆向清单 §4.4 ①）
+BATCH_TEMPLATE_VARS = ('{YYYY}', '{YY}', '{MM}', '{M}', '{DD}', '{SEQ}', '{N}')
+
+#: 批次规则域权限码（资源码由父会话在 core 迁移统一登记）
+PERM_BATCH_RULE_LIST = 'recruit:campus:batch_rule:list'
+PERM_BATCH_RULE_CREATE = 'recruit:campus:batch_rule:create'
+PERM_BATCH_RULE_EDIT = 'recruit:campus:batch_rule:edit'
+PERM_BATCH_RULE_DELETE = 'recruit:campus:batch_rule:delete'
+PERM_BATCH_RULE_IMPORT = 'recruit:campus:batch_rule:import'
+PERM_BATCH_RULE_SYNC = 'recruit:campus:batch_rule:sync'
+
+
+def render_batch_no(template, start_date, seq, seq_width):
+    """按命名模板渲染批次号（算法 A11）。
+
+    变量口径（逆向清单 §4.4 ①）：
+    - `{YYYY}` 四位年 / `{YY}` 两位年 / `{MM}` 两位月 / `{M}` 月（不补零）/ `{DD}` 两位日
+    - `{SEQ}` 序号（按 `seq_width` 补零）
+    - `{N}` 「第1批」形（取整数序号，**不补零**，含第/批字样）
+
+    ⚠️ 日期部分取**区间起始日**（逆向清单 A11 原文：「批次号 = 命名模板 ＋ 区间起始日 ＋ 批次序号」）。
+    """
+    if start_date is None:
+        return ''
+    text = template or ''
+    # 替换顺序：长变量在前（{YYYY} 先于 {YY}、{MM} 先于 {M}），否则会被截断匹配
+    text = text.replace('{YYYY}', '{:04d}'.format(start_date.year))
+    text = text.replace('{YY}', '{:02d}'.format(start_date.year % 100))
+    text = text.replace('{MM}', '{:02d}'.format(start_date.month))
+    text = text.replace('{M}', str(start_date.month))
+    text = text.replace('{DD}', '{:02d}'.format(start_date.day))
+    text = text.replace('{SEQ}', str(int(seq)).zfill(int(seq_width or 1)))
+    text = text.replace('{N}', '第{}批'.format(int(seq)))
+    return text
+
+
+def batch_cycle_key(start_date, cycle):
+    """序号归零粒度的分桶键（逆向清单 §4.4 ①：每月归零 / 每年归零 / 全局递增）。"""
+    if cycle == BatchNaming.Cycle.MONTH:
+        return (start_date.year, start_date.month)
+    if cycle == BatchNaming.Cycle.YEAR:
+        return (start_date.year,)
+    return ()
+
+
+def assign_batch_sequences(rules, cycle, seq_start):
+    """按 cycle 粒度给批次规则分配序号。
+
+    口径（逆向清单 A11 + 契约 §4.2）：「序号 = seq_start + 计数，宽度 = seq_width 补零」，
+    其中**计数 = 该周期内已分配的条数**（0 起）→ 同一周期内的第一条拿到 `seq_start`。
+
+    Args:
+        rules: 已按 `sort / start_date / code` 排序的 `BatchRule` 列表（顺序决定序号）。
+        cycle: month / year / none。
+        seq_start: 序号起始值。
+
+    Returns:
+        `{rule_id: seq}`。
+    """
+    counters = {}
+    result = {}
+    for rule in rules:
+        key = batch_cycle_key(rule.start_date, cycle)
+        seq = int(seq_start or 1) + counters.get(key, 0)
+        counters[key] = counters.get(key, 0) + 1
+        result[rule.id] = seq
+    return result
+
+
+def match_batch_rule(rules, target_date):
+    """按日期区间命中批次规则（算法 A10）。
+
+    口径：按 `start_date ≤ 日期 ≤ end_date` 命中；**命中区间必须唯一** ——
+    同时命中多条（区间重叠）时返回 None（不归属），避免同一人被两个批次号抢走。
+    """
+    if target_date is None:
+        return None
+    hits = [
+        rule for rule in rules
+        if rule.start_date and rule.end_date and rule.start_date <= target_date <= rule.end_date
+    ]
+    return hits[0] if len(hits) == 1 else None
+
+
+def person_batch_date(person, date_field):
+    """取人员用于批次归属的判定日期。
+
+    - `entryDate`（入职日期）：实际入职日期优先，回落预计入职日期
+      （与 `campus_control.calc._accounting_month` / `Person._entry_date_for_batch()` 同口径）；
+    - `hireDate`（录用日期）：本仓人员档案**没有独立的录用日期字段** → 用预计入职日期兜底。
+    """
+    if date_field == BatchNaming.DateField.HIRE:
+        return person.expected_entry_date or person.actual_entry_date
+    return person.actual_entry_date or person.expected_entry_date
+
+
+def _batch_naming_config():
+    """取命名配置（单例）；未落库时用模型默认值（**不写库**）。"""
+    obj = BatchNaming.objects.first()
+    return obj if obj is not None else BatchNaming()
+
+
+def _enabled_batch_rules():
+    """参与命中与编号的批次规则（启用的），顺序 = sort → start_date → code。"""
+    return list(
+        BatchRule.objects.filter(deleted_at__isnull=True, enabled=True)
+        .order_by('sort', 'start_date', 'code')
+    )
+
+
+class BatchRuleViewSet(
+    SoftDeleteRestoreMixin, EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet
+):
+    """批次规则（契约 §4.2 `batch-rules/`）+ 4 个自定义端点。"""
+
+    queryset = BatchRule.objects.all()
+    serializer_class = BatchRuleSerializer
+    permission_classes = [V2Permission]
+    permission_required = PERM_BATCH_RULE_LIST
+    permission_required_map = {
+        'create': PERM_BATCH_RULE_CREATE,
+        'update': PERM_BATCH_RULE_EDIT,
+        'partial_update': PERM_BATCH_RULE_EDIT,
+        'destroy': PERM_BATCH_RULE_DELETE,
+        'restore': PERM_BATCH_RULE_EDIT,
+        'preview': PERM_BATCH_RULE_LIST,
+        'apply': PERM_BATCH_RULE_IMPORT,
+        'recalc': PERM_BATCH_RULE_SYNC,
+    }
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = BatchRule.objects.filter(deleted_at__isnull=True)
+        params = self.request.query_params
+        enabled = params.get('enabled')
+        if enabled not in (None, ''):
+            qs = qs.filter(enabled=str(enabled).lower() in ('1', 'true', 'yes'))
+        code = (params.get('code') or '').strip()
+        if code:
+            qs = qs.filter(code=code)
+        return qs
+
+    # -- 实时预览（逆向清单 §4.4 ①「实时预览」+ ④「命中统计」）--------------
+    @action(detail=False, methods=['get'], url_path='preview')
+    def preview(self, request):
+        """生成样例 + 每规则命中人数 + 未命中人数 + 无批次人数。
+
+        查询参数可临时覆盖命名配置（template / seq_width / seq_start / cycle / date_field），
+        不传则用单例配置。
+        """
+        naming = _batch_naming_config()
+        params = request.query_params
+        template = params.get('template') or naming.template
+        seq_width = int(params.get('seq_width') or naming.seq_width)
+        seq_start = int(params.get('seq_start') or naming.seq_start)
+        cycle = params.get('cycle') or naming.cycle
+        date_field = params.get('date_field') or naming.date_field
+
+        rules = _enabled_batch_rules()
+        seqs = assign_batch_sequences(rules, cycle, seq_start)
+        generated = {
+            rule.id: render_batch_no(template, rule.start_date, seqs[rule.id], seq_width)
+            for rule in rules
+        }
+
+        from .visibility import visible_persons
+
+        hit_counts = {rule.id: 0 for rule in rules}
+        no_date_count = 0
+        no_batch_count = 0
+        total = 0
+        for person in visible_persons(request.user):
+            total += 1
+            if not person.batch:
+                no_batch_count += 1
+            target = person_batch_date(person, date_field)
+            if target is None:
+                no_date_count += 1
+                continue
+            rule = match_batch_rule(rules, target)
+            if rule is None:
+                continue
+            hit_counts[rule.id] += 1
+
+        hit_total = sum(hit_counts.values())
+        samples = [
+            {
+                'id': rule.id,
+                'code': rule.code,
+                'name': rule.name,
+                'start_date': rule.start_date,
+                'end_date': rule.end_date,
+                'seq': seqs[rule.id],
+                'generated': generated[rule.id],
+                'hit_count': hit_counts[rule.id],
+            }
+            for rule in rules
+        ]
+        return success_response({
+            'template': template,
+            'seq_width': seq_width,
+            'seq_start': seq_start,
+            'cycle': cycle,
+            'date_field': date_field,
+            'samples': samples,
+            'hit_total': hit_total,
+            # 未命中人数 = 命中不到任何规则的人数（含无判定日期的人员 —— 同样无法归属）
+            'unmatched_count': total - hit_total,
+            'no_date_count': no_date_count,
+            'no_batch_count': no_batch_count,
+            'person_count': total,
+        })
+
+    # -- 应用（逆向清单 §4.4 ⑤「按规则回写人员批次」）------------------------
+    @action(detail=False, methods=['post'], url_path='apply')
+    def apply(self, request):
+        """按规则回写人员批次 —— **只补空值**，不覆盖人工填过的批次。"""
+        naming = _batch_naming_config()
+        rules = _enabled_batch_rules()
+
+        from .visibility import visible_persons
+
+        filled = []
+        skipped = 0
+        unmatched = 0
+        for person in visible_persons(request.user):
+            if person.batch:
+                # 已有批次值（人工填过 / 已被自动回填）→ 一律不覆盖
+                skipped += 1
+                continue
+            target = person_batch_date(person, naming.date_field)
+            rule = match_batch_rule(rules, target)
+            if rule is None:
+                unmatched += 1
+                continue
+            person.batch = rule.code
+            person.save(update_fields=['batch', 'updated_at'])
+            filled.append({
+                'person_id': person.id,
+                'code': person.code,
+                'name': person.name,
+                'batch': person.batch,
+            })
+        return success_response({
+            'filled': len(filled),
+            'skipped': skipped,
+            'unmatched': unmatched,
+            'details': filled,
+        })
+
+    # -- 重算（逆向清单 §4.4 ⑤「按命名规则重算全部批次号」）------------------
+    @action(detail=False, methods=['post'], url_path='recalc')
+    def recalc(self, request):
+        """按命名规则重算全部批次号，返回「原批次 → 新批次」变更清单。
+
+        ⚠️ **先返回预览，不落库**；body `{"apply": true}` 时才落库
+        （落库 = 更新批次规则的批次号 + 同步人员批次）。
+        """
+        naming = _batch_naming_config()
+        rules = _enabled_batch_rules()
+        seqs = assign_batch_sequences(rules, naming.cycle, naming.seq_start)
+        new_codes = {
+            rule.id: render_batch_no(naming.template, rule.start_date, seqs[rule.id], naming.seq_width)
+            for rule in rules
+        }
+        old_to_new = {
+            rule.code: new_codes[rule.id]
+            for rule in rules
+            if rule.code != new_codes[rule.id]
+        }
+
+        from .visibility import visible_persons
+
+        person_changes = []
+        for person in visible_persons(request.user):
+            if person.batch and person.batch in old_to_new:
+                person_changes.append({
+                    'person_id': person.id,
+                    'code': person.code,
+                    'name': person.name,
+                    'old': person.batch,
+                    'new': old_to_new[person.batch],
+                })
+
+        per_rule = {}
+        for change in person_changes:
+            per_rule[change['old']] = per_rule.get(change['old'], 0) + 1
+        changes = [
+            {
+                'id': rule.id,
+                'name': rule.name,
+                'old': rule.code,
+                'new': new_codes[rule.id],
+                'person_count': per_rule.get(rule.code, 0),
+            }
+            for rule in rules
+            if rule.code != new_codes[rule.id]
+        ]
+
+        apply_flag = bool((request.data or {}).get('apply'))
+        if apply_flag:
+            with transaction.atomic():
+                for rule in rules:
+                    if rule.code != new_codes[rule.id]:
+                        rule.code = new_codes[rule.id]
+                        rule.save(update_fields=['code', 'updated_at'])
+                for person in visible_persons(request.user):
+                    if person.batch and person.batch in old_to_new:
+                        person.batch = old_to_new[person.batch]
+                        person.save(update_fields=['batch', 'updated_at'])
+
+        return success_response({
+            'applied': apply_flag,
+            'changes': changes,
+            'person_changes': person_changes,
+            'total': len(person_changes),
+        })
+
+
+class BatchNamingViewSet(
+    SoftDeleteRestoreMixin, EnvelopeWriteMixin, CampusCRUDMixin, viewsets.ModelViewSet
+):
+    """批次命名配置（**单例**，契约 §4.2 `batch-naming/`）。
+
+    - `GET /batch-naming/`  → 当前配置（未落库时返回默认值的虚拟对象，不写库）；
+    - `PUT /batch-naming/`  → 覆盖配置（存在则覆盖，不存在则新建）。
+    """
+
+    queryset = BatchNaming.objects.all()
+    serializer_class = BatchNamingSerializer
+    permission_classes = [V2Permission]
+    permission_required = PERM_BATCH_RULE_LIST
+    permission_required_map = {
+        'create': PERM_BATCH_RULE_EDIT,
+        'update': PERM_BATCH_RULE_EDIT,
+        'partial_update': PERM_BATCH_RULE_EDIT,
+        'destroy': PERM_BATCH_RULE_EDIT,
+        'restore': PERM_BATCH_RULE_EDIT,
+    }
+    pagination_class = StandardResultsSetPagination
+
+    def list(self, request, *args, **kwargs):
+        """单例读取：不存在时返回默认配置（**不落库**，避免 GET 产生副作用）。"""
+        obj = BatchNaming.objects.first()
+        if obj is None:
+            return success_response(BatchNamingSerializer(BatchNaming()).data)
+        return success_response(BatchNamingSerializer(obj).data)
+
+    def update(self, request, *args, **kwargs):
+        """单例覆盖（PUT）：只覆盖传入的字段，其余保持原值。"""
+        obj = BatchNaming.objects.first()
+        serializer = self.get_serializer(obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        if obj is None:
+            obj = serializer.save(
+                created_by=request.user, updated_by=request.user,
+            )
+        else:
+            obj = serializer.save(updated_by=request.user)
+        from apps.common.audit_helper import log_action
+        log_action(request, 'update', 'BatchNaming', obj.pk)
+        return success_response(BatchNamingSerializer(obj).data)

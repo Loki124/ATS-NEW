@@ -228,9 +228,30 @@ class TestResourceExport:
         # 资源类型写中文名
         assert {r[2] for r in rows} == {'直播间', '客服部门'}
         # 平台写中文名（字典 value），不写 key；空单元格回读为 None → 归一为空串
-        assert {r[6] or '' for r in rows} == {'视频号', ''}
+        # ⚠️ 必须**逐行**断言：集合比较会丢掉「哪一行是哪个形态」的归属信息，
+        #    分不清「直播间有平台、客服部门无」与「两者都有平台」⇒ 客服部门的导出值其实没被覆盖。
+        by_type = {r[2]: r for r in rows}
+        assert by_type['直播间'][6] == '视频号', by_type['直播间']
+        assert (by_type['客服部门'][6] or '') == '', by_type['客服部门']
         # 状态写 启用 / 停用
         assert {r[11] for r in rows} == {'启用'}
+
+    def test_export_writes_chinese_name_for_service_dept_platform(self, auth_client, bu_hierarchy, _seed_campus_data):
+        """A-09：客服部门填了平台 → 导出时该行写**字典中文名**（不是 key、也不是空）。
+
+        闸口1 裁决 Q1 放开后，客服部门可以有平台；导出侧必须原样带出中文名，
+        否则「导入 → 导出 → 再导入」闭环会在客服部门这一形态上断掉。
+        """
+        _reset_resources()
+        bu = bu_hierarchy['bu_valid']
+        RotationResource.objects.create(
+            name='客服部B', resource_type='SERVICE_DEPT', department=bu, bu=bu,
+            platform='VIDEO_ACCOUNT',
+        )
+        rows = _export_rows(auth_client)
+        assert len(rows) == 1, rows
+        assert rows[0][2] == '客服部门', rows[0]
+        assert rows[0][6] == '视频号', rows[0]
 
     def test_export_file_format_defaults_to_xlsx(self, auth_client):
         resp = auth_client.get(f'{BASE}/resources/export/')
