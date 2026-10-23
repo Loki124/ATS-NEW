@@ -49,7 +49,7 @@ class RotationResource(FullAuditModel, UUIDModel):
     - `workstation_type`（工位类型）→ 去掉
     - `need_training_cert`（是否需培训认证）→ 随客服类型一并去掉
 
-    **保留的直播间专属字段**：`platform`（平台）—— 客服部门侧本就没有该字段，
+    **合并后保留的公共字段**：`platform`（平台）—— 客服部门侧本就没有该字段，
     合并后随轮岗资源保留（2026-10-23 闸口1 裁决 Q1：**三类形态均可选填**，
     有值则须为启用中的 LIVE_ROOM_PLATFORM 字典项）。
 

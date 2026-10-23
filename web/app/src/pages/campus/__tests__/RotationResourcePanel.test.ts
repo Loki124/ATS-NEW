@@ -10,7 +10,7 @@
  *
  * 锁的业务约定：
  * 1. 列表列名：资源编号 / 资源名称 / 资源类型 / 导师；
- * 2. 列表无「品牌」「客服类型」「工位类型」「校招占用」列；有「校招占用」「饱和度」；
+ * 2. 列表无「品牌」「客服类型」「工位类型」列；有「校招人数」「饱和度」；
  * 3. 表单有「资源类型」必填项，无品牌 / 客服类型 / 工位类型 / 备注，补只读「校招人数」；
  * 4. 工具栏筛选项：归属部门 / 资源类型 / 平台 / 状态，状态默认「启用」；
  * 5. 请求带 department / resource_type / platform / is_active（默认 'true'）；
@@ -98,7 +98,7 @@ describe('轮岗资源页 · 字段（合并后）', () => {
     expect(heads).not.toContain('直播间导师')
   }, 20000)
 
-  it('② 列表列：无 品牌·客服类型·工位类型；有 校招占用·饱和度', async () => {
+  it('② 列表列：无 品牌·客服类型·工位类型；有 校招人数·饱和度', async () => {
     const w = await mountPage()
     const heads = w.findAll('.n-data-table-thead th').map((th) => th.text())
     expect(heads).toContain('归属部门')
@@ -107,13 +107,15 @@ describe('轮岗资源页 · 字段（合并后）', () => {
     expect(heads).toContain('地点')
     expect(heads).toContain('容量')
     expect(heads).toContain('社招人数')
-    expect(heads).toContain('校招占用')
+    expect(heads).toContain('校招人数')
     expect(heads).toContain('饱和度')
     expect(heads).toContain('操作')
     expect(heads).not.toContain('品牌')
     expect(heads).not.toContain('客服类型')
     expect(heads).not.toContain('工位类型')
-    expect(heads).not.toContain('校招人数')
+    // ⚠️ 「校招占用」曾被合并实现漏改回旧名：2026-10-22 兵哥指令（S5-45 / D-10）已要求
+    //    更名为「校招人数」，且与 Excel 列名、班级管理页口径一致 → 列表列名锁定为「校招人数」。
+    expect(heads).not.toContain('校招占用')
   }, 20000)
 
   it('③ 资源类型列渲染中文名（直播间 / 客服部门）', async () => {

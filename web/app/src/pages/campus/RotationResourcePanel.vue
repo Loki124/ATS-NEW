@@ -753,7 +753,7 @@ const columns = [
   column({ title: '地点', key: 'location', width: 100, render: (row: any) => row.location || '-' }),
   column({ title: '容量', key: 'capacity', width: 80, render: (row: any) => row.capacity ?? '-' }, 'numeric'),
   column({ title: '社招人数', key: 'socialCount', width: 90, render: (row: any) => row.socialCount ?? 0 }, 'numeric'),
-  column({ title: '校招占用', key: 'campusCount', width: 90, render: (row: any) => row.campusCount ?? 0 }, 'numeric'),
+  column({ title: '校招人数', key: 'campusCount', width: 90, render: (row: any) => row.campusCount ?? 0 }, 'numeric'),
   column({ title: '饱和度', key: 'saturation', width: 100, render: (row: any) => saturationTag(row) }, 'numeric'),
   column(
     {
