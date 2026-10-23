@@ -105,6 +105,24 @@ export const MENU_PERMISSION_RULES: MenuCodeRule[] = [
   { prefix: '/campus/class-room', code: 'recruit:campus:class:menu:view' },
   { prefix: '/campus/person', code: 'recruit:campus:person:menu:view' },
 
+  // ===== 2026-10-23 校招生全生命周期移植（逆向自 workbuddy.link 校招生管理系统）=====
+  // 12 个新入口；资源码在 core.0051 迁移与 seed_v2_init 中同批登记。
+  // ⚠️ /campus/placement 与 /campus/placement-track 走**两个不同子模块**的码
+  //    （placement / placement_track）—— R5 规定「同前缀下 MENU 至多一条」，
+  //    两个页共用一个码会让其中一个入口永远不可见。
+  { prefix: '/campus/assessment', code: 'recruit:campus:assessment:menu:view' },
+  { prefix: '/campus/attendance', code: 'recruit:campus:attendance:menu:view' },
+  { prefix: '/campus/monthly-report', code: 'recruit:campus:monthly_report:menu:view' },
+  { prefix: '/campus/feedback', code: 'recruit:campus:feedback:menu:view' },
+  { prefix: '/campus/course', code: 'recruit:campus:course:menu:view' },
+  { prefix: '/campus/exam', code: 'recruit:campus:exam:menu:view' },
+  { prefix: '/campus/activity', code: 'recruit:campus:activity:menu:view' },
+  { prefix: '/campus/forum', code: 'recruit:campus:forum:menu:view' },
+  { prefix: '/campus/placement', code: 'recruit:campus:placement:menu:view' },
+  { prefix: '/campus/placement-track', code: 'recruit:campus:placement_track:menu:view' },
+  { prefix: '/campus/settlement', code: 'recruit:campus:settlement:menu:view' },
+  { prefix: '/campus/batch-rule', code: 'recruit:campus:batch_rule:menu:view' },
+
   // ===== 招聘分类信息 =====
   // 招聘分类信息父项页（自身为可点击路由；2026-10-19 补登记，此前未登记走 fail-open 恒可见）
   { prefix: '/settings/recruit-category', code: 'recruit:settings:recruit_category:menu:view' },

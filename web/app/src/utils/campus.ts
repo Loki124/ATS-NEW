@@ -119,6 +119,86 @@ export function formatSlashDate(value: string | null | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
+// 校招域业务规则（后端唯一真源：apps/campus_rotation/rules.py）
+//
+// ⚠️ 本段是后端规则的**前端镜像** —— 两侧必须同步修改，期望值由
+//    后端 apps/campus_rotation/tests/test_rules.py 与前端
+//    web/app/src/utils/__tests__/campusRules.test.ts 各自锁定同一组值。
+//    来源：聂荣《校招生管理系统 - 需求文档》（2026-10-23）。
+// ---------------------------------------------------------------------------
+
+/** 导师带教人数上限（聂荣口径：5 人；后端同口径 MENTOR_CAPACITY）。 */
+export const MENTOR_CAPACITY = 5
+
+/** 批次分界日：月中 15 号（含）为第 01 期，之后为第 02 期。 */
+export const BATCH_DAY_BOUNDARY = 15
+
+/** 历史入职批次分段：[年份, 起始月, 结束月, 批次号]（26 年 1-3 月 / 4-5 月两段）。 */
+const HISTORICAL_BATCH_SEGMENTS: Array<[number, number, number, string]> = [
+  [2026, 1, 3, '260001'],
+  [2026, 4, 5, '260002'],
+]
+
+/**
+ * 按入职日期生成批次编号（聂荣口径）。
+ *
+ * - 历史段（2026 年 1-3 月 / 4-5 月）→ '260001' / '260002'；
+ * - 其余 → `YY + MM + 期号`（15 号及以前 01，之后 02），如 2026-07-16 → '260702'；
+ * - 无法解析 → ''（不臆造批次）。
+ */
+export function batchNoFor(value: string | null | undefined): string {
+  const s = (value || '').trim()
+  if (!s) return ''
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return ''
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const day = Number(m[3])
+  for (const [y, from, to, no] of HISTORICAL_BATCH_SEGMENTS) {
+    if (year === y && month >= from && month <= to) return no
+  }
+  const period = day <= BATCH_DAY_BOUNDARY ? '01' : '02'
+  return `${String(year % 100).padStart(2, '0')}${String(month).padStart(2, '0')}${period}`
+}
+
+/** 每班目标人数（聂荣口径：默认 30 人成班）。 */
+export const CLASS_TARGET_SIZE = 30
+/** 每班人数上限（聂荣口径：每 30-35 人一个班）。 */
+export const CLASS_MAX_SIZE = 35
+/** 剩余人数阈值（聂荣口径：低于 10 人均分，达到 10 人独立成班）。 */
+export const CLASS_MIN_LEFTOVER = 10
+
+/**
+ * 成班方案（聂荣口径）—— 与后端 `rules.plan_class_sizes` 一一对应。
+ *
+ * 1. 先按 30 人成班：k = total // 30，剩余 r = total % 30；
+ * 2. r < 10 → 均分到这 k 个班；若均分后某班 > 35 人 → 不均分，剩余独立成班；
+ * 3. r >= 10 → 剩余独立成班。
+ */
+export function planClassSizes(
+  total: number,
+  target: number = CLASS_TARGET_SIZE,
+  maxSize: number = CLASS_MAX_SIZE,
+  minLeftover: number = CLASS_MIN_LEFTOVER,
+): number[] {
+  const n = Math.floor(total || 0)
+  if (n <= 0) return []
+  if (n < target) return [n]
+  const k = Math.floor(n / target)
+  const remainder = n - k * target
+  if (remainder < minLeftover) {
+    const q = Math.floor(remainder / k)
+    const rem = remainder % k
+    const biggest = target + q + (rem > 0 ? 1 : 0)
+    if (biggest > maxSize) {
+      return [...new Array(k).fill(target), remainder]
+    }
+    return new Array(k).fill(0).map((_, i) => target + q + (i < rem ? 1 : 0))
+  }
+  return [...new Array(k).fill(target), remainder]
+}
+
+// ---------------------------------------------------------------------------
 // 响应解析
 // ---------------------------------------------------------------------------
 

@@ -468,6 +468,21 @@ const menuOptions = computed(() => {
         { key: '/campus/class-room', label: '班级管理' },
         // 2026-10-21 兵哥：菜单名由「校招生档案」更名为「人员管理」
         { key: '/campus/person', label: '人员管理' },
+        // 2026-10-23 校招生全生命周期移植（逆向自 workbuddy.link《校招生管理系统》演示环境）：
+        // 考核域 / 学习与社区 / 定岗与结算 / 批次规则，共 12 个新入口。
+        // 顺序按「培养 → 考核 → 定岗 → 经营」的业务流排列，便于按角色只开一段。
+        { key: '/campus/assessment', label: '轮岗考核' },
+        { key: '/campus/attendance', label: '考勤管理' },
+        { key: '/campus/monthly-report', label: '月报管理' },
+        { key: '/campus/feedback', label: '反馈记录' },
+        { key: '/campus/course', label: '课程管理' },
+        { key: '/campus/exam', label: '考试管理' },
+        { key: '/campus/activity', label: '活动竞技' },
+        { key: '/campus/forum', label: '交流论坛' },
+        { key: '/campus/placement', label: '定岗双选' },
+        { key: '/campus/placement-track', label: '定岗跟踪' },
+        { key: '/campus/settlement', label: '交易和结算' },
+        { key: '/campus/batch-rule', label: '批次规则' },
       ],
     })
     // 编制管控（原「校招管控」，2026-10-19 更名）：campus 模式下的一级叶子菜单（路由 /campus/control，已脱离 settings）

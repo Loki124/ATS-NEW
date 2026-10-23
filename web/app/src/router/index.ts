@@ -249,6 +249,81 @@ const routes: RouteRecordRaw[] = [
         name: 'CampusControl',
         component: () => import(/* webpackChunkName: "campus-control" */ '../pages/settings/CampusControl.vue')
       },
+      // ===== 2026-10-23 校招生全生命周期移植（逆向自 workbuddy.link 校招生管理系统）=====
+      // 12 个新页面；页面组件由并行任务产出，路由与菜单由本处统一登记。
+      // 权限守卫：permissionForPath(to.path) 命中 MENU_PERMISSION_RULES 的最长前缀。
+      {
+        path: 'campus/assessment',
+        name: 'CampusAssessment',
+        component: () => import(/* webpackChunkName: "campus-assessment" */ '../pages/campus/CampusAssessment.vue'),
+        meta: { title: '轮岗考核' }
+      },
+      {
+        path: 'campus/attendance',
+        name: 'CampusAttendance',
+        component: () => import(/* webpackChunkName: "campus-attendance" */ '../pages/campus/CampusAttendance.vue'),
+        meta: { title: '考勤管理' }
+      },
+      {
+        path: 'campus/monthly-report',
+        name: 'CampusMonthlyReport',
+        component: () => import(/* webpackChunkName: "campus-monthly-report" */ '../pages/campus/CampusMonthlyReport.vue'),
+        meta: { title: '月报管理' }
+      },
+      {
+        path: 'campus/feedback',
+        name: 'CampusFeedback',
+        component: () => import(/* webpackChunkName: "campus-feedback" */ '../pages/campus/CampusFeedback.vue'),
+        meta: { title: '反馈记录' }
+      },
+      {
+        path: 'campus/course',
+        name: 'CampusCourse',
+        component: () => import(/* webpackChunkName: "campus-course" */ '../pages/campus/CampusCourse.vue'),
+        meta: { title: '课程管理' }
+      },
+      {
+        path: 'campus/exam',
+        name: 'CampusExam',
+        component: () => import(/* webpackChunkName: "campus-exam" */ '../pages/campus/CampusExam.vue'),
+        meta: { title: '考试管理' }
+      },
+      {
+        path: 'campus/activity',
+        name: 'CampusActivity',
+        component: () => import(/* webpackChunkName: "campus-activity" */ '../pages/campus/CampusActivity.vue'),
+        meta: { title: '活动竞技' }
+      },
+      {
+        path: 'campus/forum',
+        name: 'CampusForum',
+        component: () => import(/* webpackChunkName: "campus-forum" */ '../pages/campus/CampusForum.vue'),
+        meta: { title: '交流论坛' }
+      },
+      {
+        path: 'campus/placement',
+        name: 'CampusPlacement',
+        component: () => import(/* webpackChunkName: "campus-placement" */ '../pages/campus/CampusPlacement.vue'),
+        meta: { title: '定岗双选' }
+      },
+      {
+        path: 'campus/placement-track',
+        name: 'CampusPlacementTrack',
+        component: () => import(/* webpackChunkName: "campus-placement-track" */ '../pages/campus/CampusPlacementTrack.vue'),
+        meta: { title: '定岗跟踪' }
+      },
+      {
+        path: 'campus/settlement',
+        name: 'CampusSettlement',
+        component: () => import(/* webpackChunkName: "campus-settlement" */ '../pages/campus/CampusSettlement.vue'),
+        meta: { title: '交易和结算' }
+      },
+      {
+        path: 'campus/batch-rule',
+        name: 'CampusBatchRule',
+        component: () => import(/* webpackChunkName: "campus-batch-rule" */ '../pages/campus/CampusBatchRule.vue'),
+        meta: { title: '批次规则' }
+      },
       {
         path: 'report',
         name: 'Report',

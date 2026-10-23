@@ -247,22 +247,35 @@ describe('校招生档案编辑弹窗 · 分组重排（2026-10-22）', () => {
     expect(section.find('.form-section-note').exists()).toBe(false)
   }, 20000)
 
-  it('⑤ 轮岗信息组：意向部门→当前轮岗部门→班级→班主任→HRBP→带教导师→批次', async () => {
+  it('⑤ 轮岗信息组：意向部门→当前轮岗部门→班级→班主任→班长→HRBP→带教导师→批次', async () => {
+    // 2026-10-23（聂荣口径）新增「班长」→ 插在「班主任」之后（聂荣字段序：
+    // 「带教导师、班长、HRBP」；本组以班主任为锚点把班长放在其后）。
     const w = await mountAndOpenEdit()
     const g = groupLabels(w).find((x) => x.title.startsWith('轮岗信息'))!
     expect(g.labels).toEqual([
-      '意向部门', '当前轮岗部门', '班级', '班主任', 'HRBP', '带教导师', '批次',
+      '意向部门', '当前轮岗部门', '班级', '班主任', '班长', 'HRBP', '带教导师', '批次',
     ])
   }, 20000)
 
-  it('⑥ HRBP / 带教导师 不可编辑并提示「仅可在轮岗安排中填写」', async () => {
+  it('⑥ HRBP / 带教导师 / 班长 / 批次 **可编辑**（聂荣 2026-10-23 口径覆盖 2026-10-22 只读锁）', async () => {
+    // ⚠️ 裁决覆盖记录：
+    //   2026-10-22 兵哥口径：HRBP / 带教导师「不可编辑，提示仅可在轮岗安排中填写」；
+    //   2026-10-23 聂荣《校招生管理系统 - 需求文档》「编辑」条：
+    //     「可编辑字段（批次、班级、**班长**、班主任、**带教导师**、**HRBP**），其他字段不可编辑」
+    //   两份口径直接冲突 → 以**较晚**的聂荣 2026-10-23 为准（并在此留痕，
+    //   避免后人看到「只读」旧锁又给改回去）。
     const w = await mountAndOpenEdit()
-    const hints = w.findAll('.field-hint').map((h) => h.text())
-    expect(hints.filter((t) => t.includes('仅可在轮岗安排中填写')).length).toBe(2)
-    // 两个字段的下拉都是 disabled
     const section = w.findAll('.form-section').find((s) => s.find('.form-section-title').text().startsWith('轮岗信息'))!
-    const disabled = section.findAll('.n-base-selection--disabled')
-    expect(disabled.length).toBe(2)
+    // 轮岗信息组里不应再有被禁用的下拉
+    expect(section.findAll('.n-base-selection--disabled').length).toBe(0)
+    // 旧的只读提示文案必须下线
+    const hints = w.findAll('.field-hint').map((h) => h.text())
+    expect(hints.filter((t) => t.includes('仅可在轮岗安排中填写')).length).toBe(0)
+    // 新的说明文案到位（班长自动带出 / HRBP 默认值 / 导师上限 / 批次自动生成）
+    expect(hints.some((t) => t.includes('自动带出'))).toBe(true)
+    expect(hints.some((t) => t.includes('轮岗 BU 部门的 HRBP'))).toBe(true)
+    expect(hints.some((t) => t.includes('带教上限'))).toBe(true)
+    expect(hints.some((t) => t.includes('自动生成'))).toBe(true)
   }, 20000)
 
   it('⑦ 工号无值时显示横杠', async () => {
@@ -294,10 +307,12 @@ describe('CampusPerson 二期工具栏（去按钮 / 搜索右置 / 查询·清�
     expect(buttons.join('|')).not.toContain('刷新')
   }, 20000)
 
-  it('② 搜索框在最右，其后依次是 查询 / 清空 / 高级筛选', async () => {
+  it('② 搜索框在最右，其后依次是 查询 / 清空 / 高级筛选 / 一键成班', async () => {
+    // 2026-10-23（聂荣口径）：新增「一键成班」按钮（按批次成班）→ 排在既有三按钮之后，
+    //   既有三者的相对顺序不变（查询仍是本页唯一实心按钮，R-202 一屏一主角）。
     const wrapper = await mountPage()
     const toolbar = wrapper.find('.toolbar')
-    // 工具栏子节点顺序：5 个筛选下拉 → spacer → 搜索框 → 3 个按钮
+    // 工具栏子节点顺序：5 个筛选下拉 → spacer → 搜索框 → 4 个按钮
     const kids = toolbar.element.children
     const order = Array.from(kids).map((el) => {
       if (el.classList.contains('rule-filter-search')) return 'search'
@@ -307,7 +322,7 @@ describe('CampusPerson 二期工具栏（去按钮 / 搜索右置 / 查询·清�
     })
     const searchIdx = order.indexOf('search')
     expect(searchIdx).toBeGreaterThan(order.indexOf('spacer'))
-    expect(order.slice(searchIdx + 1)).toEqual(['查询', '清空', '高级筛选'])
+    expect(order.slice(searchIdx + 1)).toEqual(['查询', '清空', '高级筛选', '一键成班'])
   }, 20000)
 
   it('③ 高级筛选：设置条件后点查询 → 请求参数带上 school/major（2026-10-22 已下线 position/level/month/year）', async () => {
