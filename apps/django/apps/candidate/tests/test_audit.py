@@ -5,7 +5,11 @@
 """
 import pytest
 
-from apps.candidate.audit import AuditImmutabilityError, compute_row_hash
+from apps.candidate.audit import (
+    AUDIT_HASH_REQUIRED_MAX_LENGTH,
+    AuditImmutabilityError,
+    compute_row_hash,
+)
 from apps.candidate.models import Candidate, CandidateHistory
 
 
@@ -55,3 +59,28 @@ def test_compute_row_hash_deterministic_and_sensitive():
     # detail 键序不影响（规范化）
     reordered = dict(base, detail={'changes': [{'new': 'b', 'old': 'a', 'field': 'email'}]})
     assert compute_row_hash(**reordered) == h1, 'detail 键序不应影响哈希（canonical）'
+
+
+def test_audit_hash_columns_fit_prefix_margin():
+    """哈希链列必须留得下「版本前缀 + 64 hex」的口径余量（决策A·J6）。
+
+    sha256 hexdigest **恰好 64 字符** —— 列宽等于 64 就是零余量，哈希口径一改
+    （加 'v2_' 版本前缀 / 换摘要算法）就撑爆列；而审计链撑爆 = **整链失效**
+    （``histories/verify`` 直接报 broken_at），比单个 PII 列截断严重得多。
+
+    这条断言把 models.py 的 max_length 与 audit.AUDIT_HASH_REQUIRED_MAX_LENGTH 绑在一起 ——
+    任何一方单独回退到 64 都会被拦下。
+    """
+    digest_len = len(compute_row_hash(
+        candidate_id='c1', seq=1, action='INFO_UPDATED',
+        detail={}, created_by_id=None, prev_hash='',
+    ))
+    for name in ('prev_hash', 'row_hash'):
+        field = CandidateHistory._meta.get_field(name)
+        assert field.max_length >= AUDIT_HASH_REQUIRED_MAX_LENGTH, (
+            f'{name} max_length={field.max_length} < {AUDIT_HASH_REQUIRED_MAX_LENGTH} '
+            f'(哈希链列零余量, 改口径即整链失效)'
+        )
+        assert digest_len <= field.max_length, (
+            f'{name} max_length={field.max_length} 装不下当前摘要长度 {digest_len}'
+        )

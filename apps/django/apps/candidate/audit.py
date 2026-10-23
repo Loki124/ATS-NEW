@@ -19,6 +19,19 @@ class AuditImmutabilityError(Exception):
     """审计行不可修改/删除（不可篡改）。"""
 
 
+# 2026-10-23 卡 C4（决策A·J6）：哈希链列的下限宽度。
+#   现状：``prev_hash`` / ``row_hash`` 列 max_length=64，而 sha256 hexdigest **恰好 64 字符**
+#   ⇒ 列宽零余量，只要哈希口径一改（加版本前缀 / 换摘要算法）就会撑爆列。
+#   · 「加版本前缀」不是假设：PII 盲索引列已经因为外部 salt 改成 'v2_' 前缀（67 字符），
+#     哈希链是同一类「可版本化」的派生值，迟早会走同一条路；
+#   · 审计链比 PII 哈希更不能想改就改：``prev_hash`` 串起全链，改一列会让**整条链**失效，
+#     且 ``histories/verify`` 端点会立刻报 ``broken_at`` ⇒ 必须在加宽之后才敢动口径。
+#   80 与 PII 盲索引列同档（'v2_' + 64 hex = 67，留 13 字符余量），两侧列宽保持一致。
+#   断言见 apps/candidate/tests/test_audit.py::test_audit_hash_columns_fit_prefix_margin，
+#   防止有人把 max_length 改回 64（该断言把模型列宽与本常量绑在一起）。
+AUDIT_HASH_REQUIRED_MAX_LENGTH = 80
+
+
 def _canonical(value) -> str:
     """任意 JSON 结构的规范化字符串：键排序、紧凑分隔、保留中文、不可序列化对象退化为 str。"""
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(',', ':'), default=str)

@@ -178,6 +178,14 @@ class DynamicFieldSerializer(serializers.ModelSerializer):
             'sub_fields',
             # 2026-09-27 (兵哥): 系统内置字段标记 + 核心标识锁定标记
             'is_system', 'is_locked',
+            # 2026-10-23 (决策 A 回灌 J1): 审计时间戳。
+            #   之前只写在 read_only_fields 里、却**不在 Meta.fields** ⇒ DRF 只遍历
+            #   Meta.fields 构造字段 ⇒ 这两个键被**静默丢弃**（运行时输出 30 键），
+            #   而前端 `web/app/src/api/dynamic-field.ts` 的 FieldDefinition **声明了**
+            #   createdAt / updatedAt ⇒ 前后端字段集对不上。
+            #   兄弟 serializer（FieldModule `__all__` / FieldGroup / FieldLinkageRule）
+            #   都返回这两个键 ⇒ 这里对齐（向前兼容：多返回 2 个键，前端已声明）。
+            'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'resource', 'created_at', 'updated_at', 'module', 'group', 'is_system']
 

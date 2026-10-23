@@ -460,8 +460,13 @@ class CandidateHistory(FullAuditModel):
     action = models.CharField(max_length=64, verbose_name='操作')
     detail = models.JSONField(default=dict, blank=True, verbose_name='详情')
     seq = models.PositiveIntegerField(default=0, db_index=True, verbose_name='序号')
-    prev_hash = models.CharField(max_length=64, blank=True, default='', verbose_name='上一行哈希')
-    row_hash = models.CharField(max_length=64, blank=True, default='', db_index=True, verbose_name='行哈希')
+    # 2026-10-23 卡 C4（决策A·J6）：64 → 80。sha256 hexdigest **恰好 64 字符** = 列宽零余量，
+    #   哈希口径一改（加 'v2_' 版本前缀 / 换摘要算法）就撑爆列；审计链一旦撑爆，
+    #   ``histories/verify`` 会整链报 broken_at ⇒ 改口径前必须先留余量。
+    #   80 与 PII 盲索引列（phone_hash / email_hash）同档，
+    #   下限由 audit.AUDIT_HASH_REQUIRED_MAX_LENGTH 固化，并由 tests/test_audit.py 断言防漂移。
+    prev_hash = models.CharField(max_length=80, blank=True, default='', verbose_name='上一行哈希')
+    row_hash = models.CharField(max_length=80, blank=True, default='', db_index=True, verbose_name='行哈希')
 
     class Meta:
         db_table = 'candidate_histories'

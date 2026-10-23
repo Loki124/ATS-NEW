@@ -97,6 +97,23 @@ def encrypt_value(plaintext: str | None) -> str | None:
     return _get_fernet().encrypt(plaintext.encode('utf-8')).decode('ascii')
 
 
+#: Fernet token 的固定前缀 (cryptography.fernet 的报文首字节恒为 0x80 → base64url 后恒以 'gAAAAA' 开头)。
+#: 2026-10-23: 抽成**单一真源**, 让「这串值是不是密文」的判断在多处复用同一判据
+#: (decrypt_value 的失败分流 / reencrypt_pii 命令对历史明文行的识别 / 其它运维工具)。
+FERNET_TOKEN_PREFIX = 'gAAAAA'
+
+
+def looks_like_ciphertext(value) -> bool:
+    """这串值**看起来**是 Fernet 密文吗 (按 token 前缀判定)。
+
+    用途: 区分「密文解不开」(可能是密钥没配对 / 密钥轮换漏配旧 key)
+          与「它本来就是明文」(历史数据, 尚未加密)。
+
+    ⚠️ 只是**形态**判定, 不保证能解密 —— 前缀相同但 HMAC 不过的情况仍然存在。
+    """
+    return bool(value) and str(value).startswith(FERNET_TOKEN_PREFIX)
+
+
 def decrypt_value(ciphertext: str | None, field_name: str | None = None) -> str | None:
     """解密字符串. None/空 返 None.
 
@@ -115,7 +132,7 @@ def decrypt_value(ciphertext: str | None, field_name: str | None = None) -> str 
         return _get_fernet().decrypt(ciphertext.encode('ascii')).decode('utf-8')
     except (InvalidToken, ValueError, TypeError) as e:
         # Fernet token 恒以 'gAAAAA' 开头, 用它区分"密文解不开"和"历史明文"
-        looks_encrypted = str(ciphertext).startswith('gAAAAA')
+        looks_encrypted = looks_like_ciphertext(ciphertext)
         where = field_name or '<unknown>'
         if getattr(settings, 'STRICT_DECRYPT', False):
             raise DecryptionError(
