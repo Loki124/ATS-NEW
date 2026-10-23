@@ -386,11 +386,39 @@ const subMenuOptions = computed(() => {
 
 ---
 
-## 10. 关联文档
+## 10. 🟡 部门树多选：`n-tree` 的 cascade / filter / `content-style` 落点（2026-10-23 实测）
+
+> 实证对象：`web/app/src/components/common/DeptTreeFilter.vue`（组件库通用「部门树筛选」组件：多选部门树 + 「自动选中全部子部门」「展示历史停用部门」两个策略开关）。
+
+### 10.1 `cascade=false` 时勾选完全不级联 —— 但「父节点半选」仍可自己画
+
+- `n-tree` 的 `cascade` 默认 `true`：勾一个节点会连同**后代**一起勾上，且**祖先**按子节点完整度自动变成实心勾 / 半选。
+- 一旦 `:cascade="false"`，naive 只做「当前集合 ± 1 个 key」，**祖先的半选态不再由它算** —— 但这**不妨碍**你用独立的 `:indeterminate-keys` prop 把半选画出来（两个 prop 互不干扰）。
+- 所以「可开关的自动选中全部子部门」只能这么实现：`cascade=false` + 自管 `:checked-keys` / `:indeterminate-keys` + 自己写向上回算（**孩子连同其子树**全选 → 父实心勾；有孩子被勾 → 父半选；否则父未选）。
+- ⚠️ `cascade=false` 时 naive 回传的是**整个 checked-keys 集合**，事件里**不带**被点的那个 key ⇒ 要定位被点的节点只能**做集合差分**（多出来的 key = 勾上，少掉的 = 取消），别指望事件参数。
+
+### 10.2 `filter` prop 只在 `pattern` 非空时才真正过滤
+
+- `n-tree` 的 `filter(pattern, node)` 看着像"给个函数就过滤"，内部却是 `if (!pattern) return { filteredTree: props.data }` —— **没有 `pattern` 就一点都不过滤**。
+- `pattern` 是公开 prop（可受控），但**只有 `filterable` 才自带搜索框**。想自己放搜索框（中文占位符 / 位置 / 样式）：`filterable` 不开 + `:pattern="keyword"` 受控 + `:filter="fn"`。
+- `filter` 拿到的 node 就是**你自己的 data 对象** ⇒ 想按别的字段匹配（如"部门名"而非带「（停用）」后缀的 label）就在 data 上额外挂字段再匹配。
+
+### 10.3 `n-modal preset="card"` 的 `content-style` 落在 `.n-card-content`；jsdom 会静默丢弃 `min()`
+
+- `content-style` 透传给的是 **Card** 的 `contentStyle`（它在 `cardBaseProps` 里，`n-modal` 的 `preset` 属性透传会带上），最终落在 **`.n-card-content`**（**不是** `.n-card__content`）—— 类名写错会误判成"样式没生效"。
+- 🔴 **jsdom / happy-dom 不支持 `min()` 这类函数值**：`height: min(300px, calc(88vh - 140px))` 会被**静默丢弃**（不报错、不抛异常），渲染后的 style 里只剩 `overflow-y: auto`。
+  ⇒ 断言固定高度**不能打渲染后的 style**，要打**组件 prop**：
+  `findAllComponents({ name: 'Modal' }).find(m => m.props('title') === '…')!.props('contentStyle')`。
+  否则会写出一条**永远失败**的假断言（真实浏览器里这段声明是生效的）。
+
+---
+
+## 11. 关联文档
 
 - 设置页滚动契约（`.page-body` 滚动链） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md`
 - **UI 改动的截图自证工具链**（系统 Chrome + 后端签发 token + 路由直截） → `web/app/e2e/README-shot.md`
 - 设置侧栏折叠态悬浮浮出（分组打平 → 父项回根级） → 本文 §9
+- 部门树多选筛选（组件库 `DeptTreeFilter.vue`）的 naive-ui 踩坑（cascade 自管勾选 / filter 需 pattern / content-style 落点与 jsdom 丢 `min()`） → 本文 §10
 - 后端序列化器字段类型陷阱（同批实证） → `docs/06-runbook/ENGINEERING_RULES.md` §15
 - 表单弹窗遮罩关闭守卫（useCloseGuard 接法） → `docs/04-ui/SETTINGS_PAGE_STRUCTURE.md` §6.1
 - 标准简历三层结构 + 拖拽 → `docs/04-ui/UI_STANDARD.md` 附录 B

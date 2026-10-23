@@ -156,7 +156,11 @@ test.describe('Phase 4 校招专属功能 (G-2026-09-23)', () => {
   });
 
   test('8) 隔离证据：X-Recruit-Type=social 下 campus API 列表为空', async ({ request }) => {
-    const r = await request.get('http://127.0.0.1:8000/api/v1/campus-recruit/ambassadors/', {
+    // ⚠️ ATS-Java 副本增强（2026-10-22）：原写死 127.0.0.1:8000（Django），
+    // 打到 Java 侧时必须指向 Java 实例，否则这条永远测的是 Django 而非 Java。
+    // 用 E2E_BACKEND_URL 覆盖，默认保持原行为（8000）。
+    const backendUrl = process.env.E2E_BACKEND_URL || 'http://127.0.0.1:8000'
+    const r = await request.get(`${backendUrl}/api/v1/campus-recruit/ambassadors/`, {
       headers: { 'X-Recruit-Type': 'social' },
     });
     expect([200, 401, 403]).toContain(r.status());
