@@ -329,7 +329,8 @@ const basicFields = computed(() => {
   const list = [
     { label: '编号', value: p.value.code },
     { label: '院校名称', value: p.value.schoolName || p.value.school },
-    { label: '专业', value: p.value.major },
+    // 2026-10-23（聂荣口径）教育经历取「院校标签就高原则」命中的那条 → 专业用真实名称
+    { label: '专业', value: p.value.majorName || p.value.major },
     { label: '学历', value: p.value.education },
     { label: '联系电话', value: p.value.phone },
     // 2026-10-21 兵哥口径：工号 8 位纯数字（待入职无）；入职日期仅已入职有；预计入职日期全员有
@@ -339,8 +340,15 @@ const basicFields = computed(() => {
     { label: '当前轮岗部门', value: rot?.currentDept },
     { label: '综合评分', value: fmtScore(stats.value.overallScore) },
     { label: '班主任', value: p.value.headTeacherName || cr?.headTeacher },
-    { label: 'HRBP', value: cr?.hrbp },
+    { label: 'HRBP', value: p.value.hrbpName || cr?.hrbp },
     { label: '班级', value: p.value.classRoomName || cr?.name },
+    // 2026-10-23（聂荣口径）基本信息补三项：
+    //   轮岗状态分类 = 当前轮岗安排所处阶段（待分配/审批中/轮岗中/已完成/已终止）
+    { label: '轮岗状态分类', value: p.value.rotationStatusLabel || rot?.stageLabel },
+    //   班长（档案级，基于班级自动带出可修改）
+    { label: '班长', value: p.value.classMonitorName },
+    //   带教导师（档案级）
+    { label: '带教导师', value: p.value.mentorName },
   ]
   return list.map((f) => ({ ...f, value: f.value || '—' }))
 })

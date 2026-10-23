@@ -272,15 +272,23 @@ const columns = computed<DataTableColumn<any>[]>(() => {
 });
 
 const auditColumns: DataTableColumn<any>[] = [
+  // ⚠️ 2026-10-23 更正：原来读的是 **snake_case**（created_at / masked_fields /
+  //    hidden_fields / client_ip），但后端两端都返回 **camelCase**
+  //    （Django 全局 CamelCaseJSONRenderer / Java 均为 camelCase）
+  //    → 这三列在**两端**都恒为空白（不是 Java 单侧问题）。
+  //    现按 camelCase 读，并保留 snake_case 回落（后端若改口径也不会再次空白）。
   column({ title: t('pages.settings.FieldAclSettings.s10'), key: 'createdAt', width: 170,
-    render: (r: any) => (r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '-') }, 'short'),
+    render: (r: any) => {
+      const v = r.createdAt ?? r.created_at;
+      return v ? new Date(v).toLocaleString('zh-CN') : '-';
+    } }, 'short'),
   column({ title: t('pages.settings.FieldAclSettings.s11'), key: 'username', width: 100 }, 'short'),
   column({ title: t('pages.settings.FieldAclSettings.s12'), key: 'entity', width: 200,
     render: (r: any) => `${r.entity}` }, 'short'),
   column({ title: t('pages.settings.FieldAclSettings.s13'), key: 'masked', width: 220,
-    render: (r: any) => `${r.masked_fields?.length || 0} / ${r.hidden_fields?.length || 0}` }, 'numeric'),
-  column({ title: t('pages.settings.FieldAclSettings.s14'), key: 'client_ip', width: 140,
-    render: (r: any) => r.client_ip || '-' }, 'short'),
+    render: (r: any) => `${(r.maskedFields ?? r.masked_fields)?.length || 0} / ${(r.hiddenFields ?? r.hidden_fields)?.length || 0}` }, 'numeric'),
+  column({ title: t('pages.settings.FieldAclSettings.s14'), key: 'clientIp', width: 140,
+    render: (r: any) => r.clientIp ?? r.client_ip ?? '-' }, 'short'),
 ];
 
 // ===== 数据加载 =====

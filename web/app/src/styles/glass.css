@@ -628,8 +628,9 @@ body.dark .n-modal-mask {
  * 结构要点：naive 的 prefix 图标列宽会随「同组兄弟有没有图标」在 14/16/32px 间跳变，
  * 留着它各行左缘天然对不齐（用户反馈「歪歪扭扭」）⇒ 图标 / 文字 / 右侧控件全部自绘，
  * naive 的 prefix 槽归零，列宽由下面的网格固定。
- * 尺寸实测（本地夹具量得）：图标左缘 = 背景带左缘 = 33px；文字列左缘 = 61px；
- * 语言开关 / 布局勾的右缘 = 背景带右缘 = 217px。 */
+ * 尺寸实测（2026-10-23，1440×900 视口，运行时 getBoundingClientRect 量得，
+ * 非目测）：图标左缘 1228px；文字列左缘 1256px；语言开关 / 布局勾右缘 1402px；
+ * 行 padding = 0 4px（--space-1 真值 4px）= 高亮层 inset left/right 4px ⇒ 背景带与内容重合。 */
 .user-menu-dropdown.n-dropdown-menu,
 .user-menu-dropdown .n-dropdown-menu {
   /* 面板宽度：给「文字 | 右侧控件」两列留出稳定空间；上限 260px 防止超宽 */
@@ -681,7 +682,8 @@ body.dark .n-modal-mask {
 }
 
 /* 分组标题文案：左缘对齐到常规项的**文字列**
-   （行内缩 6px + 图标列 20px + 间距 8px）。 */
+   （行内缩 --space-1 + 图标列 20px + 列间距 8px）。
+   实测（1440 视口，运行时量测）：标题文字左缘 1256px = 常规项文字列左缘 1256px。 */
 .user-menu-section-label {
   font-size: var(--fs-12);
   font-weight: 600;
@@ -694,7 +696,10 @@ body.dark .n-modal-mask {
 
 /* 行内容：网格三列 = 图标(20) | 文字(自适应) | 右侧控件(自适应，靠右)
    ⇒ 所有行的图标左缘、文字左缘、控件右缘都严格对齐。
-   padding 与高亮层的 inset 同为 --space-1(6px) ⇒ 背景带左右缘 = 内容左右缘。 */
+   ⚠️ padding 与高亮层的 inset 用**同一个令牌** --space-1（真值 4px，非 6px）
+   ⇒ 背景带左右缘 = 内容左右缘。
+   实测（1440 视口，运行时量测）：图标左缘 1228px / 文字左缘 1256px / 控件右缘 1402px
+   三者跨全部行完全一致；高亮层 inset left=4px 与行 padding left=4px 同值（背景带与内容重合）。 */
 .user-menu-row {
   display: grid;
   grid-template-columns: 20px 1fr auto;

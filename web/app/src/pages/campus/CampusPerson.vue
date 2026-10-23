@@ -56,6 +56,9 @@
         <n-button type="primary" :loading="loading" @click="reload">查询</n-button>
         <n-button @click="clearFilters">清空</n-button>
         <n-button @click="openAdvanced">高级筛选</n-button>
+        <!-- 2026-10-23（聂荣口径）：一键成班 —— 按批次把未分班人员按 30~35 人规则分班。
+             非 primary 按钮：本页唯一实心按钮是「查询」（R-202 一屏一主角）。 -->
+        <n-button @click="openClassModal">一键成班</n-button>
       </div>
 
       <n-tabs
@@ -114,7 +117,7 @@
         preset="card"
         title="高级筛选"
         :style="{ width: '560px', maxWidth: '95vw' }"
-        :content-style="{ height: 'min(220px, calc(88vh - 140px))', overflowY: 'auto' }"
+        :content-style="{ height: 'min(300px, calc(88vh - 140px))', overflowY: 'auto' }"
         :mask-closable="false"
         :bordered="false"
       >
@@ -155,6 +158,19 @@
               </n-form-item>
             </n-grid-item>
           </n-grid>
+
+          <!-- 2026-10-23（聂荣口径）取数范围开关：
+               默认只显示「26 年及以后入职或预计入职」的校招生（需求原文「数据范围（26年及以后入职或预计入职数据）」）；
+               勾选后连带 26 年前入职的历史校招生一起看。 -->
+          <n-form-item label="数据范围">
+            <n-switch v-model:value="advancedForm.includeHistory">
+              <template #checked>含历史数据</template>
+              <template #unchecked>仅 26 年及以后</template>
+            </n-switch>
+            <div class="field-hint">
+              默认只显示 26 年及以后入职或预计入职的校招生；开启后一并显示 26 年前入职的历史人员
+            </div>
+          </n-form-item>
         </n-form>
 
         <template #footer>
@@ -162,6 +178,60 @@
             <n-button @click="clearAdvanced">清空条件</n-button>
             <n-button type="primary" class="gradient-btn" @click="applyAdvanced">查询</n-button>
           </div>
+        </template>
+      </n-modal>
+
+      <!-- 2026-10-23（聂荣口径）：一键成班（居中弹窗，R-224）
+           需求原文：「班级（按照当前批次每30-35人成立一个班级，默认30人成班，
+           若剩余人数低于10人则均分至所有班级，超过10人则独立成班…）」
+           流程：填批次 → 预览方案（不落库）→ 确认执行。 -->
+      <n-modal
+        v-model:show="classModalVisible"
+        preset="card"
+        title="一键成班"
+        :style="{ width: '520px', maxWidth: '95vw' }"
+        :content-style="{ height: 'min(320px, calc(88vh - 140px))', overflowY: 'auto' }"
+        :mask-closable="false"
+      >
+        <n-form label-placement="top">
+          <n-form-item label="批次号">
+            <n-input
+              v-model:value="classBatch"
+              placeholder="如 260701"
+              @keyup.enter="previewClasses"
+            />
+            <div class="field-hint">取该批次下尚未分配班级的校招生，按每班 30~35 人成班</div>
+          </n-form-item>
+          <n-form-item v-if="classPlan" label="成班方案">
+            <div class="class-plan">
+              <div class="class-plan__row">
+                待分配 <b>{{ classPlan.total }}</b> 人 · 共 {{ classPlan.classes?.length || 0 }} 个班
+              </div>
+              <div
+                v-for="c in classPlan.classes || []"
+                :key="c.name"
+                class="class-plan__row"
+              >
+                {{ c.name }} · {{ c.size }} 人
+              </div>
+              <div v-if="!(classPlan.classes || []).length" class="field-hint">
+                暂无可成班人员（该批次人员都已分班）
+              </div>
+            </div>
+          </n-form-item>
+        </n-form>
+        <template #footer>
+          <n-space justify="end">
+            <n-button :loading="classLoading" @click="previewClasses">预览方案</n-button>
+            <n-button
+              type="primary"
+              :loading="classSubmitting"
+              :disabled="!classPlan || !classPlan.total"
+              @click="submitClasses"
+            >
+              按方案成班
+            </n-button>
+          </n-space>
         </template>
       </n-modal>
 
@@ -174,7 +244,9 @@
         :mask-closable="false"
       >
         <n-form :model="formState" label-placement="top">
-          <!-- ① 轮岗信息（HRBP / 带教导师 只读 —— 仅可在轮岗安排中填写；其余可编辑） -->
+          <!-- ① 轮岗信息（2026-10-23 聂荣口径：批次、班级、班长、班主任、带教导师、HRBP **均可编辑**；
+               2026-10-22 兵哥口径曾把 HRBP / 带教导师锁成只读，与聂荣 2026-10-23 的
+               「可编辑字段（批次、班级、班长、班主任、带教导师、HRBP）」冲突 → 以较晚的聂荣为准） -->
           <div class="form-section">
             <div class="form-section-title">轮岗信息</div>
             <n-grid :cols="2" :x-gap="24">
@@ -223,31 +295,61 @@
                   />
                 </n-form-item>
               </n-grid-item>
+              <!-- 2026-10-23（聂荣口径）：班长 —— 需求原文「班长（基于班级自动带出可修改）」。
+                   选班级时自动带出该班班长（可再手动改）；改班级会重新带出。 -->
+              <n-grid-item>
+                <n-form-item label="班长">
+                  <n-select
+                    v-model:value="formState.classMonitor"
+                    :options="classMonitorOptions"
+                    placeholder="请选择班长"
+                    clearable
+                    filterable
+                    remote
+                    :on-search="onClassMonitorSearch"
+                  />
+                  <div class="field-hint">选择班级后自动带出该班班长，可手动修改</div>
+                </n-form-item>
+              </n-grid-item>
+              <!-- 2026-10-23（聂荣口径）：HRBP 由「只读」改为**可改** ——
+                   需求原文「HRBP（基于轮岗BU部门的HRBP自动填充，可修改）」。
+                   后端在未指定时自动回填轮岗 BU 部门的 HRBP（见
+                   campus_control/serializers.py 的 PersonSerializer.validate）。 -->
               <n-grid-item>
                 <n-form-item label="HRBP">
                   <n-select
-                    :value="formState.hrbp"
+                    v-model:value="formState.hrbp"
                     :options="hrbpOptions"
-                    disabled
-                    placeholder="—"
+                    placeholder="请选择 HRBP"
+                    clearable
+                    filterable
+                    remote
+                    :on-search="onHrbpSearch"
                   />
-                  <div class="field-hint">仅可在轮岗安排中填写</div>
+                  <div class="field-hint">默认取轮岗 BU 部门的 HRBP，可修改</div>
                 </n-form-item>
               </n-grid-item>
+              <!-- 2026-10-23（聂荣口径）：带教导师由「只读」改为**可改** ——
+                   需求原文「带教导师（导师带教人数上限为5人，优先分配给直播间导师…）」。
+                   未指定时后端按饱和度最低原则推荐（见 campus_rotation/rules.pick_mentor）。 -->
               <n-grid-item>
                 <n-form-item label="带教导师">
                   <n-select
-                    :value="formState.mentor"
+                    v-model:value="formState.mentor"
                     :options="mentorOptions"
-                    disabled
-                    placeholder="—"
+                    placeholder="请选择带教导师"
+                    clearable
+                    filterable
+                    remote
+                    :on-search="onMentorSearch"
                   />
-                  <div class="field-hint">仅可在轮岗安排中填写</div>
+                  <div class="field-hint">每位导师带教上限 {{ MENTOR_CAPACITY }} 人</div>
                 </n-form-item>
               </n-grid-item>
               <n-grid-item>
                 <n-form-item label="批次">
-                  <n-input v-model:value="formState.batch" placeholder="如 2026秋招" />
+                  <n-input v-model:value="formState.batch" placeholder="如 260701" />
+                  <div class="field-hint">留空则按入职时间自动生成（月中 15 号为界）</div>
                 </n-form-item>
               </n-grid-item>
             </n-grid>
@@ -399,6 +501,7 @@ import {
   useMessage,
 } from 'naive-ui'
 import {
+  AlertCircleOutline,
   CreateOutline,
   SearchOutline,
   TrashOutline,
@@ -423,6 +526,8 @@ import {
   validatePersonEntryFields,
   ROTATION_STATUS,
   formatSlashDate,
+  // 2026-10-23（聂荣口径）：导师带教上限（后端 rules.MENTOR_CAPACITY 的镜像）
+  MENTOR_CAPACITY,
   type SelectOption,
 } from '../../utils/campus'
 import { column } from '../../composables/useTableColumns'
@@ -460,6 +565,12 @@ const advancedForm = reactive({
   school: null as string | null,
   /** 专业标签 */
   major: null as string | null,
+  /**
+   * 2026-10-23（聂荣口径）取数范围开关：
+   *   默认 false = 只看「26 年及以后入职或预计入职」的校招生（需求原文「数据范围」）；
+   *   勾选 true = 连带 26 年前入职的历史校招生一起看（后端 entry_scope=all）。
+   */
+  includeHistory: false,
 })
 
 // 二期：个人档案详情弹窗
@@ -469,6 +580,15 @@ const profileRow = ref<any | null>(null)
 const profilePreloaded = ref<any | null>(null)
 /** 档案详情组件实例（保存基础信息后用它刷新详情数据） */
 const profileRef = ref<InstanceType<typeof PersonProfileModal> | null>(null)
+
+// 2026-10-23（聂荣口径）：一键成班
+//   需求原文：「班级（按照当前批次每30-35人成立一个班级，默认30人成班…）」
+//   流程：填批次 → 预览方案（dry_run，不落库）→ 确认执行。
+const classModalVisible = ref(false)
+const classBatch = ref('')
+const classPlan = ref<any | null>(null)
+const classLoading = ref(false)
+const classSubmitting = ref(false)
 
 // S5-05（需求 2-1）+ 二期：状态页签。
 // 「待入职」映射后端单值状态「待入职」（后端 status 参数仍支持逗号多值，向后兼容）。
@@ -552,6 +672,8 @@ const emptyForm = () => ({
   level: '' as string,
   headTeacher: null as string | null,
   classRoom: null as string | null,
+  // 2026-10-23（聂荣口径）：班长（档案级；选班级时自动带出，可修改）
+  classMonitor: null as string | null,
   mentor: null as string | null,
   expectedEntryDate: null as number | null,
   actualEntryDate: null as number | null,
@@ -627,6 +749,8 @@ const classRoomNameMap = computed(() => {
 const headTeacherOptions = ref<SelectOption[]>([])
 const mentorOptions = ref<SelectOption[]>([])
 const hrbpOptions = ref<SelectOption[]>([])
+// 2026-10-23（聂荣口径）：班长选项（档案级班长；选班级时自动带出）
+const classMonitorOptions = ref<SelectOption[]>([])
 const onClassRoomSearch = async (kw: string) => {
   classRoomOptions.value = await searchClassRooms(kw)
 }
@@ -636,6 +760,38 @@ const onHeadTeacherSearch = async (kw: string) => {
 const onMentorSearch = async (kw: string) => {
   mentorOptions.value = await searchUsers(kw)
 }
+const onHrbpSearch = async (kw: string) => {
+  hrbpOptions.value = await searchUsers(kw)
+}
+const onClassMonitorSearch = async (kw: string) => {
+  classMonitorOptions.value = await searchUsers(kw)
+}
+
+/**
+ * 班长自动带出（聂荣口径「班长（基于班级自动带出可修改）」）。
+ *
+ * 触发时机：选了班级 → 查该班级的 `class_monitor` → 填进班长。
+ * ⚠️ 只在**当前班长为空**时自动填：用户手动改过的班长不得被班级变更覆盖
+ *    （与后端 `PersonSerializer.validate` 的自动填充口径一致 —— 都只补空值）。
+ */
+const applyClassMonitorFromClassRoom = (classRoomId: string | null) => {
+  if (!classRoomId) return
+  if (formState.classMonitor) return
+  const opt = classRoomOptions.value.find((o) => String(o.value) === String(classRoomId))
+  const cr = opt?.classRoom as any
+  if (!cr?.classMonitor) return
+  formState.classMonitor = String(cr.classMonitor)
+  classMonitorOptions.value = [
+    { label: cr.classMonitorName || String(cr.classMonitor), value: String(cr.classMonitor) },
+    ...classMonitorOptions.value.filter((o) => String(o.value) !== String(cr.classMonitor)),
+  ]
+}
+
+// 选了班级 → 自动带出班长
+watch(
+  () => formState.classRoom,
+  (cid) => applyClassMonitorFromClassRoom(cid),
+)
 
 /** 预置筛选下拉的首屏选项（否则下拉打开是空白，必须先输入才有内容）。 */
 const loadFilterOptions = async () => {
@@ -678,6 +834,9 @@ const loadList = async () => {
     if (activeTab.value) params.status = activeTab.value
     // 2026-10-22：轮岗状态筛选（后端按「存在该阶段的轮岗安排」过滤）
     if (filterRotationStatus.value) params.rotation_status = filterRotationStatus.value
+    // 2026-10-23（聂荣口径）取数范围：默认「26 年及以后入职或预计入职」。
+    //   勾选「包含历史数据」→ entry_scope=all（后端关掉该过滤）。
+    if (advancedForm.includeHistory) params.entry_scope = 'all'
     const resp = await api.get('/campus/persons/', { params })
     list.value = pick(extractList(resp), mockRows.value)
   } catch (e: any) {
@@ -716,6 +875,8 @@ const clearAdvanced = () => {
   advancedForm.classRoom = null
   advancedForm.school = null
   advancedForm.major = null
+  // 2026-10-23（聂荣口径）：数据范围回到默认（仅 26 年及以后）
+  advancedForm.includeHistory = false
 }
 
 /** 应用高级筛选并查询（关闭弹窗）。 */
@@ -732,6 +893,8 @@ const applyAdvanced = () => {
 const openEdit = (row: any) => {
   const headTeacherId = row.headTeacher ?? row.headTeacherId ?? null
   const classRoomId = row.classRoom ?? row.classRoomId ?? null
+  // 2026-10-23（聂荣口径）：班长（档案级）
+  const classMonitorId = row.classMonitor ?? row.classMonitorId ?? null
   Object.assign(formState, emptyForm(), {
     id: row.id,
     code: row.code,
@@ -755,6 +918,7 @@ const openEdit = (row: any) => {
     level: row.level || '',
     headTeacher: headTeacherId != null ? String(headTeacherId) : null,
     classRoom: classRoomId != null ? String(classRoomId) : null,
+    classMonitor: classMonitorId != null ? String(classMonitorId) : null,
     mentor: row.mentor != null ? String(row.mentor) : null,
     expectedEntryDate: row.expectedEntryDate ? new Date(row.expectedEntryDate).getTime() : null,
     actualEntryDate: row.actualEntryDate ? new Date(row.actualEntryDate).getTime() : null,
@@ -767,13 +931,20 @@ const openEdit = (row: any) => {
     candidateName: row.candidateName || '',
   })
   editing.value = row
-  // HRBP：只读展示（人员侧只显示名字，选项用假 id 回显）
+  // HRBP：预置当前值（人员侧只显示名字，选项用 id 回显）；可再手动改
   hrbpOptions.value = row.hrbp != null
     ? [{ label: row.hrbpName || String(row.hrbp), value: String(row.hrbp) }]
     : []
   // 预置已选班级 / 班主任 / 导师，保证编辑时选择器回显当前值
+  // ⚠️ 班级选项**优先复用列表里已加载的真实记录**（带 classMonitor 原始数据）——
+  //    只有拿真实记录才能在选班级时自动带出班长（聂荣口径）。
+  const knownRoom = classRoomId != null
+    ? classRoomOptions.value.find((o) => String(o.value) === String(classRoomId))
+    : undefined
   classRoomOptions.value = classRoomId != null
-    ? [{ label: row.classRoomName || String(classRoomId), value: String(classRoomId) }]
+    ? (knownRoom
+        ? classRoomOptions.value
+        : [{ label: row.classRoomName || String(classRoomId), value: String(classRoomId) }])
     : []
   headTeacherOptions.value = headTeacherId != null
     ? [{ label: row.headTeacherName || String(headTeacherId), value: String(headTeacherId) }]
@@ -781,6 +952,12 @@ const openEdit = (row: any) => {
   mentorOptions.value = row.mentor != null
     ? [{ label: row.mentorName || String(row.mentor), value: String(row.mentor) }]
     : []
+  // 2026-10-23（聂荣口径）：班长选项回显
+  classMonitorOptions.value = classMonitorId != null
+    ? [{ label: row.classMonitorName || String(classMonitorId), value: String(classMonitorId) }]
+    : []
+  // 档案本身没有班长、但所选班级有班长 → 自动带出（聂荣：基于班级自动带出）
+  applyClassMonitorFromClassRoom(classRoomId != null ? String(classRoomId) : null)
   modalVisible.value = true
 }
 
@@ -857,6 +1034,8 @@ const save = async () => {
     level: formState.level || '',
     head_teacher: formState.headTeacher,
     class_room: formState.classRoom,
+    // 2026-10-23（聂荣口径）：班长（档案级）
+    class_monitor: formState.classMonitor,
     mentor: formState.mentor,
     expectedEntryDate: toDateStr(formState.expectedEntryDate),
     actualEntryDate: isPending.value ? '' : toDateStr(formState.actualEntryDate),
@@ -908,8 +1087,61 @@ const remove = async (row: any) => {
   }
 }
 
-const statusTagType = (s: string) => {
-  if (s === '在职') return 'success'
+/**
+ * 一键成班（聂荣 2026-10-23 口径）—— 打开成班弹窗。
+ *
+ * 需求原文：「班级（按照当前批次每30-35人成立一个班级，默认30人成班，
+ * 若剩余人数低于10人则均分至所有班级，超过10人则独立成班…）」。
+ */
+const openClassModal = () => {
+  classBatch.value = ''
+  classPlan.value = null
+  classModalVisible.value = true
+}
+
+/** 预览成班方案（dry_run，不落库）—— 先看方案再执行，避免误操作。 */
+const previewClasses = async () => {
+  const batch = (classBatch.value || '').trim()
+  if (!batch) {
+    message.warning('请填写批次号')
+    return
+  }
+  classLoading.value = true
+  try {
+    const resp = await api.post('/campus/persons/form-classes/', { batch, dry_run: true })
+    const data = resp?.data?.data ?? resp?.data ?? {}
+    classPlan.value = data
+    if (!data.total) message.info('该批次没有待分配班级的人员')
+  } catch (e: any) {
+    message.error(extractError(e))
+  } finally {
+    classLoading.value = false
+  }
+}
+
+/** 执行成班（建班级 + 挂人）。 */
+const submitClasses = async () => {
+  const batch = (classBatch.value || '').trim()
+  if (!batch) {
+    message.warning('请填写批次号')
+    return
+  }
+  classSubmitting.value = true
+  try {
+    const resp = await api.post('/campus/persons/form-classes/', { batch })
+    const data = resp?.data?.data ?? resp?.data ?? {}
+    message.success(`批次 ${batch} 成班完成：${data.created || 0} 个班`)
+    classModalVisible.value = false
+    classPlan.value = null
+    loadList()
+  } catch (e: any) {
+    message.error(extractError(e))
+  } finally {
+    classSubmitting.value = false
+  }
+}
+
+const statusTagType = (s: string) => {  if (s === '在职') return 'success'
   if (s === '待入职') return 'warning'
   return 'default'
 }
@@ -920,24 +1152,28 @@ const statusTagType = (s: string) => {
 // （原「入职时间 + 预计入职日期」两列合并为一列；原「班主任 / 职务 / 职级」三列按兵哥清单下线；
 //   原「部门」列更名为「当前轮岗部门」，原「院校」列更名为「学校」。）
 // D-02：隐藏「候选人编号」列（库字段 code 保留）。
+//   ⚠️ 2026-10-23（聂荣口径）**该列回来了** —— 需求原文「包含字段：姓名、简历编号、员工工号…」。
+//     聂荣的《校招生管理系统 - 需求文档》（2026-10-23）晚于 D-02（2026-10-19/21），
+//     且「简历编号」是**取数规则**里的明确要求（「简历编号与员工工号应取尽取」）→ 以聂荣为准。
+//     列名沿用编辑弹窗里的既有命名「简历编号」（= 档案编号 code，与候选人编号同号即同人）。
 // S5-08：列对齐接入 useTableColumns 单一真源（数据列表尽量居中，操作列 control 档）
 // 二期：姓名列改为可点击（打开个人档案详情），并补 title 便于查看超长姓名全称。
 /**
- * 列宽口径（2026-10-22 列重排后重算 → 同日按**浏览器实测**再校准）：
+ * 列宽口径（2026-10-23 增列后重算）：
  * 0. **按实测容器宽度配宽**（不是拍脑袋）：1440 视口下侧栏 64 + 页面内边距 32
- *    → 表格容器可用 1344px（用 playwright 量到的 clientWidth）。
- *    原合计 1380px 超出 36px → 末尾「综合评分」被 fixed:'right' 的操作列盖住、
- *    「当前轮岗部门」表头（6 字 ≈108px）被裁 → 现合计 **1324px**。
- * 1. **总宽 ≤ 容器宽** —— 14 列一屏放下，不触发横向滚动；
+ *    → 表格容器可用 1344px（playwright 量到的 clientWidth）。
+ * 1. **总宽 ≤ 1400px** —— 一屏放下，不触发横向滚动（S5-34 的既有要求）。
+ *    2026-10-23 新增「简历编号」「班长」两列（+164px）→ 通过逐列回收余量（各列
+ *    按实测内容宽度压到 44~100px）把合计守在 **1396px**，原 1324px → 1396px。
  *    「入职日期」合并列刻意用**两行**（预：/ 实：）而不是一行并排，
- *    就是为了把这个列压到 124px、把总宽守在 1400 以内（S5-34 一屏放下的既有要求）。
+ *    就是为了把这个列压到 116px、把总宽守在 1400 以内。
  * 2. **操作列 ≥ 168px** —— 「编辑 + 删除」两个带图标文字按钮（small 档 14px/28px 高）
  *    实际占位约 148px + 单元格左右内边距 24px，140px 会把「删除」按钮裁掉半截。
  * 3. 日期/编码类列用「短值」档（居中），长文本（班级/导师/部门/学校/专业）保留 ellipsis。
  */
 const columns = [
   column({
-    title: '姓名', key: 'name', width: 84, ellipsis: true,
+    title: '姓名', key: 'name', width: 76, ellipsis: true,
     render: (row: any) =>
       h(
         NButton,
@@ -950,11 +1186,37 @@ const columns = [
         { default: () => row.name || '-' },
       ),
   }),
-  column({ title: '工号', key: 'employeeId', width: 88, render: (row: any) => row.employeeId || '-' }),
-  column({ title: '性别', key: 'sex', width: 52, render: (row: any) => row.sex || '-' }),
+  // 2026-10-23（聂荣口径）：新增「简历编号」列 —— 需求原文「包含字段：姓名、简历编号、员工工号…」。
+  //   简历编号 = 档案编号 `code`（编辑弹窗里已沿用该命名；与候选人编号同号即同人）。
+  //   历史非招聘系统入职人员可不显示 → 缺值显示「—」，不臆造。
+  column({
+    title: '简历编号', key: 'code', width: 92, ellipsis: true,
+    render: (row: any) => row.code || '—',
+  }),
+  // 工号列附带「身份完整性」提示（聂荣取数规则：简历编号与员工工号应取尽取…其他必须完整）：
+  //   在职/离职缺工号 → 标一个告警图标（颜色 + 图标 + 文字三通道，R-109/R-221）。
+  column({
+    title: '工号', key: 'employeeId', width: 84,
+    render: (row: any) =>
+      h('div', { class: 'entry-date-cell__row' }, [
+        h('span', { class: 'entry-date-cell__val' }, row.employeeId || '—'),
+        row.identityIncomplete
+          ? h(
+            NIcon,
+            {
+              size: 13,
+              class: 'identity-warn-icon',
+              'aria-label': '工号待补录',
+            },
+            { default: () => h(AlertCircleOutline) },
+          )
+          : null,
+      ]),
+  }),
+  column({ title: '性别', key: 'sex', width: 44, render: (row: any) => row.sex || '-' }),
   column(
     {
-      title: '在职状态', key: 'status', width: 84,
+      title: '在职状态', key: 'status', width: 80,
       render: (row: any) =>
         h(NTag, { type: statusTagType(row.status), size: 'small' }, { default: () => row.status || '-' }),
     },
@@ -967,7 +1229,7 @@ const columns = [
       // 2026-10-22 兵哥指令：「预」「实」两个文字改用 icon 表达，并保持换行（两行）
       //   预 = 时钟（计划时间）  实 = 对勾圈（已实际发生）
       //   icon 单独出现会失去语义 → 必带 title（悬停提示）+ aria-label（R-217）
-      title: '入职日期', key: 'entryDate', width: 120,
+      title: '入职日期', key: 'entryDate', width: 116,
       render: (row: any) =>
         h('div', { class: 'entry-date-cell' }, [
           h('span', { class: 'entry-date-cell__row', title: '预计入职日期' }, [
@@ -990,19 +1252,22 @@ const columns = [
     },
     'short',
   ),
-  column({ title: '带教导师', key: 'mentorName', width: 84, ellipsis: true, render: (row: any) => row.mentorName || '-' }),
-  column({ title: 'HRBP', key: 'hrbpName', width: 72, ellipsis: true, render: (row: any) => row.hrbpName || '-' }),
-  // 当前轮岗部门：轮岗安排的 current_dept；无安排时后端回退人员自身的 bu
-  column({ title: '当前轮岗部门', key: 'rotationDept', width: 112, ellipsis: true, render: (row: any) => row.rotationDept || row.bu || '-' }),
-  column({ title: '批次', key: 'batch', width: 84, render: (row: any) => row.batch || '-' }),
-  column({ title: '班级', key: 'classRoomName', width: 112, ellipsis: true, render: (row: any) => row.classRoomName || '-' }),
+  column({ title: '带教导师', key: 'mentorName', width: 76, ellipsis: true, render: (row: any) => row.mentorName || '-' }),
+  // 2026-10-23（聂荣口径）：新增「班长」列 —— 需求原文「包含字段：…带教导师、班长、HRBP…」
+  //   班长为**档案级**字段（Person.class_monitor）：「基于班级自动带出可修改」。
+  column({ title: '班长', key: 'classMonitorName', width: 72, ellipsis: true, render: (row: any) => row.classMonitorName || '-' }),
+  column({ title: 'HRBP', key: 'hrbpName', width: 68, ellipsis: true, render: (row: any) => row.hrbpName || '-' }),
+  // 当前轮岗部门：取轮岗资源（直播间）所在 BU；无安排时后端回退人员自身的 bu
+  column({ title: '当前轮岗部门', key: 'rotationDept', width: 104, ellipsis: true, render: (row: any) => row.rotationDept || row.bu || '-' }),
+  column({ title: '批次', key: 'batch', width: 76, render: (row: any) => row.batch || '-' }),
+  column({ title: '班级', key: 'classRoomName', width: 92, ellipsis: true, render: (row: any) => row.classRoomName || '-' }),
   // 学校 / 专业：优先真实名称（schoolName / majorName），缺则回退标签（school / major）
-  column({ title: '学校', key: 'schoolName', width: 92, ellipsis: true, render: (row: any) => row.schoolName || row.school || '-' }),
-  column({ title: '专业', key: 'majorName', width: 88, ellipsis: true, render: (row: any) => row.majorName || row.major || '-' }),
+  column({ title: '学校', key: 'schoolName', width: 100, ellipsis: true, render: (row: any) => row.schoolName || row.school || '-' }),
+  column({ title: '专业', key: 'majorName', width: 80, ellipsis: true, render: (row: any) => row.majorName || row.major || '-' }),
   // 综合评分 = 轮岗均分（无评分显示「—」，不臆造 0 分）
   column(
     {
-      title: '综合评分', key: 'overallScore', width: 84,
+      title: '综合评分', key: 'overallScore', width: 68,
       render: (row: any) =>
         row.overallScore == null || row.overallScore === ''
           ? '—'
@@ -1103,12 +1368,25 @@ onMounted(() => {
 .section-tag {
   font-weight: 500;
 }
-/* 2026-10-22：只读字段的补充说明（如 HRBP / 带教导师 仅可在轮岗安排中填写） */
+/* 2026-10-23：字段补充说明（班长自动带出 / HRBP 默认值 / 导师带教上限 / 批次自动生成） */
 .field-hint {
   margin-top: var(--space-1);
   font-size: var(--fs-12);
   line-height: 1.5;
   color: var(--ink-soft);
+}
+/* 2026-10-23（聂荣口径）：一键成班弹窗的「成班方案」列表 */
+.class-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+.class-plan__row {
+  font-size: var(--fs-13);
+  line-height: 1.6;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 /* S5-05：状态页签栏（替代原状态下拉）；与工具栏分离成独立一行。
  * ⚠️ 2026-10-22 兵哥反馈「页签分栏和数据列表容器的间距太大」——**不符合前端标准**：
@@ -1176,6 +1454,16 @@ onMounted(() => {
   font-variant-numeric: tabular-nums;
   /* 日期不允许断行：否则在「/」处折行，图标留在上一行 → 出现「🕐—⊖」+ 日期两行的错位 */
   white-space: nowrap;
+}
+
+/* 身份完整性告警图标（聂荣 2026-10-23 取数规则：简历编号与员工工号应取尽取…其他必须完整）
+   ⚠️ 放在**非 scoped 块**：列 render 用 h() 造的 VNode 不带 data-v-* 属性，
+      scoped 规则对它们完全不命中（R-225）。
+   ⚠️ 语义色用 --c-warning 文字专用阶，不用 --c-warning 主色（R-109 对比度）。 */
+.identity-warn-icon {
+  flex-shrink: 0;
+  color: var(--c-warning-deep);
+  cursor: help;
 }
 </style>
 

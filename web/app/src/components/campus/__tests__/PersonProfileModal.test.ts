@@ -113,13 +113,20 @@ describe('PersonProfileModal 二期版式契约', () => {
     expect(titles.join('|')).toContain('推介意见')
     expect(titles.join('|')).toContain('反馈记录')
 
-    // 基本信息九宫格：含班主任 / HRBP（班长已按 D-02 从模型移除）
+    // 基本信息九宫格：含班主任 / HRBP / 班长
+    // ⚠️ 裁决覆盖记录：2026-10-22 口径「去掉个人档案中的『班长』字段」（D-02 派生），
+    //   该结论的**理由**是「班长已从模型移除」—— 但 `ClassRoom.class_monitor` /
+    //   `RotationArrangement.class_monitor` 实际从未删除，且 2026-10-23 聂荣
+    //   《校招生管理系统 - 需求文档》把「班长」重新列为人员管理的一等字段
+    //   （列表字段 + 编辑可编辑字段）→ 档案详情同步展示，理由已不成立。
     const fieldLabels = wrapper.findAll('.pp-field-label').map((n) => n.text())
     expect(fieldLabels).toContain('院校名称')
     expect(fieldLabels).toContain('联系电话')
     expect(fieldLabels).toContain('班主任')
     expect(fieldLabels).toContain('HRBP')
-    expect(fieldLabels).not.toContain('班长')
+    expect(fieldLabels).toContain('班长')
+    // 2026-10-23 聂荣口径：基本信息补「轮岗状态分类」
+    expect(fieldLabels).toContain('轮岗状态分类')
 
     // 底部操作区
     expect(html).toContain('关闭')

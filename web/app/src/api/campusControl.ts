@@ -140,6 +140,8 @@ export interface PersonProfileBasic {
   school: string
   schoolName: string
   major: string
+  /** 2026-10-23（聂荣口径）教育经历：专业真实名称（就高原则命中的那条） */
+  majorName: string
   education: string
   phone: string
   month: string
@@ -150,9 +152,27 @@ export interface PersonProfileBasic {
   classRoomName: string
   headTeacherId: string
   headTeacherName: string
+  /** 2026-10-23（聂荣口径）班长（档案级） */
+  classMonitorId: string
+  classMonitorName: string
   mentorId: string
   mentorName: string
+  /** 2026-10-23（聂荣口径）HRBP（未指定时为轮岗 BU 部门的 HRBP 建议值） */
+  hrbpId: string
+  hrbpName: string
   batch: string
+  /** 2026-10-23（聂荣口径）轮岗状态分类（中文标签） */
+  rotationStatus: string
+  rotationStatusLabel: string
+}
+
+/** 教育经历（聂荣 2026-10-23 口径：院校标签就高原则） */
+export interface PersonProfileEducation {
+  id: string
+  schoolName: string
+  schoolTag: string
+  majorName: string
+  education: string
 }
 
 /** 所属班级（班主任 / HRBP / 批次） */
@@ -221,6 +241,8 @@ export interface PersonProfile {
   rotation: PersonProfileRotation | null
   stats: PersonProfileStats
   stages: PersonProfileStage[]
+  /** 2026-10-23（聂荣口径）教育经历全量（档案详情按院校标签就高原则取用其中一条） */
+  educations: PersonProfileEducation[]
   /** 以下四个业务域暂未建模，后端返回空数组 → 前端渲染空态 */
   monthlyAssessments: any[]
   dailyReports: any[]

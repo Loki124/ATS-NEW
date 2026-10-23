@@ -122,17 +122,29 @@ export interface FieldAclRuleWriteResult {
   permission: PermissionCode;
 }
 
+/**
+ * ACL 访问审计记录
+ *
+ * ⚠️ 2026-10-23 更正：原声明里的 `userName` / `resource` / `field` / `action` /
+ *    `result` / `targetId` / `ip` / `ua` **全部是臆造的** —— 后端从来没有返回过这些键。
+ *    真源（两端一致，逐字段核对）：
+ *      · Django `apps/field_acl/views.py` 的 `audit` 动作（手写 dict，10 个键）
+ *      · Django 全局 `CamelCaseJSONRenderer`（config/settings/base.py）→ 出参是 **camelCase**
+ *      · Java `AtsFieldAclController` 的 `/field-acl/audit` → 同 10 个 camelCase 键
+ *    ⇒ 声明必须与之一致，否则：
+ *      ① 响应形态护栏报「键缺失」（假缺口，且掩盖真正的契约问题）；
+ *      ② 页面按 `userName` 取值恒为 undefined。
+ */
 export interface FieldAclAudit {
   id: string;
+  entity: string;
   userId: string;
-  userName: string;
-  resource: string;
-  field: string;
-  action: string;
-  result: 'ALLOW' | 'MASKED' | 'HIDDEN';
-  targetId?: string | null;
-  ip?: string | null;
-  ua?: string | null;
+  username: string;
+  roleCodes: string[];
+  maskedFields: string[];
+  hiddenFields: string[];
+  requestPath: string;
+  clientIp: string;
   createdAt: string;
 }
 

@@ -60,9 +60,18 @@ async function mountPage() {
   return wrapper
 }
 
+/**
+ * 列顺序口径：
+ * - 2026-10-22 兵哥指令：姓名、工号、性别、在职状态、入职日期(预/实同列)、
+ *   带教导师、HRBP、当前轮岗部门、批次、班级、学校、专业、综合评分；
+ * - 2026-10-23 聂荣《校招生管理系统 - 需求文档》：补「简历编号」（姓名后）与
+ *   「班长」（带教导师后），并在取数规则里要求「简历编号与员工工号应取尽取」。
+ *   聂荣文档**未**规定列顺序（只规定字段集合），故沿用兵哥的顺序骨架，
+ *   仅把新增两列插到语义相邻位置。
+ */
 const EXPECTED_ORDER = [
-  '姓名', '工号', '性别', '在职状态', '入职日期',
-  '带教导师', 'HRBP', '当前轮岗部门', '批次', '班级', '学校', '专业', '综合评分',
+  '姓名', '简历编号', '工号', '性别', '在职状态', '入职日期',
+  '带教导师', '班长', 'HRBP', '当前轮岗部门', '批次', '班级', '学校', '专业', '综合评分',
   '操作',
 ]
 
@@ -118,6 +127,37 @@ describe('人员管理列口径（2026-10-22 兵哥指令）', () => {
     expect(keys).toContain('rotationDept')
     expect(keys).toContain('batch')
     expect(keys).toContain('overallScore')
+  }, 20000)
+
+  it('③b 聂荣口径：补齐「简历编号」「班长」两列', async () => {
+    // 需求原文（人员管理模块 · 包含字段）：
+    //   「姓名、简历编号、员工工号、学校、专业、批次、班级、当前轮岗部门、
+    //     带教导师、班长、HRBP、预计入职时间、…、综合评分」
+    const w = await mountPage()
+    const cols = (w.vm as any).columns
+    const keys = cols.map((c: any) => c.key)
+    expect(keys, '应下发简历编号列').toContain('code')
+    expect(keys, '应下发班长列').toContain('classMonitorName')
+    // 简历编号 = 档案编号（与候选人编号同号即同人）
+    const codeCol = cols.find((c: any) => c.key === 'code')
+    expect(codeCol.render({ code: 'C00000001' })).toBe('C00000001')
+    // 缺值显示「—」，不臆造
+    expect(codeCol.render({})).toBe('—')
+  }, 20000)
+
+  it('③c 聂荣口径：身份不完整（在职缺工号）给出图标 + aria-label 提示', async () => {
+    // 取数规则：「简历编号与员工工号应取尽取…其他必须完整」
+    // 错误信息 MUST NOT 仅依赖颜色表达（R-109）→ 必须有图标 + 可读标签
+    const w = await mountPage()
+    const cols = (w.vm as any).columns
+    const empCol = cols.find((c: any) => c.key === 'employeeId')
+    const incomplete = empCol.render({ employeeId: '', identityIncomplete: true })
+    const text = JSON.stringify(incomplete)
+    expect(text).toContain('aria-label')
+    expect(text).toContain('工号待补录')
+    // 完整时不出现告警图标
+    const complete = empCol.render({ employeeId: '25080001', identityIncomplete: false })
+    expect(JSON.stringify(complete)).not.toContain('工号待补录')
   }, 20000)
 
   it('④ 筛选项：工具栏含「轮岗状态」；高级筛选只剩 性别 / 班级 / 院校标签 / 专业标签', async () => {
@@ -217,5 +257,59 @@ describe('入职日期单元格样式的作用域（2026-10-22 真机回归）',
     expect(css).toMatch(/\.entry-date-cell__val/)
     // 日期不允许断行（否则在「/」处折行把图标甩到上一行）
     expect(css).toMatch(/white-space:\s*nowrap/)
+  }, 20000)
+})
+
+/**
+ * 编辑弹窗可编辑字段（聂荣 2026-10-23《校招生管理系统 - 需求文档》口径）
+ *
+ * 需求原文（人员管理模块 · 功能及说明 · 编辑）：
+ *   「编辑页面展示列表所有字段，可编辑字段（**批次、班级、班长、班主任、带教导师、HRBP**），
+ *     其他字段不可编辑」
+ *
+ * 2026-10-22 兵哥口径把 HRBP / 带教导师锁成只读（「仅可在轮岗安排中填写」），
+ * 与聂荣 2026-10-23 的「可编辑」冲突 → 以**较晚**的聂荣口径为准（放开）。
+ */
+describe('编辑弹窗可编辑字段（聂荣 2026-10-23 口径）', () => {
+  const readSrc = () =>
+    readFileSync(join(process.cwd(), 'src/pages/campus/CampusPerson.vue'), 'utf8')
+
+  it('① HRBP / 带教导师 / 班级 / 班主任 / 批次 / 班长 均为可编辑（v-model 绑定）', () => {
+    const src = readSrc()
+    for (const field of [
+      'formState.hrbp',
+      'formState.mentor',
+      'formState.classRoom',
+      'formState.headTeacher',
+      'formState.batch',
+      'formState.classMonitor',
+    ]) {
+      expect(src, `${field} 应为可编辑（v-model 绑定）`).toContain(`v-model:value="${field}"`)
+    }
+  }, 20000)
+
+  it('② 旧的「仅可在轮岗安排中填写」只读提示已下线', () => {
+    const src = readSrc()
+    expect(src).not.toContain('仅可在轮岗安排中填写')
+  }, 20000)
+
+  it('③ 班长字段已落到表单（新增）', () => {
+    const src = readSrc()
+    expect(src).toContain('label="班长"')
+    // 保存载荷带上班长
+    expect(src).toContain('class_monitor: formState.classMonitor')
+  }, 20000)
+
+  it('④ 一键成班入口存在（居中弹窗 + 预览 + 执行）', () => {
+    const src = readSrc()
+    expect(src).toContain('一键成班')
+    expect(src).toContain('/campus/persons/form-classes/')
+    // 预览与执行是两次调用：预览带 dry_run
+    expect(src).toContain('dry_run: true')
+  }, 20000)
+
+  it('⑤ 导师带教上限文案取自规则常量（不在组件里硬编码 5）', () => {
+    const src = readSrc()
+    expect(src).toContain('MENTOR_CAPACITY')
   }, 20000)
 })
