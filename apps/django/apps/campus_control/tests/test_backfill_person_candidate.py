@@ -82,7 +82,7 @@ def test_unlinked_person_gets_candidate_code(tmp_path):
 def test_already_linked_person_only_fixes_code_not_person(tmp_path):
     """已关联候选人但编号不一致 → 只纠正编号, **不换人**（不挂到别人头上）。"""
     cand = _make_candidate(name='王五')
-    other = _make_candidate(name='王五', phone='13733334444')
+    _make_candidate(name='王五', phone='13733334444')
     person = _make_person(name='王五', phone='13800000000', code='C00999999', candidate=cand)
 
     csv_path = tmp_path / 'review.csv'
@@ -115,7 +115,7 @@ def test_occupied_candidate_code_goes_to_review_list(tmp_path):
     """候选人编号已被别的档案占用 → 不换源, 进清单, 不撞 unique。"""
     cand = _make_candidate(name='赵六')
     # 另一个档案先占用了该候选人编号
-    holder = _make_person(name='占位的人', phone='13700000000', code=cand.code)
+    _make_person(name='占位的人', phone='13700000000', code=cand.code)
     person = _make_person(name='赵六', phone='13800000000')
 
     csv_path = tmp_path / 'review.csv'
@@ -132,7 +132,7 @@ def test_occupied_candidate_code_goes_to_review_list(tmp_path):
 
 def test_dry_run_does_not_write(tmp_path):
     """dry-run（默认）→ 零写库。"""
-    cand = _make_candidate(name='孙七')
+    _make_candidate(name='孙七')
     person = _make_person(name='孙七', phone='13800000000')
     before = (person.candidate_id, person.code)
 

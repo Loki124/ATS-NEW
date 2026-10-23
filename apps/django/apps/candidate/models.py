@@ -265,7 +265,7 @@ class Candidate(FSMModelMixin, FullAuditModel):
                 last = (
                     Candidate.objects
                     .select_for_update()
-                    .filter(code__startswith='C')
+                    .filter(code__regex=r'^C[0-9]{8}$')
                     .order_by('-code')
                     .first()
                 )
@@ -275,6 +275,28 @@ class Candidate(FSMModelMixin, FullAuditModel):
                         seq = int(last.code[1:9])
                     except (ValueError, IndexError):
                         seq = 0
+                # ⚠️ 2026-10-23 修复（与 campus_control.Person.save 对称）：
+                #    取号必须**一并看校招档案表（Person）已占用的 C 序列号** ——
+                #    两张表同用 C+8 序列，各自独立取号会互相抢占
+                #    （实测：档案占 C00000001~C00000058，候选人从 C00000008 起领 →
+                #    **51 个号被两边同时占用** → 编号同源时撞 unique，档案无法回填）。
+                #    ⚠️ 取号必须**精确匹配 C + 8 位数字**，不能用 `startswith='C'` ——
+                #    `import_campus_lifecycle_data` 引入的 `CS` 前缀编号（CS00000878，
+                #    实测 878 条）同样以 C 开头，会被 `.order_by('-code')` 选中
+                #    → `int('S0000087')` 解析失败 → seq 归 0 → 抢已占用的号。
+                #    （局部导入：candidate app 依赖 campus_control.constants，避免 app 间 import 环）
+                try:
+                    from apps.campus_control.models import Person
+                    person_last = (
+                        Person.all_objects
+                        .filter(code__regex=r'^C[0-9]{8}$')
+                        .order_by('-code')
+                        .first()
+                    )
+                    if person_last and person_last.code:
+                        seq = max(seq, int(person_last.code[1:9]))
+                except (ImportError, ValueError, IndexError):
+                    pass
                 self.code = f'C{seq + 1:08d}'
             assigned_code = True
         # 计算 hash (无论是否变化, 简单起见都重算; 候选人 save 不频繁)
