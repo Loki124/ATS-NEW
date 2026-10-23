@@ -342,9 +342,17 @@ class Person(FullAuditModel, UUIDModel):
                     #   而默认管理器过滤 deleted_at → 只看未删行会复用被删行占用的号，
                     #   插入时直接撞唯一约束（400「数据库约束冲突」）。
                     #   （实测：删掉 C00000057 后再建人，仍领到 C00000057 → 必撞。）
+                    # ⚠️ 2026-10-23 修复：取号必须**精确匹配 C + 8 位数字**,
+                    #    不能用 `startswith='C'` ——
+                    #    `import_campus_lifecycle_data` 引入的 `CS` 前缀编号
+                    #    （CS00000878，实测 ats_dev 有 878 条）同样以 C 开头,
+                    #    会被 `.order_by('-code')` 选中 → `int('S0000087')` 解析失败
+                    #    → seq 归 0 → 去抢已被占用的 C00000001 → IntegrityError
+                    #    → 重试 3 次仍是同一号 → 落到 `super().save()` 写入空 code
+                    #    → 撞 unique ⇒ **新建档案直接 500**。
                     last = (
                         Person.all_objects.select_for_update()
-                        .filter(code__startswith='C')
+                        .filter(code__regex=r'^C[0-9]{8}$')
                         .order_by('-code')
                         .first()
                     )
@@ -358,7 +366,7 @@ class Person(FullAuditModel, UUIDModel):
                     # （局部导入：candidate app 依赖 campus_control.constants，避免 app 间 import 环）
                     from apps.candidate.models import Candidate
                     cand_last = (
-                        Candidate.all_objects.filter(code__startswith='C')
+                        Candidate.all_objects.filter(code__regex=r'^C[0-9]{8}$')
                         .order_by('-code').first()
                     )
                     if cand_last and cand_last.code and cand_last.code.startswith('C'):
