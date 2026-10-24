@@ -7,12 +7,24 @@
  *  3. 新增目标：提交载荷（record / name / metric / targetValue / weight）
  *  4. 目标表列（目标名称 / 衡量指标 / 目标值 / 权重 / 截止日期 / 状态）
  *  5. 空态二分
+ *  6. 【R-105】草稿：恢复上次未提交的目标 + 提供「清空」出口；提交成功后立即清除
+ *  7. 【R-221】校验提示就近落在字段旁（图标 + 文字双通道），不再只靠全局 toast
+ *  8. 【R-203】写入失败三段式（人话标题 + 数据安全说明 + 折叠详情 + 复制）
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import CampusPlacementTrack from '../../../pages/campus/CampusPlacementTrack.vue'
 
-const { notifyCreate } = vi.hoisted(() => ({ notifyCreate: vi.fn() }))
+const { notifyCreate, msg } = vi.hoisted(() => ({
+  notifyCreate: vi.fn(),
+  msg: {
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+  },
+}))
 
 const apiGet = vi.fn()
 const apiPost = vi.fn()
@@ -30,12 +42,17 @@ vi.mock('../../../utils/request', () => ({
 
 vi.mock('naive-ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('naive-ui')>()
-  const stub = () => ({ info: vi.fn(), success: vi.fn(), warning: vi.fn(), error: vi.fn(), loading: vi.fn() })
   return {
     ...actual,
-    useDialog: () => ({ ...stub(), create: vi.fn() }),
-    useMessage: stub,
-    useNotification: () => ({ create: notifyCreate }),
+    useDialog: () => ({ ...msg, create: vi.fn() }),
+    useMessage: () => msg,
+    // 与真实 API 同形：create 返回带 destroy 的通知实例
+    useNotification: () => ({
+      create: (...args: any[]) => {
+        notifyCreate(...args)
+        return { destroy: vi.fn() }
+      },
+    }),
   }
 })
 
@@ -96,6 +113,11 @@ describe('CampusPlacementTrack 定岗跟踪页行为契约', () => {
     apiPut.mockReset()
     apiDelete.mockReset()
     notifyCreate.mockReset()
+    msg.info.mockReset()
+    msg.success.mockReset()
+    msg.warning.mockReset()
+    msg.error.mockReset()
+    localStorage.clear()
     apiGet.mockImplementation((url: string) => {
       if (url.includes('/placement-records/')) return Promise.resolve({ data: { data: [record] } })
       if (url.includes('/placement-goals/')) return Promise.resolve({ data: { data: [goal] } })
@@ -226,5 +248,128 @@ describe('CampusPlacementTrack 定岗跟踪页行为契约', () => {
     await vm.loadRecords()
     await flushPromises()
     expect(wrapper.text()).toContain('没有符合筛选条件的定岗记录')
+  }, 20000)
+
+  it('⑦【R-105】草稿：恢复上次未提交的目标内容，并提供「清空」出口', async () => {
+    localStorage.setItem(
+      'draft:campus-placement-track-goal',
+      JSON.stringify({
+        _ts: Date.now(),
+        _data: {
+          name: '直播时长达标',
+          metric: '月直播时长',
+          targetValue: '≥ 60 小时',
+          weight: 30,
+          dueDateTs: null,
+          status: '未开始',
+        },
+      }),
+    )
+
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'goal'
+    vm.goalRecord = 'r1'
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增目标'))!.trigger('click')
+    await flushPromises()
+
+    expect(vm.goalForm.name).toBe('直播时长达标')
+    expect(vm.goalForm.metric).toBe('月直播时长')
+    expect(vm.goalForm.weight).toBe(30)
+
+    // 「已恢复」提示带「清空」出口
+    expect(notifyCreate).toHaveBeenCalled()
+    const opts = notifyCreate.mock.calls[0][0]
+    expect(opts.title).toBe('已恢复上次填写的内容')
+    expect(opts.action).toBeTruthy()
+
+    // 点「清空」→ 草稿被清掉
+    const vnode = opts.action()
+    await vnode.props.onClick()
+    expect(localStorage.getItem('draft:campus-placement-track-goal')).toBeNull()
+  }, 20000)
+
+  it('⑧【R-105】提交成功后立即清除草稿', async () => {
+    localStorage.setItem(
+      'draft:campus-placement-track-goal',
+      JSON.stringify({
+        _ts: Date.now(),
+        _data: { name: '直播时长达标', metric: '月直播时长', targetValue: '≥ 60 小时', weight: 30, dueDateTs: null, status: '未开始' },
+      }),
+    )
+
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'goal'
+    vm.goalRecord = 'r1'
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增目标'))!.trigger('click')
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存目标'))!.trigger('click')
+    await flushPromises()
+
+    expect(apiPost.mock.calls.find((c) => String(c[0]).includes('/campus-placement/placement-goals/'))).toBeTruthy()
+    expect(localStorage.getItem('draft:campus-placement-track-goal')).toBeNull()
+  }, 20000)
+
+  it('⑨【R-221】校验提示就近落在字段旁（图标 + 文字双通道），不发写请求', async () => {
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'goal'
+    vm.goalRecord = 'r1'
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增目标'))!.trigger('click')
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存目标'))!.trigger('click')
+    await flushPromises()
+
+    const feedback = wrapper.find('.n-form-item-feedback')
+    expect(feedback.exists()).toBe(true)
+    expect(feedback.text()).toContain('请填写目标名称')
+    // 图标 + 文字双通道（不只靠颜色）
+    expect(feedback.find('.n-icon').exists()).toBe(true)
+    // 校验没过 → 不发写请求
+    expect(apiPost.mock.calls.find((c) => String(c[0]).includes('/campus-placement/placement-goals/'))).toBeUndefined()
+  }, 20000)
+
+  it('⑩【R-203】写入失败三段式：人话标题 + 数据安全说明 + 折叠详情可复制', async () => {
+    apiPost.mockRejectedValue({ response: { status: 500, data: { detail: '定岗目标服务不可用' } } })
+
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'goal'
+    vm.goalRecord = 'r1'
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增目标'))!.trigger('click')
+    await flushPromises()
+
+    vm.goalForm.name = '直播时长达标'
+    vm.goalForm.metric = '月直播时长'
+    vm.goalForm.targetValue = '≥ 60 小时'
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存目标'))!.trigger('click')
+    await flushPromises()
+
+    const state = wrapper.find('.error-state')
+    expect(state.exists()).toBe(true)
+    // ① 人话描述（不得以「抱歉」开头，不得直接甩原始报文）
+    expect(state.find('.error-state-title').text()).toBe('创建定岗目标没有成功')
+    expect(state.find('.error-state-title').text()).not.toContain('抱歉')
+    // ② 你的数据是否安全
+    expect(state.find('.error-state-desc').text()).toContain('你填写的内容仍保留在表单里')
+    // ③ 技术详情折叠在 <details> 里 + 一键复制
+    const details = state.find('details')
+    expect(details.exists()).toBe(true)
+    expect(details.text()).toContain('HTTP 500')
+    expect(details.text()).toContain('定岗目标服务不可用')
+    expect(state.findAll('button').some((b) => b.text().includes('复制错误信息'))).toBe(true)
   }, 20000)
 })

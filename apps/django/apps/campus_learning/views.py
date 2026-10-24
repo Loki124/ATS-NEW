@@ -16,6 +16,14 @@
 🔴 **权限码命名**：仓库 `V2Permission` 实际读取的属性名是 `permission_required_map`
     （契约 §1.2 写作 `permission_map`）。为同时满足契约命名与仓库运行时，
     两个属性都写：`permission_required_map` 生效，`permission_map` 是同值别名。
+
+🔴 **restore 的行级隔离走的是另一条路径**（勿与 `apps/common/mixins.py` 的
+    `SoftDeleteRestoreMixin` 混淆）：本域的 restore 动作取对象用
+    `LearningCRUDMixin.restore_queryset()`（含软删行的 manager），
+    **不是** `get_object()`；因此可见范围的收窄必须落在 `restore_queryset()` 上 ——
+    `VisibilityScopeMixin.restore_queryset()` 已按 `visibility_person_field` 收窄
+    （带人员的模型：学习进度 / 学习记录 / 考试成绩 / 活动评分），
+    范围外的软删行 → 取不到 → 404（不泄露存在性）。
 """
 import datetime
 from decimal import Decimal
@@ -116,6 +124,12 @@ class LearningCRUDMixin:
         """restore 取对象用的 queryset（含软删行）。
 
         默认取全量软删行；带人员的模型由 `PersonScopedMixin` 收窄到可见范围。
+
+        ⚠️ **本方法只是「底座」，不是隔离本身**：`VisibilityScopeMixin.restore_queryset`
+        在它之上按 `visibility_person_field` 再收窄一层可见范围（基类顺序保证
+        `VisibilityScopeMixin` 先于本方法生效，见 `LearningViewSetBase` 的顺序注释）。
+        本方法**故意**不写可见范围：无人员维度的模型（课程 / 考试 / 活动 / 板块）
+        在这一层无法判断「属于谁」，硬套 `person__in` 会直接抛 FieldError。
         """
         return self.queryset.model.all_objects.all()
 

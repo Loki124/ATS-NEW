@@ -7,6 +7,23 @@
         <n-tab-pane name="timeline" tab="区间时间轴" />
       </n-tabs>
 
+      <!-- 写入失败三段式（R-203）：① 人话描述发生了什么 ② 你的数据是否安全 ③ 技术详情（折叠 + 一键复制） -->
+      <div v-if="writeError" class="error-state" role="alert">
+        <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+        <div class="error-state-body">
+          <div class="error-state-title">{{ writeError.title }}</div>
+          <div class="error-state-desc">{{ writeError.safe }}</div>
+          <details class="error-state-detail">
+            <summary>查看详情</summary>
+            <pre class="error-state-code">{{ writeError.detail }}</pre>
+            <n-button size="tiny" quaternary @click="copyText(writeError.detail)">复制错误信息</n-button>
+          </details>
+        </div>
+        <n-button v-if="writeError.retry" size="small" type="primary" ghost @click="runWriteRetry">
+          {{ writeError.retryLabel }}
+        </n-button>
+      </div>
+
       <!-- ① 命名规则 -->
       <template v-if="activeTab === 'naming'">
         <div class="form-area">
@@ -14,8 +31,21 @@
             <div class="form-card-title">批次命名规则</div>
 
             <n-form :model="namingForm" label-placement="top">
-              <n-form-item label="命名模板" required>
-                <n-input v-model:value="namingForm.template" placeholder="如 {YY}{MM}{SEQ}" />
+              <n-form-item
+                label="命名模板"
+                required
+                :validation-status="namingErrors.template ? 'error' : undefined"
+                :show-feedback="!!namingErrors.template"
+              >
+                <n-input
+                  v-model:value="namingForm.template"
+                  placeholder="如 {YY}{MM}{SEQ}"
+                  data-error-field="naming-template"
+                />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ namingErrors.template }}
+                </template>
               </n-form-item>
               <div class="var-row">
                 <span class="var-hint">点击变量追加到模板：</span>
@@ -106,7 +136,7 @@
           </div>
           <div class="spacer"></div>
           <n-button :loading="ruleLoading" @click="loadRules">查询批次</n-button>
-          <n-button :loading="applying" @click="askApplyRules">按规则回写批次</n-button>
+          <n-button :loading="applying" :disabled="applying" @click="askApplyRules">按规则回写批次</n-button>
           <n-button @click="askRecalc">重算批次号</n-button>
           <n-button type="primary" @click="openRuleCreate">
             <template #icon><n-icon :component="AddOutline" /></template>
@@ -217,25 +247,77 @@
         :bordered="false"
       >
         <n-form :model="ruleForm" label-placement="top">
+          <!-- 写入失败三段式（R-203）：弹窗内就地展示，不甩给全局 toast -->
+          <div v-if="ruleWriteError" class="error-state" role="alert">
+            <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+            <div class="error-state-body">
+              <div class="error-state-title">{{ ruleWriteError.title }}</div>
+              <div class="error-state-desc">{{ ruleWriteError.safe }}</div>
+              <details class="error-state-detail">
+                <summary>查看详情</summary>
+                <pre class="error-state-code">{{ ruleWriteError.detail }}</pre>
+                <n-button size="tiny" quaternary @click="copyText(ruleWriteError.detail)">复制错误信息</n-button>
+              </details>
+            </div>
+            <n-button v-if="ruleWriteError.retry" size="small" type="primary" ghost @click="runRuleRetry">
+              {{ ruleWriteError.retryLabel }}
+            </n-button>
+          </div>
           <n-grid :cols="'1 560:2'" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="批次号" required>
-                <n-input v-model:value="ruleForm.code" placeholder="如 202609" />
+              <n-form-item
+                label="批次号"
+                required
+                :validation-status="ruleErrors.code ? 'error' : undefined"
+                :show-feedback="!!ruleErrors.code"
+              >
+                <n-input v-model:value="ruleForm.code" placeholder="如 202609" data-error-field="rule-code" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ ruleErrors.code }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="批次名称" required>
-                <n-input v-model:value="ruleForm.name" placeholder="如 2026 年 9 月秋招批次" />
+              <n-form-item
+                label="批次名称"
+                required
+                :validation-status="ruleErrors.name ? 'error' : undefined"
+                :show-feedback="!!ruleErrors.name"
+              >
+                <n-input v-model:value="ruleForm.name" placeholder="如 2026 年 9 月秋招批次" data-error-field="rule-name" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ ruleErrors.name }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="区间起始" required>
-                <n-date-picker v-model:value="ruleForm.startTs" type="date" style="width: 100%" />
+              <n-form-item
+                label="区间起始"
+                required
+                :validation-status="ruleErrors.range ? 'error' : undefined"
+                :show-feedback="!!ruleErrors.range"
+              >
+                <n-date-picker v-model:value="ruleForm.startTs" type="date" style="width: 100%" data-error-field="rule-range" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ ruleErrors.range }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="区间结束" required>
+              <n-form-item
+                label="区间结束"
+                required
+                :validation-status="ruleErrors.range ? 'error' : undefined"
+                :show-feedback="!!ruleErrors.range"
+              >
                 <n-date-picker v-model:value="ruleForm.endTs" type="date" style="width: 100%" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ ruleErrors.range }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -255,7 +337,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="ruleFormVisible = false">取消</n-button>
+            <n-button @click="closeRuleForm">取消编辑</n-button>
             <n-button type="primary" :loading="ruleSaving" :disabled="ruleSaving" @click="saveRule">保存批次</n-button>
           </div>
         </template>
@@ -273,6 +355,21 @@
       >
         <div class="recalc-tip">
           以下人员的批次号将发生变化。确认后才会写回数据库，未列出的人员批次号保持不变。
+        </div>
+        <div v-if="recalcWriteError" class="error-state" role="alert">
+          <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+          <div class="error-state-body">
+            <div class="error-state-title">{{ recalcWriteError.title }}</div>
+            <div class="error-state-desc">{{ recalcWriteError.safe }}</div>
+            <details class="error-state-detail">
+              <summary>查看详情</summary>
+              <pre class="error-state-code">{{ recalcWriteError.detail }}</pre>
+              <n-button size="tiny" quaternary @click="copyText(recalcWriteError.detail)">复制错误信息</n-button>
+            </details>
+          </div>
+          <n-button v-if="recalcWriteError.retry" size="small" type="primary" ghost @click="runRecalcRetry">
+            {{ recalcWriteError.retryLabel }}
+          </n-button>
         </div>
         <div v-if="recalcRows.length" class="recalc-list">
           <div v-for="c in recalcRows" :key="c.person" class="recalc-row">
@@ -302,7 +399,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref, type Ref } from 'vue'
 import {
   NButton,
   NDataTable,
@@ -341,7 +438,9 @@ import {
   type BatchRecalcChange,
   type BatchRule,
 } from '../../api/campusBatch'
-import { extractError } from '../../utils/campus'
+import { buildWriteError, extractError } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
+import { api } from '../../utils/request'
 
 const message = useMessage()
 const notification = useNotification()
@@ -371,6 +470,29 @@ const dateFieldOptions = [
 ]
 
 /* ───────────────────────── 通用工具 ───────────────────────── */
+
+/**
+ * 写入失败的三段式状态（R-203）。
+ * ① title 人话描述 ② safe 你的数据是否安全 ③ detail 技术详情（折叠 + 一键复制）。
+ */
+interface WriteErrorState {
+  title: string
+  safe: string
+  detail: string
+  /** 恢复动作（重试 / 撤销…），为空则不渲染恢复按钮 */
+  retryLabel?: string
+  retry?: () => void | Promise<void>
+}
+
+/** 表单级校验错误（R-221）：就近展示在字段旁，图标 + 文字双通道。 */
+type FieldErrors = Record<string, string>
+
+/** 聚焦第一个出错的字段（字段上带 data-error-field 标记）。 */
+function focusFirstError(field: string) {
+  if (typeof document === 'undefined') return
+  const el = document.querySelector<HTMLElement>(`[data-error-field="${field}"] input, [data-error-field="${field}"] textarea`)
+  el?.focus()
+}
 
 function textCell(text: unknown, width = 140) {
   const s = text == null || text === '' ? '—' : String(text)
@@ -407,6 +529,90 @@ function parseDate(v?: string | null) {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+/* ── 写入失败三段式（R-203）── */
+
+/** 页面级（工具栏写操作 / 读取失败）的写入失败。 */
+const writeError = ref<WriteErrorState | null>(null)
+/** 批次规则弹窗内的写入失败。 */
+const ruleWriteError = ref<WriteErrorState | null>(null)
+/** 重算批次号弹窗内的写入失败。 */
+const recalcWriteError = ref<WriteErrorState | null>(null)
+
+/** 读取失败的安全提示（数据仍在服务端，不丢）。 */
+const READ_SAFE_HINT = '没有连上服务器，页面上的数据仍是上一次加载到的结果，重试一次即可恢复。'
+
+function setWriteError(
+  target: Ref<WriteErrorState | null>,
+  err: any,
+  action: string,
+  opts: { retryLabel?: string; retry?: () => void | Promise<void>; safeHint?: string } = {},
+) {
+  const info = buildWriteError(err, { action, safeHint: opts.safeHint })
+  target.value = {
+    title: info.title,
+    safe: info.safe,
+    detail: info.detail,
+    retryLabel: opts.retryLabel,
+    retry: opts.retry,
+  }
+}
+
+function runRetry(target: Ref<WriteErrorState | null>) {
+  const fn = target.value?.retry
+  if (!fn) return
+  target.value = null
+  void fn()
+}
+
+function runWriteRetry() {
+  runRetry(writeError)
+}
+function runRuleRetry() {
+  runRetry(ruleWriteError)
+}
+function runRecalcRetry() {
+  runRetry(recalcWriteError)
+}
+
+/* ── 草稿（R-105）：命名规则 / 批次规则各自一份草稿 ── */
+
+/**
+ * 打开表单时探测草稿：有内容就恢复并给「清空」出口（R-105）。
+ * 草稿与服务端数据一致时静默丢弃 —— 没有需要恢复的内容，不打扰用户。
+ */
+function restoreDraft(
+  draft: { probe: () => boolean; restore: () => void; clear: () => void },
+  form: Record<string, unknown>,
+  label: string,
+) {
+  if (!draft.probe()) return
+  const before = JSON.stringify(form)
+  draft.restore()
+  if (JSON.stringify(form) === before) {
+    draft.clear()
+    return
+  }
+  const n = notification.create({
+    title: '已恢复上次填写的内容',
+    content: `上次填写但没有提交的${label}已经放回表单，你可以接着改；不需要就点「清空」。`,
+    duration: 8000,
+    keepAliveOnHover: true,
+    action: () =>
+      h(
+        NButton,
+        {
+          text: true,
+          type: 'primary',
+          onClick: () => {
+            draft.clear()
+            n?.destroy()
+          },
+        },
+        { default: () => '清空' },
+      ),
+  })
+}
+
 /* ───────────────────────── ① 命名规则 ───────────────────────── */
 
 const namingForm = reactive({
@@ -424,6 +630,12 @@ const previewLoading = ref(false)
 const previewSamples = ref<string[]>([])
 const previewUnmatched = ref(0)
 const previewNoBatch = ref(0)
+
+/** 字段级校验错误（R-221）：就近展示在「命名模板」旁。 */
+const namingErrors = reactive<FieldErrors>({ template: '' })
+
+/** 命名规则草稿（R-105）：单例配置，无编辑态 → 始终启用。 */
+const namingDraft = useFormDraft('campus-batch-rule-naming', namingForm as unknown as Record<string, unknown>)
 
 function insertVar(token: string) {
   namingForm.template = `${namingForm.template}${token}`
@@ -444,10 +656,12 @@ async function loadNaming() {
       })
     }
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '加载命名规则', { retryLabel: '重新加载', retry: loadNaming, safeHint: READ_SAFE_HINT })
   } finally {
     namingLoading.value = false
   }
+  // 服务端数据到位后再探测草稿，避免草稿被服务端数据覆盖
+  restoreDraft(namingDraft, namingForm as unknown as Record<string, unknown>, '命名规则')
   previewNaming()
 }
 
@@ -467,15 +681,17 @@ async function previewNaming() {
     previewNoBatch.value = res.noBatch
   } catch (e: any) {
     previewSamples.value = []
-    message.error(extractError(e))
+    setWriteError(writeError, e, '生成批次预览', { retryLabel: '重新生成', retry: previewNaming, safeHint: READ_SAFE_HINT })
   } finally {
     previewLoading.value = false
   }
 }
 
 async function saveNaming() {
-  if (!namingForm.template.trim()) {
-    message.warning('请填写命名模板')
+  // 就近校验（R-221）：错误落在「命名模板」字段旁，并聚焦该字段
+  namingErrors.template = namingForm.template.trim() ? '' : '请填写命名模板'
+  if (namingErrors.template) {
+    focusFirstError('naming-template')
     return
   }
   namingSaving.value = true
@@ -489,9 +705,11 @@ async function saveNaming() {
       autoApply: namingForm.autoApply,
     })
     message.success('命名规则已保存')
+    // 提交成功后立即清除草稿（R-105）
+    namingDraft.clear()
     previewNaming()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '保存命名规则', { retryLabel: '重试保存', retry: saveNaming })
   } finally {
     namingSaving.value = false
   }
@@ -600,10 +818,21 @@ const ruleForm = reactive({
   enabled: true,
 })
 
+/** 字段级校验错误（R-221）：就近展示在对应字段旁。 */
+const ruleErrors = reactive<FieldErrors>({ code: '', name: '', range: '' })
+
+/** 批次规则草稿（R-105）：编辑态不启用，避免草稿覆盖真实行数据。 */
+const ruleDraft = useFormDraft('campus-batch-rule-form', ruleForm as unknown as Record<string, unknown>, {
+  enabled: () => !ruleEditing.value,
+})
+
 function openRuleCreate() {
   Object.assign(ruleForm, { code: '', name: '', startTs: Date.now(), endTs: Date.now(), sort: 1, enabled: true })
+  Object.assign(ruleErrors, { code: '', name: '', range: '' })
   ruleEditing.value = null
+  ruleWriteError.value = null
   ruleFormVisible.value = true
+  restoreDraft(ruleDraft, ruleForm as unknown as Record<string, unknown>, '批次规则')
 }
 
 function openRuleEdit(row: BatchRule) {
@@ -615,21 +844,27 @@ function openRuleEdit(row: BatchRule) {
     sort: row.sort ?? 1,
     enabled: row.enabled !== false,
   })
+  Object.assign(ruleErrors, { code: '', name: '', range: '' })
   ruleEditing.value = row
+  ruleWriteError.value = null
   ruleFormVisible.value = true
 }
 
+/** 关闭弹窗：清掉校验与写入失败状态，下次打开是干净的。 */
+function closeRuleForm() {
+  ruleFormVisible.value = false
+  Object.assign(ruleErrors, { code: '', name: '', range: '' })
+  ruleWriteError.value = null
+}
+
 async function saveRule() {
-  if (!ruleForm.code.trim()) {
-    message.warning('请填写批次号')
-    return
-  }
-  if (!ruleForm.name.trim()) {
-    message.warning('请填写批次名称')
-    return
-  }
-  if (!ruleForm.startTs || !ruleForm.endTs) {
-    message.warning('请选择区间起止日期')
+  // 就近校验（R-221）：逐字段置错误态 + 聚焦第一个出错字段
+  ruleErrors.code = ruleForm.code.trim() ? '' : '请填写批次号'
+  ruleErrors.name = ruleForm.name.trim() ? '' : '请填写批次名称'
+  ruleErrors.range = ruleForm.startTs && ruleForm.endTs ? '' : '请选择区间起止日期'
+  const firstError = ruleErrors.code ? 'rule-code' : ruleErrors.name ? 'rule-name' : ruleErrors.range ? 'rule-range' : ''
+  if (firstError) {
+    focusFirstError(firstError)
     return
   }
   ruleSaving.value = true
@@ -650,22 +885,48 @@ async function saveRule() {
       message.success('批次规则已创建')
     }
     ruleFormVisible.value = false
+    // 提交成功后立即清除草稿（R-105）
+    ruleDraft.clear()
     loadRules()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(ruleWriteError, e, ruleEditing.value ? '保存批次规则' : '创建批次规则', {
+      retryLabel: '重试保存',
+      retry: saveRule,
+    })
   } finally {
     ruleSaving.value = false
   }
 }
 
-/** 启停批次规则（中等影响：直接执行 + 结果提示）。 */
+/** 启停批次规则（可逆：直接执行 + 结果提示，R-106）。 */
 async function toggleRule(row: BatchRule) {
   try {
     await updateBatchRule(row.id, { enabled: !row.enabled })
     message.success(row.enabled ? '批次已停用' : '批次已启用')
     loadRules()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, row.enabled ? '停用批次' : '启用批次', {
+      retryLabel: '重试停用',
+      retry: () => toggleRule(row),
+    })
+  }
+}
+
+/** 撤销删除：把被删掉的批次规则重新建回来。 */
+async function rebuildRule(row: BatchRule) {
+  try {
+    await createBatchRule({
+      code: row.code,
+      name: row.name,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      sort: row.sort,
+      enabled: row.enabled,
+    })
+    message.success('批次已重建')
+    loadRules()
+  } catch (e: any) {
+    setWriteError(writeError, e, '重建批次', { retryLabel: '重试重建', retry: () => rebuildRule(row) })
   }
 }
 
@@ -682,26 +943,13 @@ async function removeRule(row: BatchRule) {
           text: true,
           type: 'primary',
           onClick: async () => {
-            try {
-              await createBatchRule({
-                code: row.code,
-                name: row.name,
-                startDate: row.startDate,
-                endDate: row.endDate,
-                sort: row.sort,
-                enabled: row.enabled,
-              })
-              message.success('批次已重建')
-              loadRules()
-            } catch (e: any) {
-              message.error(extractError(e))
-            }
+            await rebuildRule(row)
           },
         }, { default: () => '撤销' }),
     })
     loadRules()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '删除批次', { retryLabel: '重试删除', retry: () => removeRule(row) })
   }
 }
 
@@ -806,17 +1054,72 @@ const timelineIssues = computed<string[]>(() => {
   return issues
 })
 
-/* ── 按规则回写人员批次（只补空值，不覆盖人工填过 → 中等影响，直接执行 + 结果提示）── */
+/* ── 按规则回写人员批次（中等影响：直接执行 + Toast 撤销，R-106）── */
 const applying = ref(false)
+
+/** 回写接口返回的受影响人员（用于撤销回滚）。 */
+interface AppliedPerson {
+  person_id?: string | number
+  code?: string
+  name?: string
+  batch?: string
+}
+
+/**
+ * 撤销回写：把本次被补上批次号的人员批次清回空值。
+ * ⚠️ 后端没有专门的「撤销回写」端点，这里按人员逐个 PATCH 批次字段。
+ */
+async function rollbackApplied(details: AppliedPerson[]) {
+  if (!details.length) {
+    message.warning('这次没有可撤销的批次回写')
+    return
+  }
+  let failed = 0
+  for (const p of details) {
+    if (p.person_id == null) {
+      failed += 1
+      continue
+    }
+    try {
+      await api.patch(`/campus/persons/${p.person_id}/`, { batch: '' })
+    } catch {
+      failed += 1
+    }
+  }
+  if (failed) {
+    setWriteError(writeError, { response: { status: 500, data: { detail: `${failed} 人的批次未能清空` } } }, '撤销批次回写', {
+      retryLabel: '重试撤销',
+      retry: () => rollbackApplied(details),
+    })
+  } else {
+    message.success(`已撤销 ${details.length} 人的批次回写`)
+  }
+  loadRules()
+}
 
 async function askApplyRules() {
   applying.value = true
   try {
     const res = await applyBatchRules()
-    message.success(`已按规则回写 ${res.updated} 人的批次（只补空值，不覆盖人工填过的批次）`)
+    // ⚠️ 后端回写条数字段是 filled；前端归一化层只透出了 raw，这里按后端口径取值。
+    const filled = Number(res.raw?.filled ?? res.updated ?? 0)
+    const details: AppliedPerson[] = Array.isArray(res.raw?.details) ? res.raw.details : []
+    notification.create({
+      content: `已按规则回写 ${filled} 人的批次（只补空值，不覆盖人工填过的批次）`,
+      duration: 8000,
+      keepAliveOnHover: true,
+      action: () =>
+        h(NButton, {
+          text: true,
+          type: 'primary',
+          onClick: async () => {
+            await rollbackApplied(details)
+          },
+        }, { default: () => '撤销' }),
+    })
     loadRules()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '按规则回写批次', { retryLabel: '重试回写', retry: askApplyRules })
   } finally {
     applying.value = false
   }
@@ -831,9 +1134,10 @@ async function askRecalc() {
   try {
     const res = await recalcBatchRules()
     recalcRows.value = res.changes
+    recalcWriteError.value = null
     recalcVisible.value = true
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '生成重算预览', { retryLabel: '重试预览', retry: askRecalc, safeHint: READ_SAFE_HINT })
   }
 }
 
@@ -845,7 +1149,7 @@ async function applyRecalc() {
     recalcVisible.value = false
     loadRules()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(recalcWriteError, e, '重算批次号', { retryLabel: '重试重算', retry: applyRecalc })
   } finally {
     recalcApplying.value = false
   }
@@ -991,12 +1295,18 @@ onMounted(async () => {
   position: relative;
   min-width: 720px;
   padding: var(--space-2) var(--space-4);
+  /* 标签列宽度只在这里定义一次：刻度轴与每一行共用同一套栅格（不再靠 margin 偏移对齐） */
+  --timeline-label-width: 160px;
+  display: grid;
+  grid-template-columns: var(--timeline-label-width) minmax(0, 1fr);
+  column-gap: var(--space-2);
 }
 .timeline-axis {
+  /* 刻度轴落在「轨道列」，与下方区间条左边缘严格对齐 */
+  grid-column: 2;
   position: relative;
   height: var(--space-6);
   border-bottom: 1px solid var(--border-hairline);
-  margin-left: 160px;
 }
 .timeline-tick {
   position: absolute;
@@ -1007,14 +1317,16 @@ onMounted(async () => {
   white-space: nowrap;
 }
 .timeline-row {
-  display: flex;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: var(--timeline-label-width) minmax(0, 1fr);
+  column-gap: var(--space-2);
   align-items: center;
   min-height: var(--space-8);
   border-bottom: 1px solid var(--border-hairline);
 }
 .timeline-label {
-  width: 160px;
-  flex-shrink: 0;
+  min-width: 0;
   padding-right: var(--space-2);
   font-size: var(--text-small);
   color: var(--ink);
@@ -1024,7 +1336,6 @@ onMounted(async () => {
 }
 .timeline-track {
   position: relative;
-  flex: 1;
   height: var(--space-6);
 }
 .timeline-bar {
@@ -1033,8 +1344,10 @@ onMounted(async () => {
   height: var(--space-4);
   padding: 0 var(--space-1);
   border-radius: var(--radius-sm);
-  background: var(--c-info);
-  color: var(--surface);
+  /* R-109 对比度：--c-info(#3B82F6) 作实底 + 白字只有 3.68:1（不达 AA 4.5:1）；
+     文字色必须走 --c-*-deep 阶 —— --c-info-deep(#1E40AF) + --on-c-info-deep(白) = 8.72:1。 */
+  background: var(--c-info-deep);
+  color: var(--on-c-info-deep);
   font-size: var(--fs-12);
   line-height: var(--space-4);
   overflow: hidden;

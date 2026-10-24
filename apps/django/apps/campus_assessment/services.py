@@ -75,25 +75,42 @@ def _optional_model(app_label, model_name):
 
 
 def _learning_inputs(person_ids):
-    """取学习相关的两个均值：课程进度均值（0~100）与考试得分均值。"""
-    course_avg = None
-    exam_avg = None
+    """按人取学习相关的两个均值：课程进度均值（0~100）与考试得分均值。
+
+    🔴 **必须按人分组**（契约 §2.3 + 逆向清单 A4）：
+    A4 的口径是「**该人**的课程进度均值」与「**该人**的考试得分均值」，
+    而**不是**全体人员的全局均值。
+
+    早期实现先按人聚出每人的 `Avg`，再对**全体可见人员**求平均、返回**单个标量**，
+    并在 `collect_dimensions` 的逐人循环里把同一个标量赋给**每一个人** ——
+    这会**抹平个体差异**：学习成长维度对所有人相同 → A3 综合得分里 30% 的权重项
+    退化成常数 → 综合排名失真、`?dim=learn` 视图全员并列第 1、班主任 `rankAvg.learn`
+    恒为 1。库内学习数据为 0 时该缺陷**不显形** —— 那是未爆的地雷，不是「没问题」。
+
+    Args:
+        person_ids: 参与计算的人员 id 列表。
+
+    Returns:
+        `(course_avgs, exam_avgs)` —— 两个 `{person_id: 均值}` 字典。
+        没有记录的人**不在字典里**（调用方取不到 → 「无记录」→ None，不是 0 分）。
+    """
+    course_avgs = {}
+    exam_avgs = {}
+
+    if not person_ids:
+        return course_avgs, exam_avgs
 
     progress_model = _optional_model('campus_learning', 'LearnProgress')
-    if progress_model is not None and person_ids:
+    if progress_model is not None:
         rows = progress_model.objects.filter(person_id__in=person_ids).values('person_id').annotate(v=Avg('progress'))
-        numbers = [r['v'] for r in rows if r['v'] is not None]
-        if numbers:
-            course_avg = sum(numbers) / len(numbers)
+        course_avgs = {r['person_id']: r['v'] for r in rows if r['v'] is not None}
 
     score_model = _optional_model('campus_learning', 'ExamScore')
-    if score_model is not None and person_ids:
+    if score_model is not None:
         rows = score_model.objects.filter(person_id__in=person_ids).values('person_id').annotate(v=Avg('score'))
-        numbers = [r['v'] for r in rows if r['v'] is not None]
-        if numbers:
-            exam_avg = sum(numbers) / len(numbers)
+        exam_avgs = {r['person_id']: r['v'] for r in rows if r['v'] is not None}
 
-    return course_avg, exam_avg
+    return course_avgs, exam_avgs
 
 
 def _activity_rewards(person_ids):
@@ -165,7 +182,7 @@ def collect_dimensions(person_ids, ym=None):
     monthly = _monthly_rows(person_ids, ym=ym)
     forces = _latest_five_force(person_ids)
     attendances = _attendance_rows(person_ids, ym=ym)
-    course_avg, exam_score_avg = _learning_inputs(person_ids)
+    course_avgs, exam_avgs = _learning_inputs(person_ids)
     rewards = _activity_rewards(person_ids)
 
     result = {}
@@ -181,8 +198,14 @@ def collect_dimensions(person_ids, ym=None):
 
         add_value = R.dim_add(rewards.get(person_id, []), adjusts)
 
-        # 学习成长（A4）：课程进度均值与考试得分均值「有哪项算哪项」
-        learn_value = R.dim_learn(course_avg, exam_score_avg)
+        # 学习成长（A4）：**该人自己的**课程进度均值与考试得分均值，
+        # 「有哪项算哪项」；两项都没有 → None（「无记录」，不是 0 分）。
+        # ⚠️ 这里必须用「按人」的均值，不能用全体人员的全局均值 ——
+        #    全局化会把所有人的学习成长算成同一个数（详见 `_learning_inputs` 的注释）。
+        learn_value = R.dim_learn(
+            course_avgs.get(person_id),
+            exam_avgs.get(person_id),
+        )
 
         attend_value = R.attendance_dim([
             {'attend_days': r.attend_days, 'late_count': r.late_count}

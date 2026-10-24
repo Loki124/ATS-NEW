@@ -6,6 +6,9 @@
  *  2. 「提交月报」→ 确认框写明后果 → 调用 submit 端点
  *  3. 评分视图：打开评分弹窗 → 5 子项实时汇总业务导师分 / 成长导师分 / 综合分（逆向清单 A7）
  *  4. 保存评分 → 调用 score 端点
+ *  5. 草稿自动保存（R-105）：写月报 / 评分各自落盘 → 重开恢复 + 「清空」出口 → 提交成功后清除
+ *  6. 字段级校验（R-221）：必填为空时字段旁出现「图标 + 文字」反馈，不发请求
+ *  7. 写入失败三段式（R-203）：标题 + 数据安全说明 + 折叠可复制详情
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -22,6 +25,13 @@ vi.mock('../../../utils/request', () => ({
     delete: vi.fn(),
   },
 }))
+
+/** 等待草稿 debounce（useFormDraft 固定 800ms）落盘。 */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** 草稿 localStorage 键（useFormDraft 约定 `draft:<命名空间>`）。 */
+const CREATE_DRAFT_KEY = 'draft:campus-monthly-report-create'
+const SCORE_DRAFT_KEY = 'draft:campus-monthly-report-score'
 
 /** 月报行（草稿状态 → 可提交）。 */
 const draftReport = {
@@ -54,6 +64,8 @@ describe('CampusMonthlyReport 行为契约', () => {
     apiPost.mockReset()
     apiGet.mockResolvedValue({ data: { data: [draftReport] } })
     apiPost.mockResolvedValue({ data: { data: draftReport } })
+    localStorage.removeItem(CREATE_DRAFT_KEY)
+    localStorage.removeItem(SCORE_DRAFT_KEY)
   })
 
   const mountPage = async () => {
@@ -93,8 +105,10 @@ describe('CampusMonthlyReport 行为契约', () => {
 
   it('③ 评分弹窗实时汇总业务导师分 / 成长导师分 / 综合分', async () => {
     apiGet.mockImplementation(async (_url: string, cfg: any) => {
-      // 评分视图带 status=submitted 查询参数（参数在 config.params，不在 url 里）
-      if (cfg?.params?.status === 'submitted') return { data: { data: [submittedReport] } }
+      // 评分视图带 pending=1 查询参数（参数在 config.params，不在 url 里）。
+      // ⚠️ 口径：契约 §2.2「评分落库即置 scored」⇒ **不能**用 status 表达「待评分」
+      //    （只评一侧的月报状态也是 scored），后端改用 ?pending=1（缺任一角色评分即待评分）。
+      if (cfg?.params?.pending === '1') return { data: { data: [submittedReport] } }
       return { data: { data: [draftReport] } }
     })
     const wrapper = await mountPage()
@@ -137,5 +151,108 @@ describe('CampusMonthlyReport 行为契约', () => {
       executable: 0,
       comment: '',
     })
+  }, 20000)
+
+  it('④ 写月报草稿（R-105）：填写后落盘 → 重开恢复 + 「清空」出口 → 提交成功后清除', async () => {
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+
+    vm.openCreate()
+    await flushPromises()
+    vm.createForm.comment = '本月完成客服轮岗，遇到一个客诉已闭环'
+    await sleep(1000)
+
+    const raw = localStorage.getItem(CREATE_DRAFT_KEY)
+    expect(raw).toBeTruthy()
+    expect(JSON.parse(raw!)._data.comment).toContain('客服轮岗')
+
+    // 重新打开 → 恢复提示 + 内容回填
+    vm.openCreate()
+    await flushPromises()
+    expect(vm.createForm.comment).toContain('客服轮岗')
+    expect(wrapper.text()).toContain('已恢复上次填写的内容')
+    expect(wrapper.findAll('button').some((b) => b.text() === '清空草稿')).toBe(true)
+
+    // 提交成功 → 草稿立即清除
+    await vm.submitCreate()
+    await flushPromises()
+    expect(apiPost).toHaveBeenCalled()
+    expect(localStorage.getItem(CREATE_DRAFT_KEY)).toBeNull()
+  }, 20000)
+
+  it('⑤ 评分草稿按月报 id 分桶（R-105）：只恢复同一份月报的草稿', async () => {
+    const other = { ...submittedReport, id: 'r3', personName: '员工17' }
+    apiGet.mockImplementation(async (_url: string, cfg: any) => {
+      if (cfg?.params?.pending === '1') return { data: { data: [submittedReport, other] } }
+      return { data: { data: [draftReport] } }
+    })
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+
+    // 给 r2 打分并写评语 → 落盘
+    vm.openScore(submittedReport)
+    await flushPromises()
+    vm.scoreForm.comment = '本月表现良好'
+    await sleep(1000)
+    expect(localStorage.getItem(SCORE_DRAFT_KEY)).toBeTruthy()
+
+    // 重新打开 r2 → 恢复评语
+    vm.openScore(submittedReport)
+    await flushPromises()
+    expect(vm.scoreForm.comment).toBe('本月表现良好')
+    expect(wrapper.text()).toContain('已恢复上次填写的内容')
+
+    // 打开别的月报 → 不灌入 r2 的草稿
+    vm.openScore(other)
+    await flushPromises()
+    expect(vm.scoreForm.comment).toBe('')
+  }, 20000)
+
+  it('⑥ 字段级校验（R-221）：汇报内容为空时字段旁出现反馈，不发写请求', async () => {
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+
+    vm.openCreate()
+    await flushPromises()
+    vm.createForm.comment = ''
+    await vm.submitCreate()
+    await flushPromises()
+
+    expect(apiPost).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('请填写汇报内容')
+    expect(wrapper.find('.n-form-item-feedback--error').exists()).toBe(true)
+    expect(wrapper.find('.field-error').exists()).toBe(true)
+  }, 20000)
+
+  it('⑦ 写入失败三段式（R-203）：标题 + 数据安全说明 + 折叠可复制详情', async () => {
+    apiPost.mockRejectedValue({ response: { status: 500, data: { detail: '服务器开小差了' } } })
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+
+    vm.openCreate()
+    await flushPromises()
+    vm.createForm.comment = '本月完成客服轮岗'
+    await vm.submitCreate()
+    await flushPromises()
+
+    // ① 人话描述 ② 数据是否安全
+    expect(wrapper.text()).toContain('保存月报草稿没有成功')
+    expect(wrapper.text()).toContain('你填写的内容仍保留在表单里')
+    // ③ 技术报文折叠在「详情」里，展开后可复制
+    const detailHeader = wrapper
+      .findAll('.n-collapse-item__header-main')
+      .find((h) => h.text().includes('详情'))
+    expect(detailHeader).toBeTruthy()
+    await detailHeader!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('HTTP 500 · 服务器开小差了')
+    expect(wrapper.findAll('button').some((b) => b.text() === '复制错误信息')).toBe(true)
+  }, 20000)
+
+  it('⑧ 工具栏筛选控件的可访问名与可见标签一致（R-218）', async () => {
+    const wrapper = await mountPage()
+    const select = wrapper.find('.n-select')
+    expect(select.exists()).toBe(true)
+    expect(select.attributes('aria-label')).toBe('月份')
   }, 20000)
 })

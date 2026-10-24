@@ -14,6 +14,14 @@
     可见范围统一走 `apps.campus_control.visibility.visible_persons`（契约 §1.3），
     **本 app 是该助手的只读调用方**，不修改它。
 
+🔴 **restore 动作必须额外收一层**（2026-10-24 整改）：
+    restore 要取到**已软删**的行 → `SoftDeleteRestoreMixin` 把取数来源换成
+    `model.all_objects`（含软删行），此时**只**保留 `scope_queryset()` 这一层过滤；
+    写在 `get_queryset()` 里的可见范围在 restore 路径上会被整层丢弃 →
+    带教导师只要拿到 id 就能复活**别人（可见范围外）**的软删行（越权）。
+    故本 app 的可见范围**同时**写在 `get_queryset()` 与 `scope_queryset()`（同源），
+    范围外的行一律 404（不泄露存在性）。
+
 权限码族（契约 §1.2 / §5.3）：
 - `recruit:campus:assessment:*`    月度考核 / 考核模板 / 五行五力 / 试用期 / 排名
 - `recruit:campus:attendance:*`    每日打卡 / 月度考勤汇总
@@ -68,6 +76,15 @@ from .serializers import (
 )
 
 
+def _truthy(value) -> bool:
+    """query 参数的真值判定（`1` / `true` / `yes` / `on` 皆为真）。
+
+    Django 的 QueryDict 取值恒为字符串，直接 `if value:` 会让 `?pending=0`
+    也被判成真 —— 故显式列白名单。
+    """
+    return str(value or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 class CampusAssessmentBaseViewSet(
     SoftDeleteRestoreMixin, EnvelopeWriteMixin, AuditMixin,
     SoftDeleteViewSetMixin, viewsets.ModelViewSet,
@@ -78,17 +95,37 @@ class CampusAssessmentBaseViewSet(
     pagination_class = StandardResultsSetPagination
     #: 审计实体标识（写进 AuditLog 的 entity 字段）
     audit_entity = 'campus_assessment'
+    #: 行级可见范围的人员维度字段（'person'）；None = 该模型无人员维度 → 不收窄
+    #: （配置类表如考核模板没有校招生外键，见 AssessmentTemplateViewSet）
+    visibility_person_field = 'person'
 
     def _visible_person_ids(self):
         """当前用户可见的校招生 id（可见范围的**唯一**收窄入口）。"""
         return services.visible_person_ids(self.request.user)
 
+    def scope_queryset(self, qs):
+        """restore 动作的行级隔离收口（行级可见范围 + 行级数据隔离同源）。
+
+        🔴 为什么必须单独写一层：`SoftDeleteRestoreMixin` 在 restore 动作里把取数
+        来源换成 `model.all_objects`（含软删行），**只**保留 `scope_queryset()` 这一个
+        过滤钩子；可见范围若只写在 `get_queryset()` 里，restore 路径上会被整层丢弃 →
+        带教导师能恢复**别人（可见范围外）**的软删行 —— 越权。
+
+        口径与 `get_queryset()` 完全一致（同一个 `visible_persons` 真源），
+        范围外的行 → 取不到 → 404（不泄露存在性）。
+        """
+        field = self.visibility_person_field
+        if not field:
+            return qs
+        return qs.filter(**{f'{field}_id__in': self._visible_person_ids()})
+
     @action(detail=True, methods=['post'], url_path='restore')
     def restore(self, request, pk=None):
         """恢复已软删记录（契约 §1.1「提供 restore 动作」）。
 
-        `SoftDeleteRestoreMixin` 让本动作下的 `get_object()` 能取到已软删行，
-        同时保留可见范围过滤 —— 不会变成「全库可恢复」。
+        `SoftDeleteRestoreMixin` 让本动作下的 `get_object()` 能取到已软删行；
+        行级隔离由本类的 `scope_queryset()` 收口 → **只能恢复本用户可见范围内的
+        软删行**，范围外的行一律 404（不泄露存在性）。
         """
         instance = self.get_object()
         instance.restore()
@@ -113,6 +150,8 @@ class MonthlyAssessmentViewSet(CampusAssessmentBaseViewSet):
         'adjust': 'recruit:campus:assessment:edit',
         'restore': 'recruit:campus:assessment:edit',
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
 
     def get_queryset(self):
         qs = MonthlyAssessment.objects.filter(deleted_at__isnull=True)
@@ -190,6 +229,10 @@ class AssessmentTemplateViewSet(CampusAssessmentBaseViewSet):
     permission_required_map = {
         'restore': 'recruit:campus:assessment:edit',
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
+    #: 模板是配置数据，没有校招生外键 → 无「可见人员」口径可套 → restore 不按人员收窄
+    visibility_person_field = None
 
     def get_queryset(self):
         qs = AssessmentTemplate.objects.filter(deleted_at__isnull=True)
@@ -218,6 +261,8 @@ class FiveForceScoreViewSet(CampusAssessmentBaseViewSet):
     permission_required_map = {
         'restore': 'recruit:campus:assessment:edit',
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
 
     def get_queryset(self):
         qs = FiveForceScore.objects.filter(deleted_at__isnull=True)
@@ -238,14 +283,14 @@ class AttendanceRecordViewSet(CampusAssessmentBaseViewSet):
     serializer_class = AttendanceRecordSerializer
     permission_required = 'recruit:campus:attendance:list'
     permission_required_map = {
-        # ⚠️ 父会话 core/0051 给 `attendance` 子模块登记的是 list/create/edit/export，
-        #    **没有 :delete** —— 若走默认派生（destroy → :delete），删除动作会被
-        #    V2Permission 的 fail-closed 守卫拒掉（码未注册 → 拒绝写）。
-        #    契约 §2.2 要求这些端点提供 CRUD，故显式把删除动作落到已登记的 :edit 上。
-        #    待父会话补登 `recruit:campus:attendance:delete` 后可改回派生。
-        'destroy': 'recruit:campus:attendance:edit',
+        # ⚠️ `destroy` **不再显式改派**：core/0052 已补登
+        #    `recruit:campus:attendance:delete` → 走仓库默认派生
+        #    （`destroy → :delete`，见 core/permissions_v2.py ACTION_SUFFIX）即可命中已登记码，
+        #    与契约 §1.2 的默认映射一致（原先改派到 :edit 是因为 :delete 尚未登记）。
         'restore': 'recruit:campus:attendance:edit',
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
 
     def get_queryset(self):
         qs = AttendanceRecord.objects.filter(deleted_at__isnull=True)
@@ -270,9 +315,11 @@ class AttendanceMonthlyViewSet(CampusAssessmentBaseViewSet):
     serializer_class = AttendanceMonthlySerializer
     permission_required = 'recruit:campus:attendance:list'
     permission_required_map = {
-        'destroy': 'recruit:campus:attendance:edit',
+        # `destroy` 走默认派生（`:delete`，core/0052 已补登该码）
         'restore': 'recruit:campus:attendance:edit',
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
 
     def get_queryset(self):
         qs = AttendanceMonthly.objects.filter(deleted_at__isnull=True)
@@ -299,6 +346,8 @@ class FeedbackRecordViewSet(CampusAssessmentBaseViewSet):
         'resolve': 'recruit:campus:feedback:edit',
         'restore': 'recruit:campus:feedback:edit',
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
 
     def get_queryset(self):
         qs = FeedbackRecord.objects.filter(deleted_at__isnull=True)
@@ -350,11 +399,14 @@ class MonthlyReportViewSet(CampusAssessmentBaseViewSet):
         # 且父会话 core/0051 给 monthly_report 登记的正是 evaluate 码）。
         'score': 'recruit:campus:monthly_report:evaluate',
         'submit': 'recruit:campus:monthly_report:edit',
-        # ⚠️ core/0051 未给 monthly_report 登记 :delete（登记的是 list/create/edit/evaluate），
-        #    走默认派生会让删除动作被 fail-closed 拒掉 → 显式落到已登记的 :edit。
-        'destroy': 'recruit:campus:monthly_report:edit',
+        # ⚠️ `destroy` **不再显式改派**：core/0052 已补登
+        #    `recruit:campus:monthly_report:delete` 与 `...:attendance:delete`，
+        #    故走仓库默认派生（`destroy → :delete`，见 core/permissions_v2.py ACTION_SUFFIX）
+        #    即可命中已登记码 —— 与契约 §1.2 的默认映射一致。
         'restore': 'recruit:campus:monthly_report:edit',
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
 
     def get_queryset(self):
         qs = MonthlyReport.objects.filter(deleted_at__isnull=True)
@@ -369,6 +421,21 @@ class MonthlyReportViewSet(CampusAssessmentBaseViewSet):
         status = params.get('status')
         if status:
             qs = qs.filter(status=status)
+        # `?pending=1` —— 「待评分」= 还有角色没评（业务导师 / 成长导师缺一即算待评分）。
+        # 🔴 **不能用 status 表达**：契约 §2.2 规定「评分落库即置 scored」，
+        #    所以只评了业务导师的月报状态已是 scored，但成长导师仍待评 ——
+        #    按 status 过滤会把「待评分」列表里的项筛掉。口径：两个角色都有评分明细才算评完。
+        if _truthy(params.get('pending')):
+            scored_roles = {}
+            for report_id, role in MonthlyReportScore.objects.filter(
+                report_id__in=qs.values('id'), role__in=['business', 'growth']
+            ).values_list('report_id', 'role'):
+                scored_roles.setdefault(report_id, set()).add(role)
+            finished = {
+                rid for rid, roles in scored_roles.items()
+                if {'business', 'growth'} <= roles
+            }
+            qs = qs.exclude(id__in=finished)
         return qs.select_related('person', 'person__class_room').prefetch_related('scores')
 
     @action(detail=True, methods=['post'], url_path='submit')
@@ -386,11 +453,18 @@ class MonthlyReportViewSet(CampusAssessmentBaseViewSet):
     def score(self, request, pk=None):
         """评分：body `{ role, case, insight, problem, clarity, executable, comment }`。
 
-        口径（逆向清单 A7 / core.js:258）：
+        口径（契约 §2.2 / 逆向清单 A7 / core.js:258）：
         - 角色总分 = 5 子项之和；
         - 综合分 = `round(business.total×0.7 + growth.total×0.3, 1)`；
-        - **两个角色都评分后**才置 `status=scored` —— 只评一个角色时综合分无解，
-          此时保持 `submitted`，等另一角色补齐（见返回体 `pending` 字段）。
+        - **评分动作落库即置 `status=scored`**（契约 §2.2 的字面口径：
+          「写 MonthlyReportScore 并回算 final_score，status=scored」）。
+
+        🔴 另一角色还没评时的处理（2026-10-24 整改）：
+          缺的那一侧**不写 0 分**（分数列保持「未评」语义，不覆盖成 0），
+          其**权重项不参与**本次回算 —— 综合分 = 已评分那一侧 × 其权重
+          （与前端评分弹窗的预览公式一致：业务×0.7 + 成长×0.3，缺项按 0 预览）。
+          响应里 `pending` 列出尚未评分的角色、`role_scores` 用 None 表达「未评」，
+          另一角色补评后会按完整 70/30 公式重算。
         """
         report = self.get_object()
         if report.status == MonthlyReport.Status.DRAFT:
@@ -425,37 +499,44 @@ class MonthlyReportViewSet(CampusAssessmentBaseViewSet):
         )
 
         existing = {s.role: s.total for s in MonthlyReportScore.objects.filter(report=report)}
-        report.business_score = existing.get(MonthlyReportScore.Role.BUSINESS, 0)
-        report.growth_score = existing.get(MonthlyReportScore.Role.GROWTH, 0)
+        business_total = existing.get(MonthlyReportScore.Role.BUSINESS)
+        growth_total = existing.get(MonthlyReportScore.Role.GROWTH)
+        pending = [
+            missing for missing in
+            (MonthlyReportScore.Role.BUSINESS, MonthlyReportScore.Role.GROWTH)
+            if missing not in existing
+        ]
 
-        pending = []
-        if MonthlyReportScore.Role.BUSINESS in existing and MonthlyReportScore.Role.GROWTH in existing:
-            report.final_score = R.report_final_score(
-                existing[MonthlyReportScore.Role.BUSINESS],
-                existing[MonthlyReportScore.Role.GROWTH],
-            )
-            report.status = MonthlyReport.Status.SCORED
+        # 只回写**已评分**角色的分数列：未评分的角色不写 0（保留「未评」语义）
+        update_fields = ['updated_at']
+        if business_total is not None:
+            report.business_score = business_total
+            update_fields.append('business_score')
+        if growth_total is not None:
+            report.growth_score = growth_total
+            update_fields.append('growth_score')
+
+        # 缺另一角色时按**已有那侧**算（未评分角色的权重项不参与，不是「打了 0 分」）
+        report.final_score = R.report_final_score(business_total, growth_total)
+        report.status = MonthlyReport.Status.SCORED
+        report.save(update_fields=update_fields + ['final_score', 'status'])
+
+        if pending:
+            message = '已保存该角色评分，综合分按已评分角色折算；另一角色评分后将按 70/30 完整重算'
         else:
-            for missing in (MonthlyReportScore.Role.BUSINESS, MonthlyReportScore.Role.GROWTH):
-                if missing not in existing:
-                    pending.append(missing)
-            report.save(update_fields=[
-                'business_score', 'growth_score', 'updated_at',
-            ])
-            return success_response({
-                'report': self.get_serializer(report).data,
-                'score': MonthlyReportScoreSerializer(score_row).data,
-                'pending': pending,
-                'message': '已保存该角色评分，等待另一角色评分后回算综合分',
-            })
-
-        report.save(update_fields=[
-            'business_score', 'growth_score', 'final_score', 'status', 'updated_at',
-        ])
+            message = '评分已保存，综合分已按业务 70% + 成长 30% 重算'
         return success_response({
             'report': self.get_serializer(report).data,
             'score': MonthlyReportScoreSerializer(score_row).data,
-            'pending': [],
+            'pending': pending,
+            #: 未评分的角色用 None 表达「未评」（不是 0 分）
+            'role_scores': {
+                MonthlyReportScore.Role.BUSINESS: (
+                    float(business_total) if business_total is not None else None),
+                MonthlyReportScore.Role.GROWTH: (
+                    float(growth_total) if growth_total is not None else None),
+            },
+            'message': message,
         })
 
 
@@ -475,6 +556,8 @@ class ProbationViewSet(CampusAssessmentBaseViewSet):
         'decide': 'recruit:campus:assessment:edit',
         'restore': 'recruit:campus:assessment:edit',
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
 
     def get_queryset(self):
         qs = Probation.objects.filter(deleted_at__isnull=True)

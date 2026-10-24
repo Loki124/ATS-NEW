@@ -24,9 +24,10 @@
               <span class="field-label">关键词</span>
               <n-input
                 v-model:value="searchText"
+                aria-label="关键词"
+                class="toolbar-search"
                 placeholder="搜索姓名、描述或类型"
                 clearable
-                style="width: 260px"
                 @keyup.enter="loadList"
                 @clear="loadList"
               >
@@ -94,11 +95,34 @@
       :content-style="{ height: 'min(560px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
     >
+      <!-- 写入失败三段式（R-203）：人话标题 + 数据是否安全 + 折叠技术详情（可一键复制） -->
+      <div v-if="writeError" ref="writeErrorRef" class="write-error-wrap">
+        <n-alert type="error" :show-icon="true" :title="writeError.title">
+          <div class="error-safe">{{ writeError.safe }}</div>
+          <details class="error-details">
+            <summary>查看详情</summary>
+            <pre class="error-code">{{ writeError.detail }}</pre>
+            <n-button size="tiny" quaternary @click="copyDetail(writeError.detail)">复制错误信息</n-button>
+          </details>
+        </n-alert>
+      </div>
+
       <n-form :model="formState" label-placement="top">
+        <!-- 未填项提示（R-221 / R-204）：图标 + 文字双通道，提交按钮不再静默置灰 -->
+        <div v-if="validateAttempted && missingLabels.length" class="form-hint" role="status">
+          <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+          <span>还有 {{ missingLabels.length }} 项未填写：{{ missingLabels.join('、') }}</span>
+        </div>
         <n-grid :cols="2" :x-gap="16" responsive="screen" :item-responsive="true">
           <n-grid-item span="2 s:1">
-            <n-form-item label="校招生" required>
+            <n-form-item
+              label="校招生"
+              required
+              :validation-status="personError ? 'error' : undefined"
+              :show-feedback="!!personError"
+            >
               <n-select
+                ref="personRef"
                 v-model:value="formState.person"
                 :options="personOptions"
                 placeholder="搜索并选择校招生"
@@ -108,22 +132,42 @@
                 :loading="personSearching"
                 :on-search="onPersonSearch"
               />
+              <template #feedback>
+                <span class="field-error">
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  <span>{{ personError }}</span>
+                </span>
+              </template>
             </n-form-item>
           </n-grid-item>
           <n-grid-item span="2 s:1">
-            <n-form-item label="记录日期" required>
+            <n-form-item
+              label="记录日期"
+              required
+              :validation-status="dateError ? 'error' : undefined"
+              :show-feedback="!!dateError"
+            >
               <n-date-picker
                 v-model:value="formState.dateTs"
                 type="date"
                 style="width: 100%"
                 placeholder="选择记录日期"
               />
+              <template #feedback>
+                <span class="field-error">
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  <span>{{ dateError }}</span>
+                </span>
+              </template>
             </n-form-item>
           </n-grid-item>
         </n-grid>
         <n-grid :cols="2" :x-gap="16" responsive="screen" :item-responsive="true">
           <n-grid-item span="2 s:1">
-            <n-form-item label="记录分类" required>
+            <n-form-item
+              label="记录分类"
+              required
+            >
               <n-select
                 v-model:value="formState.category"
                 :options="categoryOptions"
@@ -132,18 +176,45 @@
             </n-form-item>
           </n-grid-item>
           <n-grid-item span="2 s:1">
-            <n-form-item label="类型" required>
-              <n-input v-model:value="formState.type" placeholder="如 迟到 / 沟通风格 / 适应度" />
+            <n-form-item
+              label="类型"
+              required
+              :validation-status="typeError ? 'error' : undefined"
+              :show-feedback="!!typeError"
+            >
+              <n-input
+                ref="typeRef"
+                v-model:value="formState.type"
+                placeholder="如 迟到 / 沟通风格 / 适应度"
+              />
+              <template #feedback>
+                <span class="field-error">
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  <span>{{ typeError }}</span>
+                </span>
+              </template>
             </n-form-item>
           </n-grid-item>
         </n-grid>
-        <n-form-item label="描述" required>
+        <n-form-item
+          label="描述"
+          required
+          :validation-status="contentError ? 'error' : undefined"
+          :show-feedback="!!contentError"
+        >
           <n-input
+            ref="contentRef"
             v-model:value="formState.content"
             type="textarea"
             :rows="3"
             placeholder="记录本次反馈的事实与现象"
           />
+          <template #feedback>
+            <span class="field-error">
+              <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+              <span>{{ contentError }}</span>
+            </span>
+          </template>
         </n-form-item>
         <n-form-item label="处理方式">
           <n-input
@@ -164,8 +235,8 @@
       </n-form>
       <template #footer>
         <n-space justify="end">
-          <n-button :disabled="saving" @click="createVisible = false">取消</n-button>
-          <n-button type="primary" :loading="saving" :disabled="!canSubmit" @click="submitCreate">
+          <n-button :disabled="saving" @click="createVisible = false">取消新增</n-button>
+          <n-button type="primary" :loading="saving" :disabled="saving" @click="submitCreate">
             保存记录
           </n-button>
         </n-space>
@@ -237,8 +308,9 @@ import {
   NTabs,
   NTag,
   useMessage,
+  useNotification,
 } from 'naive-ui'
-import { AddOutline, SearchOutline } from '@vicons/ionicons5'
+import { AddOutline, AlertCircleOutline, SearchOutline } from '@vicons/ionicons5'
 import {
   createFeedbackRecord,
   fetchOverviewStats,
@@ -248,7 +320,14 @@ import {
   type FeedbackRecordRow,
   type OverviewStats,
 } from '../../api/campusAssessment'
-import { extractError, searchPersons, type SelectOption } from '../../utils/campus'
+import {
+  buildWriteError,
+  extractError,
+  searchPersons,
+  type SelectOption,
+  type WriteErrorInfo,
+} from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 type FeedbackTab = 'all' | 'issue' | 'mentor'
 
@@ -256,6 +335,7 @@ type FeedbackTab = 'all' | 'issue' | 'mentor'
 const pagination = { pageSize: 50, showSizePicker: false }
 
 const message = useMessage()
+const notification = useNotification()
 
 /* ────────────────────────── 统计卡 ────────────────────────── */
 
@@ -338,7 +418,9 @@ async function resolveRow(row: FeedbackRecordRow) {
     message.success(`「${row.personName || '该记录'}」的反馈已办结`)
     await Promise.all([loadList(), loadStats()])
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：行内操作没有独立错误区，用三段式文案兜底（标题 + 数据安全说明）
+    const info = buildWriteError(e, { action: '办结反馈记录' })
+    message.error(`${info.title}。${info.safe}`)
   } finally {
     resolvingId.value = ''
   }
@@ -372,18 +454,108 @@ const formState = reactive(emptyForm())
 
 const categoryOptions = Object.entries(FEEDBACK_CATEGORY_LABEL).map(([value, label]) => ({ label, value }))
 
-/** 必填项齐备才允许提交（表单按钮禁用态，R-101）。 */
-const canSubmit = computed(
-  () =>
-    !!formState.person &&
-    !!formState.dateTs &&
-    !!formState.type.trim() &&
-    !!formState.content.trim() &&
-    !saving.value,
+/* ────────────────────────── 草稿（R-105） ────────────────────────── */
+
+/**
+ * 草稿自动保存：命名空间按「页面-表单」唯一。
+ * 反馈记录表单共 6 个字段（含 2 段长文本），人工填写超过 1 分钟 → 接草稿。
+ * 提交成功后 MUST 立即 draft.clear()。
+ *
+ * ⚠️ draftEnabled：提交成功后置 false —— 否则「待写入的 800ms 定时器」会在
+ *    draft.clear() 之后把刚提交的内容又写回草稿，造成下次打开误报「已恢复」。
+ *    下次打开弹窗时重新置 true。
+ */
+const draftEnabled = ref(true)
+const draft = useFormDraft('campus-feedback-create', formState, { enabled: () => draftEnabled.value })
+
+/** 草稿里是否已有有效内容（空草稿不算「填写过」，恢复时不打扰用户）。 */
+function hasDraftContent(): boolean {
+  return Boolean(formState.person || formState.type.trim() || formState.content.trim())
+}
+
+/* ────────────────────────── 字段级校验（R-221） ────────────────────────── */
+
+/** 是否已尝试提交：决定是否显示字段级错误；提交后随输入实时更新。 */
+const validateAttempted = ref(false)
+
+/** 缺失必填项的中文字段名（用于「还有 N 项未填写」提示）。 */
+const missingLabels = computed(() => {
+  const list: string[] = []
+  if (!formState.person) list.push('校招生')
+  if (!formState.dateTs) list.push('记录日期')
+  if (!formState.type.trim()) list.push('类型')
+  if (!formState.content.trim()) list.push('描述')
+  return list
+})
+
+const personError = computed(() => (validateAttempted.value && !formState.person ? '请选择校招生' : ''))
+const dateError = computed(() => (validateAttempted.value && !formState.dateTs ? '请选择记录日期' : ''))
+const typeError = computed(() => (validateAttempted.value && !formState.type.trim() ? '请填写反馈类型' : ''))
+const contentError = computed(() =>
+  validateAttempted.value && !formState.content.trim() ? '请填写反馈描述' : '',
 )
 
+/** 首个出错字段的聚焦句柄（提交失败时把光标送到第一个出错的控件）。 */
+const personRef = ref<any>(null)
+const typeRef = ref<any>(null)
+const contentRef = ref<any>(null)
+
+function focusFirstInvalid() {
+  const candidates = [
+    { err: personError.value, el: personRef.value },
+    { err: typeError.value, el: typeRef.value },
+    { err: contentError.value, el: contentRef.value },
+  ]
+  const hit = candidates.find((c) => c.err && c.el)
+  hit?.el?.focus?.()
+}
+
+/* ────────────────────────── 写入失败三段式（R-203） ────────────────────────── */
+
+/** 写入失败的三段式信息（人话标题 / 数据是否安全 / 技术详情）。 */
+const writeError = ref<WriteErrorInfo | null>(null)
+const writeErrorRef = ref<HTMLElement | null>(null)
+
+/** 失败提示在内容区顶部，滚动到可见位置（内容区固定高度 + 内部滚动）。 */
+function scrollWriteErrorIntoView() {
+  writeErrorRef.value?.scrollIntoView?.({ block: 'nearest' })
+}
+
 function openCreate() {
-  Object.assign(formState, emptyForm())
+  validateAttempted.value = false
+  writeError.value = null
+  draftEnabled.value = true
+  // R-105：打开弹窗时探测草稿 → 恢复内容并给出「清空」出口；空草稿直接丢弃。
+  if (draft.probe()) {
+    draft.restore()
+    if (hasDraftContent()) {
+      notification.create({
+        content: '已恢复上次填写的内容',
+        duration: 8000,
+        keepAliveOnHover: true,
+        action: () =>
+          h(
+            NButton,
+            {
+              text: true,
+              type: 'primary',
+              onClick: () => {
+                // R-105：清空出口 = 清草稿 + 清表单，用户可从头重填
+                draft.clear()
+                Object.assign(formState, emptyForm())
+                message.success('已清空草稿，可重新填写')
+              },
+            },
+            { default: () => '清空' },
+          ),
+      })
+    } else {
+      draft.clear()
+      Object.assign(formState, emptyForm())
+    }
+  } else {
+    Object.assign(formState, emptyForm())
+  }
   createVisible.value = true
 }
 
@@ -405,7 +577,14 @@ function formatDate(ts: number | null): string {
 }
 
 async function submitCreate() {
-  if (!canSubmit.value) return
+  // R-221：提交前先跑字段级校验，错误就地显示（图标 + 文字），并聚焦第一个出错字段。
+  validateAttempted.value = true
+  writeError.value = null
+  if (missingLabels.value.length) {
+    message.warning(`还有 ${missingLabels.value.length} 项未填写，已在对应字段标出`)
+    focusFirstInvalid()
+    return
+  }
   saving.value = true
   try {
     await createFeedbackRecord({
@@ -421,10 +600,16 @@ async function submitCreate() {
         .filter(Boolean),
     })
     message.success('反馈记录已保存')
+    // R-105：提交成功后立即清除草稿（并停掉本次会话的自动保存，避免待写入定时器把已提交内容写回）
+    draft.clear()
+    draftEnabled.value = false
+    validateAttempted.value = false
     createVisible.value = false
     await Promise.all([loadList(), loadStats()])
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：三段式写入失败提示（人话标题 + 数据安全说明 + 折叠技术详情）
+    writeError.value = buildWriteError(e, { action: '保存反馈记录' })
+    scrollWriteErrorIntoView()
   } finally {
     saving.value = false
   }
@@ -503,7 +688,7 @@ const columns = [
               size: 'small',
               quaternary: true,
               type: 'warning',
-              disabled: row.status !== '处理中',
+              disabled: row.status !== '处理中' || resolvingId.value === row.id,
               loading: resolvingId.value === row.id,
               onClick: () => resolveRow(row),
             },
@@ -547,10 +732,12 @@ onMounted(() => {
   flex-direction: column;
   gap: var(--space-2);
 }
-/* 4 卡统计（自适应栅格，流式列） */
+/* 4 卡统计（自适应栅格，流式列）
+   ⚠️ minmax(min(--col-min, 100%), 1fr)：--col-min=280px 在 320px 视口下比内容区还宽，
+      会把卡片撑出容器被 overflow:hidden 裁掉 → 用仓库既有写法（见 PersonProfileModal）收敛。 */
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--col-min), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--col-min), 100%), 1fr));
   gap: var(--space-2);
   flex-shrink: 0;
 }
@@ -593,12 +780,24 @@ onMounted(() => {
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
+  /* R-103：窄屏换行，避免固定宽控件被 .page-body 的 overflow:hidden 裁切 */
+  flex-wrap: wrap;
   padding-bottom: var(--space-2);
+}
+/* 固定宽控件窄屏收敛到容器宽度（320px 视口不产生横向溢出） */
+.toolbar-search {
+  width: 260px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .field {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* R-103：允许整组在窄屏收缩到行宽以内（否则 260px 输入框会被 overflow:hidden 裁掉尾巴） */
+  min-width: 0;
+  max-width: 100%;
 }
 .field-label {
   font-size: var(--text-small);
@@ -637,6 +836,47 @@ onMounted(() => {
   gap: var(--space-2);
   font-size: var(--text-small);
   color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+/* 写入失败三段式（R-203）：标题 + 数据安全说明 + 折叠技术详情 */
+.write-error-wrap {
+  margin-bottom: var(--space-3);
+}
+.error-safe {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.error-details {
+  margin-top: var(--space-2);
+  font-size: var(--text-meta);
+  color: var(--ink-soft);
+}
+.error-code {
+  margin: var(--space-1) 0;
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+/* 字段级错误：图标 + 文字双通道（R-221），不靠颜色单独表达 */
+.field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
+}
+.form-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
   overflow-wrap: anywhere;
 }
 .evidence-list {

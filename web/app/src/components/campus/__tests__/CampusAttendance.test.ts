@@ -5,6 +5,8 @@
  *  1. 每日打卡排名加载完成 → 渲染排名行（含「与第1名差距」列）
  *  2. 无打卡记录 → 渲染空态（与「暂无数据」文案不同）
  *  3. 切到「月度汇总」页签 → 调用 attendance-monthly 端点
+ *  4. R-202：每个视图恰好 1 个实心主操作（导出），其余按钮非 primary
+ *  5. 导出：本地生成 CSV（不依赖后端导出接口）
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -95,5 +97,55 @@ describe('CampusAttendance 行为契约', () => {
     const tbody = wrapper.find('.n-data-table-tbody')
     expect(tbody.text()).toContain('客服部')
     expect(tbody.text()).toContain('21')
+  }, 20000)
+
+  it('④ R-202：每个视图恰好 1 个实心主操作，其余按钮降级为默认/ghost', async () => {
+    const wrapper = await mountPage()
+
+    // 每日打卡排名视图（naive 的 show:lazy 页签同时只渲染当前页签）
+    const dailyPane = wrapper.find('.n-tab-pane')
+    expect(dailyPane.exists()).toBe(true)
+    const dailyPrimary = dailyPane
+      .findAll('button')
+      .filter((b) => b.classes().includes('n-button--primary-type'))
+    expect(dailyPrimary.length).toBe(1)
+    expect(dailyPrimary[0].text()).toContain('导出打卡记录')
+
+    const tab = wrapper.findAll('.n-tabs-tab').find((t) => t.text() === '月度汇总')
+    await tab!.trigger('click')
+    await flushPromises()
+
+    const monthlyPane = wrapper.find('.n-tab-pane')
+    const monthlyPrimary = monthlyPane
+      .findAll('button')
+      .filter((b) => b.classes().includes('n-button--primary-type'))
+    expect(monthlyPrimary.length).toBe(1)
+    expect(monthlyPrimary[0].text()).toContain('导出月度汇总')
+  }, 20000)
+
+  it('⑤ 点「导出打卡记录」→ 本地生成 CSV（含当前视图数据）', async () => {
+    const blobs: any[] = []
+    const origCreate = URL.createObjectURL
+    const origRevoke = URL.revokeObjectURL
+    ;(URL as any).createObjectURL = (b: any) => {
+      blobs.push(b)
+      return 'blob:mock'
+    }
+    ;(URL as any).revokeObjectURL = () => {}
+    try {
+      const wrapper = await mountPage()
+      const btn = wrapper.findAll('button').find((b) => b.text().includes('导出打卡记录'))
+      expect(btn).toBeTruthy()
+      await btn!.trigger('click')
+      await flushPromises()
+
+      expect(blobs.length).toBe(1)
+      const csv = await blobs[0].text()
+      expect(csv).toContain('员工16')
+      expect(csv).toContain('打卡时间')
+    } finally {
+      ;(URL as any).createObjectURL = origCreate
+      ;(URL as any).revokeObjectURL = origRevoke
+    }
   }, 20000)
 })

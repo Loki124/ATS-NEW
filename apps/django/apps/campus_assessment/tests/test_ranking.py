@@ -12,8 +12,10 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.apps import apps as django_apps
 
 from apps.campus_assessment import ranking as R
+from apps.campus_assessment import services
 from apps.campus_assessment.models import (
     AttendanceMonthly,
     FiveForceScore,
@@ -25,6 +27,7 @@ from apps.campus_assessment.tests import (
     client_for,
     make_classroom,
     make_person,
+    uid,
 )
 
 pytestmark = pytest.mark.django_db
@@ -388,3 +391,191 @@ def test_teacher_ranking_hidden_for_out_of_scope_students():
     teacher_rows = [t for t in data['teachers'] if t['teacherId'] == teacher.pk]
     assert teacher_rows[0]['studentCount'] == 1
     assert teacher_rows[0]['avgTotal'] == 90.0
+
+
+# ---------------------------------------------------------------------------
+# A4 学习成长：**按人**取值（契约 §2.3 + 逆向清单 A4）
+# ---------------------------------------------------------------------------
+# 🔴 **回归护栏 —— 本节是「学习维度全局化」缺陷的护栏**：
+#   早期 `_learning_inputs` 先按人聚出每人的 Avg，再对**全体可见人员**求平均、
+#   返回**单个标量**，并在 `collect_dimensions` 的逐人循环里把同一个标量赋给**每一个人**
+#   → 学习成长维度对所有人相同 → A3 综合得分里 30% 的权重项退化成常数 →
+#   综合排名失真、`?dim=learn` 视图全员并列第 1、班主任 `rankAvg.learn` 恒为 1。
+#   库内学习数据为 0 时该缺陷**不显形**（未爆的地雷，不是「没问题」）。
+#   下列用例把「按人」口径在**服务层**与**端点层**逐条锁死。
+def _learning_model(name):
+    """防御式取 `campus_learning` 的模型。
+
+    与 `services._optional_model` 同一套理由：考核域**不能**直接 import 兄弟 app 的
+    models（跨 app 成环），故测试侧也走 `django_apps.get_model`。
+    """
+    return django_apps.get_model('campus_learning', name)
+
+
+def _make_course(name=None):
+    """造课程（课程编号唯一）。"""
+    Course = _learning_model('Course')
+    return Course.objects.create(code=f'C{uid()}', name=name or f'课程{uid()[:4]}')
+
+
+def _make_exam(name=None):
+    """造考试。"""
+    Exam = _learning_model('Exam')
+    return Exam.objects.create(name=name or f'考试{uid()[:4]}', date=date(2026, 7, 15))
+
+
+def _make_progress(person, course, progress):
+    """录一条学习进度（一人 × 一门课一行）。"""
+    LearnProgress = _learning_model('LearnProgress')
+    return LearnProgress.objects.create(person=person, course=course, progress=progress)
+
+
+def _make_exam_score(person, exam, score):
+    """录一条考试成绩（一人 × 一场考试一行）。"""
+    ExamScore = _learning_model('ExamScore')
+    return ExamScore.objects.create(person=person, exam=exam, score=score)
+
+
+class TestA4DimLearnPerPerson:
+    """学习成长维度按人取值（服务层 `collect_dimensions`）。"""
+
+    def test_two_persons_with_different_data_get_different_values(self):
+        """两人学习数据不同 → 各自的 `learn` 值不相等，且分别等于按其自身数据算出的值。
+
+        甲：课程进度 (80, 100) → 进度均值 90；考试 91 → mean(90, 91) = 90.5 → 91（JS 语义）
+        乙：课程进度 (40, 60)  → 进度均值 50；考试 70 → mean(50, 70) = 60
+        """
+        person_a = make_person(name='甲')
+        person_b = make_person(name='乙')
+
+        course_1 = _make_course()
+        course_2 = _make_course()
+        exam = _make_exam()
+
+        _make_progress(person_a, course_1, 80)
+        _make_progress(person_a, course_2, 100)
+        _make_exam_score(person_a, exam, 91)
+
+        _make_progress(person_b, course_1, 40)
+        _make_progress(person_b, course_2, 60)
+        _make_exam_score(person_b, exam, 70)
+
+        dims = services.collect_dimensions([person_a.id, person_b.id])
+        learn_a = dims[person_a.id]['learn']
+        learn_b = dims[person_b.id]['learn']
+
+        assert learn_a == Decimal(91)
+        assert learn_b == Decimal(60)
+        assert learn_a != learn_b
+
+    def test_each_source_falls_back_to_the_one_present(self):
+        """一人只有课程进度、另一人只有考试成绩 → 各按「有哪项算哪项」取值。"""
+        person_a = make_person(name='甲')
+        person_b = make_person(name='乙')
+
+        course = _make_course()
+        _make_progress(person_a, course, 76)
+
+        exam = _make_exam()
+        _make_exam_score(person_b, exam, 45)
+
+        dims = services.collect_dimensions([person_a.id, person_b.id])
+        assert dims[person_a.id]['learn'] == Decimal(76)
+        assert dims[person_b.id]['learn'] == Decimal(45)
+
+    def test_person_without_learning_data_has_none(self):
+        """两人都无学习数据 → `learn` 为 None（不是 0 —— 「没记录」≠「0 分」）。"""
+        person_a = make_person(name='甲')
+        person_b = make_person(name='乙')
+
+        dims = services.collect_dimensions([person_a.id, person_b.id])
+        assert dims[person_a.id]['learn'] is None
+        assert dims[person_b.id]['learn'] is None
+
+    def test_learn_values_are_not_globalized(self):
+        """回归护栏：全体人员的 `learn` 值**不全相同**（防止再次被全局化）。
+
+        三人三份不同的学习数据 → 三个互不相同的值；
+        若再次退化成全局标量，这三个值会变成同一个数。
+        """
+        person_a = make_person(name='甲')
+        person_b = make_person(name='乙')
+        person_c = make_person(name='丙')
+
+        course_1 = _make_course()
+        course_2 = _make_course()
+        exam = _make_exam()
+
+        _make_progress(person_a, course_1, 90)         # 仅进度 → 90
+        _make_exam_score(person_b, exam, 60)           # 仅考试 → 60
+        _make_progress(person_c, course_2, 70)         # 进度 70 + 考试 90 → 80
+        _make_exam_score(person_c, exam, 90)
+
+        dims = services.collect_dimensions([person_a.id, person_b.id, person_c.id])
+        values = [dims[p.id]['learn'] for p in (person_a, person_b, person_c)]
+
+        assert values == [Decimal(90), Decimal(60), Decimal(80)]
+        assert len(set(values)) == 3, 'learn 值不得被全局化成同一个数'
+
+
+def test_composite_ranking_dim_learn_orders_by_individual_value():
+    """`?dim=learn` → 按**各自的**学习成长值排序（不再是全员并列第 1）。"""
+    admin = admin_user()
+    client = client_for(admin)
+
+    person_a = make_person(name='甲')
+    person_b = make_person(name='乙')
+
+    course_1 = _make_course()
+    course_2 = _make_course()
+    exam = _make_exam()
+    _make_progress(person_a, course_1, 80)
+    _make_progress(person_a, course_2, 100)
+    _make_exam_score(person_a, exam, 91)
+    _make_progress(person_b, course_1, 40)
+    _make_progress(person_b, course_2, 60)
+    _make_exam_score(person_b, exam, 70)
+
+    resp = client.get(f'{BASE}/ranking/composite/', {'dim': 'learn'})
+    assert resp.status_code == 200, resp.content.decode()
+    rows = resp.json()['data']['list']
+    assert len(rows) == 2
+
+    top, second = rows[0], rows[1]
+    assert top['name'] == '甲'
+    assert top['learn'] == 91
+    assert top['rank'] == 1
+    assert second['name'] == '乙'
+    assert second['learn'] == 60
+    assert second['rank'] == 2, '学习维度名次不应再是全员并列'
+
+
+def test_teacher_ranking_learn_rank_avg_reflects_individual_ranks():
+    """班主任 `rankAvg.learn` 不再恒为 1（学习维度名次按个人值算）。"""
+    from apps.campus_assessment.tests import make_user
+
+    admin = admin_user()
+    client = client_for(admin)
+    teacher = make_user(role_code='HEAD_TEACHER')
+
+    student_a = make_person(name='甲', head_teacher=teacher)
+    student_b = make_person(name='乙', head_teacher=teacher)
+
+    course_1 = _make_course()
+    course_2 = _make_course()
+    exam = _make_exam()
+    _make_progress(student_a, course_1, 80)
+    _make_progress(student_a, course_2, 100)
+    _make_exam_score(student_a, exam, 91)
+    _make_progress(student_b, course_1, 40)
+    _make_progress(student_b, course_2, 60)
+    _make_exam_score(student_b, exam, 70)
+
+    resp = client.get(f'{BASE}/ranking/teacher/')
+    assert resp.status_code == 200, resp.content.decode()
+    data = resp.json()['data']
+
+    teacher_rows = [t for t in data['teachers'] if t['teacherId'] == teacher.pk]
+    assert len(teacher_rows) == 1
+    # 甲 91 / 乙 60 → 学习维度名次 1 / 2 → 平均 1.5（全局化时会退化成 1）
+    assert teacher_rows[0]['rankAvg']['learn'] == 1.5

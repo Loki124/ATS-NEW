@@ -7,6 +7,9 @@
  *  3. 活动评分录入：提交载荷（活动 / 校招生 / 得分 / 奖励）
  *  4. 我的成绩表列（我的成绩 / 排名 / 奖励）
  *  5. 空态二分
+ *  6. R-105 草稿：恢复上次填写的内容 + 「清空」出口
+ *  7. R-221 字段级校验：错误就地显示（图标 + 文字），不发请求
+ *  8. R-203 写入失败：三段式（人话标题 + 数据安全 + 折叠详情 + 恢复动作）
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -61,6 +64,12 @@ const activityScore = {
   rank: 2,
 }
 
+function formItem(wrapper: any, label: string) {
+  return wrapper
+    .findAll('.n-form-item')
+    .find((n: any) => n.find('.n-form-item-label').exists() && n.find('.n-form-item-label').text().replace(/\*/g, '').trim() === label)
+}
+
 describe('CampusActivity 活动页行为契约', () => {
   beforeEach(() => {
     apiGet.mockReset()
@@ -68,6 +77,7 @@ describe('CampusActivity 活动页行为契约', () => {
     apiPut.mockReset()
     apiDelete.mockReset()
     notifyCreate.mockReset()
+    localStorage.clear()
     apiGet.mockImplementation((url: string) => {
       if (url.includes('/activity-scores/')) return Promise.resolve({ data: { data: [activityScore] } })
       if (url.includes('/activities/')) return Promise.resolve({ data: { data: [activity] } })
@@ -158,5 +168,88 @@ describe('CampusActivity 活动页行为契约', () => {
     await vm.loadActivities()
     await flushPromises()
     expect(wrapper.text()).toContain('没有符合筛选条件的活动')
+  }, 20000)
+
+  it('⑥ R-105 草稿：打开新增活动弹窗恢复上次填写的内容，并给出「清空」出口', async () => {
+    localStorage.setItem(
+      'draft:campus-activity-create',
+      JSON.stringify({
+        _ts: Date.now(),
+        _data: {
+          name: '草稿活动',
+          type: '辩论赛',
+          dateTs: 1760000000000,
+          status: '未开始',
+          reward: '',
+          rule: '草稿规则',
+          enabled: true,
+        },
+      }),
+    )
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增活动'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    expect(vm.activityForm.name).toBe('草稿活动')
+    expect(vm.activityForm.type).toBe('辩论赛')
+
+    const created = notifyCreate.mock.calls.at(-1)
+    expect(created?.[0].content).toBe('已恢复上次填写的内容')
+    const actionVNode = created?.[0].action()
+    expect(actionVNode.children.default()).toBe('清空')
+
+    await actionVNode.props.onClick()
+    await flushPromises()
+    expect(vm.activityForm.name).toBe('')
+    expect(vm.activityForm.type).toBe('')
+    expect(localStorage.getItem('draft:campus-activity-create')).toBe(null)
+  }, 20000)
+
+  it('⑦ R-221 字段级校验：活动名称为空 → 错误就地显示在名称字段旁（图标 + 文字），且不发请求', async () => {
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增活动'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    vm.activityForm.name = ''
+    vm.activityForm.type = '演讲赛'
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存活动'))!.trigger('click')
+    await flushPromises()
+
+    const nameItem = formItem(wrapper, '活动名称')
+    expect(nameItem!.text()).toContain('请填写活动名称')
+    expect(nameItem!.find('.field-error .n-icon').exists()).toBe(true)
+
+    expect(apiPost.mock.calls.find((c) => String(c[0]).includes('/campus-learning/activities/'))).toBeUndefined()
+  }, 20000)
+
+  it('⑧ R-203 写入失败：弹窗内三段式（人话标题 + 数据安全 + 折叠详情 + 恢复动作）', async () => {
+    apiPost.mockRejectedValue({ response: { status: 500, data: { detail: '服务端原始报文' } } })
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增活动'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    vm.activityForm.name = '青说演说家'
+    vm.activityForm.type = '演讲赛'
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存活动'))!.trigger('click')
+    await flushPromises()
+
+    expect(vm.activityWriteError.title).toBe('保存活动没有成功')
+    expect(vm.activityWriteError.safe).toContain('没有丢失')
+    expect(vm.activityWriteError.detail).toContain('HTTP 500')
+    expect(vm.activityWriteError.detail).toContain('服务端原始报文')
+
+    const box = wrapper.find('.error-state')
+    expect(box.exists()).toBe(true)
+    expect(box.text()).toContain('保存活动没有成功')
+    expect(box.find('.error-state-detail').exists()).toBe(true)
+    expect(box.findAll('button').some((b) => b.text().includes('复制错误信息'))).toBe(true)
+    expect(box.findAll('button').some((b) => b.text().includes('重新保存活动'))).toBe(true)
   }, 20000)
 })

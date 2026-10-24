@@ -209,16 +209,55 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203）：人话标题 + 数据是否安全 + 折叠技术详情（可一键复制） -->
+      <div v-if="courseWriteError" ref="courseWriteErrorRef" class="write-error-wrap">
+        <n-alert type="error" :show-icon="true" :title="courseWriteError.title">
+          <div class="error-safe">{{ courseWriteError.safe }}</div>
+          <details class="error-details">
+            <summary>查看详情</summary>
+            <pre class="error-code">{{ courseWriteError.detail }}</pre>
+            <n-button size="tiny" quaternary @click="copyText(courseWriteError.detail)">复制错误信息</n-button>
+          </details>
+        </n-alert>
+      </div>
+
         <n-form :model="courseForm" label-placement="top">
+          <!-- 未填项提示（R-221 / R-204）：图标 + 文字双通道 -->
+          <div v-if="courseValidateAttempted && courseMissingLabels.length" class="form-hint" role="status">
+            <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+            <span>还有 {{ courseMissingLabels.length }} 项未填写：{{ courseMissingLabels.join('、') }}</span>
+          </div>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="课程编码" required>
-                <n-input v-model:value="courseForm.code" placeholder="如 C0001" />
+              <n-form-item
+                label="课程编码"
+                required
+                :validation-status="courseCodeError ? 'error' : undefined"
+                :show-feedback="!!courseCodeError"
+              >
+                <n-input ref="courseCodeRef" v-model:value="courseForm.code" placeholder="如 C0001" />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    <span>{{ courseCodeError }}</span>
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="课程名称" required>
-                <n-input v-model:value="courseForm.name" placeholder="请输入课程名称" />
+              <n-form-item
+                label="课程名称"
+                required
+                :validation-status="courseNameError ? 'error' : undefined"
+                :show-feedback="!!courseNameError"
+              >
+                <n-input ref="courseNameRef" v-model:value="courseForm.name" placeholder="请输入课程名称" />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    <span>{{ courseNameError }}</span>
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -227,8 +266,24 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="时长（分钟）" required>
-                <n-input-number v-model:value="courseForm.durationMin" :min="1" style="width: 100%" />
+              <n-form-item
+                label="时长（分钟）"
+                required
+                :validation-status="courseDurationError ? 'error' : undefined"
+                :show-feedback="!!courseDurationError"
+              >
+                <n-input-number
+                  ref="courseDurationRef"
+                  v-model:value="courseForm.durationMin"
+                  :min="1"
+                  style="width: 100%"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    <span>{{ courseDurationError }}</span>
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -264,7 +319,9 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="courseFormVisible = false">取消</n-button>
+            <n-button :disabled="courseSaving" @click="courseFormVisible = false">
+              {{ courseEditing ? '取消编辑' : '取消新增' }}
+            </n-button>
             <n-button type="primary" :loading="courseSaving" :disabled="courseSaving" @click="saveCourse">保存课程</n-button>
           </div>
         </template>
@@ -280,14 +337,47 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203） -->
+      <div v-if="recordWriteError" ref="recordWriteErrorRef" class="write-error-wrap">
+        <n-alert type="error" :show-icon="true" :title="recordWriteError.title">
+          <div class="error-safe">{{ recordWriteError.safe }}</div>
+          <details class="error-details">
+            <summary>查看详情</summary>
+            <pre class="error-code">{{ recordWriteError.detail }}</pre>
+            <n-button size="tiny" quaternary @click="copyText(recordWriteError.detail)">复制错误信息</n-button>
+          </details>
+        </n-alert>
+      </div>
+
         <n-form :model="recordForm" label-placement="top">
+          <!-- 未填项提示（R-221 / R-204）：图标 + 文字双通道 -->
+          <div v-if="recordValidateAttempted && recordMissingLabels.length" class="form-hint" role="status">
+            <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+            <span>还有 {{ recordMissingLabels.length }} 项未填写：{{ recordMissingLabels.join('、') }}</span>
+          </div>
           <n-form-item label="课程">
             <n-input :value="recordCourseName" readonly />
           </n-form-item>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="学习日期" required>
-                <n-date-picker v-model:value="recordDateTs" type="date" style="width: 100%" />
+              <n-form-item
+                label="学习日期"
+                required
+                :validation-status="recordDateError ? 'error' : undefined"
+                :show-feedback="!!recordDateError"
+              >
+                <n-date-picker
+                  ref="recordDateRef"
+                  v-model:value="recordDateTs"
+                  type="date"
+                  style="width: 100%"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    <span>{{ recordDateError }}</span>
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -296,8 +386,24 @@
               </n-form-item>
             </n-grid-item>
           </n-grid>
-          <n-form-item label="学习时长（分钟）" required>
-            <n-input-number v-model:value="recordForm.minutes" :min="1" style="width: 100%" />
+          <n-form-item
+            label="学习时长（分钟）"
+            required
+            :validation-status="recordMinutesError ? 'error' : undefined"
+            :show-feedback="!!recordMinutesError"
+          >
+            <n-input-number
+              ref="recordMinutesRef"
+              v-model:value="recordForm.minutes"
+              :min="1"
+              style="width: 100%"
+            />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                <span>{{ recordMinutesError }}</span>
+              </span>
+            </template>
           </n-form-item>
           <n-form-item label="学习备注">
             <n-input v-model:value="recordForm.remark" type="textarea" placeholder="本次学习内容摘要" />
@@ -305,7 +411,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="recordVisible = false">取消</n-button>
+            <n-button :disabled="recordSaving" @click="recordVisible = false">取消记录</n-button>
             <n-button type="primary" :loading="recordSaving" :disabled="recordSaving" @click="saveRecord">保存记录</n-button>
           </div>
         </template>
@@ -317,6 +423,7 @@
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import {
+  NAlert,
   NButton,
   NDataTable,
   NDatePicker,
@@ -354,7 +461,8 @@ import {
   type LearnBoardRow,
   type LearnProgress,
 } from '../../api/campusLearning'
-import { extractError, searchPersons, type SelectOption } from '../../utils/campus'
+import { extractError, searchPersons, type SelectOption, buildWriteError, type WriteErrorInfo } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 const message = useMessage()
 const notification = useNotification()
@@ -516,7 +624,15 @@ const courseColumns = computed(() => [
             default: () => '编辑课程',
             icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
           }),
-          h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeCourse(row) }, {
+          h(NButton, {
+            size: 'small',
+            quaternary: true,
+            type: 'error',
+            // R-101：写入期间禁用，避免重复提交
+            disabled: removingCourseId.value === row.id,
+            loading: removingCourseId.value === row.id,
+            onClick: () => removeCourse(row),
+          }, {
             default: () => '删除课程',
             icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
           }),
@@ -543,7 +659,74 @@ const courseForm = reactive({
   description: '',
 })
 
-function openCourseCreate() {
+/**
+ * 草稿自动保存（R-105）：命名空间按「页面-表单」唯一。
+ * 课程表单 9 个字段（含长文本描述），人工填写超过 1 分钟 → 接草稿；
+ * 编辑态传 enabled: () => !courseEditing.value，草稿不会覆盖真实 row 数据。
+ *
+ * ⚠️ courseDraftEnabled：提交成功后置 false —— 否则「待写入的 800ms 定时器」会在
+ *    draft.clear() 之后把刚提交的内容又写回草稿，造成下次打开误报「已恢复」。
+ */
+const courseDraftEnabled = ref(true)
+const courseDraft = useFormDraft('campus-course-create', courseForm, {
+  enabled: () => courseDraftEnabled.value && !courseEditing.value,
+})
+
+/** 草稿里是否已有有效内容（空草稿不提示恢复）。 */
+function hasCourseDraftContent(): boolean {
+  return Boolean(courseForm.code.trim() || courseForm.name.trim() || courseForm.description.trim())
+}
+
+/* ── 字段级校验（R-221） ── */
+
+/** 是否已尝试提交：决定是否显示字段级错误；提交后随输入实时更新。 */
+const courseValidateAttempted = ref(false)
+
+/** 缺失必填项的中文字段名。 */
+const courseMissingLabels = computed(() => {
+  const list: string[] = []
+  if (!courseForm.code.trim()) list.push('课程编码')
+  if (!courseForm.name.trim()) list.push('课程名称')
+  if (!courseForm.durationMin || courseForm.durationMin < 1) list.push('时长（分钟）')
+  return list
+})
+
+const courseCodeError = computed(() =>
+  courseValidateAttempted.value && !courseForm.code.trim() ? '请填写课程编码' : '',
+)
+const courseNameError = computed(() =>
+  courseValidateAttempted.value && !courseForm.name.trim() ? '请填写课程名称' : '',
+)
+const courseDurationError = computed(() =>
+  courseValidateAttempted.value && (!courseForm.durationMin || courseForm.durationMin < 1)
+    ? '请填写课程时长（不少于 1 分钟）'
+    : '',
+)
+
+/** 首个出错字段的聚焦句柄。 */
+const courseCodeRef = ref<any>(null)
+const courseNameRef = ref<any>(null)
+const courseDurationRef = ref<any>(null)
+
+function focusFirstCourseInvalid() {
+  const candidates = [
+    { err: courseCodeError.value, el: courseCodeRef.value },
+    { err: courseNameError.value, el: courseNameRef.value },
+    { err: courseDurationError.value, el: courseDurationRef.value },
+  ]
+  const hit = candidates.find((c) => c.err && c.el)
+  hit?.el?.focus?.()
+}
+
+/* ── 写入失败三段式（R-203） ── */
+const courseWriteError = ref<WriteErrorInfo | null>(null)
+const courseWriteErrorRef = ref<HTMLElement | null>(null)
+
+function scrollCourseWriteErrorIntoView() {
+  courseWriteErrorRef.value?.scrollIntoView?.({ block: 'nearest' })
+}
+
+function resetCourseForm() {
   Object.assign(courseForm, {
     code: '',
     name: '',
@@ -555,7 +738,44 @@ function openCourseCreate() {
     enabled: true,
     description: '',
   })
+}
+
+function openCourseCreate() {
   courseEditing.value = null
+  courseValidateAttempted.value = false
+  courseWriteError.value = null
+  courseDraftEnabled.value = true
+  // R-105：打开弹窗时探测草稿 → 恢复内容并给出「清空」出口；空草稿直接丢弃。
+  if (courseDraft.probe()) {
+    courseDraft.restore()
+    if (hasCourseDraftContent()) {
+      notification.create({
+        content: '已恢复上次填写的内容',
+        duration: 8000,
+        keepAliveOnHover: true,
+        action: () =>
+          h(
+            NButton,
+            {
+              text: true,
+              type: 'primary',
+              onClick: () => {
+                // R-105：清空出口 = 清草稿 + 清表单，用户可从头重填
+                courseDraft.clear()
+                resetCourseForm()
+                message.success('已清空草稿，可重新填写')
+              },
+            },
+            { default: () => '清空' },
+          ),
+      })
+    } else {
+      courseDraft.clear()
+      resetCourseForm()
+    }
+  } else {
+    resetCourseForm()
+  }
   courseFormVisible.value = true
 }
 
@@ -572,16 +792,19 @@ function openCourseEdit(row: Course) {
     description: row.description || '',
   })
   courseEditing.value = row
+  courseValidateAttempted.value = false
+  courseWriteError.value = null
   courseFormVisible.value = true
 }
 
 async function saveCourse() {
-  if (!courseForm.code.trim()) {
-    message.warning('请填写课程编码')
-    return
-  }
-  if (!courseForm.name.trim()) {
-    message.warning('请填写课程名称')
+  const editing = courseEditing.value
+  // R-221：提交前先跑字段级校验，错误就地显示并聚焦第一个出错字段
+  courseValidateAttempted.value = true
+  courseWriteError.value = null
+  if (courseMissingLabels.value.length) {
+    message.warning(`还有 ${courseMissingLabels.value.length} 项未填写，已在对应字段标出`)
+    focusFirstCourseInvalid()
     return
   }
   courseSaving.value = true
@@ -597,24 +820,36 @@ async function saveCourse() {
     description: courseForm.description.trim(),
   }
   try {
-    if (courseEditing.value) {
-      await updateCourse(courseEditing.value.id, payload)
+    if (editing) {
+      await updateCourse(editing.id, payload)
       message.success('课程已更新')
     } else {
       await createCourse(payload)
       message.success('课程已创建')
     }
+    // R-105：新增成功后立即清除草稿（编辑态本就不写草稿）
+    if (!editing) {
+      courseDraft.clear()
+      courseDraftEnabled.value = false
+    }
+    courseValidateAttempted.value = false
     courseFormVisible.value = false
     loadCourses()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：三段式写入失败提示
+    courseWriteError.value = buildWriteError(e, { action: editing ? '更新课程' : '保存课程' })
+    scrollCourseWriteErrorIntoView()
   } finally {
     courseSaving.value = false
   }
 }
 
 /** 删除单条课程 = 中等破坏性操作 → 直接执行 + 通知撤销（R-106）。 */
+const removingCourseId = ref('')
+
 async function removeCourse(row: Course) {
+  if (removingCourseId.value) return
+  removingCourseId.value = row.id
   try {
     await deleteCourse(row.id)
     notification.create({
@@ -631,14 +866,18 @@ async function removeCourse(row: Course) {
               message.success('课程已恢复')
               loadCourses()
             } catch (e: any) {
-              message.error(extractError(e))
+              const info = buildWriteError(e, { action: '恢复课程' })
+              message.error(`${info.title}。${info.safe}`)
             }
           },
         }, { default: () => '撤销' }),
     })
     loadCourses()
   } catch (e: any) {
-    message.error(extractError(e))
+    const info = buildWriteError(e, { action: '删除课程' })
+    message.error(`${info.title}。${info.safe}`)
+  } finally {
+    removingCourseId.value = ''
   }
 }
 
@@ -741,7 +980,50 @@ function openRecord(row: LearnProgress) {
   recordStartTs.value = null
   recordForm.minutes = 30
   recordForm.remark = ''
+  recordValidateAttempted.value = false
+  recordWriteError.value = null
   recordVisible.value = true
+}
+
+/* ── 字段级校验（R-221） ── */
+const recordValidateAttempted = ref(false)
+
+/** 缺失必填项的中文字段名。 */
+const recordMissingLabels = computed(() => {
+  const list: string[] = []
+  if (!recordDateTs.value) list.push('学习日期')
+  if (!recordForm.minutes || recordForm.minutes <= 0) list.push('学习时长（分钟）')
+  return list
+})
+
+const recordDateError = computed(() =>
+  recordValidateAttempted.value && !recordDateTs.value ? '请选择学习日期' : '',
+)
+const recordMinutesError = computed(() =>
+  recordValidateAttempted.value && (!recordForm.minutes || recordForm.minutes <= 0)
+    ? '请填写学习时长（不少于 1 分钟）'
+    : '',
+)
+
+/** 首个出错字段的聚焦句柄。 */
+const recordDateRef = ref<any>(null)
+const recordMinutesRef = ref<any>(null)
+
+function focusFirstRecordInvalid() {
+  const candidates = [
+    { err: recordDateError.value, el: recordDateRef.value },
+    { err: recordMinutesError.value, el: recordMinutesRef.value },
+  ]
+  const hit = candidates.find((c) => c.err && c.el)
+  hit?.el?.focus?.()
+}
+
+/* ── 写入失败三段式（R-203） ── */
+const recordWriteError = ref<WriteErrorInfo | null>(null)
+const recordWriteErrorRef = ref<HTMLElement | null>(null)
+
+function scrollRecordWriteErrorIntoView() {
+  recordWriteErrorRef.value?.scrollIntoView?.({ block: 'nearest' })
 }
 
 function toDateStr(ts: number | null) {
@@ -761,12 +1043,12 @@ function toTimeStr(ts: number | null) {
 async function saveRecord() {
   const row = recordTarget.value
   if (!row) return
-  if (!recordDateTs.value) {
-    message.warning('请选择学习日期')
-    return
-  }
-  if (!recordForm.minutes || recordForm.minutes <= 0) {
-    message.warning('请填写学习时长')
+  // R-221：提交前先跑字段级校验，错误就地显示并聚焦第一个出错字段
+  recordValidateAttempted.value = true
+  recordWriteError.value = null
+  if (recordMissingLabels.value.length) {
+    message.warning(`还有 ${recordMissingLabels.value.length} 项未填写，已在对应字段标出`)
+    focusFirstRecordInvalid()
     return
   }
   recordSaving.value = true
@@ -778,10 +1060,13 @@ async function saveRecord() {
       remark: recordForm.remark.trim(),
     })
     message.success('学习记录已保存')
+    recordValidateAttempted.value = false
     recordVisible.value = false
     loadMine()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：三段式写入失败提示
+    recordWriteError.value = buildWriteError(e, { action: '保存学习记录' })
+    scrollRecordWriteErrorIntoView()
   } finally {
     recordSaving.value = false
   }
@@ -857,9 +1142,15 @@ onMounted(() => {
 }
 .toolbar-search {
   width: 240px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .toolbar-select {
   width: 160px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .toolbar-tip {
   font-size: var(--text-small);
@@ -886,6 +1177,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* R-103：允许整组在窄屏收缩到行宽以内 */
+  min-width: 0;
+  max-width: 100%;
 }
 .filter-label {
   font-size: var(--text-small);
@@ -936,5 +1230,46 @@ onMounted(() => {
   font-size: var(--fs-12);
   white-space: pre-wrap;
   word-break: break-all;
+}
+/* 写入失败三段式（R-203）：标题 + 数据安全说明 + 折叠技术详情 */
+.write-error-wrap {
+  margin-bottom: var(--space-3);
+}
+.error-safe {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.error-details {
+  margin-top: var(--space-2);
+  font-size: var(--text-meta);
+  color: var(--ink-soft);
+}
+.error-code {
+  margin: var(--space-1) 0;
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+/* 字段级错误：图标 + 文字双通道（R-221），不靠颜色单独表达 */
+.field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
+}
+.form-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
+  overflow-wrap: anywhere;
 }
 </style>

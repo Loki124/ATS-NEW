@@ -81,6 +81,41 @@ def test_scoring_draft_report_is_rejected():
 
 
 # ---------------------------------------------------------------------------
+# 「待评分」过滤（?pending=1）
+# ---------------------------------------------------------------------------
+def test_pending_filter_keeps_reports_with_missing_role():
+    """待评分 = 两个角色都有评分明细才算评完（**不能**用 status 表达）。
+
+    🔴 契约 §2.2「评分落库即置 scored」→ 只评了业务导师的月报状态**也是 scored**，
+    但成长导师仍待评。若前端按 `status=submitted` 过滤「待评分」，这些月报会被筛掉
+    ⇒ 后端提供 `?pending=1`，口径 = 「缺任一角色评分即待评分」。
+    """
+    admin = admin_user()
+    client = client_for(admin)
+    person = make_person(name='张三')
+
+    # 甲：只评业务导师 → 状态已 scored，但成长导师仍待评 ⇒ 应出现在待评分列表
+    r1 = _create_report(client, person, ym='2026-07')
+    client.post(f'{BASE}/monthly-reports/{r1["id"]}/submit/', {}, format='json')
+    _score(client, r1['id'], 'business', BUSINESS)
+
+    # 乙：两个角色都评完 → 不应出现在待评分列表
+    r2 = _create_report(client, person, ym='2026-08')
+    client.post(f'{BASE}/monthly-reports/{r2["id"]}/submit/', {}, format='json')
+    _score(client, r2['id'], 'business', BUSINESS)
+    _score(client, r2['id'], 'growth', GROWTH)
+
+    resp = client.get(f'{BASE}/monthly-reports/', {'pending': '1'})
+    assert resp.status_code == 200, resp.content.decode()
+    ids = {row['id'] for row in list_rows(resp.json())}
+    assert r1['id'] in ids, '只评了业务导师的月报仍属待评分'
+    assert r2['id'] not in ids, '两个角色都评完的月报不应出现在待评分列表'
+
+    # 甲的状态确实是 scored（证明「按 status 过滤会漏掉它」这一前提成立）
+    assert MonthlyReport.objects.get(pk=r1['id']).status == MonthlyReport.Status.SCORED
+
+
+# ---------------------------------------------------------------------------
 # 评分回算（A7）
 # ---------------------------------------------------------------------------
 def test_score_writes_detail_and_recalculates_final_score_70_30():
@@ -90,12 +125,14 @@ def test_score_writes_detail_and_recalculates_final_score_70_30():
     report = _create_report(client, person)
     client.post(f'{BASE}/monthly-reports/{report["id"]}/submit/', {}, format='json')
 
-    # 只评业务导师 → 综合分无解，保持 submitted 并告知还差谁
+    # 只评业务导师 → 契约 §2.2「评分落库即置 scored」；
+    # 综合分按**已有侧 × 其权重**回算（缺成长导师 → 不打 0 分，只算业务侧 10×0.7 = 7.0）
     resp = _score(client, report['id'], 'business', BUSINESS, comment='案例扎实')
     assert resp.status_code == 200, resp.content.decode()
     data = resp.json()['data']
     assert data['pending'] == ['growth']
-    assert data['report']['status'] == 'submitted'
+    assert data['report']['status'] == 'scored'
+    assert float(data['report']['finalScore']) == 7.0
     assert float(data['score']['total']) == 10.0
 
     # 成长导师补齐 → 回算 final_score = 10×0.7 + 10×0.3 = 10.0，状态置 scored

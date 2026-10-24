@@ -102,6 +102,10 @@ export interface BatchRecalcResult {
 export interface BatchApplyResult {
   /** 实际回写条数 */
   updated: number
+  /** 已有批次值而跳过的人数（只补空值，不覆盖人工填过） */
+  skipped: number
+  /** 未命中任何规则的人数 */
+  unmatched: number
   raw: any
 }
 
@@ -151,7 +155,14 @@ export const previewBatchRules = (params: {
 export const applyBatchRules = () =>
   api.post('/campus/batch-rules/apply/', {}).then((r) => {
     const d = objData<any>(r) || {}
-    return { updated: Number(d.updated ?? d.count ?? 0), raw: d } as BatchApplyResult
+    // ⚠️ 后端 `apply` 返回的是 **`filled`**（实际回写条数），不是 `updated` ——
+    //    早期只读 `d.updated ?? d.count` ⇒ 恒为 0，页面文案恒显示「已回写 0 人」。
+    return {
+      updated: Number(d.filled ?? d.updated ?? d.count ?? 0),
+      skipped: Number(d.skipped ?? 0),
+      unmatched: Number(d.unmatched ?? 0),
+      raw: d,
+    } as BatchApplyResult
   })
 
 /**

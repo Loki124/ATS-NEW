@@ -28,7 +28,7 @@
           </div>
           <div class="spacer"></div>
           <n-button :loading="demandLoading" @click="loadDemands">查询岗位</n-button>
-          <n-button @click="openDemandCreate">提交需求申请</n-button>
+          <n-button @click="openDemandCreate">申请发布需求</n-button>
           <n-button type="primary" @click="openDemandPublish">发布岗位</n-button>
         </div>
 
@@ -71,7 +71,7 @@
                   <span class="card-value" :title="d.bpName">{{ d.bpName || '—' }}</span>
                 </div>
                 <div class="card-line">
-                  <span class="card-label">提交人</span>
+                  <span class="card-label">申请人</span>
                   <span class="card-value" :title="d.submitterName">{{ d.submitterName || '—' }}</span>
                 </div>
                 <div class="card-line">
@@ -158,16 +158,31 @@
         <div class="toolbar">
           <div class="filter">
             <span class="filter-label">校招批次</span>
-            <n-select
-              v-model:value="pushBatch"
-              aria-label="校招批次"
-              class="toolbar-select-wide"
-              :options="batchOptions"
-              placeholder="请选择校招批次"
-              filterable
-              tag
-              @update:value="loadPushApplications"
-            />
+            <!-- 字段级校验（R-221）：批次没选时错误就近显示在选择框下方 -->
+            <n-form-item
+              :show-label="false"
+              :validation-status="pushBatchError ? 'error' : undefined"
+              :show-feedback="Boolean(pushBatchError)"
+              class="filter-field"
+            >
+              <n-select
+                ref="pushBatchRef"
+                v-model:value="pushBatch"
+                aria-label="校招批次"
+                class="toolbar-select-wide"
+                :options="batchOptions"
+                placeholder="请选择校招批次"
+                filterable
+                tag
+                @update:value="onPushBatchChange"
+              />
+              <template #feedback>
+                <span class="field-error">
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ pushBatchError }}
+                </span>
+              </template>
+            </n-form-item>
           </div>
           <n-tag :type="flowStarted ? 'success' : 'warning'" size="small">
             {{ flowStarted ? '撮合已启动' : '撮合未启动' }}
@@ -384,32 +399,115 @@
       <n-modal
         v-model:show="demandFormVisible"
         preset="card"
-        :title="demandEditing ? '编辑岗位需求' : '提交岗位需求'"
+        :title="demandEditing ? '编辑岗位需求' : '申请发布需求'"
         :style="{ width: '760px', maxWidth: '95vw' }"
         :content-style="{ height: 'min(620px, calc(88vh - 180px))', overflowY: 'auto' }"
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203）：① 人话标题 ② 数据安全说明 ③ 折叠详情 + 恢复动作 -->
+        <div v-if="demandWriteError" class="error-state" role="alert">
+          <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+          <div class="error-state-body">
+            <div class="error-state-title">{{ demandWriteError.title }}</div>
+            <div class="error-state-desc">{{ demandWriteError.safe }}</div>
+            <details class="error-state-detail">
+              <summary>查看详情</summary>
+              <pre class="error-state-code">{{ demandWriteError.detail }}</pre>
+              <n-button size="tiny" quaternary @click="copyText(demandWriteError.detail)">复制错误信息</n-button>
+            </details>
+          </div>
+          <n-button size="small" type="primary" ghost :loading="demandSaving" :disabled="demandSaving" @click="saveDemand">
+            重新保存需求
+          </n-button>
+        </div>
+
         <n-form :model="demandForm" label-placement="top">
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="岗位名称" required>
-                <n-input v-model:value="demandForm.name" placeholder="请输入岗位名称" />
+              <!-- 字段级校验（R-221）：错误就近显示，图标 + 文字双通道，不只靠颜色 -->
+              <n-form-item
+                label="岗位名称"
+                required
+                :validation-status="demandErrors.name ? 'error' : undefined"
+                :show-feedback="Boolean(demandErrors.name)"
+              >
+                <n-input
+                  ref="demandNameRef"
+                  v-model:value="demandForm.name"
+                  placeholder="请输入岗位名称"
+                  @update:value="clearDemandError('name')"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    {{ demandErrors.name }}
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="用人部门" required>
-                <n-input v-model:value="demandForm.dept" placeholder="请输入用人部门" />
+              <n-form-item
+                label="用人部门"
+                required
+                :validation-status="demandErrors.dept ? 'error' : undefined"
+                :show-feedback="Boolean(demandErrors.dept)"
+              >
+                <n-input
+                  ref="demandDeptRef"
+                  v-model:value="demandForm.dept"
+                  placeholder="请输入用人部门"
+                  @update:value="clearDemandError('dept')"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    {{ demandErrors.dept }}
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="业务部门" required>
-                <n-input v-model:value="demandForm.businessDept" placeholder="请输入业务部门" />
+              <n-form-item
+                label="业务部门"
+                required
+                :validation-status="demandErrors.businessDept ? 'error' : undefined"
+                :show-feedback="Boolean(demandErrors.businessDept)"
+              >
+                <n-input
+                  ref="demandBusinessDeptRef"
+                  v-model:value="demandForm.businessDept"
+                  placeholder="请输入业务部门"
+                  @update:value="clearDemandError('businessDept')"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    {{ demandErrors.businessDept }}
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="需求数量" required>
-                <n-input-number v-model:value="demandForm.headcount" :min="1" style="width: 100%" />
+              <n-form-item
+                label="需求数量"
+                required
+                :validation-status="demandErrors.headcount ? 'error' : undefined"
+                :show-feedback="Boolean(demandErrors.headcount)"
+              >
+                <n-input-number
+                  ref="demandHeadcountRef"
+                  v-model:value="demandForm.headcount"
+                  :min="1"
+                  style="width: 100%"
+                  @update:value="clearDemandError('headcount')"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    {{ demandErrors.headcount }}
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -428,8 +526,25 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="发布范围" required>
-                <n-select v-model:value="demandForm.scopeType" :options="scopeTypeOptions" placeholder="请选择发布范围" />
+              <n-form-item
+                label="发布范围"
+                required
+                :validation-status="demandErrors.scopeType ? 'error' : undefined"
+                :show-feedback="Boolean(demandErrors.scopeType)"
+              >
+                <n-select
+                  ref="demandScopeTypeRef"
+                  v-model:value="demandForm.scopeType"
+                  :options="scopeTypeOptions"
+                  placeholder="请选择发布范围"
+                  @update:value="clearDemandError('scopeType')"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    {{ demandErrors.scopeType }}
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -454,8 +569,25 @@
               </n-form-item>
             </n-grid-item>
           </n-grid>
-          <n-form-item label="需求描述" required>
-            <n-input v-model:value="demandForm.needDesc" type="textarea" placeholder="岗位要做什么、期望新人具备什么能力" />
+          <n-form-item
+            label="需求描述"
+            required
+            :validation-status="demandErrors.needDesc ? 'error' : undefined"
+            :show-feedback="Boolean(demandErrors.needDesc)"
+          >
+            <n-input
+              ref="demandNeedDescRef"
+              v-model:value="demandForm.needDesc"
+              type="textarea"
+              placeholder="岗位要做什么、期望新人具备什么能力"
+              @update:value="clearDemandError('needDesc')"
+            />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                {{ demandErrors.needDesc }}
+              </span>
+            </template>
           </n-form-item>
           <n-form-item label="业务介绍">
             <n-input v-model:value="demandForm.bizIntro" type="textarea" placeholder="业务条线介绍" />
@@ -463,7 +595,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="demandFormVisible = false">取消</n-button>
+            <n-button @click="demandFormVisible = false">{{ demandEditing ? '取消编辑' : '取消办理' }}</n-button>
             <n-button type="primary" :loading="demandSaving" :disabled="demandSaving" @click="saveDemand">保存需求</n-button>
           </div>
         </template>
@@ -479,18 +611,49 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203）：① 人话标题 ② 数据安全说明 ③ 折叠详情 + 恢复动作 -->
+        <div v-if="rejectWriteError" class="error-state" role="alert">
+          <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+          <div class="error-state-body">
+            <div class="error-state-title">{{ rejectWriteError.title }}</div>
+            <div class="error-state-desc">{{ rejectWriteError.safe }}</div>
+            <details class="error-state-detail">
+              <summary>查看详情</summary>
+              <pre class="error-state-code">{{ rejectWriteError.detail }}</pre>
+              <n-button size="tiny" quaternary @click="copyText(rejectWriteError.detail)">复制错误信息</n-button>
+            </details>
+          </div>
+          <n-button size="small" type="primary" ghost :loading="rejecting" :disabled="rejecting" @click="submitReject">
+            重新驳回需求
+          </n-button>
+        </div>
+
         <n-form :model="rejectForm" label-placement="top">
-          <n-form-item label="驳回原因" required>
+          <!-- 字段级校验（R-221）：错误就近显示，图标 + 文字双通道，不只靠颜色 -->
+          <n-form-item
+            label="驳回原因"
+            required
+            :validation-status="rejectErrors.note ? 'error' : undefined"
+            :show-feedback="Boolean(rejectErrors.note)"
+          >
             <n-input
+              ref="rejectNoteRef"
               v-model:value="rejectForm.note"
               type="textarea"
-              placeholder="写明驳回原因，提交人会看到这段说明"
+              placeholder="写明驳回原因，申请人会看到这段说明"
+              @update:value="clearRejectError('note')"
             />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                {{ rejectErrors.note }}
+              </span>
+            </template>
           </n-form-item>
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="rejectVisible = false">取消</n-button>
+            <n-button @click="rejectVisible = false">取消驳回</n-button>
             <n-button type="primary" :loading="rejecting" :disabled="rejecting" @click="submitReject">驳回需求</n-button>
           </div>
         </template>
@@ -506,6 +669,23 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203）：① 人话标题 ② 数据安全说明 ③ 折叠详情 + 恢复动作 -->
+        <div v-if="confirmWriteError" class="error-state" role="alert">
+          <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+          <div class="error-state-body">
+            <div class="error-state-title">{{ confirmWriteError.title }}</div>
+            <div class="error-state-desc">{{ confirmWriteError.safe }}</div>
+            <details class="error-state-detail">
+              <summary>查看详情</summary>
+              <pre class="error-state-code">{{ confirmWriteError.detail }}</pre>
+              <n-button size="tiny" quaternary @click="copyText(confirmWriteError.detail)">复制错误信息</n-button>
+            </details>
+          </div>
+          <n-button size="small" type="primary" ghost :loading="confirmLoading" :disabled="confirmLoading" @click="confirmSubmit">
+            重新{{ confirmActionLabel }}
+          </n-button>
+        </div>
+
         <div class="confirm-body">{{ confirmText }}</div>
         <template #footer>
           <div class="modal-footer">
@@ -521,7 +701,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
 import {
   NButton,
   NCard,
@@ -544,6 +724,7 @@ import {
   NTabs,
   NTag,
   useMessage,
+  useNotification,
 } from 'naive-ui'
 import { AlertCircleOutline, SearchOutline } from '@vicons/ionicons5'
 import {
@@ -566,9 +747,11 @@ import {
   type SelectionFlow,
 } from '../../api/campusPlacement'
 import { listPersons, type Person } from '../../api/campusControl'
-import { extractError } from '../../utils/campus'
+import { buildWriteError, extractError, type WriteErrorInfo } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 const message = useMessage()
+const notification = useNotification()
 
 type TabKey = 'pool' | 'review' | 'push' | 'market' | 'progress' | 'perf'
 const activeTab = ref<TabKey>('pool')
@@ -650,13 +833,25 @@ const confirmOkText = ref('确认操作')
 const confirmCancelText = ref('暂不操作')
 const confirmLoading = ref(false)
 const confirmAction = ref<null | (() => Promise<void>)>(null)
+/** 失败提示里的动宾短语（如「录取志愿」），供 R-203 三段式标题使用。 */
+const confirmActionLabel = ref('执行操作')
+// 写入失败三段式（R-203）。
+const confirmWriteError = ref<WriteErrorInfo | null>(null)
 
-function askConfirm(title: string, text: string, okText: string, action: () => Promise<void>) {
+function askConfirm(
+  title: string,
+  text: string,
+  okText: string,
+  action: () => Promise<void>,
+  actionLabel?: string,
+) {
   confirmTitle.value = title
   confirmText.value = text
   confirmOkText.value = okText
   confirmCancelText.value = '暂不操作'
   confirmAction.value = action
+  confirmActionLabel.value = actionLabel || okText
+  confirmWriteError.value = null
   confirmVisible.value = true
 }
 
@@ -664,11 +859,13 @@ async function confirmSubmit() {
   const action = confirmAction.value
   if (!action) return
   confirmLoading.value = true
+  confirmWriteError.value = null
   try {
     await action()
     confirmVisible.value = false
   } catch (e: any) {
-    message.error(extractError(e))
+    // 写入失败 → 三段式（R-203），不再只弹一条原始报文 toast。
+    confirmWriteError.value = buildWriteError(e, { action: confirmActionLabel.value })
   } finally {
     confirmLoading.value = false
   }
@@ -724,6 +921,48 @@ const demandForm = reactive({
   bizIntro: '',
 })
 
+// P0-1 草稿自动保存（R-105）：需求申请 13 项，人工填写耗时 > 1 分钟。
+// 编辑态关闭草稿，避免草稿覆盖真实 row 数据。
+const demandDraft = useFormDraft('campus-placement-demand', demandForm, {
+  enabled: () => !demandEditing.value,
+})
+
+// 字段级校验状态（R-221）。
+const demandErrors = reactive({
+  name: '',
+  dept: '',
+  businessDept: '',
+  headcount: '',
+  scopeType: '',
+  needDesc: '',
+})
+const demandNameRef = ref<any>(null)
+const demandDeptRef = ref<any>(null)
+const demandBusinessDeptRef = ref<any>(null)
+const demandHeadcountRef = ref<any>(null)
+const demandScopeTypeRef = ref<any>(null)
+const demandNeedDescRef = ref<any>(null)
+
+// 写入失败三段式（R-203）。
+const demandWriteError = ref<WriteErrorInfo | null>(null)
+
+function clearDemandError(field: keyof typeof demandErrors) {
+  demandErrors[field] = ''
+}
+
+/** 聚焦第一个出错字段（R-221）。 */
+async function focusFirstInvalid(pairs: Array<[string, { value: any }]>) {
+  await nextTick()
+  for (const [msg, r] of pairs) {
+    if (!msg) continue
+    const inst = r?.value
+    if (inst && typeof inst.focus === 'function') {
+      inst.focus()
+      return
+    }
+  }
+}
+
 function toDateStr(ts: number | null) {
   if (!ts) return null
   const d = new Date(ts)
@@ -731,7 +970,7 @@ function toDateStr(ts: number | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-function openDemandCreate() {
+function resetDemandForm() {
   Object.assign(demandForm, {
     name: '',
     dept: '',
@@ -748,8 +987,52 @@ function openDemandCreate() {
     needDesc: '',
     bizIntro: '',
   })
+}
+
+function openDemandCreate() {
+  demandErrors.name = ''
+  demandErrors.dept = ''
+  demandErrors.businessDept = ''
+  demandErrors.headcount = ''
+  demandErrors.scopeType = ''
+  demandErrors.needDesc = ''
+  demandWriteError.value = null
   demandEditing.value = null
+  // 先探测草稿再决定要不要重置表单：直接重置会把上次草稿内容抹掉（R-105）。
+  if (demandDraft.probe()) {
+    demandDraft.restore()
+    if (
+      demandForm.name.trim() ||
+      demandForm.dept.trim() ||
+      demandForm.businessDept.trim() ||
+      demandForm.needDesc.trim()
+    ) {
+      notification.create({
+        content: '已恢复上次填写的内容',
+        duration: 8000,
+        keepAliveOnHover: true,
+        action: () =>
+          h(
+            NButton,
+            { text: true, type: 'primary', onClick: clearDemandDraft },
+            { default: () => '清空' },
+          ),
+      })
+    } else {
+      // 空草稿（只打开过弹窗没填写）→ 直接丢弃，不给用户假提示。
+      demandDraft.clear()
+      resetDemandForm()
+    }
+  } else {
+    resetDemandForm()
+  }
   demandFormVisible.value = true
+}
+
+/** 「清空」出口：清掉草稿并把恢复出来的内容一并清掉。 */
+function clearDemandDraft() {
+  demandDraft.clear()
+  resetDemandForm()
 }
 
 /** 管理员「发布岗位」：默认已通过审核且开放报名。 */
@@ -780,23 +1063,32 @@ function openDemandEdit(row: PositionDemand) {
 }
 
 async function saveDemand() {
-  if (!demandForm.name.trim()) {
-    message.warning('请填写岗位名称')
-    return
-  }
-  if (!demandForm.dept.trim()) {
-    message.warning('请填写用人部门')
-    return
-  }
-  if (!demandForm.businessDept.trim()) {
-    message.warning('请填写业务部门')
-    return
-  }
-  if (!demandForm.needDesc.trim()) {
-    message.warning('请填写需求描述')
+  demandErrors.name = demandForm.name.trim() ? '' : '请填写岗位名称'
+  demandErrors.dept = demandForm.dept.trim() ? '' : '请填写用人部门'
+  demandErrors.businessDept = demandForm.businessDept.trim() ? '' : '请填写业务部门'
+  demandErrors.headcount = demandForm.headcount && demandForm.headcount > 0 ? '' : '请填写需求数量'
+  demandErrors.scopeType = demandForm.scopeType ? '' : '请选择发布范围'
+  demandErrors.needDesc = demandForm.needDesc.trim() ? '' : '请填写需求描述'
+  if (
+    demandErrors.name ||
+    demandErrors.dept ||
+    demandErrors.businessDept ||
+    demandErrors.headcount ||
+    demandErrors.scopeType ||
+    demandErrors.needDesc
+  ) {
+    await focusFirstInvalid([
+      [demandErrors.name, demandNameRef],
+      [demandErrors.dept, demandDeptRef],
+      [demandErrors.businessDept, demandBusinessDeptRef],
+      [demandErrors.headcount, demandHeadcountRef],
+      [demandErrors.scopeType, demandScopeTypeRef],
+      [demandErrors.needDesc, demandNeedDescRef],
+    ])
     return
   }
   demandSaving.value = true
+  demandWriteError.value = null
   const payload = {
     name: demandForm.name.trim(),
     dept: demandForm.dept.trim(),
@@ -819,12 +1111,16 @@ async function saveDemand() {
       message.success('岗位需求已更新')
     } else {
       await createPositionDemand(payload)
-      message.success('岗位需求已提交')
+      message.success('岗位需求已保存')
+      // 保存成功后立即清除草稿（R-105），并重置表单避免待写入的定时器把旧内容写回。
+      demandDraft.clear()
+      resetDemandForm()
     }
     demandFormVisible.value = false
     loadDemands()
   } catch (e: any) {
-    message.error(extractError(e))
+    // 写入失败 → 三段式（R-203），不再只弹一条原始报文 toast。
+    demandWriteError.value = buildWriteError(e, { action: '保存需求' })
   } finally {
     demandSaving.value = false
   }
@@ -842,17 +1138,18 @@ async function toggleOpen(row: PositionDemand) {
   }
 }
 
-/** 撤回需求申请 = 高影响（撤回后提交人需重新提交）→ 确认框写明后果。 */
+/** 撤回需求 = 高影响（撤回后申请人需重新申请）→ 确认框写明后果。 */
 function withdrawDemand(row: PositionDemand) {
   askConfirm(
     '撤回岗位需求',
-    `撤回「${row.name}」后，该需求将退回提交人重新提交，已开放的名额同时关闭。确认撤回？`,
+    `撤回「${row.name}」后，该需求将退回申请人重新申请，已开放的名额同时关闭。确认撤回？`,
     '撤回需求',
     async () => {
       await withdrawPositionDemand(row.id)
       message.success('岗位需求已撤回')
       loadDemands()
     },
+    '撤回需求',
   )
 }
 
@@ -868,7 +1165,7 @@ const reviewColumns = computed(() => [
   { title: '用人部门', key: 'dept', width: 130, ellipsis: true, render: (row: PositionDemand) => textCell(row.dept, 110) },
   { title: '需求数量', key: 'headcount', width: 100, render: (row: PositionDemand) => numCell(row.headcount) },
   { title: '负责BP', key: 'bpName', width: 120, ellipsis: true, render: (row: PositionDemand) => textCell(row.bpName, 100) },
-  { title: '提交人', key: 'submitterName', width: 120, ellipsis: true, render: (row: PositionDemand) => textCell(row.submitterName, 100) },
+  { title: '申请人', key: 'submitterName', width: 120, ellipsis: true, render: (row: PositionDemand) => textCell(row.submitterName, 100) },
   { title: '状态', key: 'needStatus', width: 100, render: (row: PositionDemand) => h(NTag, { type: needStatusType(row.needStatus), size: 'small' }, { default: () => row.needStatus || '待审核' }) },
   {
     title: '操作',
@@ -902,27 +1199,43 @@ const rejecting = ref(false)
 const rejectTarget = ref<PositionDemand | null>(null)
 const rejectForm = reactive({ note: '' })
 
+// 字段级校验状态（R-221）。
+const rejectErrors = reactive({ note: '' })
+const rejectNoteRef = ref<any>(null)
+
+// 写入失败三段式（R-203）。
+const rejectWriteError = ref<WriteErrorInfo | null>(null)
+
+function clearRejectError(field: keyof typeof rejectErrors) {
+  rejectErrors[field] = ''
+}
+
 function openReject(row: PositionDemand) {
   rejectTarget.value = row
   rejectForm.note = ''
+  rejectErrors.note = ''
+  rejectWriteError.value = null
   rejectVisible.value = true
 }
 
 async function submitReject() {
   const row = rejectTarget.value
   if (!row) return
-  if (!rejectForm.note.trim()) {
-    message.warning('请填写驳回原因')
+  rejectErrors.note = rejectForm.note.trim() ? '' : '请填写驳回原因'
+  if (rejectErrors.note) {
+    await focusFirstInvalid([[rejectErrors.note, rejectNoteRef]])
     return
   }
   rejecting.value = true
+  rejectWriteError.value = null
   try {
     await reviewPositionDemand(row.id, { action: 'reject', note: rejectForm.note.trim() })
     message.success(`「${row.name}」已驳回`)
     rejectVisible.value = false
     loadDemands()
   } catch (e: any) {
-    message.error(extractError(e))
+    // 写入失败 → 三段式（R-203），不再只弹一条原始报文 toast。
+    rejectWriteError.value = buildWriteError(e, { action: '驳回需求' })
   } finally {
     rejecting.value = false
   }
@@ -977,11 +1290,29 @@ async function loadApplications(batch?: string | null) {
   }
 }
 
+/** 批次选择框的字段级错误（R-221）。 */
+const pushBatchError = ref('')
+const pushBatchRef = ref<any>(null)
+
+function onPushBatchChange(value: string | null) {
+  pushBatchError.value = value ? '' : '请先选择校招批次'
+  loadPushApplications()
+}
+
+function focusBatchField() {
+  nextTick(() => {
+    const inst = pushBatchRef.value
+    if (inst && typeof inst.focus === 'function') inst.focus()
+  })
+}
+
 /** 启动撮合 = 高影响 → 确认框必须写明「启动后校招生不可再修改志愿」。 */
 function askStartFlow() {
   const batch = pushBatch.value
+  pushBatchError.value = batch ? '' : '请先选择校招批次'
   if (!batch) {
-    message.warning('请先选择校招批次')
+    // 字段级提示已就地展示（R-221），这里只负责把焦点送回选择框。
+    focusBatchField()
     return
   }
   askConfirm(
@@ -999,6 +1330,7 @@ function askStartFlow() {
       await loadFlows()
       loadApplications(pushBatch.value)
     },
+    '启动撮合',
   )
 }
 
@@ -1072,6 +1404,7 @@ function askAccept(row: PositionApplication) {
       message.success('已录取该志愿，后续志愿已释放')
       loadApplications(pushBatch.value)
     },
+    '录取志愿',
   )
 }
 
@@ -1086,6 +1419,7 @@ function askReject(row: PositionApplication) {
       message.success('已放弃该志愿，下一志愿已顺延推送')
       loadPushApplications()
     },
+    '放弃志愿',
   )
 }
 
@@ -1122,6 +1456,7 @@ function askAssign(row: PositionApplication) {
       message.success('已采纳该校招生')
       loadMarketApplications()
     },
+    '采纳该校招生',
   )
 }
 
@@ -1331,9 +1666,11 @@ onMounted(async () => {
 }
 .toolbar-search {
   width: 260px;
+  max-width: 100%;
 }
 .toolbar-select-wide {
   width: 220px;
+  max-width: 100%;
 }
 .toolbar-tip {
   font-size: var(--text-small);
@@ -1426,6 +1763,19 @@ onMounted(async () => {
   font-size: var(--text-small);
   color: var(--ink-soft);
   white-space: nowrap;
+}
+/* 工具栏里的字段级校验容器（校招批次） */
+.filter-field {
+  min-width: 0;
+}
+
+/* 字段级校验提示：图标 + 文字双通道（R-221，不只靠颜色） */
+.field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
 }
 
 .error-state {

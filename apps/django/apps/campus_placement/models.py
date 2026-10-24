@@ -114,6 +114,18 @@ class PositionApplication(FullAuditModel, UUIDModel):
         RELEASED = '已释放', '已释放'
         MARKET = '人才市场', '人才市场'
 
+    class Decision(models.TextChoices):
+        """BP 对志愿的决定（契约 §4.1 `decision` Char(16) choices(接受/拒绝, 空)）。
+
+        枚举而非裸字符串：裸 CharField 不校验取值，任意字符串都能入库，
+        下游读 `decision` 时只能靠字符串比对，脏值会静默穿透。
+        空值（''）仍合法 —— Django `Field.validate` 对 `empty_values` 短路，
+        且 `blank=True` 允许未决定态。
+        """
+
+        ACCEPT = '接受', '接受'
+        REJECT = '拒绝', '拒绝'
+
     person = models.ForeignKey(
         'campus_control.Person', on_delete=models.CASCADE,
         related_name='position_applications', verbose_name='校招生',
@@ -135,7 +147,9 @@ class PositionApplication(FullAuditModel, UUIDModel):
         'core.User', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='+', verbose_name='推送人',
     )
-    decision = models.CharField(max_length=16, blank=True, default='', verbose_name='BP决定')
+    decision = models.CharField(
+        max_length=16, choices=Decision.choices, blank=True, default='', verbose_name='BP决定',
+    )
     decided_at = models.DateTimeField(null=True, blank=True, verbose_name='决定时间')
 
     class Meta:

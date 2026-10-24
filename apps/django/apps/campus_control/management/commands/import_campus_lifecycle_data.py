@@ -124,7 +124,10 @@ def _date(value):
         from datetime import date as _date_cls
         y, m, d = (int(x) for x in text.split('-'))
         return _date_cls(y, m, d)
-    except Exception:
+    except (ValueError, TypeError):
+        # 日期串非法（位数不对 / 非数字 / 月日越界）→ 当作「无日期」处理。
+        # 🔴 这里**必须窄化**：仓库盲捕获护栏（tests/test_no_blind_except.py）禁止
+        #    新增 `except Exception`（HARD_LIMIT 锁定下限），宽捕获需带 noqa 许可标记。
         return None
 
 
@@ -529,7 +532,10 @@ class Command(BaseCommand):
     def _import_feedbacks(self, seed, pick, summary, warnings, dry_run, known_new_emps=frozenset()):
         try:
             from apps.campus_assessment.models import FeedbackRecord
-        except Exception as exc:  # app 未就绪时如实登记，不静默跳过
+        except (ImportError, LookupError) as exc:
+            # app 未注册 / 模型不存在 → 如实登记「未导入」并返回，不静默跳过。
+            # 🔴 窄化到具体异常：仓库盲捕获护栏（tests/test_no_blind_except.py）
+            #    禁止新增 `except Exception`（宽捕获需带 `# noqa: BLE001` 许可标记）。
             warnings.append(f'反馈记录未导入（campus_assessment 不可用：{exc}）')
             return
         from apps.campus_control.models import Person
@@ -616,7 +622,10 @@ class Command(BaseCommand):
     def _import_pendings(self, seed, pick, summary, warnings, dry_run, known_new_emps=frozenset()):
         try:
             from apps.campus_placement.models import PositionApplication, PositionDemand
-        except Exception as exc:
+        except (ImportError, LookupError) as exc:
+            # app 未注册 / 模型不存在 → 如实登记「未导入」并返回，不静默跳过。
+            # 🔴 窄化到具体异常：仓库盲捕获护栏（tests/test_no_blind_except.py）
+            #    禁止新增 `except Exception`（宽捕获需带 `# noqa: BLE001` 许可标记）。
             warnings.append(f'待分配未导入（campus_placement 不可用：{exc}）')
             return
         from apps.campus_control.models import Person

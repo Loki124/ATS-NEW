@@ -85,6 +85,15 @@ export function useFormDraft(
   // 无条件清除（提交成功 / 用户主动清空，不检查 enabled）
   function clear(): void {
     hasDraft.value = false
+    // 🔴 必须**取消待写定时器**：watch 的 debounce 定时器若在 clear() 之后才触发，
+    //    会把刚提交/刚清空的内容**重新写回**草稿 → 下次打开误报「已恢复上次填写的内容」
+    //    （实测踩过：提交成功后 800ms 内的定时器回写，草稿复活）。
+    //    修在唯一真源（composable）而不是各页面 —— 各页面各加一个 enabled 开关
+    //    只会把同一个竞态复制 N 份，且新页面仍会漏。
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
     try {
       localStorage.removeItem(key)
     } catch {

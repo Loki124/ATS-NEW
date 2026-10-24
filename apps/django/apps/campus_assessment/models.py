@@ -347,13 +347,13 @@ class FeedbackRecord(FullAuditModel, UUIDModel):
 class MonthlyReport(FullAuditModel, UUIDModel):
     """月报（逆向清单 §4.2「月报提交 / 月报评分」，算法 A7）。
 
-    状态机：`draft` → `submitted`（提交）→ `scored`（业务 + 成长两个角色都评分后）。
+    状态机：`draft` → `submitted`（提交）→ `scored`（评分动作落库即置）。
 
     🔴 **final_score 的回算口径**（逆向清单 A7 / core.js:258）：
         `final_score = round(business.total×0.7 + growth.total×0.3, 1)`
         其中每个 total = case + insight + problem + clarity + executable 五子项之和。
-    只评了一个角色时**无法**算出综合分 → 此时保持 `submitted`，
-    另一角色补齐后才置 `scored`（详见 views.score 的说明与交付偏差清单）。
+    另一角色未评时，`final_score` 按**已有侧**计算，未评侧为 None；
+    不再等待另一角色补齐才置 `scored`（具体评分口径以 views.score 为准）。
     """
 
     class Status(models.TextChoices):

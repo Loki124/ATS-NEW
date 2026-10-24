@@ -679,8 +679,17 @@ export const resolveFeedbackRecord = (id: string) =>
 
 /* ============================ 月报 ============================ */
 
-/** 月报列表（ym / person / status）。 */
-export const listMonthlyReports = (params?: { ym?: string; person?: string; status?: string }) =>
+/** 月报列表（ym / person / status / pending）。
+ *
+ * ⚠️ `pending=1` = 「待评分」（还有角色未评），**不能用 status 表达** ——
+ *    契约 §2.2 规定「评分落库即置 scored」，只评一侧的月报状态也是 scored。
+ */
+export const listMonthlyReports = (params?: {
+  ym?: string
+  person?: string
+  status?: string
+  pending?: string
+}) =>
   api
     .get(`${BASE}monthly-reports/`, { params: { page_size: 200, ...(params ?? {}) } })
     .then((r) => listData<MonthlyReportRow>(r).map(normalizeReport))

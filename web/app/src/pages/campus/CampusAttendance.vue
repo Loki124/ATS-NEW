@@ -19,6 +19,7 @@
                 v-model:value="dailyDateTs"
                 type="date"
                 clearable
+                aria-label="打卡日期"
                 style="width: 200px"
                 @update:value="onDailyDateChange"
               />
@@ -27,6 +28,11 @@
             <n-button :loading="dailyLoading" @click="loadDaily">
               <template #icon><n-icon :component="RefreshOutline" /></template>
               刷新排名
+            </n-button>
+            <!-- R-202：本视图唯一实心主操作（导出当前视图数据），其余保持默认态 -->
+            <n-button type="primary" @click="exportDaily">
+              <template #icon><n-icon :component="DownloadOutline" /></template>
+              导出打卡记录
             </n-button>
           </div>
 
@@ -79,6 +85,7 @@
               <n-select
                 v-model:value="monthlyYm"
                 :options="ymOptions"
+                aria-label="统计月份"
                 style="width: 180px"
                 @update:value="loadMonthly"
               />
@@ -87,6 +94,11 @@
             <n-button :loading="monthlyLoading" @click="loadMonthly">
               <template #icon><n-icon :component="RefreshOutline" /></template>
               刷新汇总
+            </n-button>
+            <!-- R-202：本视图唯一实心主操作（导出当前视图数据），其余保持默认态 -->
+            <n-button type="primary" @click="exportMonthly">
+              <template #icon><n-icon :component="DownloadOutline" /></template>
+              导出月度汇总
             </n-button>
           </div>
 
@@ -152,7 +164,7 @@ import {
   NTag,
   useMessage,
 } from 'naive-ui'
-import { RefreshOutline } from '@vicons/ionicons5'
+import { DownloadOutline, RefreshOutline } from '@vicons/ionicons5'
 import {
   fetchDailyRanking,
   listAttendanceMonthly,
@@ -302,6 +314,83 @@ function onTabChange(tab: AttendanceTab) {
   if (tab === 'monthly' && !monthlyRows.value.length) loadMonthly()
 }
 
+/* ────────────────────────── 导出（R-202 唯一实心主操作） ────────────────────────── */
+
+/**
+ * CSV 单元格转义：双引号包裹 + 公式注入防护（= + - @ 开头加单引号）。
+ * 导出的是后端返回的原始文本，不能原样写进 CSV。
+ */
+function csvCell(value: unknown): string {
+  const raw = String(value ?? '')
+  const guarded = /^[=+\-@]/.test(raw) ? `'${raw}` : raw
+  return `"${guarded.replace(/"/g, '""')}"`
+}
+
+/** 触发浏览器下载（happy-dom / 老浏览器无 createObjectURL 时降级为提示）。 */
+function downloadCsv(csv: string, filename: string): boolean {
+  if (typeof URL.createObjectURL !== 'function') {
+    message.warning('当前浏览器不支持文件导出，请手动复制表格内容')
+    return false
+  }
+  try {
+    // BOM：让 Excel 正确识别 UTF-8 中文
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+    return true
+  } catch {
+    message.warning('导出没有成功，请手动复制表格内容')
+    return false
+  }
+}
+
+/** 导出每日打卡排名（当前视图数据）。 */
+function exportDaily() {
+  if (!dailyRows.value.length) {
+    message.warning('当前没有可导出的打卡记录')
+    return
+  }
+  const header = ['排名', '校招生', '班级', '打卡时间', '状态', '与第1名差距']
+  const body = dailyRows.value.map((row) => [
+    row.rank,
+    row.personName,
+    row.classRoomName,
+    row.punchTime,
+    row.status,
+    gapText(row),
+  ])
+  const csv = [header, ...body].map((line) => line.map(csvCell).join(',')).join('\r\n')
+  if (downloadCsv(csv, `打卡排名-${dailyDate.value || '全部日期'}.csv`)) {
+    message.success(`已导出 ${dailyRows.value.length} 条打卡记录`)
+  }
+}
+
+/** 导出月度考勤汇总（当前视图数据）。 */
+function exportMonthly() {
+  if (!monthlyRows.value.length) {
+    message.warning('当前没有可导出的月度汇总')
+    return
+  }
+  const header = ['校招生', '班级', '轮岗部门', '出勤(天)', '迟到(次)', '请假(天)', '状态']
+  const body = monthlyRows.value.map((row) => [
+    row.personName,
+    row.classRoomName,
+    row.dept,
+    row.attendDays,
+    row.lateCount,
+    row.leaveDays,
+    row.status,
+  ])
+  const csv = [header, ...body].map((line) => line.map(csvCell).join(',')).join('\r\n')
+  if (downloadCsv(csv, `月度考勤汇总-${monthlyYm.value || '全部月份'}.csv`)) {
+    message.success(`已导出 ${monthlyRows.value.length} 条月度汇总`)
+  }
+}
+
 /** 复制技术错误信息（折叠在「详情」里，R-203）。 */
 async function copyDetail(text: string) {
   try {
@@ -351,18 +440,27 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
 }
-/* 工具栏固定，不随表格滚动 */
+/* 工具栏固定，不随表格滚动；窄屏换行，避免固定宽控件被 overflow:hidden 裁切（R-103） */
 .toolbar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
   padding-bottom: var(--space-2);
+  flex-wrap: wrap;
 }
 .field {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+/* 固定 px 宽的控件在窄屏下不得超过容器宽度（R-103） */
+.toolbar :deep(.n-base-selection),
+.toolbar :deep(.n-date-picker) {
+  max-width: 100%;
 }
 /* 输入框必须有可见标签（R-218） */
 .field-label {

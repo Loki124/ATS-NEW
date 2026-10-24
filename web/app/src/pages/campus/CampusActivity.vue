@@ -153,21 +153,88 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203）：① 人话标题 ② 数据安全说明 ③ 折叠详情 + 恢复动作 -->
+        <div v-if="activityWriteError" class="error-state" role="alert">
+          <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+          <div class="error-state-body">
+            <div class="error-state-title">{{ activityWriteError.title }}</div>
+            <div class="error-state-desc">{{ activityWriteError.safe }}</div>
+            <details class="error-state-detail">
+              <summary>查看详情</summary>
+              <pre class="error-state-code">{{ activityWriteError.detail }}</pre>
+              <n-button size="tiny" quaternary @click="copyText(activityWriteError.detail)">复制错误信息</n-button>
+            </details>
+          </div>
+          <n-button size="small" type="primary" ghost :loading="activitySaving" :disabled="activitySaving" @click="saveActivity">
+            重新保存活动
+          </n-button>
+        </div>
+
         <n-form :model="activityForm" label-placement="top">
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="活动名称" required>
-                <n-input v-model:value="activityForm.name" placeholder="请输入活动名称" />
+              <!-- 字段级校验（R-221）：错误就近显示，图标 + 文字双通道，不只靠颜色 -->
+              <n-form-item
+                label="活动名称"
+                required
+                :validation-status="activityErrors.name ? 'error' : undefined"
+                :show-feedback="Boolean(activityErrors.name)"
+              >
+                <n-input
+                  ref="activityNameRef"
+                  v-model:value="activityForm.name"
+                  placeholder="请输入活动名称"
+                  @update:value="clearActivityError('name')"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    {{ activityErrors.name }}
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="活动类型" required>
-                <n-input v-model:value="activityForm.type" placeholder="如 演讲赛 / 辩论赛" />
+              <n-form-item
+                label="活动类型"
+                required
+                :validation-status="activityErrors.type ? 'error' : undefined"
+                :show-feedback="Boolean(activityErrors.type)"
+              >
+                <n-input
+                  ref="activityTypeRef"
+                  v-model:value="activityForm.type"
+                  placeholder="如 演讲赛 / 辩论赛"
+                  @update:value="clearActivityError('type')"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    {{ activityErrors.type }}
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="活动日期" required>
-                <n-date-picker v-model:value="activityForm.dateTs" type="date" style="width: 100%" />
+              <n-form-item
+                label="活动日期"
+                required
+                :validation-status="activityErrors.dateTs ? 'error' : undefined"
+                :show-feedback="Boolean(activityErrors.dateTs)"
+              >
+                <n-date-picker
+                  ref="activityDateRef"
+                  v-model:value="activityForm.dateTs"
+                  type="date"
+                  style="width: 100%"
+                  @update:value="clearActivityError('dateTs')"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    {{ activityErrors.dateTs }}
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -195,7 +262,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="activityFormVisible = false">取消</n-button>
+            <n-button @click="activityFormVisible = false">{{ activityEditing ? '取消编辑' : '取消新增' }}</n-button>
             <n-button type="primary" :loading="activitySaving" :disabled="activitySaving" @click="saveActivity">保存活动</n-button>
           </div>
         </template>
@@ -211,12 +278,53 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203）：① 人话标题 ② 数据安全说明 ③ 折叠详情 + 恢复动作 -->
+        <div v-if="scoreWriteError" class="error-state" role="alert">
+          <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+          <div class="error-state-body">
+            <div class="error-state-title">{{ scoreWriteError.title }}</div>
+            <div class="error-state-desc">{{ scoreWriteError.safe }}</div>
+            <details class="error-state-detail">
+              <summary>查看详情</summary>
+              <pre class="error-state-code">{{ scoreWriteError.detail }}</pre>
+              <n-button size="tiny" quaternary @click="copyText(scoreWriteError.detail)">复制错误信息</n-button>
+            </details>
+          </div>
+          <n-button size="small" type="primary" ghost :loading="scoreSaving" :disabled="scoreSaving" @click="saveScore">
+            重新保存成绩
+          </n-button>
+        </div>
+
         <n-form :model="scoreForm" label-placement="top">
-          <n-form-item label="活动" required>
-            <n-select v-model:value="scoreForm.activity" :options="activityOptions" placeholder="请选择活动" />
-          </n-form-item>
-          <n-form-item label="校招生" required>
+          <!-- 字段级校验（R-221）：错误就近显示，图标 + 文字双通道，不只靠颜色 -->
+          <n-form-item
+            label="活动"
+            required
+            :validation-status="scoreErrors.activity ? 'error' : undefined"
+            :show-feedback="Boolean(scoreErrors.activity)"
+          >
             <n-select
+              ref="scoreActivityRef"
+              v-model:value="scoreForm.activity"
+              :options="activityOptions"
+              placeholder="请选择活动"
+              @update:value="clearScoreError('activity')"
+            />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                {{ scoreErrors.activity }}
+              </span>
+            </template>
+          </n-form-item>
+          <n-form-item
+            label="校招生"
+            required
+            :validation-status="scoreErrors.person ? 'error' : undefined"
+            :show-feedback="Boolean(scoreErrors.person)"
+          >
+            <n-select
+              ref="scorePersonRef"
               v-model:value="scoreForm.person"
               :options="personOptions"
               placeholder="搜索并选择校招生"
@@ -225,7 +333,14 @@
               remote
               :loading="personLoading"
               :on-search="onPersonSearch"
+              @update:value="clearScoreError('person')"
             />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                {{ scoreErrors.person }}
+              </span>
+            </template>
           </n-form-item>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
@@ -245,7 +360,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="scoreFormVisible = false">取消</n-button>
+            <n-button @click="scoreFormVisible = false">取消录入</n-button>
             <n-button type="primary" :loading="scoreSaving" :disabled="scoreSaving" @click="saveScore">保存成绩</n-button>
           </div>
         </template>
@@ -255,7 +370,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
 import {
   NButton,
   NDataTable,
@@ -291,7 +406,8 @@ import {
   type Activity,
   type ActivityScore,
 } from '../../api/campusLearning'
-import { extractError, searchPersons, type SelectOption } from '../../utils/campus'
+import { buildWriteError, extractError, searchPersons, type SelectOption, type WriteErrorInfo } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 const message = useMessage()
 const notification = useNotification()
@@ -413,6 +529,38 @@ const activityForm = reactive({
   enabled: true,
 })
 
+// P0-1 草稿自动保存（R-105）：新增活动需人工撰写规则，耗时 > 1 分钟。
+// 编辑态关闭草稿，避免草稿覆盖真实 row 数据。
+const activityDraft = useFormDraft('campus-activity-create', activityForm, {
+  enabled: () => !activityEditing.value,
+})
+
+// 字段级校验状态（R-221）。
+const activityErrors = reactive({ name: '', type: '', dateTs: '' })
+const activityNameRef = ref<any>(null)
+const activityTypeRef = ref<any>(null)
+const activityDateRef = ref<any>(null)
+
+// 写入失败三段式（R-203）。
+const activityWriteError = ref<WriteErrorInfo | null>(null)
+
+function clearActivityError(field: keyof typeof activityErrors) {
+  activityErrors[field] = ''
+}
+
+/** 聚焦第一个出错字段（R-221）。 */
+async function focusFirstInvalid(pairs: Array<[string, { value: any }]>) {
+  await nextTick()
+  for (const [msg, r] of pairs) {
+    if (!msg) continue
+    const inst = r?.value
+    if (inst && typeof inst.focus === 'function') {
+      inst.focus()
+      return
+    }
+  }
+}
+
 function toDateStr(ts: number | null) {
   if (!ts) return undefined
   const d = new Date(ts)
@@ -420,7 +568,7 @@ function toDateStr(ts: number | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-function openActivityCreate() {
+function resetActivityForm() {
   Object.assign(activityForm, {
     name: '',
     type: '',
@@ -430,8 +578,44 @@ function openActivityCreate() {
     rule: '',
     enabled: true,
   })
+}
+
+function openActivityCreate() {
+  activityErrors.name = ''
+  activityErrors.type = ''
+  activityErrors.dateTs = ''
+  activityWriteError.value = null
   activityEditing.value = null
+  // 先探测草稿再决定要不要重置表单：直接重置会把上次草稿内容抹掉（R-105）。
+  if (activityDraft.probe()) {
+    activityDraft.restore()
+    if (activityForm.name.trim() || activityForm.type.trim() || activityForm.rule.trim()) {
+      notification.create({
+        content: '已恢复上次填写的内容',
+        duration: 8000,
+        keepAliveOnHover: true,
+        action: () =>
+          h(
+            NButton,
+            { text: true, type: 'primary', onClick: clearActivityDraft },
+            { default: () => '清空' },
+          ),
+      })
+    } else {
+      // 空草稿（只打开过弹窗没填写）→ 直接丢弃，不给用户假提示。
+      activityDraft.clear()
+      resetActivityForm()
+    }
+  } else {
+    resetActivityForm()
+  }
   activityFormVisible.value = true
+}
+
+/** 「清空」出口：清掉草稿并把恢复出来的内容一并清掉。 */
+function clearActivityDraft() {
+  activityDraft.clear()
+  resetActivityForm()
 }
 
 function openActivityEdit(row: Activity) {
@@ -449,19 +633,19 @@ function openActivityEdit(row: Activity) {
 }
 
 async function saveActivity() {
-  if (!activityForm.name.trim()) {
-    message.warning('请填写活动名称')
-    return
-  }
-  if (!activityForm.type.trim()) {
-    message.warning('请填写活动类型')
-    return
-  }
-  if (!activityForm.dateTs) {
-    message.warning('请选择活动日期')
+  activityErrors.name = activityForm.name.trim() ? '' : '请填写活动名称'
+  activityErrors.type = activityForm.type.trim() ? '' : '请填写活动类型'
+  activityErrors.dateTs = activityForm.dateTs ? '' : '请选择活动日期'
+  if (activityErrors.name || activityErrors.type || activityErrors.dateTs) {
+    await focusFirstInvalid([
+      [activityErrors.name, activityNameRef],
+      [activityErrors.type, activityTypeRef],
+      [activityErrors.dateTs, activityDateRef],
+    ])
     return
   }
   activitySaving.value = true
+  activityWriteError.value = null
   const payload = {
     name: activityForm.name.trim(),
     type: activityForm.type.trim(),
@@ -478,11 +662,15 @@ async function saveActivity() {
     } else {
       await createActivity(payload)
       message.success('活动已创建')
+      // 保存成功后立即清除草稿（R-105），并重置表单避免待写入的定时器把旧内容写回。
+      activityDraft.clear()
+      resetActivityForm()
     }
     activityFormVisible.value = false
     loadActivities()
   } catch (e: any) {
-    message.error(extractError(e))
+    // 写入失败 → 三段式（R-203），不再只弹一条原始报文 toast。
+    activityWriteError.value = buildWriteError(e, { action: '保存活动' })
   } finally {
     activitySaving.value = false
   }
@@ -564,6 +752,18 @@ const scoreForm = reactive({
   reward: '',
 })
 
+// 字段级校验状态（R-221）。
+const scoreErrors = reactive({ activity: '', person: '' })
+const scoreActivityRef = ref<any>(null)
+const scorePersonRef = ref<any>(null)
+
+// 写入失败三段式（R-203）。
+const scoreWriteError = ref<WriteErrorInfo | null>(null)
+
+function clearScoreError(field: keyof typeof scoreErrors) {
+  scoreErrors[field] = ''
+}
+
 async function onPersonSearch(kw: string) {
   personLoading.value = true
   try {
@@ -587,15 +787,17 @@ function openScoreCreate() {
 }
 
 async function saveScore() {
-  if (!scoreForm.activity) {
-    message.warning('请选择活动')
-    return
-  }
-  if (!scoreForm.person) {
-    message.warning('请选择校招生')
+  scoreErrors.activity = scoreForm.activity ? '' : '请选择活动'
+  scoreErrors.person = scoreForm.person ? '' : '请选择校招生'
+  if (scoreErrors.activity || scoreErrors.person) {
+    await focusFirstInvalid([
+      [scoreErrors.activity, scoreActivityRef],
+      [scoreErrors.person, scorePersonRef],
+    ])
     return
   }
   scoreSaving.value = true
+  scoreWriteError.value = null
   try {
     await createActivityScore({
       activity: String(scoreForm.activity),
@@ -608,7 +810,8 @@ async function saveScore() {
     scoreFormVisible.value = false
     loadScores()
   } catch (e: any) {
-    message.error(extractError(e))
+    // 写入失败 → 三段式（R-203），不再只弹一条原始报文 toast。
+    scoreWriteError.value = buildWriteError(e, { action: '保存成绩' })
   } finally {
     scoreSaving.value = false
   }
@@ -657,12 +860,15 @@ onMounted(() => {
 }
 .toolbar-search {
   width: 240px;
+  max-width: 100%;
 }
 .toolbar-select {
   width: 150px;
+  max-width: 100%;
 }
 .toolbar-select-wide {
   width: 280px;
+  max-width: 100%;
 }
 .spacer {
   flex: 1;
@@ -688,6 +894,15 @@ onMounted(() => {
   font-size: var(--text-small);
   color: var(--ink-soft);
   white-space: nowrap;
+}
+
+/* 字段级校验提示：图标 + 文字双通道（R-221，不只靠颜色） */
+.field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
 }
 
 .error-state {

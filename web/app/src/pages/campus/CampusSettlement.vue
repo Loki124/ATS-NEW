@@ -7,6 +7,23 @@
         <n-tab-pane name="price" tab="定价管理" />
       </n-tabs>
 
+      <!-- 写入失败三段式（R-203）：① 人话描述发生了什么 ② 你的数据是否安全 ③ 技术详情（折叠 + 一键复制） -->
+      <div v-if="writeError" class="error-state" role="alert">
+        <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+        <div class="error-state-body">
+          <div class="error-state-title">{{ writeError.title }}</div>
+          <div class="error-state-desc">{{ writeError.safe }}</div>
+          <details class="error-state-detail">
+            <summary>查看详情</summary>
+            <pre class="error-state-code">{{ writeError.detail }}</pre>
+            <n-button size="tiny" quaternary @click="copyText(writeError.detail)">复制错误信息</n-button>
+          </details>
+        </div>
+        <n-button v-if="writeError.retry" size="small" type="primary" ghost @click="runWriteRetry">
+          {{ writeError.retryLabel }}
+        </n-button>
+      </div>
+
       <!-- ① 收入统计 -->
       <template v-if="activeTab === 'revenue'">
         <div class="toolbar">
@@ -224,10 +241,40 @@
         :bordered="false"
       >
         <n-form :model="tierForm" label-placement="top">
+          <!-- 写入失败三段式（R-203）：弹窗内就地展示，不甩给全局 toast -->
+          <div v-if="tierWriteError" class="error-state" role="alert">
+            <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+            <div class="error-state-body">
+              <div class="error-state-title">{{ tierWriteError.title }}</div>
+              <div class="error-state-desc">{{ tierWriteError.safe }}</div>
+              <details class="error-state-detail">
+                <summary>查看详情</summary>
+                <pre class="error-state-code">{{ tierWriteError.detail }}</pre>
+                <n-button size="tiny" quaternary @click="copyText(tierWriteError.detail)">复制错误信息</n-button>
+              </details>
+            </div>
+            <n-button v-if="tierWriteError.retry" size="small" type="primary" ghost @click="runTierRetry">
+              {{ tierWriteError.retryLabel }}
+            </n-button>
+          </div>
+          <!-- 表单级前置条件（所选定价方案已失效）→ 就近提示在表单顶部 -->
+          <div v-if="tierErrors.scheme" class="field-error" role="alert">
+            <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+            {{ tierErrors.scheme }}
+          </div>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="排名区间" required>
-                <n-input v-model:value="tierForm.rank" placeholder="如 1-10" />
+              <n-form-item
+                label="排名区间"
+                required
+                :validation-status="tierErrors.rank ? 'error' : undefined"
+                :show-feedback="!!tierErrors.rank"
+              >
+                <n-input v-model:value="tierForm.rank" placeholder="如 1-10" data-error-field="tier-rank" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ tierErrors.rank }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -252,7 +299,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="tierFormVisible = false">取消</n-button>
+            <n-button @click="closeTierForm">取消调整</n-button>
             <n-button type="primary" :loading="tierSaving" :disabled="tierSaving" @click="saveTier">保存分档</n-button>
           </div>
         </template>
@@ -269,6 +316,21 @@
         :bordered="false"
       >
         <div class="confirm-body">{{ confirmText }}</div>
+        <div v-if="confirmWriteError" class="error-state" role="alert">
+          <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+          <div class="error-state-body">
+            <div class="error-state-title">{{ confirmWriteError.title }}</div>
+            <div class="error-state-desc">{{ confirmWriteError.safe }}</div>
+            <details class="error-state-detail">
+              <summary>查看详情</summary>
+              <pre class="error-state-code">{{ confirmWriteError.detail }}</pre>
+              <n-button size="tiny" quaternary @click="copyText(confirmWriteError.detail)">复制错误信息</n-button>
+            </details>
+          </div>
+          <n-button v-if="confirmWriteError.retry" size="small" type="primary" ghost @click="runConfirmRetry">
+            {{ confirmWriteError.retryLabel }}
+          </n-button>
+        </div>
         <template #footer>
           <div class="modal-footer">
             <n-button @click="confirmVisible = false">暂不操作</n-button>
@@ -283,7 +345,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref, type Ref } from 'vue'
 import {
   NButton,
   NDataTable,
@@ -303,6 +365,7 @@ import {
   NTabs,
   NTag,
   useMessage,
+  useNotification,
 } from 'naive-ui'
 import { AddOutline, AlertCircleOutline, CreateOutline, SearchOutline, TrashOutline } from '@vicons/ionicons5'
 import {
@@ -315,9 +378,11 @@ import {
   type PriceScheme,
   type RevenueRecord,
 } from '../../api/campusPlacement'
-import { extractError } from '../../utils/campus'
+import { buildWriteError, extractError } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 const message = useMessage()
+const notification = useNotification()
 
 type TabKey = 'revenue' | 'bill' | 'price'
 const activeTab = ref<TabKey>('revenue')
@@ -326,6 +391,29 @@ const BILL_STATUS_OPTIONS = ['待确认', '已确认'].map((v) => ({ label: v, v
 const billStatusOptions = BILL_STATUS_OPTIONS
 
 /* ───────────────────────── 通用工具 ───────────────────────── */
+
+/**
+ * 写入失败的三段式状态（R-203）。
+ * ① title 人话描述 ② safe 你的数据是否安全 ③ detail 技术详情（折叠 + 一键复制）。
+ */
+interface WriteErrorState {
+  title: string
+  safe: string
+  detail: string
+  /** 恢复动作（重试…），为空则不渲染恢复按钮 */
+  retryLabel?: string
+  retry?: () => void | Promise<void>
+}
+
+/** 表单级校验错误（R-221）：就近展示在字段旁，图标 + 文字双通道。 */
+type FieldErrors = Record<string, string>
+
+/** 聚焦第一个出错的字段（字段上带 data-error-field 标记）。 */
+function focusFirstError(field: string) {
+  if (typeof document === 'undefined') return
+  const el = document.querySelector<HTMLElement>(`[data-error-field="${field}"] input, [data-error-field="${field}"] textarea`)
+  el?.focus()
+}
 
 function textCell(text: unknown, width = 140) {
   const s = text == null || text === '' ? '—' : String(text)
@@ -353,6 +441,87 @@ async function copyText(text: string) {
     /* 降级提示 */
   }
   message.warning('复制失败，请手动选中详情内容复制')
+}
+
+/* ── 写入失败三段式（R-203）── */
+
+/** 页面级（工具栏写操作）的写入失败。 */
+const writeError = ref<WriteErrorState | null>(null)
+/** 定价分档弹窗内的写入失败。 */
+const tierWriteError = ref<WriteErrorState | null>(null)
+/** 确认账单弹窗内的写入失败。 */
+const confirmWriteError = ref<WriteErrorState | null>(null)
+
+function setWriteError(
+  target: Ref<WriteErrorState | null>,
+  err: any,
+  action: string,
+  opts: { retryLabel?: string; retry?: () => void | Promise<void>; safeHint?: string } = {},
+) {
+  const info = buildWriteError(err, { action, safeHint: opts.safeHint })
+  target.value = {
+    title: info.title,
+    safe: info.safe,
+    detail: info.detail,
+    retryLabel: opts.retryLabel,
+    retry: opts.retry,
+  }
+}
+
+function runRetry(target: Ref<WriteErrorState | null>) {
+  const fn = target.value?.retry
+  if (!fn) return
+  target.value = null
+  void fn()
+}
+
+function runWriteRetry() {
+  runRetry(writeError)
+}
+function runTierRetry() {
+  runRetry(tierWriteError)
+}
+function runConfirmRetry() {
+  runRetry(confirmWriteError)
+}
+
+/* ── 草稿（R-105）：定价分档表单一份草稿 ── */
+
+/**
+ * 打开表单时探测草稿：有内容就恢复并给「清空」出口（R-105）。
+ * 草稿与服务端数据一致时静默丢弃 —— 没有需要恢复的内容，不打扰用户。
+ */
+function restoreDraft(
+  draft: { probe: () => boolean; restore: () => void; clear: () => void },
+  form: Record<string, unknown>,
+  label: string,
+) {
+  if (!draft.probe()) return
+  const before = JSON.stringify(form)
+  draft.restore()
+  if (JSON.stringify(form) === before) {
+    draft.clear()
+    return
+  }
+  const n = notification.create({
+    title: '已恢复上次填写的内容',
+    content: `上次填写但没有提交的${label}已经放回表单，你可以接着改；不需要就点「清空」。`,
+    duration: 8000,
+    keepAliveOnHover: true,
+    action: () =>
+      h(
+        NButton,
+        {
+          text: true,
+          type: 'primary',
+          onClick: () => {
+            draft.clear()
+            n?.destroy()
+          },
+        },
+        { default: () => '清空' },
+      ),
+  })
 }
 
 /* ───────────────────────── ① 收入统计 ───────────────────────── */
@@ -494,6 +663,7 @@ const confirmAction = ref<null | (() => Promise<void>)>(null)
 function askConfirmBill(row: Bill) {
   confirmTitle.value = '确认结算账单'
   confirmText.value = `确认「${row.billNo}」（${row.businessDept || '业务部门'}，账期 ${row.period || '—'}，金额 ${Number(row.amount || 0).toLocaleString('zh-CN')}）后账单将锁定，不可再修改。确认账单？`
+  confirmWriteError.value = null
   confirmAction.value = async () => {
     await updateBill(row.id, { status: '已确认' })
     message.success('账单已确认')
@@ -510,7 +680,7 @@ async function confirmSubmit() {
     await action()
     confirmVisible.value = false
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(confirmWriteError, e, '确认结算账单', { retryLabel: '重试确认', retry: confirmSubmit })
   } finally {
     confirmLoading.value = false
   }
@@ -625,10 +795,21 @@ const tierForm = reactive({
   max: 0,
 })
 
+/** 字段级校验错误（R-221）：就近展示在对应字段旁。 */
+const tierErrors = reactive<FieldErrors>({ scheme: '', rank: '' })
+
+/** 定价分档草稿（R-105）：编辑态不启用，避免草稿覆盖真实行数据。 */
+const tierDraft = useFormDraft('campus-settlement-price', tierForm as unknown as Record<string, unknown>, {
+  enabled: () => !tierEditing.value,
+})
+
 function openTierCreate() {
   Object.assign(tierForm, { rank: '', price: 0, floor: 0, min: 0, max: 0 })
+  Object.assign(tierErrors, { scheme: '', rank: '' })
   tierEditing.value = null
+  tierWriteError.value = null
   tierFormVisible.value = true
+  restoreDraft(tierDraft, tierForm as unknown as Record<string, unknown>, '定价分档')
 }
 
 function openTierEdit(row: TierRow) {
@@ -639,22 +820,31 @@ function openTierEdit(row: TierRow) {
     min: row.min ?? 0,
     max: row.max ?? 0,
   })
+  Object.assign(tierErrors, { scheme: '', rank: '' })
   tierEditing.value = row
+  tierWriteError.value = null
   tierFormVisible.value = true
+}
+
+/** 关闭弹窗：清掉校验与写入失败状态，下次打开是干净的。 */
+function closeTierForm() {
+  tierFormVisible.value = false
+  Object.assign(tierErrors, { scheme: '', rank: '' })
+  tierWriteError.value = null
 }
 
 async function saveTier() {
   const scheme = schemeRows.value.find((s) => String(s.id) === String(schemeId.value))
-  if (!scheme) {
-    message.warning('请先选择定价方案')
-    return
-  }
-  if (!tierForm.rank.trim()) {
-    message.warning('请填写排名区间')
+  // 就近校验（R-221）：逐字段置错误态 + 聚焦第一个出错字段
+  tierErrors.scheme = scheme ? '' : '请先选择定价方案'
+  tierErrors.rank = tierForm.rank.trim() ? '' : '请填写排名区间'
+  const firstError = tierErrors.scheme ? 'tier-rank' : tierErrors.rank ? 'tier-rank' : ''
+  if (firstError) {
+    focusFirstError(firstError)
     return
   }
   tierSaving.value = true
-  const tiers = (Array.isArray(scheme.tiers) ? scheme.tiers.slice() : []).map((t) => ({
+  const tiers = (Array.isArray(scheme!.tiers) ? scheme!.tiers.slice() : []).map((t) => ({
     rank: t.rank,
     price: Number(t.price) || 0,
     floor: t.floor ?? null,
@@ -669,17 +859,19 @@ async function saveTier() {
     max: tierForm.max ?? null,
   }
   const idx = tierEditing.value
-    ? tiers.findIndex((t, i) => `${scheme.id}-${i}` === tierEditing.value!.key)
+    ? tiers.findIndex((t, i) => `${scheme!.id}-${i}` === tierEditing.value!.key)
     : -1
   if (idx >= 0) tiers[idx] = next
   else tiers.push(next)
   try {
-    await updatePriceScheme(String(scheme.id), { tiers })
+    await updatePriceScheme(String(scheme!.id), { tiers })
     message.success('定价分档已保存')
     tierFormVisible.value = false
+    // 提交成功后立即清除草稿（R-105）
+    tierDraft.clear()
     loadSchemes()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(tierWriteError, e, '保存定价分档', { retryLabel: '重试保存', retry: saveTier })
   } finally {
     tierSaving.value = false
   }
@@ -694,10 +886,37 @@ async function removeTier(row: TierRow) {
   )
   try {
     await updatePriceScheme(String(scheme.id), { tiers })
-    message.success('定价分档已删除')
+    notification.create({
+      content: `已删除分档「${row.rank || '未命名区间'}」`,
+      duration: 8000,
+      keepAliveOnHover: true,
+      action: () =>
+        h(NButton, {
+          text: true,
+          type: 'primary',
+          onClick: async () => {
+            await restoreTier(scheme, row)
+          },
+        }, { default: () => '撤销' }),
+    })
     loadSchemes()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '删除定价分档', { retryLabel: '重试删除', retry: () => removeTier(row) })
+  }
+}
+
+/** 撤销删除：把被删掉的定价分档补回方案。 */
+async function restoreTier(scheme: PriceScheme, row: TierRow) {
+  const tiers = (Array.isArray(scheme.tiers) ? scheme.tiers.slice() : []).filter(
+    (t, i) => `${scheme.id}-${i}` !== row.key,
+  )
+  tiers.push({ rank: row.rank, price: Number(row.price) || 0, floor: row.floor ?? null, min: row.min ?? null, max: row.max ?? null })
+  try {
+    await updatePriceScheme(String(scheme.id), { tiers })
+    message.success('定价分档已恢复')
+    loadSchemes()
+  } catch (e: any) {
+    setWriteError(writeError, e, '恢复定价分档', { retryLabel: '重试恢复', retry: () => restoreTier(scheme, row) })
   }
 }
 
@@ -798,6 +1017,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+/** 表单级前置条件错误（R-221）：图标 + 文字双通道，就近展示在表单顶部 */
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
 }
 .filter-label {
   font-size: var(--text-small);

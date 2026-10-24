@@ -507,11 +507,16 @@ RESOURCES = [
     ('recruit:campus:attendance:create', '录入考勤', 'BUTTON', 'campus'),
     ('recruit:campus:attendance:edit', '编辑考勤', 'BUTTON', 'campus'),
     ('recruit:campus:attendance:export', '导出考勤', 'BUTTON', 'campus'),
+    # ⚠️ 契约 §2.2 要求 attendance 端点提供完整 CRUD，destroy 走默认派生 → :delete。
+    #    0051 只登记了 list/create/edit/export，缺 :delete 会被 fail-closed 守卫拒成 403。
+    ('recruit:campus:attendance:delete', '删除考勤记录', 'BUTTON', 'campus'),
     ('recruit:campus:monthly_report:menu:view', '月报管理菜单', 'MENU', 'campus'),
     ('recruit:campus:monthly_report:list', '月报列表', 'BUTTON', 'campus'),
     ('recruit:campus:monthly_report:create', '提交月报', 'BUTTON', 'campus'),
     ('recruit:campus:monthly_report:edit', '编辑月报', 'BUTTON', 'campus'),
     ('recruit:campus:monthly_report:evaluate', '月报评分', 'BUTTON', 'campus'),
+    # ⚠️ 同上：monthly_report 缺 :delete → destroy 默认派生会被 fail-closed 拒成 403。
+    ('recruit:campus:monthly_report:delete', '删除月报', 'BUTTON', 'campus'),
     ('recruit:campus:feedback:menu:view', '反馈记录菜单', 'MENU', 'campus'),
     ('recruit:campus:feedback:list', '反馈记录列表', 'BUTTON', 'campus'),
     ('recruit:campus:feedback:create', '新增反馈记录', 'BUTTON', 'campus'),

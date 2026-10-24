@@ -82,6 +82,14 @@ function formItem(wrapper: any, label: string) {
     .find((n: any) => n.find('.n-form-item-label').exists() && n.find('.n-form-item-label').text().replace(/\*/g, '').trim() === label)
 }
 
+/** 草稿在 localStorage 里的键（useFormDraft 统一加 `draft:` 前缀）。 */
+const DRAFT_KEY = 'draft:campus-course-create'
+
+/** 造一份未过期草稿（_ts + _data，格式与 useFormDraft 的写入一致）。 */
+function seedDraft(data: Record<string, unknown>) {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify({ _ts: Date.now(), _data: data }))
+}
+
 describe('CampusCourse 课程页行为契约', () => {
   beforeEach(() => {
     apiGet.mockReset()
@@ -89,6 +97,7 @@ describe('CampusCourse 课程页行为契约', () => {
     apiPut.mockReset()
     apiDelete.mockReset()
     notifyCreate.mockReset()
+    localStorage.clear()
     apiGet.mockImplementation((url: string) => {
       if (url.includes('/courses/')) return Promise.resolve({ data: { data: [course] } })
       if (url.includes('/learn-progress/')) return Promise.resolve({ data: { data: [progress] } })
@@ -190,5 +199,92 @@ describe('CampusCourse 课程页行为契约', () => {
     expect(body).toContain('新人成长训练营')
     expect(body).toContain('180 分钟')
     expect(body).toContain('45%')
+  }, 20000)
+
+  it('⑦ R-105 草稿：打开新增课程弹窗 → 恢复上次填写的内容，并提供「清空」出口', async () => {
+    seedDraft({
+      code: 'C002',
+      name: '新员工合规必修课',
+      form: '直播',
+      durationMin: 90,
+      category: '业务知识',
+      type: '必修',
+      examRequired: true,
+      enabled: true,
+      description: '面向 26 届校招生的合规课程',
+    })
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增课程'))!.trigger('click')
+    await flushPromises()
+
+    // 草稿内容已回填
+    const vm = wrapper.vm as any
+    expect(vm.courseForm.code).toBe('C002')
+    expect(vm.courseForm.name).toBe('新员工合规必修课')
+
+    // 提示「已恢复上次填写的内容」，并带「清空」出口
+    expect(notifyCreate).toHaveBeenCalled()
+    const opts = notifyCreate.mock.calls[0][0]
+    expect(opts.content).toBe('已恢复上次填写的内容')
+    expect(typeof opts.action).toBe('function')
+
+    // 点「清空」→ 草稿被清掉，表单回到空白
+    const vnode: any = opts.action()
+    vnode.props.onClick()
+    expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
+    expect(vm.courseForm.code).toBe('')
+  }, 20000)
+
+  it('⑧ R-221 字段级校验：缺必填项 → 字段旁标错 + 提示还差几项，不发写请求', async () => {
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增课程'))!.trigger('click')
+    await flushPromises()
+
+    const saveBtn = wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存课程'))
+    expect(saveBtn).toBeTruthy()
+    await saveBtn!.trigger('click')
+    await flushPromises()
+
+    // 校验没过 → 不发写请求
+    const call = apiPost.mock.calls.find((c) => String(c[0]).includes('/campus-learning/courses/'))
+    expect(call).toBeUndefined()
+
+    // 错误就地显示在字段旁（图标 + 文字双通道）
+    const feedbackText = wrapper
+      .findAll('.n-form-item-feedback')
+      .map((n: any) => n.text())
+      .join('|')
+    expect(feedbackText).toContain('请填写课程编码')
+    expect(feedbackText).toContain('请填写课程名称')
+
+    // 顶部给出「还有 N 项未填写」，不再静默
+    expect(wrapper.find('.form-hint').text()).toContain('还有 2 项未填写')
+  }, 20000)
+
+  it('⑨ R-203 写入失败：三段式提示（标题 + 数据安全说明 + 折叠技术详情）', async () => {
+    apiPost.mockRejectedValue({ response: { status: 500, data: { detail: '服务端原始报文' } } })
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增课程'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    vm.courseForm.code = 'C002'
+    vm.courseForm.name = '新员工合规必修课'
+    await flushPromises()
+
+    const saveBtn = wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存课程'))
+    await saveBtn!.trigger('click')
+    await flushPromises()
+
+    const box = wrapper.find('.write-error-wrap')
+    expect(box.exists()).toBe(true)
+    // ① 人话描述发生了什么
+    expect(box.text()).toContain('保存课程没有成功')
+    // ② 用户数据是否安全
+    expect(box.text()).toContain('你填写的内容仍保留在表单里')
+    // ③ 技术详情折叠 + 可复制
+    expect(box.find('.error-code').text()).toContain('HTTP 500 · 服务端原始报文')
+    const btns = box.findAll('button').map((b: any) => b.text()).join('|')
+    expect(btns).toContain('复制错误信息')
   }, 20000)
 })

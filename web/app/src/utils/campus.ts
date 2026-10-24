@@ -232,6 +232,44 @@ export function extractError(err: any): string {
   return '操作失败'
 }
 
+/**
+ * 写入失败的三段式信息（AGENTS.md R-203）。
+ *
+ * ① 人话描述发生了什么 → ② 用户数据是否安全 → ③ 技术详情（折叠在「详情」里，可复制）
+ *
+ * ⚠️ **不得以「抱歉」开头**（R-203 明令），也**不得**把后端原始 detail 直接当标题甩给用户。
+ * 原始错误码/报文只进 `detail`，由页面折叠展示并提供一键复制。
+ *
+ * @param err   axios 错误对象
+ * @param opts.action 动宾短语（如「保存反馈记录」「提交月报」），用于标题
+ * @param opts.safeHint 数据安全说明；不传时用默认兜底文案
+ */
+export interface WriteErrorInfo {
+  /** ① 人话标题：如「保存反馈记录没有成功」 */
+  title: string
+  /** ② 数据是否安全 */
+  safe: string
+  /** ③ 技术详情（折叠区内容，可复制） */
+  detail: string
+}
+
+export function buildWriteError(
+  err: any,
+  opts: { action?: string; safeHint?: string } = {}
+): WriteErrorInfo {
+  const action = (opts.action || '保存').trim()
+  const raw = extractError(err)
+  const status = err?.response?.status
+  const code = status ? `HTTP ${status}` : '网络异常'
+  return {
+    title: `${action}没有成功`,
+    safe:
+      opts.safeHint ||
+      '你填写的内容仍保留在表单里，没有丢失，可以直接重试或复制错误信息给管理员。',
+    detail: `${code} · ${raw}`,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 部门树 / 二级 BU
 // ---------------------------------------------------------------------------

@@ -22,6 +22,7 @@
                 :options="ymOptions"
                 placeholder="全部月份"
                 clearable
+                aria-label="月份"
                 style="width: 180px"
                 @update:value="loadMonthly"
               />
@@ -34,6 +35,7 @@
                 placeholder="全部班级"
                 clearable
                 filterable
+                aria-label="班级"
                 style="width: 200px"
                 @update:value="loadMonthly"
               />
@@ -92,6 +94,7 @@
               <n-select
                 v-model:value="templateScope"
                 :options="scopeFilterOptions"
+                aria-label="适用范围"
                 style="width: 160px"
                 @update:value="loadTemplates"
               />
@@ -119,6 +122,22 @@
                 <div class="error-detail">
                   <code>{{ templateErrorDetail }}</code>
                   <n-button size="tiny" quaternary @click="copyDetail(templateErrorDetail)">复制错误信息</n-button>
+                </div>
+              </n-collapse-item>
+            </n-collapse>
+          </n-alert>
+
+          <!-- 启停模板失败三段式（R-203） -->
+          <n-alert v-if="toggleWriteErr" type="error" :show-icon="true" class="load-error">
+            <div class="error-head">
+              <span class="error-title">{{ toggleWriteErr.title }}</span>
+            </div>
+            <p class="error-safe">{{ toggleWriteErr.safe }}</p>
+            <n-collapse class="error-collapse">
+              <n-collapse-item title="详情" name="toggle-detail">
+                <div class="error-detail">
+                  <code>{{ toggleWriteErr.detail }}</code>
+                  <n-button size="tiny" quaternary @click="copyDetail(toggleWriteErr.detail)">复制错误信息</n-button>
                 </div>
               </n-collapse-item>
             </n-collapse>
@@ -206,6 +225,7 @@
               <n-select
                 v-model:value="rankYm"
                 :options="ymOptions"
+                aria-label="月份"
                 style="width: 160px"
                 @update:value="loadRanking"
               />
@@ -264,6 +284,7 @@
               <n-select
                 v-model:value="examYm"
                 :options="ymFilterOptions"
+                aria-label="月份"
                 style="width: 180px"
                 @update:value="loadExamStats"
               />
@@ -370,6 +391,7 @@
               <n-select
                 v-model:value="teacherYm"
                 :options="ymOptions"
+                aria-label="月份"
                 style="width: 160px"
                 @update:value="loadTeachers"
               />
@@ -431,9 +453,30 @@
       :content-style="{ height: 'min(360px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
     >
+      <!-- 写入失败三段式（R-203）：人话标题 + 数据是否安全 + 可复制技术详情 -->
+      <n-alert v-if="adjustWriteErr" type="error" :show-icon="true" class="write-error">
+        <div class="error-head">
+          <span class="error-title">{{ adjustWriteErr.title }}</span>
+        </div>
+        <p class="error-safe">{{ adjustWriteErr.safe }}</p>
+        <n-collapse class="error-collapse">
+          <n-collapse-item title="详情" name="adjust-detail">
+            <div class="error-detail">
+              <code>{{ adjustWriteErr.detail }}</code>
+              <n-button size="tiny" quaternary @click="copyDetail(adjustWriteErr.detail)">复制错误信息</n-button>
+            </div>
+          </n-collapse-item>
+        </n-collapse>
+      </n-alert>
       <n-form :model="adjustForm" label-placement="top">
-        <n-form-item label="调整分值" required>
+        <n-form-item
+          label="调整分值"
+          required
+          :show-feedback="!!adjustValueError"
+          :validation-status="adjustValueError ? 'error' : undefined"
+        >
           <n-input-number
+            ref="adjustValueRef"
             v-model:value="adjustForm.adjust"
             :min="-100"
             :max="100"
@@ -441,20 +484,36 @@
             style="width: 100%"
             placeholder="正数加分，负数减分"
           />
+          <template #feedback>
+            <span v-if="adjustValueError" class="field-error">
+              <n-icon :component="AlertCircleOutline" aria-hidden="true" />{{ adjustValueError }}
+            </span>
+          </template>
         </n-form-item>
-        <n-form-item label="调整原因" required>
+        <n-form-item
+          label="调整原因"
+          required
+          :show-feedback="!!adjustReasonError"
+          :validation-status="adjustReasonError ? 'error' : undefined"
+        >
           <n-input
+            ref="adjustReasonRef"
             v-model:value="adjustForm.reason"
             type="textarea"
             :rows="3"
             placeholder="如 创新提案 +3 分 / 迟到 -1 分"
           />
+          <template #feedback>
+            <span v-if="adjustReasonError" class="field-error">
+              <n-icon :component="AlertCircleOutline" aria-hidden="true" />{{ adjustReasonError }}
+            </span>
+          </template>
         </n-form-item>
       </n-form>
       <template #footer>
         <n-space justify="end">
           <n-button :disabled="adjusting" @click="adjustVisible = false">取消调整</n-button>
-          <n-button type="primary" :loading="adjusting" :disabled="!canAdjust" @click="submitAdjust">
+          <n-button type="primary" :loading="adjusting" :disabled="adjusting" @click="submitAdjust">
             保存分值
           </n-button>
         </n-space>
@@ -470,13 +529,28 @@
       :content-style="{ height: 'min(320px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
     >
+      <!-- 写入失败三段式（R-203） -->
+      <n-alert v-if="checkWriteErr" type="error" :show-icon="true" class="write-error">
+        <div class="error-head">
+          <span class="error-title">{{ checkWriteErr.title }}</span>
+        </div>
+        <p class="error-safe">{{ checkWriteErr.safe }}</p>
+        <n-collapse class="error-collapse">
+          <n-collapse-item title="详情" name="check-detail">
+            <div class="error-detail">
+              <code>{{ checkWriteErr.detail }}</code>
+              <n-button size="tiny" quaternary @click="copyDetail(checkWriteErr.detail)">复制错误信息</n-button>
+            </div>
+          </n-collapse-item>
+        </n-collapse>
+      </n-alert>
       <p class="confirm-text">
         核对通过后「{{ checkRow?.ym }} · {{ checkRow?.personName || '该校招生' }}」的月度数据将被锁定，并计入当月排名，之后不能再改分值。
       </p>
       <template #footer>
         <n-space justify="end">
           <n-button :disabled="checking" @click="checkVisible = false">暂不核对</n-button>
-          <n-button type="primary" :loading="checking" @click="confirmCheck">核对通过</n-button>
+          <n-button type="primary" :loading="checking" :disabled="checking" @click="confirmCheck">核对通过</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -490,28 +564,87 @@
       :content-style="{ height: 'min(620px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
     >
+      <!-- 草稿恢复提示（R-105）：提供「清空」出口 -->
+      <n-alert v-if="templateDraftRestored" type="info" :show-icon="true" class="draft-tip">
+        <div class="error-head">
+          <span>已恢复上次填写的内容</span>
+          <n-button size="small" quaternary @click="clearTemplateDraft">清空草稿</n-button>
+        </div>
+      </n-alert>
+      <!-- 写入失败三段式（R-203） -->
+      <n-alert v-if="templateWriteErr" type="error" :show-icon="true" class="write-error">
+        <div class="error-head">
+          <span class="error-title">{{ templateWriteErr.title }}</span>
+        </div>
+        <p class="error-safe">{{ templateWriteErr.safe }}</p>
+        <n-collapse class="error-collapse">
+          <n-collapse-item title="详情" name="template-detail">
+            <div class="error-detail">
+              <code>{{ templateWriteErr.detail }}</code>
+              <n-button size="tiny" quaternary @click="copyDetail(templateWriteErr.detail)">复制错误信息</n-button>
+            </div>
+          </n-collapse-item>
+        </n-collapse>
+      </n-alert>
       <n-form :model="templateForm" label-placement="top">
         <n-grid :cols="2" :x-gap="16" responsive="screen" :item-responsive="true">
           <n-grid-item span="2 s:1">
-            <n-form-item label="模板名称" required>
-              <n-input v-model:value="templateForm.name" placeholder="如 客服部第1阶段月度考核" />
+            <n-form-item
+              label="模板名称"
+              required
+              :show-feedback="!!templateNameError"
+              :validation-status="templateNameError ? 'error' : undefined"
+            >
+              <n-input
+                ref="templateNameRef"
+                v-model:value="templateForm.name"
+                placeholder="如 客服部第1阶段月度考核"
+              />
+              <template #feedback>
+                <span v-if="templateNameError" class="field-error">
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />{{ templateNameError }}
+                </span>
+              </template>
             </n-form-item>
           </n-grid-item>
           <n-grid-item span="2 s:1">
-            <n-form-item label="适用范围" required>
+            <n-form-item
+              label="适用范围"
+              required
+              :show-feedback="!!templateScopeTypeError"
+              :validation-status="templateScopeTypeError ? 'error' : undefined"
+            >
               <n-select
+                ref="templateScopeTypeRef"
                 v-model:value="templateForm.scopeType"
                 :options="scopeTypeOptions"
                 @update:value="onScopeTypeChange"
               />
+              <template #feedback>
+                <span v-if="templateScopeTypeError" class="field-error">
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />{{ templateScopeTypeError }}
+                </span>
+              </template>
             </n-form-item>
           </n-grid-item>
         </n-grid>
-        <n-form-item v-if="templateForm.scopeType !== 'all'" label="适用范围取值" required>
+        <n-form-item
+          v-if="templateForm.scopeType !== 'all'"
+          label="适用范围取值"
+          required
+          :show-feedback="!!templateScopeValuesError"
+          :validation-status="templateScopeValuesError ? 'error' : undefined"
+        >
           <n-dynamic-tags
+            ref="templateScopeValuesRef"
             v-model:value="templateForm.scopeValues"
             :placeholder="templateForm.scopeType === 'dept' ? '输入部门名称后回车' : '输入班级名称后回车'"
           />
+          <template #feedback>
+            <span v-if="templateScopeValuesError" class="field-error">
+              <n-icon :component="AlertCircleOutline" aria-hidden="true" />{{ templateScopeValuesError }}
+            </span>
+          </template>
         </n-form-item>
         <n-grid :cols="3" :x-gap="16" responsive="screen" :item-responsive="true">
           <n-grid-item span="3 s:1">
@@ -536,13 +669,21 @@
           <span class="items-sum" :class="{ 'items-sum-bad': templateWeightSum !== 100 }">
             合计 {{ templateWeightSum }}%
           </span>
-          <n-button size="small" secondary @click="addTemplateItem">
+          <n-button ref="templateAddItemRef" size="small" secondary @click="addTemplateItem">
             <template #icon><n-icon :component="AddOutline" /></template>
             添加维度
           </n-button>
         </div>
+        <!-- 维度区校验反馈（R-221）：就近显示，图标 + 文字双通道 -->
+        <div v-if="templateItemsError" class="field-error items-error">
+          <n-icon :component="AlertCircleOutline" aria-hidden="true" />{{ templateItemsError }}
+        </div>
         <div v-for="(item, idx) in templateForm.items" :key="idx" class="item-row">
-          <n-input v-model:value="item.name" placeholder="维度名称，如 业务考核" />
+          <n-input
+            :ref="(el: any) => setTemplateItemRef(idx, el)"
+            v-model:value="item.name"
+            placeholder="维度名称，如 业务考核"
+          />
           <n-input-number v-model:value="item.weight" :min="0" :max="100" :step="5" placeholder="权重" />
           <n-input v-model:value="item.target" placeholder="目标要求" />
           <n-button
@@ -562,7 +703,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button :disabled="savingTemplate" @click="templateVisible = false">取消编辑</n-button>
-          <n-button type="primary" :loading="savingTemplate" :disabled="!canSaveTemplate" @click="submitTemplate">
+          <n-button type="primary" :loading="savingTemplate" :disabled="savingTemplate" @click="submitTemplate">
             保存模板
           </n-button>
         </n-space>
@@ -578,13 +719,28 @@
       :content-style="{ height: 'min(320px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
     >
+      <!-- 写入失败三段式（R-203） -->
+      <n-alert v-if="deleteWriteErr" type="error" :show-icon="true" class="write-error">
+        <div class="error-head">
+          <span class="error-title">{{ deleteWriteErr.title }}</span>
+        </div>
+        <p class="error-safe">{{ deleteWriteErr.safe }}</p>
+        <n-collapse class="error-collapse">
+          <n-collapse-item title="详情" name="delete-detail">
+            <div class="error-detail">
+              <code>{{ deleteWriteErr.detail }}</code>
+              <n-button size="tiny" quaternary @click="copyDetail(deleteWriteErr.detail)">复制错误信息</n-button>
+            </div>
+          </n-collapse-item>
+        </n-collapse>
+      </n-alert>
       <p class="confirm-text">
         删除「{{ deletingTemplate?.name }}」后，该模板的 {{ deletingTemplate?.items.length || 0 }} 个维度权重与目标要求将不再用于后续考核，已产生的考核数据不会被删除。
       </p>
       <template #footer>
         <n-space justify="end">
           <n-button :disabled="!!deletingTemplateId" @click="deleteTemplateVisible = false">保留模板</n-button>
-          <n-button type="error" :loading="!!deletingTemplateId" @click="confirmDeleteTemplate">删除模板</n-button>
+          <n-button type="error" :loading="!!deletingTemplateId" :disabled="!!deletingTemplateId" @click="confirmDeleteTemplate">删除模板</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -598,9 +754,39 @@
       :content-style="{ height: 'min(400px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
     >
+      <!-- 写入失败三段式（R-203） -->
+      <n-alert v-if="decideWriteErr" type="error" :show-icon="true" class="write-error">
+        <div class="error-head">
+          <span class="error-title">{{ decideWriteErr.title }}</span>
+        </div>
+        <p class="error-safe">{{ decideWriteErr.safe }}</p>
+        <n-collapse class="error-collapse">
+          <n-collapse-item title="详情" name="decide-detail">
+            <div class="error-detail">
+              <code>{{ decideWriteErr.detail }}</code>
+              <n-button size="tiny" quaternary @click="copyDetail(decideWriteErr.detail)">复制错误信息</n-button>
+            </div>
+          </n-collapse-item>
+        </n-collapse>
+      </n-alert>
       <n-form :model="decideForm" label-placement="top">
-        <n-form-item label="处理类型" required>
-          <n-select v-model:value="decideForm.decision" :options="decisionOptions" placeholder="选择处理类型" />
+        <n-form-item
+          label="处理类型"
+          required
+          :show-feedback="!!decideDecisionError"
+          :validation-status="decideDecisionError ? 'error' : undefined"
+        >
+          <n-select
+            ref="decideDecisionRef"
+            v-model:value="decideForm.decision"
+            :options="decisionOptions"
+            placeholder="选择处理类型"
+          />
+          <template #feedback>
+            <span v-if="decideDecisionError" class="field-error">
+              <n-icon :component="AlertCircleOutline" aria-hidden="true" />{{ decideDecisionError }}
+            </span>
+          </template>
         </n-form-item>
         <n-form-item label="处理说明">
           <n-input
@@ -614,7 +800,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button :disabled="deciding" @click="decideVisible = false">取消办理</n-button>
-          <n-button type="primary" :loading="deciding" :disabled="!decideForm.decision" @click="askConfirmDecide">
+          <n-button type="primary" :loading="deciding" :disabled="deciding" @click="askConfirmDecide">
             确认处理类型
           </n-button>
         </n-space>
@@ -630,6 +816,21 @@
       :content-style="{ height: 'min(360px, calc(88vh - 180px))', overflowY: 'auto' }"
       :mask-closable="false"
     >
+      <!-- 写入失败三段式（R-203） -->
+      <n-alert v-if="decideWriteErr" type="error" :show-icon="true" class="write-error">
+        <div class="error-head">
+          <span class="error-title">{{ decideWriteErr.title }}</span>
+        </div>
+        <p class="error-safe">{{ decideWriteErr.safe }}</p>
+        <n-collapse class="error-collapse">
+          <n-collapse-item title="详情" name="decide-confirm-detail">
+            <div class="error-detail">
+              <code>{{ decideWriteErr.detail }}</code>
+              <n-button size="tiny" quaternary @click="copyDetail(decideWriteErr.detail)">复制错误信息</n-button>
+            </div>
+          </n-collapse-item>
+        </n-collapse>
+      </n-alert>
       <div class="confirm-preview">
         <div class="preview-row">
           <span class="preview-label">校招生</span>
@@ -647,7 +848,7 @@
       <template #footer>
         <n-space justify="end">
           <n-button :disabled="deciding" @click="confirmDecideVisible = false">返回修改</n-button>
-          <n-button type="error" :loading="deciding" @click="confirmDecide">确认处理</n-button>
+          <n-button type="error" :loading="deciding" :disabled="deciding" @click="confirmDecide">确认处理</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -683,7 +884,7 @@ import {
   NTag,
   useMessage,
 } from 'naive-ui'
-import { AddOutline, CreateOutline, RefreshOutline, TrashOutline } from '@vicons/ionicons5'
+import { AddOutline, AlertCircleOutline, CreateOutline, RefreshOutline, TrashOutline } from '@vicons/ionicons5'
 import {
   adjustMonthlyAssessment,
   checkMonthlyAssessment,
@@ -708,7 +909,8 @@ import {
   type TeacherRankingRow,
   type TemplateItem,
 } from '../../api/campusAssessment'
-import { extractError, searchClassRooms, type SelectOption } from '../../utils/campus'
+import { buildWriteError, extractError, searchClassRooms, type SelectOption, type WriteErrorInfo } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 type AssessTab = 'monthly' | 'template' | 'ranking' | 'exam' | 'probation' | 'teacher'
 
@@ -826,16 +1028,44 @@ const adjusting = ref(false)
 const adjustForm = reactive({ adjust: 0 as number | null, reason: '' })
 const canAdjust = computed(() => adjustForm.adjust !== null && !!adjustForm.reason.trim() && !adjusting.value)
 
+/** 写入失败三段式（R-203）。 */
+const adjustWriteErr = ref<WriteErrorInfo | null>(null)
+
+/** 字段级校验（R-221）：未通过校验的字段就近显示「图标 + 文字」双通道反馈。 */
+const adjustAttempted = ref(false)
+const adjustValueRef = ref<any>(null)
+const adjustReasonRef = ref<any>(null)
+const adjustValueError = computed(() =>
+  adjustAttempted.value && adjustForm.adjust === null ? '请填写调整分值' : '',
+)
+const adjustReasonError = computed(() =>
+  adjustAttempted.value && !adjustForm.reason.trim() ? '请填写调整原因' : '',
+)
+
+/** 聚焦到第一个出错的字段（R-221）。 */
+function focusFirstAdjustError() {
+  const target = adjustValueError.value ? adjustValueRef.value : adjustReasonRef.value
+  target?.focus?.()
+}
+
 function openAdjust(row: MonthlyAssessmentRow) {
   adjustRow.value = row
   adjustForm.adjust = row.adjust ?? 0
   adjustForm.reason = ''
+  adjustAttempted.value = false
+  adjustWriteErr.value = null
   adjustVisible.value = true
 }
 
 async function submitAdjust() {
+  adjustAttempted.value = true
+  if (adjustValueError.value || adjustReasonError.value) {
+    focusFirstAdjustError()
+    return
+  }
   if (!adjustRow.value || !canAdjust.value) return
   adjusting.value = true
+  adjustWriteErr.value = null
   try {
     await adjustMonthlyAssessment(adjustRow.value.id, {
       adjust: Number(adjustForm.adjust ?? 0),
@@ -845,7 +1075,8 @@ async function submitAdjust() {
     adjustVisible.value = false
     await loadMonthly()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：写入失败三段式（填好的内容仍在表单里，可直接重试）
+    adjustWriteErr.value = buildWriteError(e, { action: '保存加减分' })
   } finally {
     adjusting.value = false
   }
@@ -855,22 +1086,27 @@ async function submitAdjust() {
 const checkVisible = ref(false)
 const checkRow = ref<MonthlyAssessmentRow | null>(null)
 const checking = ref(false)
+/** 写入失败三段式（R-203）。 */
+const checkWriteErr = ref<WriteErrorInfo | null>(null)
 
 function askCheck(row: MonthlyAssessmentRow) {
   checkRow.value = row
+  checkWriteErr.value = null
   checkVisible.value = true
 }
 
 async function confirmCheck() {
   if (!checkRow.value || checking.value) return
   checking.value = true
+  checkWriteErr.value = null
   try {
     await checkMonthlyAssessment(checkRow.value.id)
     message.success('月度数据已核对通过')
     checkVisible.value = false
     await loadMonthly()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：写入失败三段式
+    checkWriteErr.value = buildWriteError(e, { action: '核对月度数据' })
   } finally {
     checking.value = false
   }
@@ -934,6 +1170,74 @@ const emptyTemplateForm = () => ({
 })
 const templateForm = reactive(emptyTemplateForm())
 
+/**
+ * 草稿自动保存（R-105）：考核模板要逐条填维度权重与目标要求，填写时长 > 1 分钟 → 接草稿。
+ * 命名空间按「页面-表单」唯一：campus-assessment-template。
+ * ⚠️ 编辑态禁用草稿（enabled: () => !editingTemplate.value），避免草稿覆盖真实 row 数据。
+ */
+const templateDraft = useFormDraft('campus-assessment-template', templateForm, {
+  enabled: () => !editingTemplate.value,
+})
+
+/** 写入失败三段式（R-203）。 */
+const templateWriteErr = ref<WriteErrorInfo | null>(null)
+const deleteWriteErr = ref<WriteErrorInfo | null>(null)
+const toggleWriteErr = ref<WriteErrorInfo | null>(null)
+
+/** 草稿恢复提示（R-105）：naive 的 message 没有 action 槽位，「清空」出口用页内提示承载。 */
+const templateDraftRestored = ref(false)
+
+/** 字段级校验（R-221）：未通过校验的字段就近显示「图标 + 文字」双通道反馈。 */
+const templateAttempted = ref(false)
+const templateNameRef = ref<any>(null)
+const templateScopeTypeRef = ref<any>(null)
+const templateScopeValuesRef = ref<any>(null)
+const templateAddItemRef = ref<any>(null)
+const templateItemRefs = ref<any[]>([])
+const templateNameError = computed(() =>
+  templateAttempted.value && !templateForm.name.trim() ? '请填写模板名称' : '',
+)
+const templateScopeTypeError = computed(() =>
+  templateAttempted.value && !templateForm.scopeType ? '请选择适用范围' : '',
+)
+const templateScopeValuesError = computed(() =>
+  templateAttempted.value && templateForm.scopeType !== 'all' && !templateForm.scopeValues.length
+    ? '请填写适用范围取值'
+    : '',
+)
+const templateItemsError = computed(() => {
+  if (!templateAttempted.value) return ''
+  if (!templateForm.items.length) return '请至少添加一个考核维度'
+  const bad = templateForm.items.findIndex((it) => !it.name.trim())
+  return bad >= 0 ? `第 ${bad + 1} 个维度还没有填写名称` : ''
+})
+
+/** 记录维度名称输入框实例（聚焦第一个出错维度用）。 */
+function setTemplateItemRef(idx: number, el: any) {
+  if (el) templateItemRefs.value[idx] = el
+}
+
+/** 聚焦到第一个出错的字段（R-221）。 */
+function focusFirstTemplateError() {
+  if (templateNameError.value) {
+    templateNameRef.value?.focus?.()
+    return
+  }
+  if (templateScopeTypeError.value) {
+    templateScopeTypeRef.value?.focus?.()
+    return
+  }
+  if (templateScopeValuesError.value) {
+    templateScopeValuesRef.value?.focus?.()
+    return
+  }
+  if (templateItemsError.value) {
+    const bad = templateForm.items.findIndex((it) => !it.name.trim())
+    const target = bad >= 0 ? templateItemRefs.value[bad] : templateAddItemRef.value
+    target?.focus?.()
+  }
+}
+
 const templateWeightSum = computed(() => templateForm.items.reduce((sum, it) => sum + (Number(it.weight) || 0), 0))
 const canSaveTemplate = computed(
   () =>
@@ -946,7 +1250,27 @@ const canSaveTemplate = computed(
 function openTemplateCreate() {
   editingTemplate.value = null
   Object.assign(templateForm, emptyTemplateForm())
+  templateAttempted.value = false
+  templateWriteErr.value = null
+  templateDraftRestored.value = false
   templateVisible.value = true
+  // 草稿恢复（R-105）：有未过期草稿才提示，并给「清空」出口
+  const before = JSON.stringify(templateForm)
+  if (templateDraft.probe()) {
+    templateDraft.restore()
+    if (JSON.stringify(templateForm) !== before) {
+      templateDraftRestored.value = true
+      message.info('已恢复上次填写的内容')
+    }
+  }
+}
+
+/** 清空草稿出口（R-105）：丢弃已恢复的内容，草稿不再落盘。 */
+function clearTemplateDraft() {
+  templateDraft.clear()
+  templateDraftRestored.value = false
+  Object.assign(templateForm, emptyTemplateForm())
+  message.success('已清空草稿')
 }
 
 function openTemplateEdit(tpl: AssessmentTemplateRow) {
@@ -960,7 +1284,11 @@ function openTemplateEdit(tpl: AssessmentTemplateRow) {
     enabled: tpl.enabled,
     items: tpl.items.map((it) => ({ name: it.name, weight: it.weight, target: it.target })),
   })
+  templateAttempted.value = false
+  templateWriteErr.value = null
+  templateDraftRestored.value = false
   templateVisible.value = true
+  // 编辑态不启用草稿（enabled=false），无需探测/恢复
 }
 
 function onScopeTypeChange() {
@@ -972,8 +1300,14 @@ function addTemplateItem() {
 }
 
 async function submitTemplate() {
+  templateAttempted.value = true
+  if (templateNameError.value || templateScopeTypeError.value || templateScopeValuesError.value || templateItemsError.value) {
+    focusFirstTemplateError()
+    return
+  }
   if (!canSaveTemplate.value) return
   savingTemplate.value = true
+  templateWriteErr.value = null
   const payload = {
     name: templateForm.name.trim(),
     scopeType: templateForm.scopeType,
@@ -995,16 +1329,20 @@ async function submitTemplate() {
       await createAssessmentTemplate(payload)
       message.success('考核模板已新增')
     }
+    // R-105：提交成功后立即清除草稿
+    templateDraft.clear()
     templateVisible.value = false
     await loadTemplates()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：写入失败三段式（填好的内容仍在表单里，可直接重试）
+    templateWriteErr.value = buildWriteError(e, { action: '保存考核模板' })
   } finally {
     savingTemplate.value = false
   }
 }
 
 async function toggleTemplate(tpl: AssessmentTemplateRow, enabled: boolean) {
+  toggleWriteErr.value = null
   try {
     await updateAssessmentTemplate(tpl.id, {
       name: tpl.name,
@@ -1018,7 +1356,8 @@ async function toggleTemplate(tpl: AssessmentTemplateRow, enabled: boolean) {
     message.success(enabled ? '模板已启用' : '模板已停用')
     await loadTemplates()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：写入失败三段式
+    toggleWriteErr.value = buildWriteError(e, { action: enabled ? '启用模板' : '停用模板' })
   }
 }
 
@@ -1028,19 +1367,22 @@ const deletingTemplate = ref<AssessmentTemplateRow | null>(null)
 
 function askDeleteTemplate(tpl: AssessmentTemplateRow) {
   deletingTemplate.value = tpl
+  deleteWriteErr.value = null
   deleteTemplateVisible.value = true
 }
 
 async function confirmDeleteTemplate() {
   if (!deletingTemplate.value) return
   deletingTemplateId.value = deletingTemplate.value.id
+  deleteWriteErr.value = null
   try {
     await deleteAssessmentTemplate(deletingTemplate.value.id)
     message.success('考核模板已删除')
     deleteTemplateVisible.value = false
     await loadTemplates()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：写入失败三段式
+    deleteWriteErr.value = buildWriteError(e, { action: '删除考核模板' })
   } finally {
     deletingTemplateId.value = ''
   }
@@ -1320,14 +1662,31 @@ const deciding = ref(false)
 const decideRow = ref<ProbationRow | null>(null)
 const decideForm = reactive({ decision: '', note: '' })
 
+/** 写入失败三段式（R-203）：办理弹窗与确认框各一份。 */
+const decideWriteErr = ref<WriteErrorInfo | null>(null)
+
+/** 字段级校验（R-221）：处理类型未选时在字段旁给出「图标 + 文字」反馈。 */
+const decideAttempted = ref(false)
+const decideDecisionRef = ref<any>(null)
+const decideDecisionError = computed(() =>
+  decideAttempted.value && !decideForm.decision ? '请选择处理类型' : '',
+)
+
 function openDecide(row: ProbationRow) {
   decideRow.value = row
   decideForm.decision = row.decision || ''
   decideForm.note = ''
+  decideAttempted.value = false
+  decideWriteErr.value = null
   decideVisible.value = true
 }
 
 function askConfirmDecide() {
+  decideAttempted.value = true
+  if (decideDecisionError.value) {
+    decideDecisionRef.value?.focus?.()
+    return
+  }
   if (!decideForm.decision) return
   decideVisible.value = false
   confirmDecideVisible.value = true
@@ -1336,13 +1695,15 @@ function askConfirmDecide() {
 async function confirmDecide() {
   if (!decideRow.value || !decideForm.decision || deciding.value) return
   deciding.value = true
+  decideWriteErr.value = null
   try {
     await decideProbation(decideRow.value.id, { decision: decideForm.decision, note: decideForm.note.trim() })
     message.success('试用期处理结果已更新')
     confirmDecideVisible.value = false
     await loadProbations()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：写入失败三段式
+    decideWriteErr.value = buildWriteError(e, { action: '更新试用期结论' })
   } finally {
     deciding.value = false
   }
@@ -1476,6 +1837,35 @@ onMounted(() => {
 }
 .load-error {
   flex-shrink: 0;
+  margin-bottom: var(--space-2);
+}
+/* 写入失败三段式（R-203）：标题 + 数据安全说明 + 折叠详情 */
+.write-error {
+  margin-bottom: var(--space-2);
+}
+/* 草稿恢复提示（R-105）：带「清空」出口 */
+.draft-tip {
+  margin-bottom: var(--space-2);
+}
+.error-title {
+  font-weight: 600;
+}
+.error-safe {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+/* 字段级校验反馈（R-221）：图标 + 文字双通道，不只靠颜色 */
+.field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--c-error-deep);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+.items-error {
   margin-bottom: var(--space-2);
 }
 .error-head {

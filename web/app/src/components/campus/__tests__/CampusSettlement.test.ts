@@ -7,12 +7,24 @@
  *  3. 定价管理：编辑「排名分档 → 结算单价 / 底价 / 交易价允许区间」→ PUT 整个 tiers
  *  4. 结算账单：确认账单是高影响操作 → 必须先出确认框，框内写明「锁定，不可再修改」
  *  5. 空态二分
+ *  6. 【R-105】草稿：恢复上次未提交的定价分档 + 提供「清空」出口；提交成功后立即清除
+ *  7. 【R-221】校验提示就近落在字段旁（图标 + 文字双通道），不再只靠全局 toast
+ *  8. 【R-203】写入失败三段式（人话标题 + 数据安全说明 + 折叠详情 + 复制）
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import CampusSettlement from '../../../pages/campus/CampusSettlement.vue'
 
-const { notifyCreate } = vi.hoisted(() => ({ notifyCreate: vi.fn() }))
+const { notifyCreate, msg } = vi.hoisted(() => ({
+  notifyCreate: vi.fn(),
+  msg: {
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+  },
+}))
 
 const apiGet = vi.fn()
 const apiPost = vi.fn()
@@ -30,12 +42,17 @@ vi.mock('../../../utils/request', () => ({
 
 vi.mock('naive-ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('naive-ui')>()
-  const stub = () => ({ info: vi.fn(), success: vi.fn(), warning: vi.fn(), error: vi.fn(), loading: vi.fn() })
   return {
     ...actual,
-    useDialog: () => ({ ...stub(), create: vi.fn() }),
-    useMessage: stub,
-    useNotification: () => ({ create: notifyCreate }),
+    useDialog: () => ({ ...msg, create: vi.fn() }),
+    useMessage: () => msg,
+    // 与真实 API 同形：create 返回带 destroy 的通知实例
+    useNotification: () => ({
+      create: (...args: any[]) => {
+        notifyCreate(...args)
+        return { destroy: vi.fn() }
+      },
+    }),
   }
 })
 
@@ -88,6 +105,11 @@ describe('CampusSettlement 结算页行为契约', () => {
     apiPut.mockReset()
     apiDelete.mockReset()
     notifyCreate.mockReset()
+    msg.info.mockReset()
+    msg.success.mockReset()
+    msg.warning.mockReset()
+    msg.error.mockReset()
+    localStorage.clear()
     apiGet.mockImplementation((url: string) => {
       if (url.includes('/revenue-records/')) return Promise.resolve({ data: { data: [revenue] } })
       if (url.includes('/price-schemes/')) return Promise.resolve({ data: { data: [scheme] } })
@@ -203,5 +225,115 @@ describe('CampusSettlement 结算页行为契约', () => {
     await vm.loadBills()
     await flushPromises()
     expect(wrapper.text()).toContain('没有符合筛选条件的账单')
+  }, 20000)
+
+  it('⑥【R-105】草稿：恢复上次未提交的定价分档，并提供「清空」出口', async () => {
+    localStorage.setItem(
+      'draft:campus-settlement-price',
+      JSON.stringify({
+        _ts: Date.now(),
+        _data: { rank: '1-5', price: 1500, floor: 1200, min: 1200, max: 1800 },
+      }),
+    )
+
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'price'
+    await vm.loadSchemes()
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增分档'))!.trigger('click')
+    await flushPromises()
+
+    expect(vm.tierForm.rank).toBe('1-5')
+    expect(vm.tierForm.price).toBe(1500)
+
+    // 「已恢复」提示带「清空」出口
+    expect(notifyCreate).toHaveBeenCalled()
+    const opts = notifyCreate.mock.calls[0][0]
+    expect(opts.title).toBe('已恢复上次填写的内容')
+    expect(opts.action).toBeTruthy()
+
+    // 点「清空」→ 草稿被清掉
+    const vnode = opts.action()
+    await vnode.props.onClick()
+    expect(localStorage.getItem('draft:campus-settlement-price')).toBeNull()
+  }, 20000)
+
+  it('⑦【R-105】提交成功后立即清除草稿', async () => {
+    localStorage.setItem(
+      'draft:campus-settlement-price',
+      JSON.stringify({ _ts: Date.now(), _data: { rank: '1-5', price: 1500, floor: 1200, min: 1200, max: 1800 } }),
+    )
+
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'price'
+    await vm.loadSchemes()
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增分档'))!.trigger('click')
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存分档'))!.trigger('click')
+    await flushPromises()
+
+    expect(apiPut.mock.calls.find((c) => String(c[0]).includes('/campus-placement/price-schemes/s1/'))).toBeTruthy()
+    expect(localStorage.getItem('draft:campus-settlement-price')).toBeNull()
+  }, 20000)
+
+  it('⑧【R-221】校验提示就近落在字段旁（图标 + 文字双通道），不发写请求', async () => {
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'price'
+    await vm.loadSchemes()
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增分档'))!.trigger('click')
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存分档'))!.trigger('click')
+    await flushPromises()
+
+    const feedback = wrapper.find('.n-form-item-feedback')
+    expect(feedback.exists()).toBe(true)
+    expect(feedback.text()).toContain('请填写排名区间')
+    // 图标 + 文字双通道（不只靠颜色）
+    expect(feedback.find('.n-icon').exists()).toBe(true)
+    // 校验没过 → 不发写请求
+    expect(apiPut.mock.calls.find((c) => String(c[0]).includes('/campus-placement/price-schemes/'))).toBeUndefined()
+  }, 20000)
+
+  it('⑨【R-203】写入失败三段式：人话标题 + 数据安全说明 + 折叠详情可复制', async () => {
+    apiPut.mockRejectedValue({ response: { status: 500, data: { detail: '定价方案服务不可用' } } })
+
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'price'
+    await vm.loadSchemes()
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增分档'))!.trigger('click')
+    await flushPromises()
+
+    vm.tierForm.rank = '1-5'
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存分档'))!.trigger('click')
+    await flushPromises()
+
+    const state = wrapper.find('.error-state')
+    expect(state.exists()).toBe(true)
+    // ① 人话描述（不得以「抱歉」开头，不得直接甩原始报文）
+    expect(state.find('.error-state-title').text()).toBe('保存定价分档没有成功')
+    expect(state.find('.error-state-title').text()).not.toContain('抱歉')
+    // ② 你的数据是否安全
+    expect(state.find('.error-state-desc').text()).toContain('你填写的内容仍保留在表单里')
+    // ③ 技术详情折叠在 <details> 里 + 一键复制
+    const details = state.find('details')
+    expect(details.exists()).toBe(true)
+    expect(details.text()).toContain('HTTP 500')
+    expect(details.text()).toContain('定价方案服务不可用')
+    expect(state.findAll('button').some((b) => b.text().includes('复制错误信息'))).toBe(true)
   }, 20000)
 })

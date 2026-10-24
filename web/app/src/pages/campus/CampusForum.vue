@@ -94,20 +94,88 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203）：① 人话标题 ② 数据安全说明 ③ 折叠详情 + 恢复动作 -->
+        <div v-if="postWriteError" class="error-state" role="alert">
+          <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+          <div class="error-state-body">
+            <div class="error-state-title">{{ postWriteError.title }}</div>
+            <div class="error-state-desc">{{ postWriteError.safe }}</div>
+            <details class="error-state-detail">
+              <summary>查看详情</summary>
+              <pre class="error-state-code">{{ postWriteError.detail }}</pre>
+              <n-button size="tiny" quaternary @click="copyText(postWriteError.detail)">复制错误信息</n-button>
+            </details>
+          </div>
+          <n-button size="small" type="primary" ghost :loading="postSaving" :disabled="postSaving" @click="savePost">
+            重新发布帖子
+          </n-button>
+        </div>
+
         <n-form :model="postForm" label-placement="top">
-          <n-form-item label="板块" required>
-            <n-select v-model:value="postForm.board" :options="boardOptions" placeholder="请选择板块" />
+          <!-- 字段级校验（R-221）：错误就近显示，图标 + 文字双通道，不只靠颜色 -->
+          <n-form-item
+            label="板块"
+            required
+            :validation-status="postErrors.board ? 'error' : undefined"
+            :show-feedback="Boolean(postErrors.board)"
+          >
+            <n-select
+              ref="postBoardRef"
+              v-model:value="postForm.board"
+              :options="boardOptions"
+              placeholder="请选择板块"
+              @update:value="clearPostError('board')"
+            />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                {{ postErrors.board }}
+              </span>
+            </template>
           </n-form-item>
-          <n-form-item label="帖子标题" required>
-            <n-input v-model:value="postForm.title" placeholder="请输入帖子标题" />
+          <n-form-item
+            label="帖子标题"
+            required
+            :validation-status="postErrors.title ? 'error' : undefined"
+            :show-feedback="Boolean(postErrors.title)"
+          >
+            <n-input
+              ref="postTitleRef"
+              v-model:value="postForm.title"
+              placeholder="请输入帖子标题"
+              @update:value="clearPostError('title')"
+            />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                {{ postErrors.title }}
+              </span>
+            </template>
           </n-form-item>
-          <n-form-item label="帖子正文" required>
-            <n-input v-model:value="postForm.content" type="textarea" placeholder="写下你想分享的内容" />
+          <n-form-item
+            label="帖子正文"
+            required
+            :validation-status="postErrors.content ? 'error' : undefined"
+            :show-feedback="Boolean(postErrors.content)"
+          >
+            <n-input
+              ref="postContentRef"
+              v-model:value="postForm.content"
+              type="textarea"
+              placeholder="写下你想分享的内容"
+              @update:value="clearPostError('content')"
+            />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                {{ postErrors.content }}
+              </span>
+            </template>
           </n-form-item>
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="postFormVisible = false">取消</n-button>
+            <n-button @click="postFormVisible = false">取消发布</n-button>
             <n-button type="primary" :loading="postSaving" :disabled="postSaving" @click="savePost">发布帖子</n-button>
           </div>
         </template>
@@ -141,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, nextTick, onMounted, reactive, ref } from 'vue'
 import {
   NButton,
   NDataTable,
@@ -168,7 +236,8 @@ import {
   type ForumBoard,
   type ForumPost,
 } from '../../api/campusLearning'
-import { extractError } from '../../utils/campus'
+import { buildWriteError, extractError, type WriteErrorInfo } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 const message = useMessage()
 const notification = useNotification()
@@ -323,25 +392,94 @@ const postFormVisible = ref(false)
 const postSaving = ref(false)
 const postForm = reactive({ board: null as string | null, title: '', content: '' })
 
+// P0-1 草稿自动保存（R-105）：发帖需人工撰写，耗时 > 1 分钟 → 关闭弹窗后草稿仍在。
+const draft = useFormDraft('campus-forum-post', postForm)
+
+// 字段级校验状态（R-221）：错误就近显示，图标 + 文字双通道。
+const postErrors = reactive({ board: '', title: '', content: '' })
+const postBoardRef = ref<any>(null)
+const postTitleRef = ref<any>(null)
+const postContentRef = ref<any>(null)
+
+// 写入失败三段式（R-203）。
+const postWriteError = ref<WriteErrorInfo | null>(null)
+
+function clearPostError(field: keyof typeof postErrors) {
+  postErrors[field] = ''
+}
+
+/** 聚焦第一个出错字段（R-221）。 */
+async function focusFirstInvalid(pairs: Array<[string, { value: any }]>) {
+  await nextTick()
+  for (const [msg, r] of pairs) {
+    if (!msg) continue
+    const inst = r?.value
+    if (inst && typeof inst.focus === 'function') {
+      inst.focus()
+      return
+    }
+  }
+}
+
+function resetPostForm() {
+  Object.assign(postForm, {
+    board: activeBoard.value ?? (boardOptions.value[0]?.value ?? null),
+    title: '',
+    content: '',
+  })
+}
+
 function openPostCreate() {
-  Object.assign(postForm, { board: activeBoard.value ?? (boardOptions.value[0]?.value ?? null), title: '', content: '' })
+  postErrors.board = ''
+  postErrors.title = ''
+  postErrors.content = ''
+  postWriteError.value = null
+  // 先探测草稿再决定要不要重置表单：直接重置会把上次草稿内容抹掉（R-105）。
+  if (draft.probe()) {
+    draft.restore()
+    if (postForm.title.trim() || postForm.content.trim()) {
+      notification.create({
+        content: '已恢复上次填写的内容',
+        duration: 8000,
+        keepAliveOnHover: true,
+        action: () =>
+          h(
+            NButton,
+            { text: true, type: 'primary', onClick: clearPostDraft },
+            { default: () => '清空' },
+          ),
+      })
+    } else {
+      // 空草稿（只打开过弹窗没填写）→ 直接丢弃，不给用户假提示。
+      draft.clear()
+      resetPostForm()
+    }
+  } else {
+    resetPostForm()
+  }
   postFormVisible.value = true
 }
 
+/** 「清空」出口：清掉草稿并把恢复出来的内容一并清掉。 */
+function clearPostDraft() {
+  draft.clear()
+  resetPostForm()
+}
+
 async function savePost() {
-  if (!postForm.board) {
-    message.warning('请选择板块')
-    return
-  }
-  if (!postForm.title.trim()) {
-    message.warning('请填写帖子标题')
-    return
-  }
-  if (!postForm.content.trim()) {
-    message.warning('请填写帖子正文')
+  postErrors.board = postForm.board ? '' : '请选择板块'
+  postErrors.title = postForm.title.trim() ? '' : '请填写帖子标题'
+  postErrors.content = postForm.content.trim() ? '' : '请填写帖子正文'
+  if (postErrors.board || postErrors.title || postErrors.content) {
+    await focusFirstInvalid([
+      [postErrors.board, postBoardRef],
+      [postErrors.title, postTitleRef],
+      [postErrors.content, postContentRef],
+    ])
     return
   }
   postSaving.value = true
+  postWriteError.value = null
   try {
     await createForumPost({
       board: String(postForm.board),
@@ -349,10 +487,14 @@ async function savePost() {
       content: postForm.content.trim(),
     })
     message.success('帖子已发布')
+    // 保存成功后立即清除草稿（R-105），并重置表单避免待写入的定时器把旧内容写回。
+    draft.clear()
+    resetPostForm()
     postFormVisible.value = false
     loadPosts()
   } catch (e: any) {
-    message.error(extractError(e))
+    // 写入失败 → 三段式（R-203），不再只弹一条原始报文 toast。
+    postWriteError.value = buildWriteError(e, { action: '发布帖子' })
   } finally {
     postSaving.value = false
   }
@@ -428,6 +570,7 @@ onMounted(async () => {
 }
 .toolbar-search {
   width: 280px;
+  max-width: 100%;
 }
 .spacer {
   flex: 1;
@@ -482,6 +625,15 @@ onMounted(async () => {
   font-size: var(--text-small);
   color: var(--ink-soft);
   white-space: nowrap;
+}
+
+/* 字段级校验提示：图标 + 文字双通道（R-221，不只靠颜色） */
+.field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
 }
 
 .error-state {

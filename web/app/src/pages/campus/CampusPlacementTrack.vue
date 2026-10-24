@@ -8,6 +8,23 @@
         <n-tab-pane name="assessment" tab="考核" />
       </n-tabs>
 
+      <!-- 写入失败三段式（R-203）：① 人话描述发生了什么 ② 你的数据是否安全 ③ 技术详情（折叠 + 一键复制） -->
+      <div v-if="writeError" class="error-state" role="alert">
+        <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+        <div class="error-state-body">
+          <div class="error-state-title">{{ writeError.title }}</div>
+          <div class="error-state-desc">{{ writeError.safe }}</div>
+          <details class="error-state-detail">
+            <summary>查看详情</summary>
+            <pre class="error-state-code">{{ writeError.detail }}</pre>
+            <n-button size="tiny" quaternary @click="copyText(writeError.detail)">复制错误信息</n-button>
+          </details>
+        </div>
+        <n-button v-if="writeError.retry" size="small" type="primary" ghost @click="runWriteRetry">
+          {{ writeError.retryLabel }}
+        </n-button>
+      </div>
+
       <!-- ① 花名册 -->
       <template v-if="activeTab === 'roster'">
         <div class="toolbar">
@@ -272,9 +289,30 @@
         :bordered="false"
       >
         <n-form :model="recordForm" label-placement="top">
+          <!-- 写入失败三段式（R-203）：弹窗内就地展示，不甩给全局 toast -->
+          <div v-if="recordWriteError" class="error-state" role="alert">
+            <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+            <div class="error-state-body">
+              <div class="error-state-title">{{ recordWriteError.title }}</div>
+              <div class="error-state-desc">{{ recordWriteError.safe }}</div>
+              <details class="error-state-detail">
+                <summary>查看详情</summary>
+                <pre class="error-state-code">{{ recordWriteError.detail }}</pre>
+                <n-button size="tiny" quaternary @click="copyText(recordWriteError.detail)">复制错误信息</n-button>
+              </details>
+            </div>
+            <n-button v-if="recordWriteError.retry" size="small" type="primary" ghost @click="runRecordRetry">
+              {{ recordWriteError.retryLabel }}
+            </n-button>
+          </div>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="校招生" required>
+              <n-form-item
+                label="校招生"
+                required
+                :validation-status="recordErrors.person ? 'error' : undefined"
+                :show-feedback="!!recordErrors.person"
+              >
                 <n-select
                   v-model:value="recordForm.person"
                   :options="personOptions"
@@ -284,22 +322,63 @@
                   remote
                   :loading="personLoading"
                   :on-search="onPersonSearch"
+                  data-error-field="record-person"
                 />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ recordErrors.person }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="定岗部门" required>
-                <n-input v-model:value="recordForm.dept" placeholder="请输入定岗部门" />
+              <n-form-item
+                label="定岗部门"
+                required
+                :validation-status="recordErrors.dept ? 'error' : undefined"
+                :show-feedback="!!recordErrors.dept"
+              >
+                <n-input v-model:value="recordForm.dept" placeholder="请输入定岗部门" data-error-field="record-dept" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ recordErrors.dept }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="岗位名称" required>
-                <n-input v-model:value="recordForm.positionName" placeholder="请输入岗位名称" />
+              <n-form-item
+                label="岗位名称"
+                required
+                :validation-status="recordErrors.positionName ? 'error' : undefined"
+                :show-feedback="!!recordErrors.positionName"
+              >
+                <n-input
+                  v-model:value="recordForm.positionName"
+                  placeholder="请输入岗位名称"
+                  data-error-field="record-position"
+                />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ recordErrors.positionName }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="定岗日期" required>
-                <n-date-picker v-model:value="recordForm.placeDateTs" type="date" style="width: 100%" />
+              <n-form-item
+                label="定岗日期"
+                required
+                :validation-status="recordErrors.placeDate ? 'error' : undefined"
+                :show-feedback="!!recordErrors.placeDate"
+              >
+                <n-date-picker
+                  v-model:value="recordForm.placeDateTs"
+                  type="date"
+                  style="width: 100%"
+                  data-error-field="record-place-date"
+                />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ recordErrors.placeDate }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -321,7 +400,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="recordFormVisible = false">取消</n-button>
+            <n-button @click="closeRecordForm">取消办理</n-button>
             <n-button type="primary" :loading="recordSaving" :disabled="recordSaving" @click="saveRecord">保存定岗</n-button>
           </div>
         </template>
@@ -338,20 +417,67 @@
         :bordered="false"
       >
         <n-form :model="goalForm" label-placement="top">
+          <div v-if="goalWriteError" class="error-state" role="alert">
+            <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+            <div class="error-state-body">
+              <div class="error-state-title">{{ goalWriteError.title }}</div>
+              <div class="error-state-desc">{{ goalWriteError.safe }}</div>
+              <details class="error-state-detail">
+                <summary>查看详情</summary>
+                <pre class="error-state-code">{{ goalWriteError.detail }}</pre>
+                <n-button size="tiny" quaternary @click="copyText(goalWriteError.detail)">复制错误信息</n-button>
+              </details>
+            </div>
+            <n-button v-if="goalWriteError.retry" size="small" type="primary" ghost @click="runGoalRetry">
+              {{ goalWriteError.retryLabel }}
+            </n-button>
+          </div>
+          <!-- 表单级前置条件（所选定岗记录已失效）→ 就近提示在表单顶部 -->
+          <div v-if="goalErrors.record" class="field-error" role="alert">
+            <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+            {{ goalErrors.record }}
+          </div>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="目标名称" required>
-                <n-input v-model:value="goalForm.name" placeholder="请输入目标名称" />
+              <n-form-item
+                label="目标名称"
+                required
+                :validation-status="goalErrors.name ? 'error' : undefined"
+                :show-feedback="!!goalErrors.name"
+              >
+                <n-input v-model:value="goalForm.name" placeholder="请输入目标名称" data-error-field="goal-name" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ goalErrors.name }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="衡量指标" required>
-                <n-input v-model:value="goalForm.metric" placeholder="如 出勤率" />
+              <n-form-item
+                label="衡量指标"
+                required
+                :validation-status="goalErrors.metric ? 'error' : undefined"
+                :show-feedback="!!goalErrors.metric"
+              >
+                <n-input v-model:value="goalForm.metric" placeholder="如 出勤率" data-error-field="goal-metric" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ goalErrors.metric }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="目标值" required>
-                <n-input v-model:value="goalForm.targetValue" placeholder="如 ≥ 95%" />
+              <n-form-item
+                label="目标值"
+                required
+                :validation-status="goalErrors.targetValue ? 'error' : undefined"
+                :show-feedback="!!goalErrors.targetValue"
+              >
+                <n-input v-model:value="goalForm.targetValue" placeholder="如 ≥ 95%" data-error-field="goal-target" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ goalErrors.targetValue }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -373,7 +499,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="goalFormVisible = false">取消</n-button>
+            <n-button @click="closeGoalForm">取消编辑</n-button>
             <n-button type="primary" :loading="goalSaving" :disabled="goalSaving" @click="saveGoal">保存目标</n-button>
           </div>
         </template>
@@ -390,20 +516,70 @@
         :bordered="false"
       >
         <n-form :model="metricForm" label-placement="top">
+          <div v-if="metricWriteError" class="error-state" role="alert">
+            <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+            <div class="error-state-body">
+              <div class="error-state-title">{{ metricWriteError.title }}</div>
+              <div class="error-state-desc">{{ metricWriteError.safe }}</div>
+              <details class="error-state-detail">
+                <summary>查看详情</summary>
+                <pre class="error-state-code">{{ metricWriteError.detail }}</pre>
+                <n-button size="tiny" quaternary @click="copyText(metricWriteError.detail)">复制错误信息</n-button>
+              </details>
+            </div>
+            <n-button v-if="metricWriteError.retry" size="small" type="primary" ghost @click="runMetricRetry">
+              {{ metricWriteError.retryLabel }}
+            </n-button>
+          </div>
+          <div v-if="metricErrors.record" class="field-error" role="alert">
+            <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+            {{ metricErrors.record }}
+          </div>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="月份" required>
-                <n-input v-model:value="metricForm.ym" placeholder="如 2026-09" />
+              <n-form-item
+                label="月份"
+                required
+                :validation-status="metricErrors.ym ? 'error' : undefined"
+                :show-feedback="!!metricErrors.ym"
+              >
+                <n-input v-model:value="metricForm.ym" placeholder="如 2026-09" data-error-field="metric-ym" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ metricErrors.ym }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="指标" required>
-                <n-input v-model:value="metricForm.metric" placeholder="请输入指标名称" />
+              <n-form-item
+                label="指标"
+                required
+                :validation-status="metricErrors.metric ? 'error' : undefined"
+                :show-feedback="!!metricErrors.metric"
+              >
+                <n-input v-model:value="metricForm.metric" placeholder="请输入指标名称" data-error-field="metric-metric" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ metricErrors.metric }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="完成值" required>
-                <n-input v-model:value="metricForm.actualValue" placeholder="如 96%" />
+              <n-form-item
+                label="完成值"
+                required
+                :validation-status="metricErrors.actualValue ? 'error' : undefined"
+                :show-feedback="!!metricErrors.actualValue"
+              >
+                <n-input
+                  v-model:value="metricForm.actualValue"
+                  placeholder="如 96%"
+                  data-error-field="metric-actual"
+                />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ metricErrors.actualValue }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -415,7 +591,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="metricFormVisible = false">取消</n-button>
+            <n-button @click="closeMetricForm">取消调整</n-button>
             <n-button type="primary" :loading="metricSaving" :disabled="metricSaving" @click="saveMetric">保存数据</n-button>
           </div>
         </template>
@@ -432,10 +608,38 @@
         :bordered="false"
       >
         <n-form :model="assessmentForm" label-placement="top">
+          <div v-if="assessmentWriteError" class="error-state" role="alert">
+            <n-icon class="error-state-icon" :component="AlertCircleOutline" aria-hidden="true" />
+            <div class="error-state-body">
+              <div class="error-state-title">{{ assessmentWriteError.title }}</div>
+              <div class="error-state-desc">{{ assessmentWriteError.safe }}</div>
+              <details class="error-state-detail">
+                <summary>查看详情</summary>
+                <pre class="error-state-code">{{ assessmentWriteError.detail }}</pre>
+                <n-button size="tiny" quaternary @click="copyText(assessmentWriteError.detail)">复制错误信息</n-button>
+              </details>
+            </div>
+            <n-button v-if="assessmentWriteError.retry" size="small" type="primary" ghost @click="runAssessmentRetry">
+              {{ assessmentWriteError.retryLabel }}
+            </n-button>
+          </div>
+          <div v-if="assessmentErrors.record" class="field-error" role="alert">
+            <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+            {{ assessmentErrors.record }}
+          </div>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="考核周期" required>
-                <n-input v-model:value="assessmentForm.period" placeholder="如 2026 年第三季度" />
+              <n-form-item
+                label="考核周期"
+                required
+                :validation-status="assessmentErrors.period ? 'error' : undefined"
+                :show-feedback="!!assessmentErrors.period"
+              >
+                <n-input v-model:value="assessmentForm.period" placeholder="如 2026 年第三季度" data-error-field="assessment-period" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ assessmentErrors.period }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -444,13 +648,36 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="绩效等级" required>
-                <n-input v-model:value="assessmentForm.perfLevel" placeholder="如 A / B" />
+              <n-form-item
+                label="绩效等级"
+                required
+                :validation-status="assessmentErrors.perfLevel ? 'error' : undefined"
+                :show-feedback="!!assessmentErrors.perfLevel"
+              >
+                <n-input v-model:value="assessmentForm.perfLevel" placeholder="如 A / B" data-error-field="assessment-level" />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ assessmentErrors.perfLevel }}
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="评定日期" required>
-                <n-date-picker v-model:value="assessmentForm.assessedAtTs" type="date" style="width: 100%" />
+              <n-form-item
+                label="评定日期"
+                required
+                :validation-status="assessmentErrors.assessedAt ? 'error' : undefined"
+                :show-feedback="!!assessmentErrors.assessedAt"
+              >
+                <n-date-picker
+                  v-model:value="assessmentForm.assessedAtTs"
+                  type="date"
+                  style="width: 100%"
+                  data-error-field="assessment-date"
+                />
+                <template #feedback>
+                  <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                  {{ assessmentErrors.assessedAt }}
+                </template>
               </n-form-item>
             </n-grid-item>
           </n-grid>
@@ -460,7 +687,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="assessmentFormVisible = false">取消</n-button>
+            <n-button @click="closeAssessmentForm">取消评定</n-button>
             <n-button type="primary" :loading="assessmentSaving" :disabled="assessmentSaving" @click="saveAssessment">保存考核</n-button>
           </div>
         </template>
@@ -470,7 +697,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref, type Ref } from 'vue'
 import {
   NButton,
   NDataTable,
@@ -520,7 +747,8 @@ import {
   type PlacementMetric,
   type PlacementRecord,
 } from '../../api/campusPlacement'
-import { extractError, searchPersons, type SelectOption } from '../../utils/campus'
+import { buildWriteError, extractError, searchPersons, type SelectOption } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 const message = useMessage()
 const notification = useNotification()
@@ -534,6 +762,29 @@ const GOAL_STATUS_OPTIONS = ['未开始', '进行中', '已完成', '已逾期']
 const goalStatusOptions = GOAL_STATUS_OPTIONS
 
 /* ───────────────────────── 通用工具 ───────────────────────── */
+
+/**
+ * 写入失败的三段式状态（R-203）。
+ * ① title 人话描述 ② safe 你的数据是否安全 ③ detail 技术详情（折叠 + 一键复制）。
+ */
+interface WriteErrorState {
+  title: string
+  safe: string
+  detail: string
+  /** 恢复动作（重试…），为空则不渲染恢复按钮 */
+  retryLabel?: string
+  retry?: () => void | Promise<void>
+}
+
+/** 表单级校验错误（R-221）：就近展示在字段旁，图标 + 文字双通道。 */
+type FieldErrors = Record<string, string>
+
+/** 聚焦第一个出错的字段（字段上带 data-error-field 标记）。 */
+function focusFirstError(field: string) {
+  if (typeof document === 'undefined') return
+  const el = document.querySelector<HTMLElement>(`[data-error-field="${field}"] input, [data-error-field="${field}"] textarea`)
+  el?.focus()
+}
 
 function textCell(text: unknown, width = 140) {
   const s = text == null || text === '' ? '—' : String(text)
@@ -562,6 +813,97 @@ function toDateStr(ts: number | null) {
   const d = new Date(ts)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/* ── 写入失败三段式（R-203）── */
+
+/** 页面级（工具栏写操作 / 读取失败）的写入失败。 */
+const writeError = ref<WriteErrorState | null>(null)
+/** 各弹窗内的写入失败。 */
+const recordWriteError = ref<WriteErrorState | null>(null)
+const goalWriteError = ref<WriteErrorState | null>(null)
+const metricWriteError = ref<WriteErrorState | null>(null)
+const assessmentWriteError = ref<WriteErrorState | null>(null)
+
+/** 读取失败的安全提示（数据仍在服务端，不丢）。 */
+const READ_SAFE_HINT = '没有连上服务器，页面上的数据仍是上一次加载到的结果，重试一次即可恢复。'
+
+function setWriteError(
+  target: Ref<WriteErrorState | null>,
+  err: any,
+  action: string,
+  opts: { retryLabel?: string; retry?: () => void | Promise<void>; safeHint?: string } = {},
+) {
+  const info = buildWriteError(err, { action, safeHint: opts.safeHint })
+  target.value = {
+    title: info.title,
+    safe: info.safe,
+    detail: info.detail,
+    retryLabel: opts.retryLabel,
+    retry: opts.retry,
+  }
+}
+
+function runRetry(target: Ref<WriteErrorState | null>) {
+  const fn = target.value?.retry
+  if (!fn) return
+  target.value = null
+  void fn()
+}
+
+function runWriteRetry() {
+  runRetry(writeError)
+}
+function runRecordRetry() {
+  runRetry(recordWriteError)
+}
+function runGoalRetry() {
+  runRetry(goalWriteError)
+}
+function runMetricRetry() {
+  runRetry(metricWriteError)
+}
+function runAssessmentRetry() {
+  runRetry(assessmentWriteError)
+}
+
+/* ── 草稿（R-105）：四张表单各自一份草稿 ── */
+
+/**
+ * 打开表单时探测草稿：有内容就恢复并给「清空」出口（R-105）。
+ * 草稿与服务端数据一致时静默丢弃 —— 没有需要恢复的内容，不打扰用户。
+ */
+function restoreDraft(
+  draft: { probe: () => boolean; restore: () => void; clear: () => void },
+  form: Record<string, unknown>,
+  label: string,
+) {
+  if (!draft.probe()) return
+  const before = JSON.stringify(form)
+  draft.restore()
+  if (JSON.stringify(form) === before) {
+    draft.clear()
+    return
+  }
+  const n = notification.create({
+    title: '已恢复上次填写的内容',
+    content: `上次填写但没有提交的${label}已经放回表单，你可以接着改；不需要就点「清空」。`,
+    duration: 8000,
+    keepAliveOnHover: true,
+    action: () =>
+      h(
+        NButton,
+        {
+          text: true,
+          type: 'primary',
+          onClick: () => {
+            draft.clear()
+            n?.destroy()
+          },
+        },
+        { default: () => '清空' },
+      ),
+  })
 }
 
 /* ───────────────────────── ① 花名册 ───────────────────────── */
@@ -669,6 +1011,14 @@ const recordForm = reactive({
   latestPerf: '',
 })
 
+/** 字段级校验错误（R-221）：就近展示在对应字段旁。 */
+const recordErrors = reactive<FieldErrors>({ person: '', dept: '', positionName: '', placeDate: '' })
+
+/** 定岗记录草稿（R-105）：编辑态不启用，避免草稿覆盖真实行数据。 */
+const recordDraft = useFormDraft('campus-placement-track-record', recordForm as unknown as Record<string, unknown>, {
+  enabled: () => !recordEditing.value,
+})
+
 async function onPersonSearch(kw: string) {
   personLoading.value = true
   try {
@@ -690,8 +1040,11 @@ function openRecordCreate() {
     status: '待跟踪',
     latestPerf: '',
   })
+  Object.assign(recordErrors, { person: '', dept: '', positionName: '', placeDate: '' })
   recordEditing.value = null
+  recordWriteError.value = null
   recordFormVisible.value = true
+  restoreDraft(recordDraft, recordForm as unknown as Record<string, unknown>, '定岗记录')
 }
 
 function openRecordEdit(row: PlacementRecord) {
@@ -705,25 +1058,36 @@ function openRecordEdit(row: PlacementRecord) {
     latestPerf: row.latestPerf || '',
   })
   personOptions.value = row.person ? [{ label: row.personName || String(row.person), value: String(row.person) }] : []
+  Object.assign(recordErrors, { person: '', dept: '', positionName: '', placeDate: '' })
   recordEditing.value = row
+  recordWriteError.value = null
   recordFormVisible.value = true
 }
 
+/** 关闭弹窗：清掉校验与写入失败状态，下次打开是干净的。 */
+function closeRecordForm() {
+  recordFormVisible.value = false
+  Object.assign(recordErrors, { person: '', dept: '', positionName: '', placeDate: '' })
+  recordWriteError.value = null
+}
+
 async function saveRecord() {
-  if (!recordForm.person) {
-    message.warning('请选择校招生')
-    return
-  }
-  if (!recordForm.dept.trim()) {
-    message.warning('请填写定岗部门')
-    return
-  }
-  if (!recordForm.positionName.trim()) {
-    message.warning('请填写岗位名称')
-    return
-  }
-  if (!recordForm.placeDateTs) {
-    message.warning('请选择定岗日期')
+  // 就近校验（R-221）：逐字段置错误态 + 聚焦第一个出错字段
+  recordErrors.person = recordForm.person ? '' : '请选择校招生'
+  recordErrors.dept = recordForm.dept.trim() ? '' : '请填写定岗部门'
+  recordErrors.positionName = recordForm.positionName.trim() ? '' : '请填写岗位名称'
+  recordErrors.placeDate = recordForm.placeDateTs ? '' : '请选择定岗日期'
+  const firstError = recordErrors.person
+    ? 'record-person'
+    : recordErrors.dept
+      ? 'record-dept'
+      : recordErrors.positionName
+        ? 'record-position'
+        : recordErrors.placeDate
+          ? 'record-place-date'
+          : ''
+  if (firstError) {
+    focusFirstError(firstError)
     return
   }
   recordSaving.value = true
@@ -745,11 +1109,27 @@ async function saveRecord() {
       message.success('定岗记录已创建')
     }
     recordFormVisible.value = false
+    // 提交成功后立即清除草稿（R-105）
+    recordDraft.clear()
     loadRecords()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(recordWriteError, e, recordEditing.value ? '保存定岗记录' : '创建定岗记录', {
+      retryLabel: '重试保存',
+      retry: saveRecord,
+    })
   } finally {
     recordSaving.value = false
+  }
+}
+
+/** 撤销删除：把被删掉的定岗记录恢复回来。 */
+async function restoreRecord(row: PlacementRecord) {
+  try {
+    await restorePlacementRecord(row.id)
+    message.success('定岗记录已恢复')
+    loadRecords()
+  } catch (e: any) {
+    setWriteError(writeError, e, '恢复定岗记录', { retryLabel: '重试恢复', retry: () => restoreRecord(row) })
   }
 }
 
@@ -766,19 +1146,13 @@ async function removeRecord(row: PlacementRecord) {
           text: true,
           type: 'primary',
           onClick: async () => {
-            try {
-              await restorePlacementRecord(row.id)
-              message.success('定岗记录已恢复')
-              loadRecords()
-            } catch (e: any) {
-              message.error(extractError(e))
-            }
+            await restoreRecord(row)
           },
         }, { default: () => '撤销' }),
     })
     loadRecords()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '删除定岗记录', { retryLabel: '重试删除', retry: () => removeRecord(row) })
   }
 }
 
@@ -853,10 +1227,21 @@ const goalForm = reactive({
   status: '未开始',
 })
 
+/** 字段级校验错误（R-221）：就近展示在对应字段旁。 */
+const goalErrors = reactive<FieldErrors>({ record: '', name: '', metric: '', targetValue: '' })
+
+/** 定岗目标草稿（R-105）：编辑态不启用，避免草稿覆盖真实行数据。 */
+const goalDraft = useFormDraft('campus-placement-track-goal', goalForm as unknown as Record<string, unknown>, {
+  enabled: () => !goalEditing.value,
+})
+
 function openGoalCreate() {
   Object.assign(goalForm, { name: '', metric: '', targetValue: '', weight: 0, dueDateTs: null, status: '未开始' })
+  Object.assign(goalErrors, { record: '', name: '', metric: '', targetValue: '' })
   goalEditing.value = null
+  goalWriteError.value = null
   goalFormVisible.value = true
+  restoreDraft(goalDraft, goalForm as unknown as Record<string, unknown>, '定岗目标')
 }
 
 function openGoalEdit(row: PlacementGoal) {
@@ -868,25 +1253,36 @@ function openGoalEdit(row: PlacementGoal) {
     dueDateTs: row.dueDate ? new Date(row.dueDate).getTime() : null,
     status: row.status || '未开始',
   })
+  Object.assign(goalErrors, { record: '', name: '', metric: '', targetValue: '' })
   goalEditing.value = row
+  goalWriteError.value = null
   goalFormVisible.value = true
 }
 
+/** 关闭弹窗：清掉校验与写入失败状态，下次打开是干净的。 */
+function closeGoalForm() {
+  goalFormVisible.value = false
+  Object.assign(goalErrors, { record: '', name: '', metric: '', targetValue: '' })
+  goalWriteError.value = null
+}
+
 async function saveGoal() {
-  if (!goalRecord.value) {
-    message.warning('请先选择定岗记录')
-    return
-  }
-  if (!goalForm.name.trim()) {
-    message.warning('请填写目标名称')
-    return
-  }
-  if (!goalForm.metric.trim()) {
-    message.warning('请填写衡量指标')
-    return
-  }
-  if (!goalForm.targetValue.trim()) {
-    message.warning('请填写目标值')
+  // 就近校验（R-221）：逐字段置错误态 + 聚焦第一个出错字段
+  goalErrors.record = goalRecord.value ? '' : '请先选择定岗记录'
+  goalErrors.name = goalForm.name.trim() ? '' : '请填写目标名称'
+  goalErrors.metric = goalForm.metric.trim() ? '' : '请填写衡量指标'
+  goalErrors.targetValue = goalForm.targetValue.trim() ? '' : '请填写目标值'
+  const firstError = goalErrors.record
+    ? 'goal-name'
+    : goalErrors.name
+      ? 'goal-name'
+      : goalErrors.metric
+        ? 'goal-metric'
+        : goalErrors.targetValue
+          ? 'goal-target'
+          : ''
+  if (firstError) {
+    focusFirstError(firstError)
     return
   }
   goalSaving.value = true
@@ -908,11 +1304,27 @@ async function saveGoal() {
       message.success('定岗目标已创建')
     }
     goalFormVisible.value = false
+    // 提交成功后立即清除草稿（R-105）
+    goalDraft.clear()
     loadGoals()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(goalWriteError, e, goalEditing.value ? '保存定岗目标' : '创建定岗目标', {
+      retryLabel: '重试保存',
+      retry: saveGoal,
+    })
   } finally {
     goalSaving.value = false
+  }
+}
+
+/** 撤销删除：把被删掉的定岗目标恢复回来。 */
+async function restoreGoal(row: PlacementGoal) {
+  try {
+    await restorePlacementGoal(row.id)
+    message.success('定岗目标已恢复')
+    loadGoals()
+  } catch (e: any) {
+    setWriteError(writeError, e, '恢复定岗目标', { retryLabel: '重试恢复', retry: () => restoreGoal(row) })
   }
 }
 
@@ -928,19 +1340,13 @@ async function removeGoal(row: PlacementGoal) {
           text: true,
           type: 'primary',
           onClick: async () => {
-            try {
-              await restorePlacementGoal(row.id)
-              message.success('定岗目标已恢复')
-              loadGoals()
-            } catch (e: any) {
-              message.error(extractError(e))
-            }
+            await restoreGoal(row)
           },
         }, { default: () => '撤销' }),
     })
     loadGoals()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '删除定岗目标', { retryLabel: '重试删除', retry: () => removeGoal(row) })
   }
 }
 
@@ -999,10 +1405,21 @@ const metricSaving = ref(false)
 const metricEditing = ref<PlacementMetric | null>(null)
 const metricForm = reactive({ ym: '', metric: '', actualValue: '', remark: '' })
 
+/** 字段级校验错误（R-221）：就近展示在对应字段旁。 */
+const metricErrors = reactive<FieldErrors>({ record: '', ym: '', metric: '', actualValue: '' })
+
+/** 定岗数据草稿（R-105）：编辑态不启用，避免草稿覆盖真实行数据。 */
+const metricDraft = useFormDraft('campus-placement-track-metric', metricForm as unknown as Record<string, unknown>, {
+  enabled: () => !metricEditing.value,
+})
+
 function openMetricCreate() {
   Object.assign(metricForm, { ym: '', metric: '', actualValue: '', remark: '' })
+  Object.assign(metricErrors, { record: '', ym: '', metric: '', actualValue: '' })
   metricEditing.value = null
+  metricWriteError.value = null
   metricFormVisible.value = true
+  restoreDraft(metricDraft, metricForm as unknown as Record<string, unknown>, '定岗数据')
 }
 
 function openMetricEdit(row: PlacementMetric) {
@@ -1012,25 +1429,36 @@ function openMetricEdit(row: PlacementMetric) {
     actualValue: row.actualValue || '',
     remark: row.remark || '',
   })
+  Object.assign(metricErrors, { record: '', ym: '', metric: '', actualValue: '' })
   metricEditing.value = row
+  metricWriteError.value = null
   metricFormVisible.value = true
 }
 
+/** 关闭弹窗：清掉校验与写入失败状态，下次打开是干净的。 */
+function closeMetricForm() {
+  metricFormVisible.value = false
+  Object.assign(metricErrors, { record: '', ym: '', metric: '', actualValue: '' })
+  metricWriteError.value = null
+}
+
 async function saveMetric() {
-  if (!metricRecord.value) {
-    message.warning('请先选择定岗记录')
-    return
-  }
-  if (!metricForm.ym.trim()) {
-    message.warning('请填写月份')
-    return
-  }
-  if (!metricForm.metric.trim()) {
-    message.warning('请填写指标')
-    return
-  }
-  if (!metricForm.actualValue.trim()) {
-    message.warning('请填写完成值')
+  // 就近校验（R-221）：逐字段置错误态 + 聚焦第一个出错字段
+  metricErrors.record = metricRecord.value ? '' : '请先选择定岗记录'
+  metricErrors.ym = metricForm.ym.trim() ? '' : '请填写月份'
+  metricErrors.metric = metricForm.metric.trim() ? '' : '请填写指标'
+  metricErrors.actualValue = metricForm.actualValue.trim() ? '' : '请填写完成值'
+  const firstError = metricErrors.record
+    ? 'metric-ym'
+    : metricErrors.ym
+      ? 'metric-ym'
+      : metricErrors.metric
+        ? 'metric-metric'
+        : metricErrors.actualValue
+          ? 'metric-actual'
+          : ''
+  if (firstError) {
+    focusFirstError(firstError)
     return
   }
   metricSaving.value = true
@@ -1050,11 +1478,27 @@ async function saveMetric() {
       message.success('定岗数据已创建')
     }
     metricFormVisible.value = false
+    // 提交成功后立即清除草稿（R-105）
+    metricDraft.clear()
     loadMetrics()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(metricWriteError, e, metricEditing.value ? '保存定岗数据' : '创建定岗数据', {
+      retryLabel: '重试保存',
+      retry: saveMetric,
+    })
   } finally {
     metricSaving.value = false
+  }
+}
+
+/** 撤销删除：把被删掉的定岗数据恢复回来。 */
+async function restoreMetric(row: PlacementMetric) {
+  try {
+    await restorePlacementMetric(row.id)
+    message.success('定岗数据已恢复')
+    loadMetrics()
+  } catch (e: any) {
+    setWriteError(writeError, e, '恢复定岗数据', { retryLabel: '重试恢复', retry: () => restoreMetric(row) })
   }
 }
 
@@ -1070,19 +1514,13 @@ async function removeMetric(row: PlacementMetric) {
           text: true,
           type: 'primary',
           onClick: async () => {
-            try {
-              await restorePlacementMetric(row.id)
-              message.success('定岗数据已恢复')
-              loadMetrics()
-            } catch (e: any) {
-              message.error(extractError(e))
-            }
+            await restoreMetric(row)
           },
         }, { default: () => '撤销' }),
     })
     loadMetrics()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '删除定岗数据', { retryLabel: '重试删除', retry: () => removeMetric(row) })
   }
 }
 
@@ -1148,10 +1586,23 @@ const assessmentForm = reactive({
   comment: '',
 })
 
+/** 字段级校验错误（R-221）：就近展示在对应字段旁。 */
+const assessmentErrors = reactive<FieldErrors>({ record: '', period: '', perfLevel: '', assessedAt: '' })
+
+/** 定岗考核草稿（R-105）：编辑态不启用，避免草稿覆盖真实行数据。 */
+const assessmentDraft = useFormDraft(
+  'campus-placement-track-assessment',
+  assessmentForm as unknown as Record<string, unknown>,
+  { enabled: () => !assessmentEditing.value },
+)
+
 function openAssessmentCreate() {
   Object.assign(assessmentForm, { period: '', score: 0, perfLevel: '', assessedAtTs: Date.now(), comment: '' })
+  Object.assign(assessmentErrors, { record: '', period: '', perfLevel: '', assessedAt: '' })
   assessmentEditing.value = null
+  assessmentWriteError.value = null
   assessmentFormVisible.value = true
+  restoreDraft(assessmentDraft, assessmentForm as unknown as Record<string, unknown>, '定岗考核')
 }
 
 function openAssessmentEdit(row: PlacementAssessment) {
@@ -1162,26 +1613,36 @@ function openAssessmentEdit(row: PlacementAssessment) {
     assessedAtTs: row.assessedAt ? new Date(row.assessedAt).getTime() : null,
     comment: row.comment || '',
   })
-  assessmentEditing.value = null
+  Object.assign(assessmentErrors, { record: '', period: '', perfLevel: '', assessedAt: '' })
   assessmentEditing.value = row
+  assessmentWriteError.value = null
   assessmentFormVisible.value = true
 }
 
+/** 关闭弹窗：清掉校验与写入失败状态，下次打开是干净的。 */
+function closeAssessmentForm() {
+  assessmentFormVisible.value = false
+  Object.assign(assessmentErrors, { record: '', period: '', perfLevel: '', assessedAt: '' })
+  assessmentWriteError.value = null
+}
+
 async function saveAssessment() {
-  if (!assessmentRecord.value) {
-    message.warning('请先选择定岗记录')
-    return
-  }
-  if (!assessmentForm.period.trim()) {
-    message.warning('请填写考核周期')
-    return
-  }
-  if (!assessmentForm.perfLevel.trim()) {
-    message.warning('请填写绩效等级')
-    return
-  }
-  if (!assessmentForm.assessedAtTs) {
-    message.warning('请选择评定日期')
+  // 就近校验（R-221）：逐字段置错误态 + 聚焦第一个出错字段
+  assessmentErrors.record = assessmentRecord.value ? '' : '请先选择定岗记录'
+  assessmentErrors.period = assessmentForm.period.trim() ? '' : '请填写考核周期'
+  assessmentErrors.perfLevel = assessmentForm.perfLevel.trim() ? '' : '请填写绩效等级'
+  assessmentErrors.assessedAt = assessmentForm.assessedAtTs ? '' : '请选择评定日期'
+  const firstError = assessmentErrors.record
+    ? 'assessment-period'
+    : assessmentErrors.period
+      ? 'assessment-period'
+      : assessmentErrors.perfLevel
+        ? 'assessment-level'
+        : assessmentErrors.assessedAt
+          ? 'assessment-date'
+          : ''
+  if (firstError) {
+    focusFirstError(firstError)
     return
   }
   assessmentSaving.value = true
@@ -1202,11 +1663,27 @@ async function saveAssessment() {
       message.success('定岗考核已创建')
     }
     assessmentFormVisible.value = false
+    // 提交成功后立即清除草稿（R-105）
+    assessmentDraft.clear()
     loadAssessments()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(assessmentWriteError, e, assessmentEditing.value ? '保存定岗考核' : '创建定岗考核', {
+      retryLabel: '重试保存',
+      retry: saveAssessment,
+    })
   } finally {
     assessmentSaving.value = false
+  }
+}
+
+/** 撤销删除：把被删掉的定岗考核恢复回来。 */
+async function restoreAssessment(row: PlacementAssessment) {
+  try {
+    await restorePlacementAssessment(row.id)
+    message.success('定岗考核已恢复')
+    loadAssessments()
+  } catch (e: any) {
+    setWriteError(writeError, e, '恢复定岗考核', { retryLabel: '重试恢复', retry: () => restoreAssessment(row) })
   }
 }
 
@@ -1222,19 +1699,13 @@ async function removeAssessment(row: PlacementAssessment) {
           text: true,
           type: 'primary',
           onClick: async () => {
-            try {
-              await restorePlacementAssessment(row.id)
-              message.success('定岗考核已恢复')
-              loadAssessments()
-            } catch (e: any) {
-              message.error(extractError(e))
-            }
+            await restoreAssessment(row)
           },
         }, { default: () => '撤销' }),
     })
     loadAssessments()
   } catch (e: any) {
-    message.error(extractError(e))
+    setWriteError(writeError, e, '删除定岗考核', { retryLabel: '重试删除', retry: () => removeAssessment(row) })
   }
 }
 
@@ -1308,6 +1779,15 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+/** 表单级前置条件错误（R-221）：图标 + 文字双通道，就近展示在表单顶部 */
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
 }
 .filter-label {
   font-size: var(--text-small);

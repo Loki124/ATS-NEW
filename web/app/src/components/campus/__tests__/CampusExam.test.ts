@@ -62,6 +62,15 @@ function formItem(wrapper: any, label: string) {
     .find((n: any) => n.find('.n-form-item-label').exists() && n.find('.n-form-item-label').text().replace(/\*/g, '').trim() === label)
 }
 
+/** 草稿在 localStorage 里的键（useFormDraft 统一加 `draft:` 前缀）。 */
+const SCORE_DRAFT_KEY = 'draft:campus-exam-score'
+const EXAM_DRAFT_KEY = 'draft:campus-exam-create'
+
+/** 造一份未过期草稿（_ts + _data，格式与 useFormDraft 的写入一致）。 */
+function seedDraft(key: string, data: Record<string, unknown>) {
+  localStorage.setItem(key, JSON.stringify({ _ts: Date.now(), _data: data }))
+}
+
 describe('CampusExam 考试页行为契约', () => {
   beforeEach(() => {
     apiGet.mockReset()
@@ -69,6 +78,7 @@ describe('CampusExam 考试页行为契约', () => {
     apiPut.mockReset()
     apiDelete.mockReset()
     notifyCreate.mockReset()
+    localStorage.clear()
     apiGet.mockImplementation((url: string) => {
       if (url.includes('/exams/') && url.includes('/ranking/')) return Promise.resolve({ data: { data: ranking } })
       if (url.includes('/exams/')) return Promise.resolve({ data: { data: [exam] } })
@@ -181,5 +191,120 @@ describe('CampusExam 考试页行为契约', () => {
 
     const call = apiPost.mock.calls.find((c) => String(c[0]).includes('/campus-learning/exams/'))
     expect(call).toBeUndefined()
+  }, 20000)
+
+  it('⑦ R-105 草稿：打开「录入成绩」弹窗 → 恢复上次填写的内容，并提供「清空」出口', async () => {
+    seedDraft(SCORE_DRAFT_KEY, { exam: 'e1', person: 'p1', score: 88, remark: '补考' })
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'rank'
+    vm.rankExamId = 'e1'
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('录入成绩'))!.trigger('click')
+    await flushPromises()
+
+    // 草稿内容已回填
+    expect(vm.scoreForm.person).toBe('p1')
+    expect(vm.scoreForm.score).toBe(88)
+    expect(vm.scoreForm.remark).toBe('补考')
+
+    // 提示「已恢复上次填写的内容」，并带「清空」出口
+    expect(notifyCreate).toHaveBeenCalled()
+    const opts = notifyCreate.mock.calls[0][0]
+    expect(opts.content).toBe('已恢复上次填写的内容')
+    expect(typeof opts.action).toBe('function')
+
+    // 点「清空」→ 草稿被清掉，表单回到空白
+    const vnode: any = opts.action()
+    vnode.props.onClick()
+    expect(localStorage.getItem(SCORE_DRAFT_KEY)).toBeNull()
+    expect(vm.scoreForm.person).toBeNull()
+  }, 20000)
+
+  it('⑧ R-221 字段级校验：缺必填项 → 字段旁标错 + 提示还差几项，不发写请求', async () => {
+    const wrapper = await mountPage()
+    const vm0 = wrapper.vm as any
+    vm0.activeTab = 'rank'
+    vm0.rankExamId = 'e1'
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('录入成绩'))!.trigger('click')
+    await flushPromises()
+
+    const saveBtn = wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存成绩'))
+    expect(saveBtn).toBeTruthy()
+    await saveBtn!.trigger('click')
+    await flushPromises()
+
+    // 校验没过 → 不发写请求
+    const call = apiPost.mock.calls.find((c) => String(c[0]).includes('/campus-learning/exam-scores/'))
+    expect(call).toBeUndefined()
+
+    // 错误就地显示在字段旁（图标 + 文字双通道）
+    const feedbackText = wrapper
+      .findAll('.n-form-item-feedback')
+      .map((n: any) => n.text())
+      .join('|')
+    expect(feedbackText).toContain('请选择校招生')
+
+    // 顶部给出「还有 N 项未填写」，不再静默
+    expect(wrapper.find('.form-hint').text()).toContain('还有 1 项未填写')
+  }, 20000)
+
+  it('⑨ R-203 写入失败：三段式提示（标题 + 数据安全说明 + 折叠技术详情）', async () => {
+    apiPost.mockRejectedValue({ response: { status: 500, data: { detail: '服务端原始报文' } } })
+    const wrapper = await mountPage()
+    const vm0 = wrapper.vm as any
+    vm0.activeTab = 'rank'
+    vm0.rankExamId = 'e1'
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('录入成绩'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    vm.scoreForm.exam = 'e1'
+    vm.scoreForm.person = 'p1'
+    vm.scoreForm.score = 88
+    await flushPromises()
+
+    const saveBtn = wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存成绩'))
+    await saveBtn!.trigger('click')
+    await flushPromises()
+
+    const box = wrapper.find('.write-error-wrap')
+    expect(box.exists()).toBe(true)
+    // ① 人话描述发生了什么
+    expect(box.text()).toContain('保存成绩没有成功')
+    // ② 用户数据是否安全
+    expect(box.text()).toContain('你填写的内容仍保留在表单里')
+    // ③ 技术详情折叠 + 可复制
+    expect(box.find('.error-code').text()).toContain('HTTP 500 · 服务端原始报文')
+    const btns = box.findAll('button').map((b: any) => b.text()).join('|')
+    expect(btns).toContain('复制错误信息')
+  }, 20000)
+
+  it('⑩ R-105 草稿：新增考试表单独立命名空间（campus-exam-create），与成绩录入互不串档', async () => {
+    seedDraft(EXAM_DRAFT_KEY, {
+      name: '入职必修考试',
+      dateTs: 1758604800000,
+      form: '线上',
+      fullScore: 100,
+      passScore: 60,
+      course: 'c1',
+      enabled: true,
+    })
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('新增考试'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    expect(vm.examForm.name).toBe('入职必修考试')
+    expect(notifyCreate).toHaveBeenCalled()
+    expect(notifyCreate.mock.calls[0][0].content).toBe('已恢复上次填写的内容')
+
+    // 成绩录入的草稿命名空间不受影响
+    expect(localStorage.getItem(SCORE_DRAFT_KEY)).toBeNull()
   }, 20000)
 })

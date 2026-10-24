@@ -26,6 +26,13 @@
 **可见范围**：所有按人取数的列表端点统一走 `apps.campus_control.visibility.visible_persons`
 （只读调用，不修改该模块）—— 班主任只见自己带的班、导师只见自己的徒弟、HRBP 只见归属范围、
 校招生只见本人、超管全量。
+
+🔴 **restore 动作必须额外收一层**（2026-10-24 整改）：restore 要取到**已软删**的行 →
+`SoftDeleteRestoreMixin` 把取数来源换成 `model.all_objects`（含软删行），**只**保留
+`scope_queryset()` 这一个过滤钩子；写在 `get_queryset()` 里的可见范围在 restore 路径上
+会被整层丢弃 → 导师/班主任只要拿到 id 就能复活**别人（可见范围外）**的软删行（越权）。
+故 `CampusCRUDMixin.scope_queryset()` 与各 ViewSet 的 `get_queryset()` 同源收窄，
+范围外的行一律 404（不泄露存在性）。
 """
 from django.db import transaction
 from django.db.models import Count, Sum
@@ -211,8 +218,29 @@ def _visible_person_ids(request):
 class CampusCRUDMixin:
     """写操作统一兜底：带入当前用户；软删（instance.soft_delete）；审计埋点。"""
 
+    #: 行级可见范围的人员维度字段路径（'person' / 'record__person'）；
+    #: None = 该模型无人员维度（岗位需求 / 撮合流程 / 定价方案 / 账单等配置类表）→ 不收窄
+    visibility_person_field = None
+
     def _audit_entity(self) -> str:
         return getattr(self, 'audit_entity', self.queryset.model.__name__)
+
+    def scope_queryset(self, qs):
+        """restore 动作的行级隔离收口（行级可见范围）。
+
+        🔴 为什么必须单独写一层：`SoftDeleteRestoreMixin` 在 restore 动作里把取数
+        来源换成 `model.all_objects`（含软删行），**只**保留 `scope_queryset()` 这一个
+        过滤钩子；可见范围若只写在 `get_queryset()` 里，restore 路径上会被整层丢弃 →
+        导师/班主任只要拿到 id 就能恢复**别人（可见范围外）**的软删志愿 / 定岗记录 ——
+        越权。
+
+        口径与各 ViewSet 的 `get_queryset()` 一致（同一个 `visible_persons` 真源），
+        范围外的行 → 取不到 → 404（不泄露存在性）。
+        """
+        field = self.visibility_person_field
+        if not field:
+            return qs
+        return qs.filter(**{f'{field}__in': visible_persons(self.request.user)})
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user, updated_by=self.request.user)
@@ -264,6 +292,8 @@ class PositionDemandViewSet(
         'withdraw': PERM_EDIT,
         'restore': PERM_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -370,7 +400,11 @@ class PositionApplicationViewSet(
         'assign': PERM_ASSIGN,
         'restore': PERM_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
+    #: 行级可见范围：志愿挂在校招生身上 → restore 按可见人员收窄
+    visibility_person_field = 'person'
 
     def get_queryset(self):
         qs = PositionApplication.objects.filter(deleted_at__isnull=True)
@@ -465,6 +499,28 @@ class PositionApplicationViewSet(
         """改志愿同样受「启动后冻结」约束（DRF 的 partial_update 内部也走 update）。"""
         self._assert_wish_mutable(self.get_object())
         return super().update(request, *args, **kwargs)
+
+    def perform_destroy(self, instance):
+        """删志愿同样受「启动后冻结」约束（2026-10-24 整改）。
+
+        契约 §4.3「`SelectionFlow.started=True` 后校招生不可再修改志愿」——
+        志愿一旦被推送（已进入 BP 的录取/放弃流程），再软删就等于**撤回已推送的志愿**，
+        状态机（②③）与 BP 手里已拿到的志愿对不上 → 服务端直接拒绝。
+        """
+        self._assert_wish_mutable(instance)
+        super().perform_destroy(instance)
+
+    @action(detail=True, methods=['post'], url_path='restore')
+    def restore(self, request, pk=None):
+        """恢复软删志愿：撮合启动后同样冻结（撤回 = 修改志愿）。
+
+        取对象走 `self.get_object()` → `SoftDeleteRestoreMixin` 换成含软删行的
+        manager，并经 `scope_queryset()` 收窄到可见范围（范围外 → 404）。
+        """
+        instance = self.get_object()
+        self._assert_wish_mutable(instance)
+        instance.restore()
+        return success_response({'id': instance.id})
 
     # -- 推送 / 录取 / 放弃 / 指定分配 ---------------------------------------
     @action(detail=True, methods=['post'], url_path='push')
@@ -623,6 +679,8 @@ class SelectionFlowViewSet(
         'publish': PERM_PUBLISH,
         'restore': PERM_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -699,7 +757,11 @@ class PlacementRecordViewSet(
         'partial_update': PERM_TRACK_EDIT, 'destroy': PERM_TRACK_DELETE,
         'restore': PERM_TRACK_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
+    #: 行级可见范围：定岗跟踪挂在校招生身上 → restore 按可见人员收窄
+    visibility_person_field = 'person'
 
     def get_queryset(self):
         qs = PlacementRecord.objects.filter(deleted_at__isnull=True)
@@ -718,6 +780,9 @@ class _PlacementChildViewSet(
 ):
     """定岗子表（目标 / 数据 / 考核）公共基类：按所属定岗记录的校招生收窄可见范围。"""
 
+    #: 人员维度在子表上是「经定岗记录」二级路径 → restore 同样按这条路径收窄
+    visibility_person_field = 'record__person'
+
     def get_queryset(self):
         return self.queryset.filter(deleted_at__isnull=True).filter(
             record__person_id__in=_visible_person_ids(self.request),
@@ -734,6 +799,8 @@ class PlacementGoalViewSet(_PlacementChildViewSet):
         'partial_update': PERM_TRACK_EDIT, 'destroy': PERM_TRACK_DELETE,
         'restore': PERM_TRACK_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
 
 
@@ -747,6 +814,8 @@ class PlacementMetricViewSet(_PlacementChildViewSet):
         'partial_update': PERM_TRACK_EDIT, 'destroy': PERM_TRACK_DELETE,
         'restore': PERM_TRACK_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
 
 
@@ -760,6 +829,8 @@ class PlacementAssessmentViewSet(_PlacementChildViewSet):
         'partial_update': PERM_TRACK_EDIT, 'destroy': PERM_TRACK_DELETE,
         'restore': PERM_TRACK_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
 
 
@@ -780,6 +851,8 @@ class PriceSchemeViewSet(
         'partial_update': PERM_SETTLEMENT_EDIT, 'destroy': PERM_SETTLEMENT_DELETE,
         'restore': PERM_SETTLEMENT_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -811,7 +884,11 @@ class PriceBidViewSet(
         'partial_update': PERM_SETTLEMENT_EDIT, 'destroy': PERM_SETTLEMENT_DELETE,
         'restore': PERM_SETTLEMENT_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
+    #: 行级可见范围：出价挂在校招生身上 → restore 按可见人员收窄
+    visibility_person_field = 'person'
 
     def get_queryset(self):
         return PriceBid.objects.filter(deleted_at__isnull=True).filter(
@@ -833,7 +910,11 @@ class RevenueRecordViewSet(
         'partial_update': PERM_SETTLEMENT_EDIT, 'destroy': PERM_SETTLEMENT_DELETE,
         'restore': PERM_SETTLEMENT_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
+    #: 行级可见范围：台账挂在校招生身上 → restore 按可见人员收窄
+    visibility_person_field = 'person'
 
     def get_queryset(self):
         qs = RevenueRecord.objects.filter(deleted_at__isnull=True)
@@ -861,6 +942,8 @@ class BillViewSet(
         'partial_update': PERM_SETTLEMENT_EDIT, 'destroy': PERM_SETTLEMENT_DELETE,
         'restore': PERM_SETTLEMENT_EDIT,
     }
+    #: 契约 §1.2 的属性名别名（仓库运行时读的是 permission_required_map）
+    permission_map = permission_required_map
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):

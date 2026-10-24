@@ -8,6 +8,10 @@
  *  4. 启动撮合：确认框必须写明「校招生不可再修改志愿」
  *  5. 录取：确认框必须写明「后续填报的志愿会被自动释放」
  *  6. 放弃：确认框必须写明「下一志愿自动推送」
+ *  7. R-105 草稿：恢复上次填写的内容 + 「清空」出口
+ *  8. R-221 字段级校验：错误就地显示（图标 + 文字），不发请求
+ *  9. R-203 写入失败：三段式（人话标题 + 数据安全 + 折叠详情 + 恢复动作）
+ * 10. R-204 文案：按钮不含禁用词「提交」，裸「取消」按语义改写
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -145,6 +149,7 @@ describe('CampusPlacement 定岗双选页行为契约', () => {
     apiPut.mockReset()
     apiDelete.mockReset()
     notifyCreate.mockReset()
+    localStorage.clear()
     apiGet.mockImplementation((url: string) => {
       if (url.includes('/position-demands/')) return Promise.resolve({ data: { data: [demand] } })
       if (url.includes('/selection-flows/')) return Promise.resolve({ data: { data: [flow] } })
@@ -296,5 +301,131 @@ describe('CampusPlacement 定岗双选页行为契约', () => {
     const body = wrapper.find('.n-data-table-tbody').text()
     expect(body).toContain('张一鸣')
     expect(body).toContain('推送中')
+  }, 20000)
+
+  it('⑨ R-105 草稿：打开需求申请弹窗恢复上次填写的内容，并给出「清空」出口', async () => {
+    localStorage.setItem(
+      'draft:campus-placement-demand',
+      JSON.stringify({
+        _ts: Date.now(),
+        _data: {
+          name: '草稿岗位',
+          dept: '直播业务部',
+          businessDept: '三到BG',
+          headcount: 3,
+          needTime: '',
+          workLocation: '',
+          bpName: '',
+          scopeType: 'all',
+          scopeBatch: '',
+          openEnabled: false,
+          openStartTs: null,
+          openEndTs: null,
+          needDesc: '草稿需求描述',
+          bizIntro: '',
+        },
+      }),
+    )
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('申请发布需求'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    expect(vm.demandForm.name).toBe('草稿岗位')
+    expect(vm.demandForm.needDesc).toBe('草稿需求描述')
+
+    const created = notifyCreate.mock.calls.at(-1)
+    expect(created?.[0].content).toBe('已恢复上次填写的内容')
+    const actionVNode = created?.[0].action()
+    expect(actionVNode.children.default()).toBe('清空')
+
+    await actionVNode.props.onClick()
+    await flushPromises()
+    expect(vm.demandForm.name).toBe('')
+    expect(vm.demandForm.needDesc).toBe('')
+    expect(localStorage.getItem('draft:campus-placement-demand')).toBe(null)
+  }, 20000)
+
+  it('⑩ R-221 字段级校验：岗位名称为空 → 错误就地显示在名称字段旁（图标 + 文字），且不发请求', async () => {
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('申请发布需求'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    vm.demandForm.name = ''
+    vm.demandForm.dept = '直播业务部'
+    vm.demandForm.businessDept = '三到BG'
+    vm.demandForm.needDesc = '负责直播间运营'
+    await flushPromises()
+
+    // happy-dom 无法模拟真实焦点（连裸 input 都拿不到 activeElement），
+    // 这里断言「页面确实向第一个出错控件请求了焦点」。
+    const focusSpy = vi.spyOn(vm.demandNameRef, 'focus')
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存需求'))!.trigger('click')
+    await flushPromises()
+
+    const nameItem = formItem(wrapper, '岗位名称')
+    expect(nameItem!.text()).toContain('请填写岗位名称')
+    expect(nameItem!.find('.field-error .n-icon').exists()).toBe(true)
+
+    // 焦点被送到第一个出错字段
+    expect(focusSpy).toHaveBeenCalled()
+
+    expect(apiPost.mock.calls.find((c) => String(c[0]).includes('/campus-placement/position-demands/'))).toBeUndefined()
+  }, 20000)
+
+  it('⑪ R-203 写入失败：弹窗内三段式（人话标题 + 数据安全 + 折叠详情 + 恢复动作）', async () => {
+    apiPost.mockRejectedValue({ response: { status: 500, data: { detail: '服务端原始报文' } } })
+    const wrapper = await mountPage()
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('申请发布需求'))!.trigger('click')
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    vm.demandForm.name = '直播运营管培生'
+    vm.demandForm.dept = '直播业务部'
+    vm.demandForm.businessDept = '三到BG'
+    vm.demandForm.needDesc = '负责直播间运营'
+    await flushPromises()
+
+    await wrapper.findAll('.modal-footer button').find((b) => b.text().includes('保存需求'))!.trigger('click')
+    await flushPromises()
+
+    expect(vm.demandWriteError.title).toBe('保存需求没有成功')
+    expect(vm.demandWriteError.safe).toContain('没有丢失')
+    expect(vm.demandWriteError.detail).toContain('HTTP 500')
+    expect(vm.demandWriteError.detail).toContain('服务端原始报文')
+
+    const box = wrapper.find('.error-state')
+    expect(box.exists()).toBe(true)
+    expect(box.text()).toContain('保存需求没有成功')
+    expect(box.find('.error-state-detail').exists()).toBe(true)
+    expect(box.findAll('button').some((b) => b.text().includes('复制错误信息'))).toBe(true)
+    expect(box.findAll('button').some((b) => b.text().includes('重新保存需求'))).toBe(true)
+  }, 20000)
+
+  it('⑫ R-204 文案：按钮不含禁用词「提交」，裸「取消」按语义改写', async () => {
+    const wrapper = await mountPage()
+
+    // 工具栏入口：动词 + 宾语，且不含「提交」
+    const applyBtn = wrapper.findAll('.toolbar button').find((b) => b.text().includes('申请发布需求'))
+    expect(applyBtn).toBeTruthy()
+    expect(wrapper.text()).not.toContain('提交')
+
+    // 需求申请弹窗：裸「取消」→ 取消办理
+    await applyBtn!.trigger('click')
+    await flushPromises()
+    const demandFooter = wrapper.findAll('.modal-footer button').map((b) => b.text())
+    expect(demandFooter).toContain('取消办理')
+    expect(demandFooter).not.toContain('取消')
+
+    // 驳回弹窗：裸「取消」→ 取消驳回
+    const vm = wrapper.vm as any
+    vm.activeTab = 'review'
+    await flushPromises()
+    await wrapper.findAll('.n-data-table-tbody button').find((b) => b.text().includes('驳回需求'))!.trigger('click')
+    await flushPromises()
+    const rejectFooter = wrapper.findAll('.modal-footer button').map((b) => b.text())
+    expect(rejectFooter).toContain('取消驳回')
   }, 20000)
 })

@@ -8,16 +8,33 @@
  *  4. 批次定义列（批次号 / 批次名称 / 区间起始 / 区间结束 / 命中人数 / 状态）
  *  5. 区间时间轴：按月份铺开区间条，区间重叠 → 给出冲突提示
  *  6. 重算批次号两步走：先 POST recalc（**不带 apply**）出变更预览，确认后才 POST recalc { apply: true } 落库
+ *  7. 【R-109】区间条用 --c-info-deep 阶（白字 8.72:1），不再用 --c-info 主色作实底（3.68:1，不达 AA）
+ *  8. 【R-105】命名规则草稿：恢复上次未提交的内容 + 提供「清空」出口
+ *  9. 【R-221】校验提示就近落在字段旁（图标 + 文字双通道），不再只靠全局 toast
+ * 10. 【R-203】写入失败三段式（人话标题 + 数据安全说明 + 折叠详情 + 复制）
+ * 11. 【R-106】按规则回写批次 → Toast 撤销（8s）+ 回滚
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import CampusBatchRule from '../../../pages/campus/CampusBatchRule.vue'
 
-const { notifyCreate } = vi.hoisted(() => ({ notifyCreate: vi.fn() }))
+const { notifyCreate, msg } = vi.hoisted(() => ({
+  notifyCreate: vi.fn(),
+  msg: {
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+  },
+}))
 
 const apiGet = vi.fn()
 const apiPost = vi.fn()
 const apiPut = vi.fn()
+const apiPatch = vi.fn()
 const apiDelete = vi.fn()
 
 vi.mock('../../../utils/request', () => ({
@@ -25,18 +42,24 @@ vi.mock('../../../utils/request', () => ({
     get: (...args: any[]) => apiGet(...args),
     post: (...args: any[]) => apiPost(...args),
     put: (...args: any[]) => apiPut(...args),
+    patch: (...args: any[]) => apiPatch(...args),
     delete: (...args: any[]) => apiDelete(...args),
   },
 }))
 
 vi.mock('naive-ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('naive-ui')>()
-  const stub = () => ({ info: vi.fn(), success: vi.fn(), warning: vi.fn(), error: vi.fn(), loading: vi.fn() })
   return {
     ...actual,
-    useDialog: () => ({ ...stub(), create: vi.fn() }),
-    useMessage: stub,
-    useNotification: () => ({ create: notifyCreate }),
+    useDialog: () => ({ ...msg, create: vi.fn() }),
+    useMessage: () => msg,
+    // 与真实 API 同形：create 返回带 destroy 的通知实例
+    useNotification: () => ({
+      create: (...args: any[]) => {
+        notifyCreate(...args)
+        return { destroy: vi.fn() }
+      },
+    }),
   }
 })
 
@@ -86,13 +109,40 @@ function formItem(wrapper: any, label: string) {
     .find((n: any) => n.find('.n-form-item-label').exists() && n.find('.n-form-item-label').text().replace(/\*/g, '').trim() === label)
 }
 
+/* ── 对比度工具（WCAG 2.1 相对亮度）── */
+function relLuminance(hex: string): number {
+  const v = hex.replace('#', '')
+  const ch = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) / 255)
+  const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+}
+function contrastRatio(a: string, b: string): number {
+  const la = relLuminance(a)
+  const lb = relLuminance(b)
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la]
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+const TOKENS_CSS = readFileSync(resolve(__dirname, '../../../styles/tokens.css'), 'utf8')
+const PAGE_SRC = readFileSync(resolve(__dirname, '../../../pages/campus/CampusBatchRule.vue'), 'utf8')
+/** 取令牌文件里某个变量的全部取值（浅色 + 暗色各一次）。 */
+function tokenValues(name: string): string[] {
+  return [...TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`, 'g'))].map((m) => m[1])
+}
+
 describe('CampusBatchRule 批次规则页行为契约', () => {
   beforeEach(() => {
     apiGet.mockReset()
     apiPost.mockReset()
     apiPut.mockReset()
+    apiPatch.mockReset()
     apiDelete.mockReset()
     notifyCreate.mockReset()
+    msg.info.mockReset()
+    msg.success.mockReset()
+    msg.warning.mockReset()
+    msg.error.mockReset()
+    localStorage.clear()
     apiGet.mockImplementation((url: string) => {
       if (url.includes('/batch-naming/')) return Promise.resolve({ data: { data: naming } })
       if (url.includes('/batch-rules/preview/')) return Promise.resolve({ data: { data: preview } })
@@ -104,6 +154,7 @@ describe('CampusBatchRule 批次规则页行为契约', () => {
       return Promise.resolve({ data: { data: ruleA } })
     })
     apiPut.mockResolvedValue({ data: { data: naming } })
+    apiPatch.mockResolvedValue({ data: { data: { success: true } } })
     apiDelete.mockResolvedValue({ data: { success: true } })
   })
 
@@ -232,5 +283,155 @@ describe('CampusBatchRule 批次规则页行为契约', () => {
 
     const applyCall = apiPost.mock.calls.filter((c) => String(c[0]).includes('/batch-rules/recalc/')).pop()
     expect(applyCall![1]).toMatchObject({ apply: true })
+  }, 20000)
+
+  it('⑦【R-109】区间条用 --c-info-deep 阶：白字对比度 ≥ 4.5:1（旧的 --c-info 主色只有 3.68:1）', async () => {
+    // 7.1 源码契约：区间条实底走 deep 阶 + on-deep 前景色，不再用主色作实底
+    const barRule = PAGE_SRC.slice(PAGE_SRC.indexOf('.timeline-bar {'), PAGE_SRC.indexOf('.timeline-bar--off'))
+    expect(barRule).toContain('background: var(--c-info-deep);')
+    expect(barRule).toContain('color: var(--on-c-info-deep);')
+    expect(barRule).not.toContain('var(--c-info);')
+
+    // 7.2 令牌实配：浅色 + 暗色两套 deep 阶都达到 AA 4.5:1
+    const deeps = tokenValues('c-info-deep')
+    const onDeeps = tokenValues('on-c-info-deep')
+    expect(deeps.length).toBeGreaterThan(0)
+    deeps.forEach((bg, i) => {
+      expect(contrastRatio(bg, onDeeps[i])).toBeGreaterThanOrEqual(4.5)
+    })
+
+    // 7.3 反证：旧写法（主色 #3B82F6 作实底 + 白字）确实不达标
+    const mainColor = tokenValues('c-info')[0]
+    expect(contrastRatio(mainColor, '#FFFFFF')).toBeLessThan(4.5)
+  }, 20000)
+
+  it('⑧【R-105】草稿：恢复上次未提交的命名规则，并提供「清空」出口', async () => {
+    localStorage.setItem(
+      'draft:campus-batch-rule-naming',
+      JSON.stringify({
+        _ts: Date.now(),
+        _data: {
+          template: '{YY}{MM}{N}',
+          seqWidth: 3,
+          seqStart: 2,
+          cycle: 'month',
+          dateField: 'entryDate',
+          autoApply: false,
+        },
+      }),
+    )
+
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    expect(vm.namingForm.template).toBe('{YY}{MM}{N}')
+    expect(vm.namingForm.seqWidth).toBe(3)
+    expect(vm.namingForm.autoApply).toBe(false)
+
+    // 「已恢复」提示带「清空」出口
+    expect(notifyCreate).toHaveBeenCalled()
+    const opts = notifyCreate.mock.calls[0][0]
+    expect(opts.title).toBe('已恢复上次填写的内容')
+    expect(opts.action).toBeTruthy()
+
+    // 点「清空」→ 草稿被清掉
+    const vnode = opts.action()
+    await vnode.props.onClick()
+    expect(localStorage.getItem('draft:campus-batch-rule-naming')).toBeNull()
+  }, 20000)
+
+  it('⑨【R-105】提交成功后立即清除草稿', async () => {
+    localStorage.setItem(
+      'draft:campus-batch-rule-naming',
+      JSON.stringify({ _ts: Date.now(), _data: { template: '{YY}', seqWidth: 2, seqStart: 1, cycle: 'month', dateField: 'entryDate', autoApply: true } }),
+    )
+    const wrapper = await mountPage()
+    await flushPromises()
+
+    await wrapper.findAll('.form-actions button').find((b) => b.text().includes('保存规则'))!.trigger('click')
+    await flushPromises()
+
+    expect(apiPut.mock.calls.find((c) => String(c[0]).includes('/campus/batch-naming/'))).toBeTruthy()
+    expect(localStorage.getItem('draft:campus-batch-rule-naming')).toBeNull()
+  }, 20000)
+
+  it('⑩【R-221】校验提示就近落在字段旁（图标 + 文字双通道），不发写请求', async () => {
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.namingForm.template = ''
+    await flushPromises()
+
+    await wrapper.findAll('.form-actions button').find((b) => b.text().includes('保存规则'))!.trigger('click')
+    await flushPromises()
+
+    const feedback = wrapper.find('.n-form-item-feedback')
+    expect(feedback.exists()).toBe(true)
+    expect(feedback.text()).toContain('请填写命名模板')
+    // 图标 + 文字双通道（不只靠颜色）
+    expect(feedback.find('.n-icon').exists()).toBe(true)
+    // 校验没过 → 不发写请求
+    expect(apiPut.mock.calls.find((c) => String(c[0]).includes('/campus/batch-naming/'))).toBeUndefined()
+  }, 20000)
+
+  it('⑪【R-203】写入失败三段式：人话标题 + 数据安全说明 + 折叠详情可复制', async () => {
+    apiPut.mockRejectedValue({ response: { status: 500, data: { detail: '批次命名服务不可用' } } })
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.namingForm.template = '{YY}{MM}{SEQ}'
+    await flushPromises()
+
+    await wrapper.findAll('.form-actions button').find((b) => b.text().includes('保存规则'))!.trigger('click')
+    await flushPromises()
+
+    const state = wrapper.find('.error-state')
+    expect(state.exists()).toBe(true)
+    // ① 人话描述（不得以「抱歉」开头，不得直接甩原始报文）
+    expect(state.find('.error-state-title').text()).toBe('保存命名规则没有成功')
+    expect(state.find('.error-state-title').text()).not.toContain('抱歉')
+    // ② 你的数据是否安全
+    expect(state.find('.error-state-desc').text()).toContain('你填写的内容仍保留在表单里')
+    // ③ 技术详情折叠在 <details> 里 + 一键复制
+    const details = state.find('details')
+    expect(details.exists()).toBe(true)
+    expect(details.text()).toContain('HTTP 500')
+    expect(details.text()).toContain('批次命名服务不可用')
+    expect(state.findAll('button').some((b) => b.text().includes('复制错误信息'))).toBe(true)
+  }, 20000)
+
+  it('⑫【R-106】按规则回写批次 → Toast 撤销（8s），撤销会回滚已回写的批次', async () => {
+    apiPost.mockImplementation((url: string) => {
+      if (String(url).includes('/batch-rules/apply/')) {
+        return Promise.resolve({
+          data: {
+            data: {
+              filled: 1,
+              skipped: 0,
+              unmatched: 0,
+              details: [{ person_id: 'p1', code: 'C93000001', name: '张三', batch: '202609' }],
+            },
+          },
+        })
+      }
+      return Promise.resolve({ data: { data: ruleA } })
+    })
+
+    const wrapper = await mountPage()
+    const vm = wrapper.vm as any
+    vm.activeTab = 'rules'
+    await flushPromises()
+
+    await wrapper.findAll('.toolbar button').find((b) => b.text().includes('按规则回写批次'))!.trigger('click')
+    await flushPromises()
+
+    expect(notifyCreate).toHaveBeenCalled()
+    const opts = notifyCreate.mock.calls[0][0]
+    expect(opts.duration).toBe(8000)
+    expect(opts.content).toContain('已按规则回写 1 人')
+    expect(opts.action).toBeTruthy()
+
+    // 点「撤销」→ 逐个把被回写人员的批次清回空值
+    const vnode = opts.action()
+    await vnode.props.onClick()
+    await flushPromises()
+    expect(apiPatch).toHaveBeenCalledWith('/campus/persons/p1/', { batch: '' })
   }, 20000)
 })

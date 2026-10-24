@@ -153,16 +153,60 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203）：人话标题 + 数据是否安全 + 折叠技术详情（可一键复制） -->
+      <div v-if="examWriteError" ref="examWriteErrorRef" class="write-error-wrap">
+        <n-alert type="error" :show-icon="true" :title="examWriteError.title">
+          <div class="error-safe">{{ examWriteError.safe }}</div>
+          <details class="error-details">
+            <summary>查看详情</summary>
+            <pre class="error-code">{{ examWriteError.detail }}</pre>
+            <n-button size="tiny" quaternary @click="copyText(examWriteError.detail)">复制错误信息</n-button>
+          </details>
+        </n-alert>
+      </div>
+
         <n-form :model="examForm" label-placement="top">
+          <!-- 未填项提示（R-221 / R-204）：图标 + 文字双通道 -->
+          <div v-if="examValidateAttempted && examMissingLabels.length" class="form-hint" role="status">
+            <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+            <span>还有 {{ examMissingLabels.length }} 项未填写：{{ examMissingLabels.join('、') }}</span>
+          </div>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
-              <n-form-item label="考试名称" required>
-                <n-input v-model:value="examForm.name" placeholder="请输入考试名称" />
+              <n-form-item
+                label="考试名称"
+                required
+                :validation-status="examNameError ? 'error' : undefined"
+                :show-feedback="!!examNameError"
+              >
+                <n-input ref="examNameRef" v-model:value="examForm.name" placeholder="请输入考试名称" />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    <span>{{ examNameError }}</span>
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="考试日期" required>
-                <n-date-picker v-model:value="examForm.dateTs" type="date" style="width: 100%" />
+              <n-form-item
+                label="考试日期"
+                required
+                :validation-status="examDateError ? 'error' : undefined"
+                :show-feedback="!!examDateError"
+              >
+                <n-date-picker
+                  ref="examDateRef"
+                  v-model:value="examForm.dateTs"
+                  type="date"
+                  style="width: 100%"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    <span>{{ examDateError }}</span>
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -176,13 +220,45 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="满分" required>
-                <n-input-number v-model:value="examForm.fullScore" :min="1" style="width: 100%" />
+              <n-form-item
+                label="满分"
+                required
+                :validation-status="examFullScoreError ? 'error' : undefined"
+                :show-feedback="!!examFullScoreError"
+              >
+                <n-input-number
+                  ref="examFullScoreRef"
+                  v-model:value="examForm.fullScore"
+                  :min="1"
+                  style="width: 100%"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    <span>{{ examFullScoreError }}</span>
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
-              <n-form-item label="及格分" required>
-                <n-input-number v-model:value="examForm.passScore" :min="0" style="width: 100%" />
+              <n-form-item
+                label="及格分"
+                required
+                :validation-status="examPassScoreError ? 'error' : undefined"
+                :show-feedback="!!examPassScoreError"
+              >
+                <n-input-number
+                  ref="examPassScoreRef"
+                  v-model:value="examForm.passScore"
+                  :min="0"
+                  style="width: 100%"
+                />
+                <template #feedback>
+                  <span class="field-error">
+                    <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                    <span>{{ examPassScoreError }}</span>
+                  </span>
+                </template>
               </n-form-item>
             </n-grid-item>
             <n-grid-item>
@@ -197,7 +273,9 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="examFormVisible = false">取消</n-button>
+            <n-button :disabled="examSaving" @click="examFormVisible = false">
+              {{ examEditing ? '取消编辑' : '取消新增' }}
+            </n-button>
             <n-button type="primary" :loading="examSaving" :disabled="examSaving" @click="saveExam">保存考试</n-button>
           </div>
         </template>
@@ -213,12 +291,51 @@
         :mask-closable="false"
         :bordered="false"
       >
+        <!-- 写入失败三段式（R-203） -->
+      <div v-if="scoreWriteError" ref="scoreWriteErrorRef" class="write-error-wrap">
+        <n-alert type="error" :show-icon="true" :title="scoreWriteError.title">
+          <div class="error-safe">{{ scoreWriteError.safe }}</div>
+          <details class="error-details">
+            <summary>查看详情</summary>
+            <pre class="error-code">{{ scoreWriteError.detail }}</pre>
+            <n-button size="tiny" quaternary @click="copyText(scoreWriteError.detail)">复制错误信息</n-button>
+          </details>
+        </n-alert>
+      </div>
+
         <n-form :model="scoreForm" label-placement="top">
-          <n-form-item label="考试" required>
-            <n-select v-model:value="scoreForm.exam" :options="examOptions" placeholder="请选择考试" />
-          </n-form-item>
-          <n-form-item label="校招生" required>
+          <!-- 未填项提示（R-221 / R-204）：图标 + 文字双通道 -->
+          <div v-if="scoreValidateAttempted && scoreMissingLabels.length" class="form-hint" role="status">
+            <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+            <span>还有 {{ scoreMissingLabels.length }} 项未填写：{{ scoreMissingLabels.join('、') }}</span>
+          </div>
+          <n-form-item
+            label="考试"
+            required
+            :validation-status="scoreExamError ? 'error' : undefined"
+            :show-feedback="!!scoreExamError"
+          >
             <n-select
+              ref="scoreExamRef"
+              v-model:value="scoreForm.exam"
+              :options="examOptions"
+              placeholder="请选择考试"
+            />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                <span>{{ scoreExamError }}</span>
+              </span>
+            </template>
+          </n-form-item>
+          <n-form-item
+            label="校招生"
+            required
+            :validation-status="scorePersonError ? 'error' : undefined"
+            :show-feedback="!!scorePersonError"
+          >
+            <n-select
+              ref="scorePersonRef"
               v-model:value="scoreForm.person"
               :options="personOptions"
               placeholder="搜索并选择校招生"
@@ -228,6 +345,12 @@
               :loading="personLoading"
               :on-search="onPersonSearch"
             />
+            <template #feedback>
+              <span class="field-error">
+                <n-icon :component="AlertCircleOutline" aria-hidden="true" />
+                <span>{{ scorePersonError }}</span>
+              </span>
+            </template>
           </n-form-item>
           <n-grid :cols="2" :x-gap="16">
             <n-grid-item>
@@ -247,7 +370,7 @@
         </n-form>
         <template #footer>
           <div class="modal-footer">
-            <n-button @click="scoreFormVisible = false">取消</n-button>
+            <n-button :disabled="scoreSaving" @click="scoreFormVisible = false">取消评分</n-button>
             <n-button type="primary" :loading="scoreSaving" :disabled="scoreSaving" @click="saveScore">保存成绩</n-button>
           </div>
         </template>
@@ -259,6 +382,7 @@
 <script setup lang="ts">
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import {
+  NAlert,
   NButton,
   NDataTable,
   NDatePicker,
@@ -295,7 +419,8 @@ import {
   type Exam,
   type ExamRankingRow,
 } from '../../api/campusLearning'
-import { extractError, searchPersons, type SelectOption } from '../../utils/campus'
+import { extractError, searchPersons, type SelectOption, buildWriteError, type WriteErrorInfo } from '../../utils/campus'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 const message = useMessage()
 const notification = useNotification()
@@ -419,7 +544,15 @@ const examColumns = computed(() => [
             default: () => '编辑考试',
             icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
           }),
-          h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => removeExam(row) }, {
+          h(NButton, {
+            size: 'small',
+            quaternary: true,
+            type: 'error',
+            // R-101：写入期间禁用，避免重复提交
+            disabled: removingExamId.value === row.id,
+            loading: removingExamId.value === row.id,
+            onClick: () => removeExam(row),
+          }, {
             default: () => '删除考试',
             icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
           }),
@@ -444,6 +577,81 @@ const examForm = reactive({
   enabled: true,
 })
 
+/**
+ * 草稿自动保存（R-105）：命名空间按「页面-表单」唯一。
+ * 考试表单 7 个字段（含课程下拉与分数设置），人工填写超过 1 分钟 → 接草稿；
+ * 编辑态传 enabled: () => !examEditing.value，草稿不会覆盖真实 row 数据。
+ *
+ * ⚠️ examDraftEnabled：提交成功后置 false —— 否则「待写入的 800ms 定时器」会在
+ *    draft.clear() 之后把刚提交的内容又写回草稿，造成下次打开误报「已恢复」。
+ */
+const examDraftEnabled = ref(true)
+const examDraft = useFormDraft('campus-exam-create', examForm, {
+  enabled: () => examDraftEnabled.value && !examEditing.value,
+})
+
+/** 草稿里是否已有有效内容（空草稿不提示恢复）。 */
+function hasExamDraftContent(): boolean {
+  return Boolean(examForm.name.trim())
+}
+
+/* ── 字段级校验（R-221） ── */
+
+/** 是否已尝试提交：决定是否显示字段级错误；提交后随输入实时更新。 */
+const examValidateAttempted = ref(false)
+
+/** 缺失必填项的中文字段名。 */
+const examMissingLabels = computed(() => {
+  const list: string[] = []
+  if (!examForm.name.trim()) list.push('考试名称')
+  if (!examForm.dateTs) list.push('考试日期')
+  if (!examForm.fullScore || examForm.fullScore < 1) list.push('满分')
+  if (examForm.passScore == null || examForm.passScore < 0) list.push('及格分')
+  return list
+})
+
+const examNameError = computed(() =>
+  examValidateAttempted.value && !examForm.name.trim() ? '请填写考试名称' : '',
+)
+const examDateError = computed(() =>
+  examValidateAttempted.value && !examForm.dateTs ? '请选择考试日期' : '',
+)
+const examFullScoreError = computed(() =>
+  examValidateAttempted.value && (!examForm.fullScore || examForm.fullScore < 1)
+    ? '请填写满分（不少于 1 分）'
+    : '',
+)
+const examPassScoreError = computed(() =>
+  examValidateAttempted.value && (examForm.passScore == null || examForm.passScore < 0)
+    ? '请填写及格分（不小于 0 分）'
+    : '',
+)
+
+/** 首个出错字段的聚焦句柄。 */
+const examNameRef = ref<any>(null)
+const examDateRef = ref<any>(null)
+const examFullScoreRef = ref<any>(null)
+const examPassScoreRef = ref<any>(null)
+
+function focusFirstExamInvalid() {
+  const candidates = [
+    { err: examNameError.value, el: examNameRef.value },
+    { err: examDateError.value, el: examDateRef.value },
+    { err: examFullScoreError.value, el: examFullScoreRef.value },
+    { err: examPassScoreError.value, el: examPassScoreRef.value },
+  ]
+  const hit = candidates.find((c) => c.err && c.el)
+  hit?.el?.focus?.()
+}
+
+/* ── 写入失败三段式（R-203） ── */
+const examWriteError = ref<WriteErrorInfo | null>(null)
+const examWriteErrorRef = ref<HTMLElement | null>(null)
+
+function scrollExamWriteErrorIntoView() {
+  examWriteErrorRef.value?.scrollIntoView?.({ block: 'nearest' })
+}
+
 function toDateStr(ts: number | null) {
   if (!ts) return undefined
   const d = new Date(ts)
@@ -451,7 +659,7 @@ function toDateStr(ts: number | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-function openExamCreate() {
+function resetExamForm() {
   Object.assign(examForm, {
     name: '',
     dateTs: Date.now(),
@@ -461,7 +669,44 @@ function openExamCreate() {
     course: null,
     enabled: true,
   })
+}
+
+function openExamCreate() {
   examEditing.value = null
+  examValidateAttempted.value = false
+  examWriteError.value = null
+  examDraftEnabled.value = true
+  // R-105：打开弹窗时探测草稿 → 恢复内容并给出「清空」出口；空草稿直接丢弃。
+  if (examDraft.probe()) {
+    examDraft.restore()
+    if (hasExamDraftContent()) {
+      notification.create({
+        content: '已恢复上次填写的内容',
+        duration: 8000,
+        keepAliveOnHover: true,
+        action: () =>
+          h(
+            NButton,
+            {
+              text: true,
+              type: 'primary',
+              onClick: () => {
+                // R-105：清空出口 = 清草稿 + 清表单，用户可从头重填
+                examDraft.clear()
+                resetExamForm()
+                message.success('已清空草稿，可重新填写')
+              },
+            },
+            { default: () => '清空' },
+          ),
+      })
+    } else {
+      examDraft.clear()
+      resetExamForm()
+    }
+  } else {
+    resetExamForm()
+  }
   examFormVisible.value = true
 }
 
@@ -476,16 +721,19 @@ function openExamEdit(row: Exam) {
     enabled: row.enabled !== false,
   })
   examEditing.value = row
+  examValidateAttempted.value = false
+  examWriteError.value = null
   examFormVisible.value = true
 }
 
 async function saveExam() {
-  if (!examForm.name.trim()) {
-    message.warning('请填写考试名称')
-    return
-  }
-  if (!examForm.dateTs) {
-    message.warning('请选择考试日期')
+  const editing = examEditing.value
+  // R-221：提交前先跑字段级校验，错误就地显示并聚焦第一个出错字段
+  examValidateAttempted.value = true
+  examWriteError.value = null
+  if (examMissingLabels.value.length) {
+    message.warning(`还有 ${examMissingLabels.value.length} 项未填写，已在对应字段标出`)
+    focusFirstExamInvalid()
     return
   }
   examSaving.value = true
@@ -499,24 +747,36 @@ async function saveExam() {
     enabled: examForm.enabled,
   }
   try {
-    if (examEditing.value) {
-      await updateExam(examEditing.value.id, payload)
+    if (editing) {
+      await updateExam(editing.id, payload)
       message.success('考试已更新')
     } else {
       await createExam(payload)
       message.success('考试已创建')
     }
+    // R-105：新增成功后立即清除草稿（编辑态本就不写草稿）
+    if (!editing) {
+      examDraft.clear()
+      examDraftEnabled.value = false
+    }
+    examValidateAttempted.value = false
     examFormVisible.value = false
     loadExams()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：三段式写入失败提示
+    examWriteError.value = buildWriteError(e, { action: editing ? '更新考试' : '保存考试' })
+    scrollExamWriteErrorIntoView()
   } finally {
     examSaving.value = false
   }
 }
 
 /** 删除单条考试 = 中等破坏性操作 → 直接执行 + 通知撤销（R-106）。 */
+const removingExamId = ref('')
+
 async function removeExam(row: Exam) {
+  if (removingExamId.value) return
+  removingExamId.value = row.id
   try {
     await deleteExam(row.id)
     notification.create({
@@ -533,14 +793,18 @@ async function removeExam(row: Exam) {
               message.success('考试已恢复')
               loadExams()
             } catch (e: any) {
-              message.error(extractError(e))
+              const info = buildWriteError(e, { action: '恢复考试' })
+              message.error(`${info.title}。${info.safe}`)
             }
           },
         }, { default: () => '撤销' }),
     })
     loadExams()
   } catch (e: any) {
-    message.error(extractError(e))
+    const info = buildWriteError(e, { action: '删除考试' })
+    message.error(`${info.title}。${info.safe}`)
+  } finally {
+    removingExamId.value = ''
   }
 }
 
@@ -625,18 +889,107 @@ async function onPersonSearch(kw: string) {
   }
 }
 
+/**
+ * 成绩录入草稿（R-105）：命名空间按「页面-表单」唯一。
+ * 选考试 + 远程搜索校招生 + 录分 + 备注，填写耗时超过 1 分钟 → 接草稿。
+ *
+ * ⚠️ scoreDraftEnabled：提交成功后置 false —— 否则「待写入的 800ms 定时器」会在
+ *    draft.clear() 之后把刚提交的内容又写回草稿，造成下次打开误报「已恢复」。
+ */
+const scoreDraftEnabled = ref(true)
+const scoreDraft = useFormDraft('campus-exam-score', scoreForm, {
+  enabled: () => scoreDraftEnabled.value,
+})
+
+/** 草稿里是否已有有效内容（空草稿不提示恢复）。 */
+function hasScoreDraftContent(): boolean {
+  return Boolean(scoreForm.person || scoreForm.remark.trim())
+}
+
+/* ── 字段级校验（R-221） ── */
+const scoreValidateAttempted = ref(false)
+
+/** 缺失必填项的中文字段名。 */
+const scoreMissingLabels = computed(() => {
+  const list: string[] = []
+  if (!scoreForm.exam) list.push('考试')
+  if (!scoreForm.person) list.push('校招生')
+  return list
+})
+
+const scoreExamError = computed(() =>
+  scoreValidateAttempted.value && !scoreForm.exam ? '请选择考试' : '',
+)
+const scorePersonError = computed(() =>
+  scoreValidateAttempted.value && !scoreForm.person ? '请选择校招生' : '',
+)
+
+/** 首个出错字段的聚焦句柄。 */
+const scoreExamRef = ref<any>(null)
+const scorePersonRef = ref<any>(null)
+
+function focusFirstScoreInvalid() {
+  const candidates = [
+    { err: scoreExamError.value, el: scoreExamRef.value },
+    { err: scorePersonError.value, el: scorePersonRef.value },
+  ]
+  const hit = candidates.find((c) => c.err && c.el)
+  hit?.el?.focus?.()
+}
+
+/* ── 写入失败三段式（R-203） ── */
+const scoreWriteError = ref<WriteErrorInfo | null>(null)
+const scoreWriteErrorRef = ref<HTMLElement | null>(null)
+
+function scrollScoreWriteErrorIntoView() {
+  scoreWriteErrorRef.value?.scrollIntoView?.({ block: 'nearest' })
+}
+
 function openScoreCreate() {
-  Object.assign(scoreForm, { exam: rankExamId.value, person: null, score: 0, remark: '' })
+  scoreValidateAttempted.value = false
+  scoreWriteError.value = null
+  scoreDraftEnabled.value = true
+  // R-105：打开弹窗时探测草稿 → 恢复内容并给出「清空」出口；空草稿直接丢弃。
+  if (scoreDraft.probe()) {
+    scoreDraft.restore()
+    if (hasScoreDraftContent()) {
+      notification.create({
+        content: '已恢复上次填写的内容',
+        duration: 8000,
+        keepAliveOnHover: true,
+        action: () =>
+          h(
+            NButton,
+            {
+              text: true,
+              type: 'primary',
+              onClick: () => {
+                // R-105：清空出口 = 清草稿 + 清表单，用户可从头重填
+                scoreDraft.clear()
+                Object.assign(scoreForm, { exam: rankExamId.value, person: null, score: 0, remark: '' })
+                message.success('已清空草稿，可重新填写')
+              },
+            },
+            { default: () => '清空' },
+          ),
+      })
+    } else {
+      scoreDraft.clear()
+      Object.assign(scoreForm, { exam: rankExamId.value, person: null, score: 0, remark: '' })
+    }
+  } else {
+    Object.assign(scoreForm, { exam: rankExamId.value, person: null, score: 0, remark: '' })
+  }
   scoreFormVisible.value = true
 }
 
 async function saveScore() {
-  if (!scoreForm.exam) {
-    message.warning('请选择考试')
-    return
-  }
-  if (!scoreForm.person) {
-    message.warning('请选择校招生')
+  // R-221：提交前先跑字段级校验，错误就地显示并聚焦第一个出错字段
+  scoreValidateAttempted.value = true
+  scoreWriteError.value = null
+  if (scoreMissingLabels.value.length) {
+    message.warning(`还有 ${scoreMissingLabels.value.length} 项未填写，已在对应字段标出`)
+    focusFirstScoreInvalid()
     return
   }
   scoreSaving.value = true
@@ -648,10 +1001,16 @@ async function saveScore() {
       remark: scoreForm.remark.trim(),
     })
     message.success('成绩已保存')
+    // R-105：提交成功后立即清除草稿（并停掉本次会话的自动保存，避免待写入定时器把已提交内容写回）
+    scoreDraft.clear()
+    scoreDraftEnabled.value = false
+    scoreValidateAttempted.value = false
     scoreFormVisible.value = false
     if (rankExamId.value) loadRanking()
   } catch (e: any) {
-    message.error(extractError(e))
+    // R-203：三段式写入失败提示
+    scoreWriteError.value = buildWriteError(e, { action: '保存成绩' })
+    scrollScoreWriteErrorIntoView()
   } finally {
     scoreSaving.value = false
   }
@@ -705,12 +1064,21 @@ onMounted(async () => {
 }
 .toolbar-search {
   width: 240px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .toolbar-select {
   width: 150px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .toolbar-select-wide {
   width: 280px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .spacer {
   flex: 1;
@@ -731,6 +1099,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* R-103：允许整组在窄屏收缩到行宽以内 */
+  min-width: 0;
+  max-width: 100%;
 }
 .filter-label {
   font-size: var(--text-small);
@@ -781,5 +1152,46 @@ onMounted(async () => {
   font-size: var(--fs-12);
   white-space: pre-wrap;
   word-break: break-all;
+}
+/* 写入失败三段式（R-203）：标题 + 数据安全说明 + 折叠技术详情 */
+.write-error-wrap {
+  margin-bottom: var(--space-3);
+}
+.error-safe {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.error-details {
+  margin-top: var(--space-2);
+  font-size: var(--text-meta);
+  color: var(--ink-soft);
+}
+.error-code {
+  margin: var(--space-1) 0;
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+/* 字段级错误：图标 + 文字双通道（R-221），不靠颜色单独表达 */
+.field-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
+}
+.form-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-small);
+  color: var(--c-error-deep);
+  overflow-wrap: anywhere;
 }
 </style>
